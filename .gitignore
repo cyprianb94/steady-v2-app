@@ -1,0 +1,19 @@
+node_modules/
+dist/
+.env
+.env.local
+*.tsbuildinfo
+
+# Expo
+packages/app/.expo/
+packages/app/ios/
+packages/app/android/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Claude Code
+.claude/

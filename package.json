@@ -1,0 +1,20 @@
+{
+  "name": "steady-v2",
+  "private": true,
+  "workspaces": [
+    "packages/types",
+    "packages/server",
+    "packages/app"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "test:server": "npm run test -w packages/server",
+    "dev:server": "npm run dev -w packages/server",
+    "dev:app": "npm run start -w packages/app",
+    "build:types": "npm run build -w packages/types",
+    "typecheck": "tsc --noEmit -p packages/types/tsconfig.json && tsc --noEmit -p packages/server/tsconfig.json"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
