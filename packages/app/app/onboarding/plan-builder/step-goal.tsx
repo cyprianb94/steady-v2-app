@@ -8,7 +8,7 @@ import { Btn } from '../../../components/ui/Btn';
 import { PhaseEditor } from '../../../components/plan-builder/PhaseEditor';
 import { ScrollPicker } from '../../../components/plan-builder/ScrollPicker';
 import { RACE_TARGETS } from '../../../lib/plan-helpers';
-import { defaultPhases } from '@steady/server/src/lib/plan-generator';
+import { defaultPhases } from '@steady/types';
 import type { PhaseConfig } from '@steady/types';
 
 const RACES = ['5K', '10K', 'Half Marathon', 'Marathon'] as const;

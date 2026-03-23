@@ -8,7 +8,7 @@ import { SectionLabel } from '../../../components/ui/SectionLabel';
 import { Btn } from '../../../components/ui/Btn';
 import { SessionEditor } from '../../../components/plan-builder/SessionEditor';
 import { DAYS, sessionLabel, TYPE_DEFAULTS } from '../../../lib/plan-helpers';
-import { sessionKm } from '@steady/server/src/lib/session-km';
+import { sessionKm } from '@steady/types';
 import type { PlannedSession } from '@steady/types';
 
 const DEFAULT_TEMPLATE: (Partial<PlannedSession> | null)[] = [

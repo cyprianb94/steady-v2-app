@@ -8,9 +8,7 @@ import { FONTS } from '../../../constants/typography';
 import { Btn } from '../../../components/ui/Btn';
 import { SessionDot } from '../../../components/ui/SessionDot';
 import { SessionRow } from '../../../components/plan-builder/SessionRow';
-import { generatePlan } from '@steady/server/src/lib/plan-generator';
-import { sessionKm } from '@steady/server/src/lib/session-km';
-import { propagateChange } from '@steady/server/src/lib/propagate-change';
+import { generatePlan, propagateChange } from '@steady/types';
 import { trpc } from '../../../lib/trpc';
 import type { PlannedSession, PhaseConfig, PlanWeek } from '@steady/types';
 

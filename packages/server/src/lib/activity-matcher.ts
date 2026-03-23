@@ -1,4 +1,5 @@
 import type { Activity, PlannedSession, PlanWeek } from '@steady/types';
+import { expectedDistance } from '@steady/types';
 
 /**
  * Match an activity to a planned session.
@@ -108,9 +109,4 @@ function closestByDistance(
   return best;
 }
 
-function expectedDistance(session: PlannedSession): number {
-  if (session.type === 'INTERVAL' && session.reps && session.repDist) {
-    return session.reps * session.repDist / 1000 + (session.warmup ?? 0) + (session.cooldown ?? 0);
-  }
-  return (session.distance ?? 8) + (session.warmup ?? 0) + (session.cooldown ?? 0);
-}
+// expectedDistance is now imported from @steady/types

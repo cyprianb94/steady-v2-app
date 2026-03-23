@@ -1,6 +1,7 @@
-import type { PlannedSession, SessionType, PlanWeek, RecoveryDuration } from '@steady/types';
-import { RECOVERY_KM } from '@steady/types';
-import { SESSION_TYPE } from '../constants/session-types';
+import type { PlannedSession, SessionType } from '@steady/types';
+
+// Re-export shared functions from types so existing app imports keep working
+export { sessionKm, weekKm } from '@steady/types';
 
 export const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 
@@ -35,27 +36,6 @@ export const RACE_TARGETS: Record<string, string[]> = {
   'Half Marathon': ['sub-1:25', 'sub-1:30', 'sub-1:40', 'sub-1:45', 'sub-1:50', 'sub-2:00'],
   'Marathon': ['sub-2:45', 'sub-3:00', 'sub-3:15', 'sub-3:30', 'sub-3:45', 'sub-4:00'],
 };
-
-/** Total km for a single session (mirrors server's sessionKm). */
-export function sessionKm(s: PlannedSession | null): number {
-  if (!s || s.type === 'REST') return 0;
-  const wu = s.warmup ? Number(s.warmup) : 0;
-  const cd = s.cooldown ? Number(s.cooldown) : 0;
-  const recKm = s.recovery
-    ? (RECOVERY_KM[s.recovery as RecoveryDuration] ?? 0) * (s.reps ?? 1)
-    : 0;
-  if (s.type === 'INTERVAL' && s.reps && s.repDist) {
-    return Math.round((s.reps * s.repDist / 1000 + recKm + wu + cd) * 10) / 10;
-  }
-  return (s.distance ?? 8) + wu + cd;
-}
-
-/** Total planned km for a week. */
-export function weekKm(week: PlanWeek): number {
-  return Math.round(
-    week.sessions.reduce((sum, s) => sum + sessionKm(s), 0) * 10,
-  ) / 10;
-}
 
 export function sessionLabel(s: Partial<PlannedSession> | null): string {
   if (!s || s.type === 'REST') return 'Rest';
