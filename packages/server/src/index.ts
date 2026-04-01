@@ -1,10 +1,22 @@
 import Fastify from 'fastify';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   fastifyTRPCPlugin,
   type FastifyTRPCPluginOptions,
 } from '@trpc/server/adapters/fastify';
 import { appRouter, type AppRouter } from './trpc/router';
 import { createContext } from './trpc/context';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const envPath = path.resolve(__dirname, '../../../.env');
+
+try {
+  process.loadEnvFile(envPath);
+} catch {
+  // Local env is optional in tests/CI and may be injected by the shell instead.
+}
 
 const server = Fastify({ logger: true });
 
