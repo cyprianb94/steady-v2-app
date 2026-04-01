@@ -1,18 +1,32 @@
-import type { FastifyRequest } from 'fastify';
 import type { CreateFastifyContextOptions } from '@trpc/server/adapters/fastify';
+import { getUserIdFromAccessToken } from '../lib/supabase-admin';
 
 export interface Context {
   userId: string | null;
 }
 
+function getBearerToken(authorization: string | string[] | undefined): string | null {
+  if (!authorization) return null;
+  const raw = Array.isArray(authorization) ? authorization[0] : authorization;
+  const [scheme, token] = raw.split(' ');
+  if (scheme?.toLowerCase() !== 'bearer' || !token) return null;
+  return token;
+}
+
+export async function resolveUserId(
+  authorization: string | string[] | undefined,
+  verifyToken: (token: string) => Promise<string | null> = getUserIdFromAccessToken,
+): Promise<string | null> {
+  const token = getBearerToken(authorization);
+  if (!token) return null;
+  return verifyToken(token);
+}
+
 /**
  * Creates context for each tRPC request.
- * Extracts user ID from the Authorization header (Supabase JWT).
- * Full JWT verification will be added with Supabase auth (Slice 7+).
+ * Extracts the bearer token and verifies it against Supabase Auth.
  */
-export function createContext({ req }: CreateFastifyContextOptions): Context {
-  // TODO: Verify Supabase JWT and extract user ID
-  const authHeader = req.headers.authorization;
-  const userId = authHeader?.replace('Bearer ', '') || null;
+export async function createContext({ req }: CreateFastifyContextOptions): Promise<Context> {
+  const userId = await resolveUserId(req.headers.authorization);
   return { userId };
 }

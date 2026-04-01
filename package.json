@@ -14,6 +14,9 @@
     "build:types": "npm run build -w packages/types",
     "typecheck": "tsc --noEmit -p packages/types/tsconfig.json && tsc --noEmit -p packages/server/tsconfig.json"
   },
+  "overrides": {
+    "react": "19.1.0"
+  },
   "engines": {
     "node": ">=20.0.0"
   }

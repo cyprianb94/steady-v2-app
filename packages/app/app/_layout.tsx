@@ -1,6 +1,7 @@
 import React from 'react';
 import { Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
+import { AuthProvider } from '../lib/auth';
 
 export default function RootLayout() {
   useFonts({
@@ -14,9 +15,11 @@ export default function RootLayout() {
   });
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="onboarding" />
-    </Stack>
+    <AuthProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="onboarding" />
+      </Stack>
+    </AuthProvider>
   );
 }
