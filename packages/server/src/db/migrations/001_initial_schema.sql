@@ -38,6 +38,7 @@ create table training_plans (
   progression_pct integer not null default 0,
   template_week jsonb not null,
   weeks jsonb not null,
+  is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -56,6 +57,7 @@ create table activities (
   avg_hr numeric,
   max_hr numeric,
   splits jsonb not null default '[]',
+  subjective_input jsonb,
   matched_session_id text,
   created_at timestamptz not null default now()
 );

@@ -7,14 +7,14 @@ import {
   type CoachDeps,
 } from '../lib/coach-orchestrator';
 import { createLLMClient } from '../lib/llm-client';
-import { planStore } from '../lib/stores';
+import type { PlanRepo } from '../repos/plan-repo';
 
 const llm = createLLMClient();
 
-function createDeps(): CoachDeps {
+function createDeps(planRepo: PlanRepo): CoachDeps {
   return {
     llm,
-    getPlan: async (userId) => planStore.get(userId) ?? null,
+    getPlan: async (userId) => planRepo.getActive(userId),
     getActivities: async () => [],
     getUser: async (userId) => ({
       id: userId,
@@ -28,38 +28,40 @@ function createDeps(): CoachDeps {
   };
 }
 
-export const coachRouter = router({
-  /** Send a message to the coach and get a reply. */
-  send: authedProcedure
-    .input(
-      z.object({
-        conversationId: z.string().optional(),
-        message: z.string().min(1),
+export function createCoachRouter(planRepo: PlanRepo) {
+  return router({
+    /** Send a message to the coach and get a reply. */
+    send: authedProcedure
+      .input(
+        z.object({
+          conversationId: z.string().optional(),
+          message: z.string().min(1),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const deps = createDeps(planRepo);
+        const { conversation, reply } = await handleCoachMessage(
+          ctx.userId,
+          input.conversationId,
+          input.message,
+          deps,
+        );
+        return {
+          conversationId: conversation.id,
+          reply,
+        };
       }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      const deps = createDeps();
-      const { conversation, reply } = await handleCoachMessage(
-        ctx.userId,
-        input.conversationId,
-        input.message,
-        deps,
-      );
-      return {
-        conversationId: conversation.id,
-        reply,
-      };
-    }),
 
-  /** Get a specific conversation by ID. */
-  getConversation: authedProcedure
-    .input(z.object({ conversationId: z.string() }))
-    .query(({ input }) => {
-      return getConversation(input.conversationId);
-    }),
+    /** Get a specific conversation by ID. */
+    getConversation: authedProcedure
+      .input(z.object({ conversationId: z.string() }))
+      .query(({ input }) => {
+        return getConversation(input.conversationId);
+      }),
 
-  /** List all conversations for the current user. */
-  listConversations: authedProcedure.query(({ ctx }) => {
-    return getUserConversations(ctx.userId);
-  }),
-});
+    /** List all conversations for the current user. */
+    listConversations: authedProcedure.query(({ ctx }) => {
+      return getUserConversations(ctx.userId);
+    }),
+  });
+}

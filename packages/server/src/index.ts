@@ -5,8 +5,9 @@ import {
   fastifyTRPCPlugin,
   type FastifyTRPCPluginOptions,
 } from '@trpc/server/adapters/fastify';
-import { appRouter, type AppRouter } from './trpc/router';
+import { createAppRouter, type AppRouter } from './trpc/router';
 import { createContext } from './trpc/context';
+import { InMemoryPlanRepo } from './repos/plan-repo.memory';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,6 +25,11 @@ const server = Fastify({ logger: true });
 server.get('/health', async () => {
   return { status: 'ok', service: 'steady-server' };
 });
+
+// Dependencies — swap InMemory for Supabase when ready
+const planRepo = new InMemoryPlanRepo();
+
+const appRouter = createAppRouter({ planRepo });
 
 // tRPC
 server.register(fastifyTRPCPlugin, {

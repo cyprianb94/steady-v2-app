@@ -15,6 +15,7 @@ export type {
 export type {
   Activity,
   ActivitySplit,
+  SubjectiveInput,
 } from './activity';
 
 export type {

@@ -22,6 +22,16 @@ export interface Activity {
 
   splits: ActivitySplit[];
 
+  // Post-run subjective ratings
+  subjectiveInput?: SubjectiveInput;
+
   // Matched session (set by matching algorithm)
   matchedSessionId?: string;
+}
+
+export interface SubjectiveInput {
+  legs: 1 | 2 | 3 | 4 | 5; // 1=heavy, 5=fresh
+  breathing: 1 | 2 | 3 | 4 | 5; // 1=laboured, 5=easy
+  overall: 1 | 2 | 3 | 4 | 5; // 1=terrible, 5=great
+  note?: string;
 }

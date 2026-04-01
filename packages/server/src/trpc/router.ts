@@ -1,10 +1,20 @@
 import { router } from './trpc';
-import { planRouter } from './plan';
-import { coachRouter } from './coach';
+import { createPlanRouter } from './plan';
+import { createCoachRouter } from './coach';
+import type { PlanRepo } from '../repos/plan-repo';
 
-export const appRouter = router({
-  plan: planRouter,
-  coach: coachRouter,
-});
+export interface RouterDeps {
+  planRepo: PlanRepo;
+}
 
-export type AppRouter = typeof appRouter;
+export function createAppRouter(deps: RouterDeps) {
+  return router({
+    plan: createPlanRouter(deps.planRepo),
+    coach: createCoachRouter(deps.planRepo),
+  });
+}
+
+// Type is derived from a dummy call — deps don't affect the type shape
+import { InMemoryPlanRepo } from '../repos/plan-repo.memory';
+const _dummyRouter = createAppRouter({ planRepo: new InMemoryPlanRepo() });
+export type AppRouter = typeof _dummyRouter;
