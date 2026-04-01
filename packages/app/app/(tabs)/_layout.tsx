@@ -42,8 +42,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="coach"
         options={{
-          title: 'Coach',
-          tabBarIcon: ({ focused }) => <TabIcon name="coach" focused={focused} />,
+          href: null,
         }}
       />
       <Tabs.Screen

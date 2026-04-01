@@ -30,19 +30,19 @@ Skills are located at: `/Users/cyprianbrytan/Projects/steady-v2-app/`
 
 ### Workflow skills — these govern HOW you work
 
-**`grill-me/SKILL.md`**
+**`grill-me/GRILLME.md`**
 Use this when stress-testing a design or plan. Interview relentlessly down every branch of the decision tree, resolving dependencies one by one. Use it before committing to any module interface or data model decision.
 
-**`write-a-prd/SKILL.md`**
+**`write-a-prd/WRITEPRD.md`**
 Use this when planning any significant new feature. Interview → explore codebase → design modules → write PRD → submit to Notion. Do not start implementing until a PRD exists for features larger than a single component.
 
-**`prd-to-issues/SKILL.md`**
+**`prd-to-issues/PRDTOISSUE.md`**
 Use this after a PRD is written. Break it into independently-grabbable GitHub issues using vertical tracer-bullet slices. Each issue must cut through ALL layers end-to-end. Never create horizontal-slice issues (all schema, then all API, then all UI).
 
-**`tdd/SKILL.md`**
+**`tdd/TDD.md`**
 Use this for all feature implementation. Red-green-refactor, one test at a time, vertical slices only. Read it before writing a single line of implementation code.
 
-**`improve-codebase-architecture/SKILL.md`**
+**`improve-codebase-architecture/IMPROVECODEBASEARCHITECTURE.md`**
 Use this when a part of the codebase feels hard to navigate or test. Explore organically for friction, surface deepening candidates, spawn parallel sub-agents to design interfaces, create GitHub RFC issues.
 
 ### Reference skills — these govern HOW you design
