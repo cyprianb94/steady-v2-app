@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Steady — A free training plan manager for serious runners</title>
+  <meta name="description" content="Bring your own plan. Track planned vs actual. Free forever. Built by a runner.">
+  <meta property="og:title" content="Steady — Your plan deserves a better home than a spreadsheet">
+  <meta property="og:description" content="A free training plan manager for runners who already know what they're doing. Bring your Pfitz, your Hansons, your coach's block.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Space+Mono:wght@400;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --cream: #F4EFE6; --surface: #FDFAF5; --card: #F0EAE0;
+      --ink: #1C1510; --ink2: #3D3028; --muted: #9A8E7E; --border: #E5DDD0;
+      --clay: #C4522A; --clayBg: #FDF0EB;
+      --amber: #D4882A; --forest: #2A5C45;
+      --navy: #1B3A6B;
+    }
+
+    * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+
+    body {
+      margin: 0; padding: 0;
+      background: var(--cream);
+      font-family: 'DM Sans', system-ui, sans-serif;
+      color: var(--ink);
+      line-height: 1.6;
+    }
+
+    /* Paper grain */
+    body::before {
+      content: ""; position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0;
+    }
+
+    .container {
+      max-width: 720px; margin: 0 auto; padding: 0 24px;
+      position: relative; z-index: 1;
+    }
+
+    /* Header */
+    .site-header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(244, 239, 230, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .site-header .container {
+      display: flex; justify-content: space-between; align-items: center;
+      height: 56px;
+    }
+    .wordmark {
+      font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700;
+      color: var(--ink); text-decoration: none;
+    }
+    .header-cta {
+      background: var(--clay); color: white; border: none; border-radius: 22px;
+      padding: 8px 18px; font-family: 'DM Sans', sans-serif; font-weight: 600;
+      font-size: 13px; cursor: pointer; text-decoration: none;
+    }
+    .header-cta:hover { opacity: 0.9; }
+
+    /* Hero */
+    .hero {
+      padding: 80px 0 60px; text-align: center;
+    }
+    .free-chip {
+      display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--forest); background: rgba(42, 92, 69, 0.1);
+      border: 1px solid rgba(42, 92, 69, 0.2); border-radius: 20px;
+      padding: 5px 14px; margin-bottom: 20px;
+    }
+    .hero h1 {
+      font-family: 'Playfair Display', serif; font-size: 42px; font-weight: 700;
+      line-height: 1.15; margin: 0 0 16px; color: var(--ink);
+    }
+    .hero .subhead {
+      font-size: 17px; color: var(--ink2); max-width: 560px; margin: 0 auto 32px;
+      line-height: 1.6;
+    }
+
+    /* Waitlist form */
+    .waitlist-form {
+      display: flex; gap: 10px; max-width: 420px; margin: 0 auto;
+      justify-content: center;
+    }
+    .waitlist-form input[type="email"] {
+      flex: 1; padding: 12px 18px; border-radius: 22px;
+      border: 1.5px solid var(--border); background: var(--surface);
+      font-family: 'DM Sans', sans-serif; font-size: 15px; color: var(--ink);
+      outline: none; min-width: 0;
+    }
+    .waitlist-form input[type="email"]:focus { border-color: var(--clay); }
+    .waitlist-form input[type="email"]::placeholder { color: var(--muted); }
+    .waitlist-form button {
+      background: var(--clay); color: white; border: none; border-radius: 22px;
+      padding: 12px 24px; font-family: 'DM Sans', sans-serif; font-weight: 600;
+      font-size: 15px; cursor: pointer; white-space: nowrap;
+    }
+    .waitlist-form button:hover { opacity: 0.9; }
+    .form-note {
+      font-size: 12px; color: var(--muted); margin-top: 10px; text-align: center;
+    }
+
+    /* Sections */
+    section { padding: 50px 0; }
+    section + section { border-top: 1px solid var(--border); }
+
+    .section-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 12px;
+    }
+    section h2 {
+      font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 600;
+      line-height: 1.25; margin: 0 0 14px; color: var(--ink);
+    }
+    section p { font-size: 16px; color: var(--ink2); max-width: 600px; line-height: 1.65; }
+    section p + p { margin-top: 12px; }
+
+    /* Origin story */
+    .origin blockquote {
+      font-family: 'Playfair Display', serif; font-size: 20px; font-style: italic;
+      color: var(--ink); line-height: 1.55; margin: 0; padding: 0 0 0 20px;
+      border-left: 3px solid var(--clay);
+    }
+
+    /* Phone frame for wireframes */
+    .phone-showcase {
+      display: flex; justify-content: center; margin: 36px 0 0;
+    }
+    .phone-frame-wrap {
+      width: 280px; height: 607px;
+      border-radius: 34px; border: 9px solid var(--ink);
+      box-shadow: 0 30px 80px rgba(28,21,16,0.2), 0 0 0 1px rgba(28,21,16,0.08);
+      overflow: hidden; position: relative; background: var(--cream);
+    }
+    .phone-frame-wrap iframe {
+      width: 375px; height: 812px; border: none;
+      transform: scale(0.747); transform-origin: top left;
+    }
+
+    /* Feature row: text + phone */
+    .feature-row {
+      display: flex; align-items: center; gap: 40px;
+    }
+    .feature-row.reverse { flex-direction: row-reverse; }
+    .feature-text { flex: 1; min-width: 0; }
+    .feature-phone { flex-shrink: 0; }
+
+    @media (max-width: 720px) {
+      .feature-row, .feature-row.reverse {
+        flex-direction: column; gap: 24px; text-align: center;
+      }
+      .feature-text { max-width: 100%; }
+      .feature-text p { max-width: 100%; }
+      .hero h1 { font-size: 32px; }
+      .hero .subhead { font-size: 15px; }
+      .waitlist-form { flex-direction: column; }
+      .waitlist-form button { width: 100%; }
+      .phone-frame-wrap { width: 240px; height: 520px; border-radius: 30px; border-width: 8px; }
+      .phone-frame-wrap iframe { transform: scale(0.64); }
+      section h2 { font-size: 24px; }
+    }
+
+    /* Comparison table */
+    .comparison-table-wrap { overflow-x: auto; margin-top: 24px; }
+    .comparison-table {
+      width: 100%; border-collapse: collapse; font-size: 13px;
+      min-width: 560px;
+    }
+    .comparison-table th, .comparison-table td {
+      padding: 10px 12px; text-align: center; border-bottom: 1px solid var(--border);
+    }
+    .comparison-table th {
+      font-weight: 600; color: var(--muted); font-size: 11px;
+      letter-spacing: 0.5px; text-transform: uppercase;
+      background: var(--surface);
+    }
+    .comparison-table th:first-child, .comparison-table td:first-child {
+      text-align: left; font-weight: 500; color: var(--ink);
+    }
+    .comparison-table th:last-child {
+      color: var(--clay); font-weight: 700;
+    }
+    .comparison-table td:last-child { font-weight: 600; }
+    .check { color: var(--forest); font-weight: 700; }
+    .cross { color: var(--border); }
+    .partial { color: var(--amber); font-size: 11px; }
+    .bold-check { color: var(--clay); font-weight: 700; font-size: 15px; }
+
+    /* Pricing */
+    .pricing-cards {
+      display: flex; gap: 16px; margin-top: 24px;
+    }
+    .pricing-card {
+      flex: 1; background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: 14px; padding: 24px;
+    }
+    .pricing-card.pro { border-color: rgba(196, 82, 42, 0.35); }
+    .pricing-card h3 {
+      font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 600;
+      margin: 0 0 4px;
+    }
+    .pricing-card .price {
+      font-family: 'Space Mono', monospace; font-size: 22px; font-weight: 700;
+      color: var(--ink); margin-bottom: 14px;
+    }
+    .pricing-card .price small {
+      font-size: 13px; font-weight: 400; color: var(--muted);
+    }
+    .pricing-card ul {
+      list-style: none; padding: 0; margin: 0;
+    }
+    .pricing-card ul li {
+      font-size: 14px; color: var(--ink2); padding: 5px 0;
+      padding-left: 18px; position: relative;
+    }
+    .pricing-card ul li::before {
+      content: "✓"; position: absolute; left: 0; color: var(--forest); font-weight: 700;
+    }
+    .pricing-card.pro ul li::before { color: var(--clay); }
+    .pricing-card .tag {
+      display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: 1px;
+      text-transform: uppercase; border-radius: 20px; padding: 3px 10px;
+      margin-bottom: 10px;
+    }
+
+    @media (max-width: 560px) {
+      .pricing-cards { flex-direction: column; }
+    }
+
+    /* Final CTA */
+    .final-cta {
+      text-align: center; padding: 60px 0 40px;
+    }
+    .final-cta h2 {
+      font-family: 'Playfair Display', serif; font-size: 28px; margin: 0 0 8px;
+    }
+    .final-cta .tagline {
+      font-size: 15px; color: var(--muted); margin-bottom: 28px;
+    }
+
+    /* Footer */
+    .site-footer {
+      text-align: center; padding: 30px 0; border-top: 1px solid var(--border);
+      font-size: 12px; color: var(--muted);
+    }
+
+    /* Fade-in on scroll */
+    .fade-in {
+      opacity: 0; transform: translateY(20px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .fade-in.visible { opacity: 1; transform: none; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container">
+      <a href="#" class="wordmark">Steady</a>
+      <a href="#waitlist" class="header-cta">Join the waitlist</a>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <div class="container">
+    <section class="hero">
+      <div class="free-chip">Free forever</div>
+      <h1>You have a plan.<br>Now you need a tool that actually follows it.</h1>
+      <p class="subhead">Steady is a free training plan manager for runners who already know what they're doing. Built by a runner who got tired of living in spreadsheets. Bring your Pfitz, your Hansons, your coach's block. We help you execute it.</p>
+      <form class="waitlist-form" id="waitlist" action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
+        <input type="email" name="email" placeholder="your@email.com" required>
+        <button type="submit">Join the waitlist</button>
+      </form>
+      <p class="form-note">No spam. Just a heads up when we launch.</p>
+    </section>
+  </div>
+
+  <!-- Origin Story -->
+  <section class="origin">
+    <div class="container fade-in">
+      <div class="section-label">Why I built this</div>
+      <blockquote>I was managing my marathon plan across a Google Sheet, the Notes app, Strava screenshots, and a ChatGPT window that forgot everything every session. Four tools. None of them talked to each other. So I built the tool I actually wanted.</blockquote>
+    </div>
+  </section>
+
+  <!-- The Problem -->
+  <section>
+    <div class="container fade-in">
+      <div class="section-label">The problem</div>
+      <h2>Your plan lives in a spreadsheet. Your runs live in Strava. Nothing connects them.</h2>
+      <p>You built a plan — from Pfitzinger, from Jack Daniels, from an LLM conversation. Now you're tracking planned vs actual in a Google Sheet you made at 11pm. When something goes wrong — fatigue, a missed session, a pace that felt too hard — you re-open ChatGPT, re-explain your entire training history, and hope it remembers what happened last week. It doesn't.</p>
+      <p>Steady fixes this. One place for your plan, your runs, and the gap between them.</p>
+    </div>
+  </section>
+
+  <!-- Bring Your Own Plan -->
+  <section>
+    <div class="container fade-in">
+      <div class="section-label">Your plan, your way</div>
+      <div class="feature-row">
+        <div class="feature-text">
+          <h2>Bring your own plan. We don't generate cookie-cutter blocks.</h2>
+          <p>You bring the plan you trust — from a book, a coach, or an LLM. Steady structures it into weeks and phases, tracks it against your actual runs from Strava, and shows you what happened vs what was supposed to happen.</p>
+          <p>Free. No plan lock-in. No subscription required.</p>
+        </div>
+        <div class="feature-phone phone-showcase">
+          <div class="phone-frame-wrap">
+            <iframe src="wireframes/today-hero.html" loading="lazy" title="Steady Home screen"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Planned vs Actual -->
+  <section>
+    <div class="container fade-in">
+      <div class="section-label">The full picture</div>
+      <div class="feature-row reverse">
+        <div class="feature-text">
+          <h2>Planned vs actual. Per session. Per week. Per block.</h2>
+          <p>See your entire training cycle — BASE, BUILD, PEAK, TAPER — laid out with volume tracking, session type dots, and adherence bars. Know exactly where you are in the plan and what's coming next.</p>
+          <p>No spreadsheet formulas. No manual entry. Just sync your watch and look.</p>
+        </div>
+        <div class="feature-phone phone-showcase">
+          <div class="phone-frame-wrap">
+            <iframe src="wireframes/block-view.html" loading="lazy" title="Steady Block view"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Coach -->
+  <section>
+    <div class="container fade-in">
+      <div class="section-label">Optional paid add-on</div>
+      <div class="feature-row">
+        <div class="feature-text">
+          <h2>A coach that reads your splits and actually remembers last week.</h2>
+          <p>Steady's AI coach analyses your sessions, flags fatigue patterns, and proposes specific plan changes — not generic advice. It initiates conversations after your runs, not the other way around.</p>
+          <p>This is an optional add-on. The app works perfectly without it. But if you want a second pair of eyes on your training, it's there.</p>
+        </div>
+        <div class="feature-phone phone-showcase">
+          <div class="phone-frame-wrap">
+            <iframe src="wireframes/coach-debrief.html" loading="lazy" title="Steady Coach debrief"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Comparison Table -->
+  <section>
+    <div class="container fade-in">
+      <div class="section-label">How it compares</div>
+      <h2>The gap Steady fills</h2>
+      <div class="comparison-table-wrap">
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Strava</th>
+              <th>Runna</th>
+              <th>TrainingPeaks</th>
+              <th>Intervals.icu</th>
+              <th>Steady</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Import your own plan</td>
+              <td class="cross">✗</td>
+              <td class="cross">✗</td>
+              <td class="check">✓</td>
+              <td class="check">✓</td>
+              <td class="bold-check">✓</td>
+            </tr>
+            <tr>
+              <td>Planned vs actual view</td>
+              <td class="cross">✗</td>
+              <td class="partial">Partial</td>
+              <td class="check">✓</td>
+              <td class="check">✓</td>
+              <td class="bold-check">✓</td>
+            </tr>
+            <tr>
+              <td>AI conversation about sessions</td>
+              <td class="cross">✗</td>
+              <td class="partial">Limited</td>
+              <td class="cross">✗</td>
+              <td class="cross">✗</td>
+              <td class="bold-check">✓</td>
+            </tr>
+            <tr>
+              <td>AI adapts plan mid-cycle</td>
+              <td class="cross">✗</td>
+              <td class="cross">✗</td>
+              <td class="cross">✗</td>
+              <td class="cross">✗</td>
+              <td class="bold-check">✓</td>
+            </tr>
+            <tr>
+              <td>Coach initiates (proactive)</td>
+              <td class="cross">✗</td>
+              <td class="cross">✗</td>
+              <td class="cross">✗</td>
+              <td class="cross">✗</td>
+              <td class="bold-check">✓</td>
+            </tr>
+            <tr>
+              <td>Price</td>
+              <td style="font-family: 'Space Mono', monospace; font-size: 11px;">Free*</td>
+              <td style="font-family: 'Space Mono', monospace; font-size: 11px;">£10/mo</td>
+              <td style="font-family: 'Space Mono', monospace; font-size: 11px;">£11/mo</td>
+              <td style="font-family: 'Space Mono', monospace; font-size: 11px;">Free</td>
+              <td style="font-family: 'Space Mono', monospace; font-size: 12px; color: var(--forest); font-weight: 700;">Free</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- What's Free -->
+  <section>
+    <div class="container fade-in">
+      <div class="section-label">No bait-and-switch</div>
+      <h2>What's free. What's not.</h2>
+      <p style="margin-bottom: 24px;">The core app is free. Forever. No trial timers. No feature gates on the stuff that matters.</p>
+      <div class="pricing-cards">
+        <div class="pricing-card">
+          <span class="tag" style="color: var(--forest); background: rgba(42,92,69,0.1);">FREE FOREVER</span>
+          <h3>Steady</h3>
+          <div class="price">£0 <small>forever</small></div>
+          <ul>
+            <li>Plan builder (goal, template week, full plan)</li>
+            <li>Week view with today's session</li>
+            <li>Block view with phase tracking</li>
+            <li>Strava + Apple Health sync</li>
+            <li>Planned vs actual per session</li>
+            <li>Rule-based session annotations</li>
+          </ul>
+        </div>
+        <div class="pricing-card pro">
+          <span class="tag" style="color: var(--clay); background: rgba(196,82,42,0.1);">OPTIONAL ADD-ON</span>
+          <h3>Steady Pro</h3>
+          <div class="price">£9.99 <small>/month</small></div>
+          <ul>
+            <li>Everything in Free</li>
+            <li>AI coach (post-run debriefs)</li>
+            <li>Weekly preview conversations</li>
+            <li>AI-proposed plan adaptations</li>
+            <li>Personalised session analysis</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Final CTA -->
+  <section class="final-cta">
+    <div class="container fade-in">
+      <h2>A passion project by a runner. Free forever.</h2>
+      <p class="tagline">We're launching soon. Leave your email and we'll let you know.</p>
+      <form class="waitlist-form" action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
+        <input type="email" name="email" placeholder="your@email.com" required>
+        <button type="submit">Join the waitlist</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      Steady · 2026
+    </div>
+  </footer>
+
+  <script>
+    // Scroll fade-in
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); } });
+    }, { threshold: 0.15 });
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+    // Waitlist form submission
+    document.querySelectorAll('.waitlist-form').forEach(form => {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = form.querySelector('button');
+        const email = form.querySelector('input[type="email"]');
+        btn.textContent = 'Sending…';
+        btn.disabled = true;
+        try {
+          const res = await fetch(form.action, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email.value })
+          });
+          if (res.ok) {
+            btn.textContent = "You're in ✓";
+            btn.style.background = '#2A5C45';
+            email.value = '';
+          } else {
+            btn.textContent = 'Try again';
+            btn.disabled = false;
+          }
+        } catch {
+          btn.textContent = 'Try again';
+          btn.disabled = false;
+        }
+      });
+    });
+  </script>
+</body>
+</html>
