@@ -99,8 +99,8 @@ export class SupabaseConversationRepo implements ConversationRepo {
         conversation_id: edit.conversationId,
         message_id: edit.messageId,
         session_id: edit.sessionId,
-        before_state: edit.before,
-        after_state: edit.after,
+        before: edit.before,
+        after: edit.after,
         status: edit.status,
         applied_at: edit.appliedAt ?? null,
       })
@@ -142,8 +142,8 @@ function rowToEdit(row: Record<string, unknown>): PlanEdit {
     conversationId: row.conversation_id as string,
     messageId: row.message_id as string,
     sessionId: row.session_id as string,
-    before: row.before_state as Record<string, unknown>,
-    after: row.after_state as Record<string, unknown>,
+    before: row.before as Record<string, unknown>,
+    after: row.after as Record<string, unknown>,
     status: row.status as PlanEditStatus,
     appliedAt: (row.applied_at as string) ?? undefined,
   };

@@ -39,7 +39,7 @@ export class SupabaseProfileRepo implements ProfileRepo {
 
   async getById(id: string): Promise<User | null> {
     const { data, error } = await this.supabase
-      .from('users')
+      .from('profiles')
       .select('*')
       .eq('id', id)
       .single();
@@ -50,7 +50,7 @@ export class SupabaseProfileRepo implements ProfileRepo {
 
   async upsert(profile: User): Promise<User> {
     const { data, error } = await this.supabase
-      .from('users')
+      .from('profiles')
       .upsert(userToRow(profile), { onConflict: 'id' })
       .select()
       .single();
@@ -61,7 +61,7 @@ export class SupabaseProfileRepo implements ProfileRepo {
 
   async updateSubscription(id: string, tier: 'free' | 'pro', expiresAt?: string): Promise<User | null> {
     const { data, error } = await this.supabase
-      .from('users')
+      .from('profiles')
       .update({
         subscription_tier: tier,
         subscription_expires_at: expiresAt ?? null,

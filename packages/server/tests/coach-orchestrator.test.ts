@@ -6,6 +6,7 @@ import {
   type CoachDeps,
 } from '../src/lib/coach-orchestrator';
 import type { LLMClient } from '../src/lib/llm-client';
+import { InMemoryConversationRepo } from '../src/repos/conversation-repo.memory';
 import type { TrainingPlan, User } from '@steady/types';
 
 // --- Test fixtures ---
@@ -51,6 +52,7 @@ const testPlan: TrainingPlan = {
 function createDeps(overrides?: Partial<CoachDeps>): CoachDeps {
   return {
     llm: mockLLM(),
+    conversationRepo: new InMemoryConversationRepo(),
     getPlan: async () => testPlan,
     getActivities: async () => [],
     getUser: async () => testUser,
@@ -169,8 +171,11 @@ describe('coach-orchestrator', () => {
   });
 
   describe('getConversation', () => {
-    it('returns null for unknown conversation', () => {
-      expect(getConversation('nonexistent')).toBeNull();
+    it('returns null for unknown conversation', async () => {
+      const deps = createDeps();
+      await expect(
+        getConversation('nonexistent', deps.conversationRepo),
+      ).resolves.toBeNull();
     });
 
     it('returns conversation after creation', async () => {
@@ -182,7 +187,7 @@ describe('coach-orchestrator', () => {
         deps,
       );
 
-      const found = getConversation(conversation.id);
+      const found = await getConversation(conversation.id, deps.conversationRepo);
       expect(found).not.toBeNull();
       expect(found!.id).toBe(conversation.id);
     });
@@ -196,13 +201,18 @@ describe('coach-orchestrator', () => {
       await handleCoachMessage('conv-test-user', undefined, 'First chat', deps);
       await handleCoachMessage('conv-test-user', undefined, 'Second chat', deps);
 
-      const conversations = getUserConversations('conv-test-user');
+      const conversations = await getUserConversations(
+        'conv-test-user',
+        deps.conversationRepo,
+      );
       expect(conversations.length).toBeGreaterThanOrEqual(2);
     });
 
-    it('returns empty array for user with no conversations', () => {
-      const conversations = getUserConversations('no-such-user');
-      expect(conversations).toEqual([]);
+    it('returns empty array for user with no conversations', async () => {
+      const deps = createDeps();
+      await expect(
+        getUserConversations('no-such-user', deps.conversationRepo),
+      ).resolves.toEqual([]);
     });
   });
 });

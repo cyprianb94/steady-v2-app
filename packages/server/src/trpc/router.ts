@@ -1,20 +1,34 @@
 import { router } from './trpc';
 import { createPlanRouter } from './plan';
 import { createCoachRouter } from './coach';
+import type { ActivityRepo } from '../repos/activity-repo';
+import type { ConversationRepo } from '../repos/conversation-repo';
 import type { PlanRepo } from '../repos/plan-repo';
+import type { ProfileRepo } from '../repos/profile-repo';
+import { InMemoryActivityRepo } from '../repos/activity-repo.memory';
+import { InMemoryConversationRepo } from '../repos/conversation-repo.memory';
+import { InMemoryPlanRepo } from '../repos/plan-repo.memory';
+import { InMemoryProfileRepo } from '../repos/profile-repo.memory';
 
 export interface RouterDeps {
+  profileRepo: ProfileRepo;
   planRepo: PlanRepo;
+  activityRepo: ActivityRepo;
+  conversationRepo: ConversationRepo;
 }
 
 export function createAppRouter(deps: RouterDeps) {
   return router({
     plan: createPlanRouter(deps.planRepo),
-    coach: createCoachRouter(deps.planRepo),
+    coach: createCoachRouter(deps),
   });
 }
 
 // Type is derived from a dummy call — deps don't affect the type shape
-import { InMemoryPlanRepo } from '../repos/plan-repo.memory';
-const _dummyRouter = createAppRouter({ planRepo: new InMemoryPlanRepo() });
+const _dummyRouter = createAppRouter({
+  profileRepo: new InMemoryProfileRepo(),
+  planRepo: new InMemoryPlanRepo(),
+  activityRepo: new InMemoryActivityRepo(),
+  conversationRepo: new InMemoryConversationRepo(),
+});
 export type AppRouter = typeof _dummyRouter;

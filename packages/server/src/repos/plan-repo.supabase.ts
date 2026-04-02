@@ -82,7 +82,7 @@ export class SupabasePlanRepo implements PlanRepo {
   async updateWeeks(planId: string, weeks: PlanWeek[]): Promise<TrainingPlan | null> {
     const { data, error } = await this.supabase
       .from('training_plans')
-      .update({ weeks, updated_at: new Date().toISOString() })
+      .update({ weeks })
       .eq('id', planId)
       .select()
       .single();
