@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
+import { router } from 'expo-router';
 import { Btn } from '../../components/ui/Btn';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
@@ -47,13 +48,28 @@ export default function SettingsTab() {
         </Text>
 
         {session ? (
-          <Btn
-            title={busy ? 'Working...' : 'Sign Out'}
-            onPress={handleSignOut}
-            variant="secondary"
-            fullWidth
-            disabled={busy}
-          />
+          <>
+            <Btn
+              title="Build a test plan"
+              onPress={() => router.push('/onboarding/plan-builder/step-goal')}
+              fullWidth
+              disabled={busy}
+            />
+            <Btn
+              title="Open coach"
+              onPress={() => router.push('/(tabs)/coach')}
+              variant="secondary"
+              fullWidth
+              disabled={busy}
+            />
+            <Btn
+              title={busy ? 'Working...' : 'Sign Out'}
+              onPress={handleSignOut}
+              variant="secondary"
+              fullWidth
+              disabled={busy}
+            />
+          </>
         ) : (
           <Btn
             title={busy ? 'Working...' : 'Continue with Google'}
@@ -62,6 +78,9 @@ export default function SettingsTab() {
             disabled={busy}
           />
         )}
+        <Text style={styles.hint}>
+          Test flow: sign in here, build a plan, then open coach to send a message against your saved data.
+        </Text>
       </View>
     </View>
   );
@@ -101,5 +120,11 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontFamily: FONTS.sans,
     color: C.ink2,
+  },
+  hint: {
+    fontSize: 13,
+    lineHeight: 20,
+    fontFamily: FONTS.sans,
+    color: C.muted,
   },
 });

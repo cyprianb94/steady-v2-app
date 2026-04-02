@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, Alert } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { C } from '../../../constants/colours';
 import { SESSION_TYPE } from '../../../constants/session-types';
@@ -67,8 +67,12 @@ export default function StepPlan() {
       router.replace('/(tabs)/week');
     } catch (err) {
       console.error('Failed to save plan:', err);
-      // Still navigate — plan is available locally
-      router.replace('/(tabs)/week');
+      Alert.alert(
+        'Could not save plan',
+        err instanceof Error
+          ? err.message
+          : 'Please make sure you are signed in and the server is running.',
+      );
     } finally {
       setSaving(false);
     }

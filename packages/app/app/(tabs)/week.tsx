@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { usePlan } from '../../hooks/usePlan';
+import { useAuth } from '../../lib/auth';
 import { WeekHeader } from '../../components/week/WeekHeader';
 import { LoadBar } from '../../components/week/LoadBar';
 import { DayCard } from '../../components/week/DayCard';
@@ -11,13 +12,28 @@ import { Btn } from '../../components/ui/Btn';
 import { DAYS } from '../../lib/plan-helpers';
 
 export default function WeekTab() {
+  const { session, isLoading: authLoading } = useAuth();
   const { plan, loading, currentWeekIndex } = usePlan();
   const [weekOffset, setWeekOffset] = useState(0);
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color={C.clay} />
+      </View>
+    );
+  }
+
+  if (!session) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.emptyTitle}>Sign in to build your plan</Text>
+        <Text style={styles.emptySubtitle}>
+          Use the Settings tab to continue with Google, then come back here to start onboarding.
+        </Text>
+        <View style={{ marginTop: 20 }}>
+          <Btn title="Go to settings" onPress={() => router.push('/(tabs)/settings')} />
+        </View>
       </View>
     );
   }

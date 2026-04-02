@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { trpc } from '../lib/trpc';
 import type { TrainingPlan, PlanWeek } from '@steady/types';
+import { useAuth } from '../lib/auth';
 
 interface UsePlanResult {
   plan: TrainingPlan | null;
@@ -11,10 +12,17 @@ interface UsePlanResult {
 }
 
 export function usePlan(): UsePlanResult {
+  const { session, isLoading: authLoading } = useAuth();
   const [plan, setPlan] = useState<TrainingPlan | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchPlan = useCallback(async () => {
+    if (!session) {
+      setPlan(null);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const result = await trpc.plan.get.query();
@@ -24,11 +32,15 @@ export function usePlan(): UsePlanResult {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [session]);
 
   useEffect(() => {
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
     fetchPlan();
-  }, [fetchPlan]);
+  }, [authLoading, fetchPlan]);
 
   const today = new Date().toISOString().slice(0, 10);
   let currentWeekIndex = 0;
