@@ -21,12 +21,6 @@
       overflow: hidden;
     }
 
-    body::before {
-      content: ""; position: fixed; inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");
-      pointer-events: none; z-index: 10;
-    }
-
     .phone-wrapper { padding: 40px; }
 
     .phone-frame {
@@ -130,9 +124,19 @@
     }
     .tab span { font-size: 10px; color: var(--muted); letter-spacing: 0.2px; text-transform: capitalize; font-weight: 500; }
     .tab.active span { color: var(--clay); font-weight: 600; }
+    body.embedded {
+      background: var(--cream); overflow: hidden; display: block;
+      min-height: 100%; height: 100%;
+    }
+    body.embedded .phone-wrapper { padding: 0; width: 100%; height: 100%; }
+    body.embedded .phone-frame {
+      width: 100%; height: 100%; border: none; border-radius: 0;
+      box-shadow: none;
+    }
   </style>
 </head>
 <body>
+  <script>if (window.self !== window.top) document.body.classList.add('embedded');</script>
   <div class="phone-wrapper">
     <div class="phone-frame">
       <div class="status-bar">
@@ -159,14 +163,14 @@
 
         <div class="msg-wrap coach">
           <div class="msg coach">
-            <p>Yesterday's intervals — let me give you the honest read.</p>
+            <p>Yesterday's intervals. Here's the honest read.</p>
             <div class="msg-time">9:14am</div>
           </div>
         </div>
 
         <div class="msg-wrap coach">
           <div class="msg coach">
-            <p>Reps 1–3 were exactly on target at 3:51–3:55/km. Then reps 4–6 drifted to 4:02–4:08/km. Your warmup HR was already at 147 — above amber threshold — and hit 178 by rep 4. This is accumulated fatigue from the training block. Not a fitness problem.</p>
+            <p>Reps 1–3 were exactly on target at 3:51–3:55/km. Then reps 4–6 drifted to 4:02–4:08/km. Your warmup HR was already at 147, above amber threshold, and hit 178 by rep 4. This is accumulated fatigue from the training block. Not a fitness problem.</p>
             <div class="msg-time">9:14am</div>
           </div>
         </div>
@@ -180,9 +184,9 @@
 
         <div class="msg-wrap coach">
           <div class="msg coach">
-            <p>Exactly right — and that's useful information. The speed is clearly there; reps 1–3 prove it.
+            <p>Exactly right, and that's useful information. The speed is clearly there; reps 1–3 prove it.
 
-I want to flag Thursday's tempo. Given the fatigue reading, I'd suggest converting it to an easy 10km. You have a 22km long run Sunday — that's the key session this week. Better to arrive fresh.</p>
+I want to flag Thursday's tempo. Given the fatigue reading, I'd suggest converting it to an easy 10km. You have a 22km long run Sunday. That's the key session this week. Better to arrive fresh.</p>
             <div class="msg-time">9:23am</div>
           </div>
         </div>

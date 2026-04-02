@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Steady — A free training plan manager for serious runners</title>
-  <meta name="description" content="Bring your own plan. Track planned vs actual. Free forever. Built by a runner.">
-  <meta property="og:title" content="Steady — Your plan deserves a better home than a spreadsheet">
-  <meta property="og:description" content="A free training plan manager for runners who already know what they're doing. Bring your Pfitz, your Hansons, your coach's block.">
+  <title>Steady - A free training plan manager for serious runners</title>
+  <meta name="description" content="Bring your own plan, import it smoothly, and sync your runs from Garmin, Apple Watch, and Strava. Free forever. Built by a runner.">
+  <meta property="og:title" content="Steady - Your plan deserves a better home than a spreadsheet">
+  <meta property="og:description" content="A free training plan manager for runners who already know what they're doing. Bring your Pfitz, your Jack Daniels plan, or your coach's block.">
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary_large_image">
 
@@ -31,13 +31,6 @@
       font-family: 'DM Sans', system-ui, sans-serif;
       color: var(--ink);
       line-height: 1.6;
-    }
-
-    /* Paper grain */
-    body::before {
-      content: ""; position: fixed; inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
-      pointer-events: none; z-index: 0;
     }
 
     .container {
@@ -276,12 +269,12 @@
     <section class="hero">
       <div class="free-chip">Free forever</div>
       <h1>You have a plan.<br>Now you need a tool that actually follows it.</h1>
-      <p class="subhead">Steady is a free training plan manager for runners who already know what they're doing. Built by a runner who got tired of living in spreadsheets. Bring your Pfitz, your Hansons, your coach's block. We help you execute it.</p>
+      <p class="subhead">Steady is a free training plan manager for runners who already know what they're doing. Built by a runner who got tired of juggling spreadsheets, screenshots, and disconnected apps. Bring your Pfitz, your Jack Daniels plan, or your coach's block. We help you follow it properly.</p>
       <form class="waitlist-form" id="waitlist" action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
         <input type="email" name="email" placeholder="your@email.com" required>
         <button type="submit">Join the waitlist</button>
       </form>
-      <p class="form-note">No spam. Just a heads up when we launch.</p>
+      <p class="form-note">I promise no spam - it's only to gather interest and give you a heads up when we launch.</p>
     </section>
   </div>
 
@@ -289,7 +282,7 @@
   <section class="origin">
     <div class="container fade-in">
       <div class="section-label">Why I built this</div>
-      <blockquote>I was managing my marathon plan across a Google Sheet, the Notes app, Strava screenshots, and a ChatGPT window that forgot everything every session. Four tools. None of them talked to each other. So I built the tool I actually wanted.</blockquote>
+      <blockquote>I was managing my running plans across Google Sheets, the Notes app, Strava, Apple Watch and Garmin screenshots, and AI that kept losing context every time I added more screenshots. Too many tools. No integrations between them. So I built the tool I actually wanted for myself.</blockquote>
     </div>
   </section>
 
@@ -297,8 +290,9 @@
   <section>
     <div class="container fade-in">
       <div class="section-label">The problem</div>
-      <h2>Your plan lives in a spreadsheet. Your runs live in Strava. Nothing connects them.</h2>
-      <p>You built a plan — from Pfitzinger, from Jack Daniels, from an LLM conversation. Now you're tracking planned vs actual in a Google Sheet you made at 11pm. When something goes wrong — fatigue, a missed session, a pace that felt too hard — you re-open ChatGPT, re-explain your entire training history, and hope it remembers what happened last week. It doesn't.</p>
+      <h2>Your plan lives in one place. Your runs live somewhere else. The story keeps getting lost.</h2>
+      <p>Maybe your plan came from Pfitzinger. Maybe Jack Daniels. Maybe a coach. Maybe an LLM conversation that actually gave you something useful. Either way, once training gets messy, you're back in a spreadsheet, your notes, and a chat window trying to stitch everything back together.</p>
+      <p>When fatigue creeps in, you miss a session, or a workout feels way harder than it should, you have to re-explain the whole block from scratch. That's the part that feels broken.</p>
       <p>Steady fixes this. One place for your plan, your runs, and the gap between them.</p>
     </div>
   </section>
@@ -309,8 +303,9 @@
       <div class="section-label">Your plan, your way</div>
       <div class="feature-row">
         <div class="feature-text">
-          <h2>Bring your own plan. We don't generate cookie-cutter blocks.</h2>
-          <p>You bring the plan you trust — from a book, a coach, or an LLM. Steady structures it into weeks and phases, tracks it against your actual runs from Strava, and shows you what happened vs what was supposed to happen.</p>
+          <h2>Bring your plan in however you already have it.</h2>
+          <p>Use the builder if you want a clean setup. Upload a CSV if your plan already lives in a sheet. Or drop in a screenshot or photo of your current plan and let Steady turn it into something you can actually use.</p>
+          <p>Then sync the running data you already have from Garmin, Apple Watch, or Strava so your plan and your real training finally sit in the same place.</p>
           <p>Free. No plan lock-in. No subscription required.</p>
         </div>
         <div class="feature-phone phone-showcase">
@@ -325,12 +320,12 @@
   <!-- Planned vs Actual -->
   <section>
     <div class="container fade-in">
-      <div class="section-label">The full picture</div>
+      <div class="section-label">Block view</div>
       <div class="feature-row reverse">
         <div class="feature-text">
-          <h2>Planned vs actual. Per session. Per week. Per block.</h2>
-          <p>See your entire training cycle — BASE, BUILD, PEAK, TAPER — laid out with volume tracking, session type dots, and adherence bars. Know exactly where you are in the plan and what's coming next.</p>
-          <p>No spreadsheet formulas. No manual entry. Just sync your watch and look.</p>
+          <h2>See exactly where you are in the block.</h2>
+          <p>The current phase stays front and centre, while the rest of the block fades back. You can scan what you've done, what's left, and how each week is stacking up against the plan without decoding a spreadsheet first.</p>
+          <p>It gives you the simple answers you actually want mid-block: what phase am I in, how much have I done, and what's next?</p>
         </div>
         <div class="feature-phone phone-showcase">
           <div class="phone-frame-wrap">
@@ -347,9 +342,9 @@
       <div class="section-label">Optional paid add-on</div>
       <div class="feature-row">
         <div class="feature-text">
-          <h2>A coach that reads your splits and actually remembers last week.</h2>
-          <p>Steady's AI coach analyses your sessions, flags fatigue patterns, and proposes specific plan changes — not generic advice. It initiates conversations after your runs, not the other way around.</p>
-          <p>This is an optional add-on. The app works perfectly without it. But if you want a second pair of eyes on your training, it's there.</p>
+          <h2>Steady Coach reads the full block, not just today's run.</h2>
+          <p>Steady Coach is the optional paid add-on. It looks at your sessions, spots fatigue patterns, and suggests actual plan changes when the block starts drifting. It feels more like a useful training conversation and less like starting over in a blank chat.</p>
+          <p>It also sets up where we want to go next: real coaches and their runners working through the same plan, with simple delegated access to review and manage it together.</p>
         </div>
         <div class="feature-phone phone-showcase">
           <div class="phone-frame-wrap">
@@ -444,24 +439,25 @@
           <h3>Steady</h3>
           <div class="price">£0 <small>forever</small></div>
           <ul>
-            <li>Plan builder (goal, template week, full plan)</li>
+            <li>Build in app, upload a CSV, or import from a screenshot or photo</li>
             <li>Week view with today's session</li>
             <li>Block view with phase tracking</li>
-            <li>Strava + Apple Health sync</li>
+            <li>Sync runs from Garmin, Apple Watch, and Strava</li>
             <li>Planned vs actual per session</li>
             <li>Rule-based session annotations</li>
           </ul>
         </div>
         <div class="pricing-card pro">
           <span class="tag" style="color: var(--clay); background: rgba(196,82,42,0.1);">OPTIONAL ADD-ON</span>
-          <h3>Steady Pro</h3>
+          <h3>Steady Coach</h3>
           <div class="price">£9.99 <small>/month</small></div>
           <ul>
             <li>Everything in Free</li>
-            <li>AI coach (post-run debriefs)</li>
+            <li>Steady Coach debriefs after key sessions</li>
             <li>Weekly preview conversations</li>
-            <li>AI-proposed plan adaptations</li>
-            <li>Personalised session analysis</li>
+            <li>Suggested plan adaptations when training drifts</li>
+            <li>Personalised session analysis that keeps the wider block in mind</li>
+            <li>Coach and athlete collaboration access, planned for the future</li>
           </ul>
         </div>
       </div>
