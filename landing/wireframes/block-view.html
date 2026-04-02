@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Steady - Block View</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Space+Mono:wght@400;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
+
+    :root {
+      --cream: #F4EFE6; --surface: #FDFAF5; --card: #F0EAE0;
+      --ink: #1C1510; --ink2: #3D3028; --muted: #9A8E7E; --border: #E5DDD0;
+      --clay: #C4522A; --clayBg: #FDF0EB;
+      --amber: #D4882A; --amberBg: #FDF6EB;
+      --forest: #2A5C45; --forestBg: #EEF4F1;
+      --navy: #1B3A6B; --navyBg: #EDF1F8;
+      --slate: #8A8E9A; --purple: #7C5CBF;
+    }
+
+    * { box-sizing: border-box; -webkit-font-smoothing: antialiased; margin: 0; padding: 0; }
+
+    body {
+      margin: 0; padding: 0;
+      background: var(--cream);
+      display: flex; justify-content: center; align-items: center;
+      min-height: 100vh; font-family: 'DM Sans', system-ui, sans-serif;
+      overflow: hidden;
+    }
+
+    body::before {
+      content: ""; position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 10;
+    }
+
+    .phone-wrapper { padding: 40px; }
+
+    .phone-frame {
+      width: 375px; height: 812px;
+      background: var(--cream);
+      border-radius: 44px;
+      border: 12px solid var(--ink);
+      box-shadow: 0 40px 100px rgba(28,21,16,0.25),
+                  0 0 0 1px rgba(28,21,16,0.1),
+                  inset 0 1px 0 rgba(255,255,255,0.6);
+      overflow: hidden; position: relative;
+      display: flex; flex-direction: column; z-index: 20;
+    }
+
+    .status-bar {
+      height: 44px; display: flex; justify-content: space-between; align-items: center;
+      padding: 0 28px; background: var(--cream); flex-shrink: 0;
+      font-weight: 600; font-size: 13px; color: var(--ink);
+    }
+    .status-bar .right { display: flex; gap: 7px; align-items: center; }
+    .signal { display: flex; gap: 2px; align-items: flex-end; height: 10px; }
+    .signal div { width: 3px; background: var(--ink); border-radius: 1px; }
+
+    .content-area {
+      flex: 1; overflow-y: auto; padding: 18px 14px 0; display: flex; flex-direction: column;
+    }
+    .content-area::-webkit-scrollbar { display: none; }
+
+    .race-header { margin-bottom: 14px; }
+    .race-header .label {
+      font-size: 10px; color: var(--muted); letter-spacing: 1px;
+      text-transform: uppercase; font-weight: 600; margin-bottom: 3px;
+    }
+    .race-header h1 {
+      font-family: 'Playfair Display', serif; font-size: 22px; color: var(--ink); margin: 0; font-weight: 600;
+    }
+    .race-tags { display: flex; gap: 14px; margin-top: 6px; flex-wrap: wrap; }
+    .race-tags span { font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700; }
+
+    .phase-section { margin-bottom: 18px; }
+    .phase-strip {
+      display: flex; gap: 2px; height: 26px; border-radius: 6px; overflow: hidden; margin-bottom: 5px;
+    }
+    .phase-segment {
+      display: flex; align-items: center; justify-content: center;
+    }
+    .phase-segment span {
+      font-size: 8px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+    }
+    .phase-desc { font-size: 11px; color: var(--muted); margin: 0; }
+
+    .week-row {
+      margin-bottom: 6px; background: transparent; border: 1px solid transparent;
+      border-radius: 10px; padding: 10px 12px;
+    }
+    .week-row.completed { border-color: var(--border); }
+    .week-row.current { background: var(--surface); border: 1.5px solid rgba(196, 82, 42, 0.35); }
+
+    .week-content { display: flex; align-items: center; gap: 10px; }
+    .week-date { width: 36px; flex-shrink: 0; }
+    .week-date .wk { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); font-weight: 400; }
+    .week-date .dt { font-size: 9px; color: var(--muted); margin-top: 1px; }
+    .week-row.current .week-date .wk { color: var(--clay); font-weight: 700; }
+
+    .week-dots { display: flex; gap: 3.5px; flex: 1; align-items: center; }
+    .week-dots .dot { width: 9px; height: 9px; border-radius: 50%; }
+
+    .week-metrics { text-align: right; flex-shrink: 0; }
+    .week-metrics .km { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); }
+    .week-row.completed .week-metrics .km { color: var(--ink); }
+    .week-row.current .week-metrics .km { color: var(--clay); }
+    .week-metrics .phase-tag {
+      font-size: 8.5px; color: var(--muted); letter-spacing: 0.5px; text-transform: uppercase; margin-top: 2px;
+    }
+
+    .week-progress {
+      margin-top: 7px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden;
+    }
+    .week-progress-fill { height: 100%; border-radius: 2px; }
+
+    .tab-bar {
+      height: 70px; border-top: 1px solid var(--border); background: var(--surface);
+      display: flex; flex-shrink: 0; padding-bottom: 6px;
+    }
+    .tab {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 3px; background: none; border: none; padding: 7px 0;
+    }
+    .tab span { font-size: 10px; color: var(--muted); letter-spacing: 0.2px; text-transform: capitalize; font-weight: 500; }
+    .tab.active span { color: var(--clay); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="phone-wrapper">
+    <div class="phone-frame">
+      <div class="status-bar">
+        <span>9:41</span>
+        <div class="right">
+          <div class="signal">
+            <div style="height: 3px;"></div><div style="height: 5px;"></div>
+            <div style="height: 7px;"></div><div style="height: 10px;"></div>
+          </div>
+          <svg width="15" height="10" fill="none"><rect x=".75" y=".75" width="12" height="8.5" rx="1.5" stroke="#1C1510" stroke-width="1.5"/><rect x="13.5" y="3" width="1.5" height="4" rx=".75" fill="#1C1510"/><rect x="2" y="2.25" width="8" height="5.5" rx=".75" fill="#1C1510"/></svg>
+        </div>
+      </div>
+
+      <div class="content-area">
+        <div class="race-header">
+          <div class="label">GOAL RACE</div>
+          <h1>San Sebastián Marathon</h1>
+          <div class="race-tags">
+            <span style="color: var(--clay);">Nov 22, 2026</span>
+            <span style="color: var(--muted);">18 weeks out</span>
+            <span style="color: var(--navy);">sub-3:30</span>
+          </div>
+        </div>
+
+        <div class="phase-section">
+          <div class="phase-strip">
+            <div class="phase-segment" style="flex: 4; background: var(--navy);">
+              <span style="color: rgba(255,255,255,0.85);">BASE</span>
+            </div>
+            <div class="phase-segment" style="flex: 8; background: var(--clay);">
+              <span style="color: white;">BUILD</span>
+            </div>
+            <div class="phase-segment" style="flex: 2; background: var(--purple);">
+              <span style="color: rgba(255,255,255,0.85);">REC</span>
+            </div>
+            <div class="phase-segment" style="flex: 2; background: var(--amber);">
+              <span style="color: white;">PEAK</span>
+            </div>
+            <div class="phase-segment" style="flex: 2; background: var(--forest);">
+              <span style="color: rgba(255,255,255,0.85);">TAPER</span>
+            </div>
+          </div>
+          <p class="phase-desc">Build phase · Week 5 of 8 · Peak volume approaching</p>
+        </div>
+
+        <!-- W11 (completed, base) -->
+        <div class="week-row completed">
+          <div class="week-content">
+            <div class="week-date"><div class="wk">W11</div><div class="dt">Mar 3</div></div>
+            <div class="week-dots">
+              <div class="dot" style="background: var(--forest);"></div>
+              <div class="dot" style="background: var(--clay);"></div>
+              <div class="dot" style="background: var(--forest);"></div>
+              <div class="dot" style="background: var(--amber);"></div>
+              <div class="dot" style="background: var(--slate);"></div>
+              <div class="dot" style="background: var(--forest);"></div>
+              <div class="dot" style="background: var(--navy);"></div>
+            </div>
+            <div class="week-metrics">
+              <span class="km">60/60km</span>
+            </div>
+          </div>
+          <div class="week-progress"><div class="week-progress-fill" style="width: 100%; background: var(--forest);"></div></div>
+        </div>
+
+        <!-- W12 (completed, recovery) -->
+        <div class="week-row completed">
+          <div class="week-content">
+            <div class="week-date"><div class="wk">W12</div><div class="dt">Mar 10</div></div>
+            <div class="week-dots">
+              <div class="dot" style="background: var(--forest);"></div>
+              <div class="dot" style="background: var(--forest);"></div>
+              <div class="dot" style="background: var(--slate);"></div>
+              <div class="dot" style="background: var(--forest);"></div>
+              <div class="dot" style="background: var(--slate);"></div>
+              <div class="dot" style="background: var(--forest);"></div>
+              <div class="dot" style="background: var(--forest);"></div>
+            </div>
+            <div class="week-metrics">
+              <span class="km">44/44km</span>
+              <div class="phase-tag">Recovery</div>
+            </div>
+          </div>
+          <div class="week-progress"><div class="week-progress-fill" style="width: 100%; background: var(--forest);"></div></div>
+        </div>
+
+        <!-- W13 (completed) -->
+        <div class="week-row completed">
+          <div class="week-content">
+            <div class="week-date"><div class="wk">W13</div><div class="dt">Mar 17</div></div>
+            <div class="week-dots">
+              <div class="dot" style="background: var(--forest);"></div>
+              <div class="dot" style="background: var(--clay);"></div>
+              <div class="dot" style="background: var(--forest);"></div>
+              <div class="dot" style="background: var(--amber);"></div>
+              <div class="dot" style="background: var(--slate);"></div>
+              <div class="dot" style="background: var(--forest);"></div>
+              <div class="dot" style="background: var(--navy);"></div>
+            </div>
+            <div class="week-metrics">
+              <span class="km">58/62km</span>
+            </div>
+          </div>
+          <div class="week-progress"><div class="week-progress-fill" style="width: 93%; background: var(--amber);"></div></div>
+        </div>
+
+        <!-- W14 (Current) -->
+        <div class="week-row current">
+          <div class="week-content">
+            <div class="week-date"><div class="wk">W14</div><div class="dt">Mar 24</div></div>
+            <div class="week-dots">
+              <div class="dot" style="background: var(--forest);"></div>
+              <div class="dot" style="background: var(--clay);"></div>
+              <div class="dot" style="background: var(--forest);"></div>
+              <div class="dot" style="background: var(--amber);"></div>
+              <div class="dot" style="background: var(--slate);"></div>
+              <div class="dot" style="background: var(--border);"></div>
+              <div class="dot" style="background: var(--border);"></div>
+            </div>
+            <div class="week-metrics">
+              <span class="km">31/67km</span>
+            </div>
+          </div>
+          <div class="week-progress"><div class="week-progress-fill" style="width: 46%; background: var(--clay);"></div></div>
+        </div>
+
+        <!-- W15 (future — show planned session types) -->
+        <div class="week-row">
+          <div class="week-content">
+            <div class="week-date"><div class="wk">W15</div><div class="dt">Mar 31</div></div>
+            <div class="week-dots">
+              <div class="dot" style="background: var(--forest); opacity: 0.6;"></div>
+              <div class="dot" style="background: var(--clay); opacity: 0.6;"></div>
+              <div class="dot" style="background: var(--forest); opacity: 0.6;"></div>
+              <div class="dot" style="background: var(--amber); opacity: 0.6;"></div>
+              <div class="dot" style="background: var(--slate); opacity: 0.6;"></div>
+              <div class="dot" style="background: var(--forest); opacity: 0.6;"></div>
+              <div class="dot" style="background: var(--navy); opacity: 0.6;"></div>
+            </div>
+            <div class="week-metrics"><span class="km">70km</span></div>
+          </div>
+        </div>
+
+        <!-- W16 (future) -->
+        <div class="week-row">
+          <div class="week-content">
+            <div class="week-date"><div class="wk">W16</div><div class="dt">Apr 7</div></div>
+            <div class="week-dots">
+              <div class="dot" style="background: var(--forest); opacity: 0.6;"></div>
+              <div class="dot" style="background: var(--clay); opacity: 0.6;"></div>
+              <div class="dot" style="background: var(--forest); opacity: 0.6;"></div>
+              <div class="dot" style="background: var(--amber); opacity: 0.6;"></div>
+              <div class="dot" style="background: var(--slate); opacity: 0.6;"></div>
+              <div class="dot" style="background: var(--forest); opacity: 0.6;"></div>
+              <div class="dot" style="background: var(--navy); opacity: 0.6;"></div>
+            </div>
+            <div class="week-metrics"><span class="km">72km</span></div>
+          </div>
+        </div>
+
+        <!-- W17 (future, peak) -->
+        <div class="week-row">
+          <div class="week-content">
+            <div class="week-date"><div class="wk">W17</div><div class="dt">Apr 14</div></div>
+            <div class="week-dots">
+              <div class="dot" style="background: var(--forest); opacity: 0.6;"></div>
+              <div class="dot" style="background: var(--clay); opacity: 0.6;"></div>
+              <div class="dot" style="background: var(--forest); opacity: 0.6;"></div>
+              <div class="dot" style="background: var(--amber); opacity: 0.6;"></div>
+              <div class="dot" style="background: var(--slate); opacity: 0.6;"></div>
+              <div class="dot" style="background: var(--forest); opacity: 0.6;"></div>
+              <div class="dot" style="background: var(--navy); opacity: 0.6;"></div>
+            </div>
+            <div class="week-metrics">
+              <span class="km">56km</span>
+              <div class="phase-tag">Peak</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab bar — 3 tabs -->
+      <div class="tab-bar">
+        <div class="tab">
+          <svg width="22" height="22" fill="none" viewBox="0 0 22 22"><path d="M3 9.5L11 3l8 6.5V19a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="var(--muted)" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 20v-6h4v6" stroke="var(--muted)" stroke-width="1.5" stroke-linejoin="round"/></svg>
+          <span>Home</span>
+        </div>
+        <div class="tab active">
+          <svg width="22" height="22" fill="none" viewBox="0 0 22 22"><rect x="2" y="3" width="18" height="4" rx="1.5" fill="var(--clay)"/><rect x="2" y="9" width="18" height="4" rx="1.5" fill="var(--clay)"/><rect x="2" y="15" width="18" height="4" rx="1.5" fill="var(--clay)"/></svg>
+          <span>Block</span>
+        </div>
+        <div class="tab">
+          <svg width="22" height="22" fill="none" viewBox="0 0 22 22"><circle cx="11" cy="11" r="3" stroke="var(--muted)" stroke-width="1.5"/><path d="M11 2v2M11 18v2M2 11h2M18 11h2M4.93 4.93l1.41 1.41M15.66 15.66l1.41 1.41M4.93 17.07l1.41-1.41M15.66 6.34l1.41-1.41" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span>Settings</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
