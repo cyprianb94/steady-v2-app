@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Steady - A free training plan manager for serious runners</title>
-  <meta name="description" content="Bring your own plan, import it smoothly, and sync your runs from Garmin, Apple Watch, and Strava. Free forever. Built by a runner.">
-  <meta property="og:title" content="Steady - Your plan deserves a better home than a spreadsheet">
-  <meta property="og:description" content="A free training plan manager for runners who already know what they're doing. Bring your Pfitz, your Jack Daniels plan, or your coach's block.">
+  <title>Steady - BYOP training plan manager from runner for runners</title>
+  <meta name="description" content="Bring your own plan, sync your runs, handle injuries without losing the plot. Built by a runner.">
+  <meta property="og:title" content="Steady - Your running plan deserves better than a spreadsheet">
+  <meta property="og:description" content="A free training plan manager for runners who already have a plan. Import it, sync your runs, and handle injuries without starting from scratch.">
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary_large_image">
 
@@ -129,8 +129,8 @@
       display: flex; justify-content: center; margin: 36px 0 0;
     }
     .phone-frame-wrap {
-      width: 280px; height: 607px;
-      border-radius: 34px; border: 9px solid var(--ink);
+      width: 298px; height: 625px;
+      border-radius: 38px; border: 9px solid var(--ink);
       box-shadow: 0 30px 80px rgba(28,21,16,0.2), 0 0 0 1px rgba(28,21,16,0.08);
       overflow: hidden; position: relative; background: var(--cream);
     }
@@ -157,7 +157,7 @@
       .hero .subhead { font-size: 15px; }
       .waitlist-form { flex-direction: column; }
       .waitlist-form button { width: 100%; }
-      .phone-frame-wrap { width: 240px; height: 520px; border-radius: 30px; border-width: 8px; }
+      .phone-frame-wrap { width: 256px; height: 536px; border-radius: 34px; border-width: 8px; }
       .phone-frame-wrap iframe { transform: scale(0.64); }
       section h2 { font-size: 24px; }
     }
@@ -216,7 +216,7 @@
       padding-left: 18px; position: relative;
     }
     .pricing-card ul li::before {
-      content: "✓"; position: absolute; left: 0; color: var(--forest); font-weight: 700;
+      content: "\2713"; position: absolute; left: 0; color: var(--forest); font-weight: 700;
     }
     .pricing-card.pro ul li::before { color: var(--clay); }
     .pricing-card .tag {
@@ -267,14 +267,12 @@
   <!-- Hero -->
   <div class="container">
     <section class="hero">
-      <div class="free-chip">Free forever</div>
-      <h1>You have a plan.<br>Now you need a tool that actually follows it.</h1>
-      <p class="subhead">Steady is a free training plan manager for runners who already know what they're doing. Built by a runner who got tired of juggling spreadsheets, screenshots, and disconnected apps. Bring your Pfitz, your Jack Daniels plan, or your coach's block. We help you follow it properly.</p>
+      <h1>Your running plan deserves better than a spreadsheet</h1>
+      <p class="subhead">Bring your Pfitz, your coach's block, or your LLM plan. Sync your runs from Garmin, Apple Watch, or Strava. See planned vs actual. Adapt your plan when injuries or bad days happen.</p>
       <form class="waitlist-form" id="waitlist" action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
         <input type="email" name="email" placeholder="your@email.com" required>
         <button type="submit">Join the waitlist</button>
       </form>
-      <p class="form-note">I promise no spam - it's only to gather interest and give you a heads up when we launch.</p>
     </section>
   </div>
 
@@ -282,7 +280,7 @@
   <section class="origin">
     <div class="container fade-in">
       <div class="section-label">Why I built this</div>
-      <blockquote>I was managing my running plans across Google Sheets, the Notes app, Strava, Apple Watch and Garmin screenshots, and AI that kept losing context every time I added more screenshots. Too many tools. No integrations between them. So I built the tool I actually wanted for myself.</blockquote>
+      <blockquote>Hey, I'm Cyprian! I'm a Product Manager and a runner, more of a nerdy one. During race prep I was managing my training plan across a few different tools. When I got injured mid-block and I didn't really have a way of tracking my recovery or adapting the plan. So I decided to try and build something I would actually want to use.</blockquote>
     </div>
   </section>
 
@@ -290,10 +288,8 @@
   <section>
     <div class="container fade-in">
       <div class="section-label">The problem</div>
-      <h2>Your plan lives in one place. Your runs live somewhere else. The story keeps getting lost.</h2>
-      <p>Maybe your plan came from Pfitzinger. Maybe Jack Daniels. Maybe a coach. Maybe an LLM conversation that actually gave you something useful. Either way, once training gets messy, you're back in a spreadsheet, your notes, and a chat window trying to stitch everything back together.</p>
-      <p>When fatigue creeps in, you miss a session, or a workout feels way harder than it should, you have to re-explain the whole block from scratch. That's the part that feels broken.</p>
-      <p>Steady fixes this. One place for your plan, your runs, and the gap between them.</p>
+      <h2>Your plan lives in one app, your runs live somewhere else. When something goes wrong, you can't adapt. </h2>
+      <p>Outside of AI-created running apps most runners manage their plans through spreadsheets, a watch app, and some with an AI chat to stitch it together. Life happens, fatigue and injuries are real and rarely do you stick 100% to your original plan. Steady puts the plan and the runs in the same place so the full picture is always there.</p>
     </div>
   </section>
 
@@ -304,9 +300,8 @@
       <div class="feature-row">
         <div class="feature-text">
           <h2>Bring your plan in however you already have it.</h2>
-          <p>Use the builder if you want a clean setup. Upload a CSV if your plan already lives in a sheet. Or drop in a screenshot or photo of your current plan and let Steady turn it into something you can actually use.</p>
-          <p>Then sync the running data you already have from Garmin, Apple Watch, or Strava so your plan and your real training finally sit in the same place.</p>
-          <p>Free. No plan lock-in. No subscription required.</p>
+          <p>Use the builder for a clean setup. Upload a CSV if your plan lives in a sheet. Or drop in a screenshot and let Steady turn it into something you can actually use.</p>
+          <p>Sync runs from Garmin, Apple Watch, or Strava so your plan and your real training finally sit in the same place.</p>
         </div>
         <div class="feature-phone phone-showcase">
           <div class="phone-frame-wrap">
@@ -317,15 +312,34 @@
     </div>
   </section>
 
-  <!-- Planned vs Actual -->
+  <!-- Recovery Phase -->
+  <section>
+    <div class="container fade-in">
+      <div class="section-label">When things go wrong</div>
+      <div class="feature-row reverse">
+        <div class="feature-text">
+          <h2>Injuries don't end your plan. They adapt it.</h2>
+          <p>Mark the injury, log what you can do while you're out, and follow a return-to-running progression as you come back. The remaining block adapts around the time you've lost.</p>
+          <p>Your goal gets reassessed too. If you've lost three weeks, Steady is honest that your target might need revisiting. But if you come back ahead of schedule, you can reset it.</p>
+          <p>No other app treats injury as a first-class part of training. This is one of the main reasons Steady exists.</p>
+        </div>
+        <div class="feature-phone phone-showcase">
+          <div class="phone-frame-wrap">
+            <iframe src="wireframes/recovery-phase.html" loading="lazy" title="Steady Recovery phase"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Block View -->
   <section>
     <div class="container fade-in">
       <div class="section-label">Block view</div>
-      <div class="feature-row reverse">
+      <div class="feature-row">
         <div class="feature-text">
           <h2>See exactly where you are in the block.</h2>
-          <p>The current phase stays front and centre, while the rest of the block fades back. You can scan what you've done, what's left, and how each week is stacking up against the plan without decoding a spreadsheet first.</p>
-          <p>It gives you the simple answers you actually want mid-block: what phase am I in, how much have I done, and what's next?</p>
+          <p>The current phase stays front and centre, while the rest of the block fades back. You can scan what you've done, what's left, and how each week is stacking up against the plan.</p>
         </div>
         <div class="feature-phone phone-showcase">
           <div class="phone-frame-wrap">
@@ -336,93 +350,59 @@
     </div>
   </section>
 
-  <!-- Coach -->
+  <!-- Coach Mode -->
+  <section>
+    <div class="container fade-in">
+      <div class="section-label">Real coaching, not a chatbot</div>
+      <h2>Invite your coach into the plan.</h2>
+      <p>Your real human coach can see everything — every session, every planned vs actual gap — and make changes to the plan directly. No spreadsheets over email. No re-explaining the block before every call. The coach adjusts what's next based on how you're actually performing.</p>
+    </div>
+  </section>
+
+  <!-- Steady AI -->
   <section>
     <div class="container fade-in">
       <div class="section-label">Optional paid add-on</div>
-      <div class="feature-row">
+      <div class="feature-row reverse">
         <div class="feature-text">
-          <h2>Steady Coach reads the full block, not just today's run.</h2>
-          <p>Steady Coach is the optional paid add-on. It looks at your sessions, spots fatigue patterns, and suggests actual plan changes when the block starts drifting. It feels more like a useful training conversation and less like starting over in a blank chat.</p>
-          <p>It also sets up where we want to go next: real coaches and their runners working through the same plan, with simple delegated access to review and manage it together.</p>
+          <h2>Steady AI reads the full block, not just today's run.</h2>
+          <p>After key sessions, Steady AI reads the full training block and gives feedback in context. It spots fatigue patterns, suggests plan changes when things drift, and initiates the conversation proactively.</p>
+          <p>This is the only paid feature. It exists to cover LLM costs and should never feel like it's being pushed.</p>
         </div>
         <div class="feature-phone phone-showcase">
           <div class="phone-frame-wrap">
-            <iframe src="wireframes/coach-debrief.html" loading="lazy" title="Steady Coach debrief"></iframe>
+            <iframe src="wireframes/coach-debrief.html" loading="lazy" title="Steady AI debrief"></iframe>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Comparison Table -->
   <section>
     <div class="container fade-in">
-      <div class="section-label">How it compares</div>
-      <h2>The gap Steady fills</h2>
-      <div class="comparison-table-wrap">
-        <table class="comparison-table">
-          <thead>
-            <tr>
-              <th></th>
-              <th>Strava</th>
-              <th>Runna</th>
-              <th>TrainingPeaks</th>
-              <th>Intervals.icu</th>
-              <th>Steady</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Import your own plan</td>
-              <td class="cross">✗</td>
-              <td class="cross">✗</td>
-              <td class="check">✓</td>
-              <td class="check">✓</td>
-              <td class="bold-check">✓</td>
-            </tr>
-            <tr>
-              <td>Planned vs actual view</td>
-              <td class="cross">✗</td>
-              <td class="partial">Partial</td>
-              <td class="check">✓</td>
-              <td class="check">✓</td>
-              <td class="bold-check">✓</td>
-            </tr>
-            <tr>
-              <td>AI conversation about sessions</td>
-              <td class="cross">✗</td>
-              <td class="partial">Limited</td>
-              <td class="cross">✗</td>
-              <td class="cross">✗</td>
-              <td class="bold-check">✓</td>
-            </tr>
-            <tr>
-              <td>AI adapts plan mid-cycle</td>
-              <td class="cross">✗</td>
-              <td class="cross">✗</td>
-              <td class="cross">✗</td>
-              <td class="cross">✗</td>
-              <td class="bold-check">✓</td>
-            </tr>
-            <tr>
-              <td>Coach initiates (proactive)</td>
-              <td class="cross">✗</td>
-              <td class="cross">✗</td>
-              <td class="cross">✗</td>
-              <td class="cross">✗</td>
-              <td class="bold-check">✓</td>
-            </tr>
-            <tr>
-              <td>Price</td>
-              <td style="font-family: 'Space Mono', monospace; font-size: 11px;">Free*</td>
-              <td style="font-family: 'Space Mono', monospace; font-size: 11px;">£10/mo</td>
-              <td style="font-family: 'Space Mono', monospace; font-size: 11px;">£11/mo</td>
-              <td style="font-family: 'Space Mono', monospace; font-size: 11px;">Free</td>
-              <td style="font-family: 'Space Mono', monospace; font-size: 12px; color: var(--forest); font-weight: 700;">Free</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="section-label">WHO IT'S FOR</div>
+      <h2>Built for runners who already have a plan.</h2>
+      <p>You already have a plan — from a coach, a book, or one you built yourself. You want to track it properly, handle the weeks where things go sideways, and not switch to an app that replaces your plan with its own. That's the gap Steady fills.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="container fade-in">
+      <div class="section-label">WHAT'S BEING BUILT</div>
+      <h2>Roadmap</h2>
+      <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 24px;">
+        <div style="background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--clay); border-radius: 12px; padding: 18px 20px;">
+          <div style="font-family: 'Space Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--clay); margin-bottom: 8px;">v1 — building now</div>
+          <div style="font-size: 14px; color: var(--ink2);">Plan import (manual + CSV), week view, today's session hero, Strava sync, injury phase mode</div>
+        </div>
+        <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px;">
+          <div style="font-family: 'Space Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 8px;">v1.1 — next</div>
+          <div style="font-size: 14px; color: var(--ink2);">Garmin + Apple Health sync, block view, coach invite</div>
+        </div>
+        <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px;">
+          <div style="font-family: 'Space Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 8px;">v1.2 — later</div>
+          <div style="font-size: 14px; color: var(--ink2);">Steady AI debrief after key sessions, plan adaptation suggestions</div>
+        </div>
       </div>
     </div>
   </section>
@@ -432,32 +412,32 @@
     <div class="container fade-in">
       <div class="section-label">No bait-and-switch</div>
       <h2>What's free. What's not.</h2>
-      <p style="margin-bottom: 24px;">The core app is free. Forever. No trial timers. No feature gates on the stuff that matters.</p>
+      <p style="margin-bottom: 24px;">The core app is free. No trial timers. No feature gates on the stuff that matters.</p>
       <div class="pricing-cards">
         <div class="pricing-card">
-          <span class="tag" style="color: var(--forest); background: rgba(42,92,69,0.1);">FREE FOREVER</span>
+          <span class="tag" style="color: var(--forest); background: rgba(42,92,69,0.1);">FREE</span>
           <h3>Steady</h3>
-          <div class="price">£0 <small>forever</small></div>
+          <div class="price">&pound;0</div>
           <ul>
-            <li>Build in app, upload a CSV, or import from a screenshot or photo</li>
+            <li>Build in app, upload a CSV, or import from a screenshot</li>
             <li>Week view with today's session</li>
             <li>Block view with phase tracking</li>
             <li>Sync runs from Garmin, Apple Watch, and Strava</li>
             <li>Planned vs actual per session</li>
-            <li>Rule-based session annotations</li>
+            <li>Recovery/injury phase management</li>
+            <li>Invite your real coach into the plan</li>
           </ul>
         </div>
         <div class="pricing-card pro">
           <span class="tag" style="color: var(--clay); background: rgba(196,82,42,0.1);">OPTIONAL ADD-ON</span>
-          <h3>Steady Coach</h3>
-          <div class="price">£9.99 <small>/month</small></div>
+          <h3>Steady AI</h3>
+          <div class="price">&pound;8&ndash;10 <small>/month</small></div>
           <ul>
             <li>Everything in Free</li>
-            <li>Steady Coach debriefs after key sessions</li>
+            <li>Steady AI debriefs after key sessions</li>
             <li>Weekly preview conversations</li>
             <li>Suggested plan adaptations when training drifts</li>
-            <li>Personalised session analysis that keeps the wider block in mind</li>
-            <li>Coach and athlete collaboration access, planned for the future</li>
+            <li>Session analysis with full block context</li>
           </ul>
         </div>
       </div>
@@ -467,7 +447,7 @@
   <!-- Final CTA -->
   <section class="final-cta">
     <div class="container fade-in">
-      <h2>A passion project by a runner. Free forever.</h2>
+      <h2>A passion project by a runner.</h2>
       <p class="tagline">We're launching soon. Leave your email and we'll let you know.</p>
       <form class="waitlist-form" action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
         <input type="email" name="email" placeholder="your@email.com" required>
@@ -479,7 +459,7 @@
   <!-- Footer -->
   <footer class="site-footer">
     <div class="container">
-      Steady · 2026
+      Steady &middot; 2026
     </div>
   </footer>
 
@@ -496,7 +476,7 @@
         e.preventDefault();
         const btn = form.querySelector('button');
         const email = form.querySelector('input[type="email"]');
-        btn.textContent = 'Sending…';
+        btn.textContent = 'Sending\u2026';
         btn.disabled = true;
         try {
           const res = await fetch(form.action, {
@@ -505,7 +485,7 @@
             body: JSON.stringify({ email: email.value })
           });
           if (res.ok) {
-            btn.textContent = "You're in ✓";
+            btn.textContent = "You're in \u2713";
             btn.style.background = '#2A5C45';
             email.value = '';
           } else {
