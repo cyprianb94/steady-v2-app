@@ -44,3 +44,7 @@ export interface TrainingPlan {
   // Recovery & injury
   activeInjury: Injury | null;
 }
+
+export interface TrainingPlanWithAnnotation extends TrainingPlan {
+  coachAnnotation: string;
+}

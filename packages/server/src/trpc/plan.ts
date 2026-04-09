@@ -1,9 +1,10 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, authedProcedure } from './trpc';
-import { generatePlan, propagateChange } from '@steady/types';
-import type { TrainingPlan, PlanWeek, PhaseConfig, PlannedSession } from '@steady/types';
+import { generatePlan, getDisplayWeekIndex, propagateChange } from '@steady/types';
+import type { TrainingPlan, TrainingPlanWithAnnotation, PlanWeek, PhaseConfig, PlannedSession } from '@steady/types';
 import type { PlanRepo } from '../repos/plan-repo';
+import { generateAnnotation } from '../lib/annotation-engine';
 
 const PhaseConfigSchema = z.object({
   BASE: z.number().min(0),
@@ -20,11 +21,47 @@ const InjuryUpdateSchema = z.object({
   status: z.enum(['recovering', 'returning', 'resolved']).optional(),
 });
 
+function addDays(date: string, days: number): string {
+  const value = new Date(`${date}T00:00:00.000Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+function withCoachAnnotation(plan: TrainingPlan | null): TrainingPlanWithAnnotation | null {
+  if (!plan) return null;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const currentWeek = plan.weeks[getDisplayWeekIndex(plan.weeks, today)];
+
+  if (!currentWeek) {
+    return {
+      ...plan,
+      coachAnnotation: 'Your plan is ready — build consistency one week at a time.',
+    };
+  }
+
+  const tomorrow = addDays(today, 1);
+  const todaySession = currentWeek.sessions.find((session) => session?.date === today) ?? null;
+  const tomorrowSession = currentWeek.sessions.find((session) => session?.date === tomorrow) ?? null;
+
+  return {
+    ...plan,
+    coachAnnotation: generateAnnotation({
+      todaySession,
+      tomorrowSession,
+      phase: currentWeek.phase,
+      weekNumber: currentWeek.weekNumber,
+      totalWeeks: plan.weeks.length,
+      allSessions: currentWeek.sessions,
+    }),
+  };
+}
+
 export function createPlanRouter(planRepo: PlanRepo) {
   return router({
     /** Get the user's active training plan. */
     get: authedProcedure.query(async ({ ctx }) => {
-      return planRepo.getActive(ctx.userId);
+      return withCoachAnnotation(await planRepo.getActive(ctx.userId));
     }),
 
     /** Generate a plan server-side from a template. */

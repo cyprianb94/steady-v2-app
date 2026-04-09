@@ -8,7 +8,7 @@ import { FONTS } from '../../../constants/typography';
 import { Btn } from '../../../components/ui/Btn';
 import { SessionDot } from '../../../components/ui/SessionDot';
 import { SessionRow } from '../../../components/plan-builder/SessionRow';
-import { generatePlan, propagateChange } from '@steady/types';
+import { generatePlan, propagateChange, assignDates } from '@steady/types';
 import { trpc } from '../../../lib/trpc';
 import type { PlannedSession, PhaseConfig, PlanWeek } from '@steady/types';
 
@@ -54,17 +54,19 @@ export default function StepPlan() {
   const handleDone = async () => {
     setSaving(true);
     try {
+      const raceDate = '2026-10-04'; // TODO: Pass from StepGoal
+      const datedWeeks = assignDates(plan, raceDate);
       await trpc.plan.save.mutate({
         raceName: params.race || 'Race',
-        raceDate: '2026-10-04', // TODO: Pass from StepGoal
+        raceDate,
         raceDistance: (params.race as any) || 'Marathon',
         targetTime: params.target || '',
         phases,
         progressionPct: progState ?? 0,
         templateWeek: template,
-        weeks: plan,
+        weeks: datedWeeks,
       });
-      router.replace('/(tabs)/week');
+      router.replace('/(tabs)/home');
     } catch (err) {
       console.error('Failed to save plan:', err);
       Alert.alert(

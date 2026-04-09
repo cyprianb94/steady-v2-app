@@ -65,8 +65,9 @@ export function SessionEditor({ dayIndex, existing, onSave, onClose }: SessionEd
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+      <View style={styles.overlay}>
+        <Pressable style={styles.backdrop} onPress={onClose} />
+        <View style={styles.sheet}>
           {/* Drag handle */}
           <View style={styles.handleRow}>
             <View style={styles.handle} />
@@ -208,8 +209,8 @@ export function SessionEditor({ dayIndex, existing, onSave, onClose }: SessionEd
               </View>
             </View>
           </View>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }
@@ -219,6 +220,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(28,21,16,0.6)',
     justifyContent: 'flex-end',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
   },
   sheet: {
     backgroundColor: C.surface,

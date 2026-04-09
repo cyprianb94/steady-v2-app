@@ -10,6 +10,7 @@ export type {
   PhaseName,
   PlanWeek,
   TrainingPlan,
+  TrainingPlanWithAnnotation,
 } from './plan';
 
 export type {
@@ -47,6 +48,7 @@ export { getDisplayWeekIndex } from './lib/plan-current-week';
 export { buildBlockPhaseSegments, getInjuryWeekRange, isInjuryWeek } from './lib/block-injury';
 export { getBlockVolumeTone, getWeekVolumeRatio, getWeekVolumeSummary } from './lib/block-volume';
 export { buildBlockWeekDayDetails } from './lib/block-week-detail';
+export { assignDates } from './lib/assign-dates';
 export type {
   RtrStepDefinition,
   RtrProgressionStep,

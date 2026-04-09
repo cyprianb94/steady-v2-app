@@ -48,7 +48,7 @@ export default function SettingsTab() {
       await trpc.plan.markInjury.mutate({ name });
       await refresh();
       setRecoveryModalMode(null);
-      router.push('/(tabs)/week');
+      router.push('/(tabs)/home');
     } catch (error) {
       Alert.alert('Could not start recovery', error instanceof Error ? error.message : 'Unknown error');
     } finally {
@@ -71,7 +71,7 @@ export default function SettingsTab() {
       await trpc.plan.clearInjury.mutate();
       await refresh();
       setRecoveryModalMode(null);
-      router.push('/(tabs)/week');
+      router.push('/(tabs)/home');
     } catch (error) {
       Alert.alert('Could not end recovery', error instanceof Error ? error.message : 'Unknown error');
     } finally {
@@ -101,13 +101,6 @@ export default function SettingsTab() {
               disabled={busy}
             />
             <Btn
-              title="Open coach"
-              onPress={() => router.push('/(tabs)/coach')}
-              variant="secondary"
-              fullWidth
-              disabled={busy}
-            />
-            <Btn
               title={busy ? 'Working...' : 'Sign Out'}
               onPress={handleSignOut}
               variant="secondary"
@@ -124,7 +117,7 @@ export default function SettingsTab() {
           />
         )}
         <Text style={styles.hint}>
-          Test flow: sign in here, build a plan, then open coach to send a message against your saved data.
+          Test flow: sign in here, then build a plan to start training.
         </Text>
       </View>
 

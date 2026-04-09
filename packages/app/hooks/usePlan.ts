@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getDisplayWeekIndex, type TrainingPlan, type PlanWeek } from '@steady/types';
+import { getDisplayWeekIndex, type TrainingPlanWithAnnotation, type PlanWeek } from '@steady/types';
 import { trpc } from '../lib/trpc';
 import { useAuth } from '../lib/auth';
 import { getResumeWeekOverride } from '../lib/resume-week';
 
 interface UsePlanResult {
-  plan: TrainingPlan | null;
+  plan: TrainingPlanWithAnnotation | null;
   loading: boolean;
   currentWeek: PlanWeek | null;
   currentWeekIndex: number;
@@ -14,7 +14,7 @@ interface UsePlanResult {
 
 export function usePlan(): UsePlanResult {
   const { session, isLoading: authLoading } = useAuth();
-  const [plan, setPlan] = useState<TrainingPlan | null>(null);
+  const [plan, setPlan] = useState<TrainingPlanWithAnnotation | null>(null);
   const [resumeWeekNumber, setResumeWeekNumber] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
