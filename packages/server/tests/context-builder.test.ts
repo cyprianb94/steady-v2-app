@@ -134,6 +134,24 @@ describe('buildSystemPrompt — structure', () => {
     const prompt = buildSystemPrompt(USER, PLAN, [], 'free_form');
     expect(prompt).toContain('REST');
   });
+
+  it('describes session rearrangements from swap logs', () => {
+    const rearrangedWeek = makeWeek(10, 'BUILD', [
+      EASY_SESSION,
+      makeSession({ type: 'EASY', distance: 8, date: '2026-03-26' }),
+      null,
+      makeSession({ type: 'TEMPO', distance: 12, pace: '4:20', date: '2026-03-24' }),
+      null,
+      INTERVAL_SESSION,
+      LONG_SESSION,
+    ]);
+    rearrangedWeek.swapLog = [{ from: 1, to: 5 }];
+    const prompt = buildSystemPrompt(USER, makePlan([rearrangedWeek, NEXT_WEEK]), [], 'free_form');
+
+    expect(prompt).toContain('SESSION REARRANGEMENTS:');
+    expect(prompt).toContain('Week 10: Intervals moved Tue→Sat, Easy moved Sat→Tue');
+    expect(prompt).not.toContain('Week 11: Long moved');
+  });
 });
 
 describe('buildSystemPrompt — activity log', () => {

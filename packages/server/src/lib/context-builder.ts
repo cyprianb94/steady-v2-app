@@ -10,6 +10,7 @@ import { getCoachingKnowledge } from './coaching-knowledge';
  * for the full system prompt. Hard cap at 24,000 chars (~6k tokens).
  */
 const TOKEN_BUDGET_CHARS = 24_000;
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 /**
  * Build the system prompt for the AI coach.
@@ -62,17 +63,17 @@ Guidelines:
 function buildRunnerContext(user: User, plan: TrainingPlan): string {
   const currentWeek = findCurrentWeek(plan);
   const weeksRemaining = plan.weeks.length - (currentWeek?.weekNumber ?? 1) + 1;
+  const rearrangements = buildSessionRearrangementContext(plan);
 
   return `RUNNER CONTEXT:
 - Goal: ${plan.raceName} on ${plan.raceDate}, target ${plan.targetTime}
 - Current phase: ${currentWeek?.phase ?? 'BUILD'} (Week ${currentWeek?.weekNumber ?? 1} of ${plan.weeks.length})
 - Weeks to race: ${weeksRemaining}
-- Units: ${user.units}`;
+- Units: ${user.units}${rearrangements ? `\n${rearrangements}` : ''}`;
 }
 
 function buildPlanSection(plan: TrainingPlan, activities: Activity[], charBudget: number): string {
   const currentIdx = findCurrentWeekIndex(plan);
-  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   const activityMap = new Map<string, Activity>();
   for (const a of activities) {
@@ -99,7 +100,7 @@ function buildPlanSection(plan: TrainingPlan, activities: Activity[], charBudget
       const s = week.sessions[d];
       let line: string;
       if (!s || s.type === 'REST') {
-        line = `  ${dayNames[d] ?? `D${d}`}: REST`;
+        line = `  ${DAY_NAMES[d] ?? `D${d}`}: REST`;
       } else {
         let desc = formatSession(s);
         const matched = activityMap.get(s.id);
@@ -111,7 +112,7 @@ function buildPlanSection(plan: TrainingPlan, activities: Activity[], charBudget
         if (s.subjectiveInput) {
           desc += ` (${formatSubjectiveInput(s.subjectiveInput)})`;
         }
-        line = `  ${dayNames[d] ?? `D${d}`}: ${desc}`;
+        line = `  ${DAY_NAMES[d] ?? `D${d}`}: ${desc}`;
       }
 
       if (charCount + line.length > charBudget) break;
@@ -121,6 +122,49 @@ function buildPlanSection(plan: TrainingPlan, activities: Activity[], charBudget
   }
 
   return lines.join('\n');
+}
+
+function buildSessionRearrangementContext(plan: TrainingPlan): string {
+  const lines: string[] = [];
+
+  for (const week of plan.weeks) {
+    if (!week.swapLog?.length) continue;
+
+    const moves = week.swapLog.flatMap((entry) => {
+      const fromDay = DAY_NAMES[entry.from] ?? `D${entry.from}`;
+      const toDay = DAY_NAMES[entry.to] ?? `D${entry.to}`;
+      const movedToDestination = formatSwapMove(week.sessions[entry.to], fromDay, toDay);
+      const movedToOrigin = formatSwapMove(week.sessions[entry.from], toDay, fromDay);
+      return [movedToDestination, movedToOrigin].filter(Boolean) as string[];
+    });
+
+    if (moves.length > 0) {
+      lines.push(`- Week ${week.weekNumber}: ${moves.join(', ')}`);
+    }
+  }
+
+  if (lines.length === 0) return '';
+  return ['SESSION REARRANGEMENTS:', ...lines].join('\n');
+}
+
+function formatSwapMove(session: PlannedSession | null, fromDay: string, toDay: string): string | null {
+  if (!session || session.type === 'REST') return null;
+  return `${formatSwapSessionType(session)} moved ${fromDay}→${toDay}`;
+}
+
+function formatSwapSessionType(session: PlannedSession): string {
+  switch (session.type) {
+    case 'INTERVAL':
+      return 'Intervals';
+    case 'LONG':
+      return 'Long';
+    case 'TEMPO':
+      return 'Tempo';
+    case 'EASY':
+      return 'Easy';
+    case 'REST':
+      return 'Rest';
+  }
 }
 
 function buildActivityLog(activities: Activity[], charBudget: number): string {
