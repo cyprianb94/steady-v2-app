@@ -9,6 +9,9 @@ packages/app/.expo/
 packages/app/ios/
 packages/app/android/
 
+# Supabase
+supabase/.temp/
+
 # IDE
 .idea/
 .vscode/

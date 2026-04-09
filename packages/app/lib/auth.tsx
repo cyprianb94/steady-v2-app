@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import Constants from 'expo-constants';
 import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
@@ -19,15 +18,10 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 function getRedirectTo() {
-  const isExpoGo = Constants.appOwnership === 'expo';
-  if (isExpoGo) {
-    const hostUri = Constants.expoConfig?.hostUri;
-    if (hostUri) {
-      return `exp://${hostUri}/--/auth/callback`;
-    }
-  }
-
-  return Linking.createURL('auth/callback', { scheme: 'steady' });
+  // Linking.createURL picks the correct scheme automatically:
+  // - Expo Go: exp://{hostUri}/--/auth/callback
+  // - Dev build / production: steady://auth/callback
+  return Linking.createURL('auth/callback');
 }
 
 async function createSessionFromUrl(url: string): Promise<Session | null> {
@@ -131,7 +125,9 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
         throw new Error('Supabase did not return an OAuth URL');
       }
 
-      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo, {
+        preferEphemeralSession: true,
+      });
       if (result.type !== 'success') {
         setIsLoading(false);
         return null;
