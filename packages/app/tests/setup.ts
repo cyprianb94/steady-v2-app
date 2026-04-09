@@ -5,6 +5,7 @@ import { vi } from 'vitest';
 vi.mock('expo-router', () => ({
   router: { push: vi.fn(), replace: vi.fn(), back: vi.fn() },
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  useLocalSearchParams: vi.fn(() => ({})),
   Tabs: Object.assign(
     ({ children }: { children: React.ReactNode }) => children,
     { Screen: ({ name }: { name: string }) => null },
@@ -21,6 +22,11 @@ vi.mock('expo-font', () => ({
 vi.mock('expo-splash-screen', () => ({
   preventAutoHideAsync: vi.fn(),
   hideAsync: vi.fn(),
+}));
+
+vi.mock('expo-linear-gradient', () => ({
+  LinearGradient: ({ children }: { children: React.ReactNode }) =>
+    React.createElement(React.Fragment, null, children),
 }));
 
 vi.mock('react-native-safe-area-context', () => ({
