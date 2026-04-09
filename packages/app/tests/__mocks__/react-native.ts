@@ -31,6 +31,13 @@ export function Modal({ visible, children, ...props }: any) {
   return React.createElement('div', { 'data-rn': 'Modal', ...props }, children);
 }
 export const Alert = { alert: () => {} };
+export const LayoutAnimation = {
+  configureNext: () => {},
+  Presets: { easeInEaseOut: {} },
+};
+export const UIManager = {
+  setLayoutAnimationEnabledExperimental: () => {},
+};
 export const StyleSheet = {
   create: <T extends Record<string, any>>(styles: T): T => styles,
 };

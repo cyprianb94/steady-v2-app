@@ -106,6 +106,18 @@ describe('propagateChange — scope: remaining', () => {
       expect(result[i].sessions[0]!.distance).toBeGreaterThanOrEqual(2);
     }
   });
+
+  it('skips completed sessions when propagating to remaining weeks', () => {
+    const plan = makePlan();
+    const completed = { ...plan[3].sessions[0]!, actualActivityId: 'activity-3' };
+    plan[3] = { ...plan[3], sessions: [completed, ...plan[3].sessions.slice(1)] };
+
+    const result = propagateChange(plan, 2, 0, easy(12), 'remaining', TEMPLATE);
+
+    expect(result[2].sessions[0]!.distance).toBe(12);
+    expect(result[3].sessions[0]).toEqual(completed);
+    expect(result[4].sessions[0]!.distance).toBe(12);
+  });
 });
 
 describe('propagateChange — scope: build', () => {
@@ -135,6 +147,19 @@ describe('propagateChange — scope: build', () => {
     // PEAK week (index 5) should not be affected
     expect(result[5].phase).toBe('PEAK');
     expect(result[5].sessions[0]!.distance).toBe(8);
+  });
+
+  it('skips completed sessions in BUILD weeks', () => {
+    const plan = makePlan();
+    const completed = { ...plan[3].sessions[0]!, actualActivityId: 'activity-build' };
+    plan[3] = { ...plan[3], sessions: [completed, ...plan[3].sessions.slice(1)] };
+
+    const result = propagateChange(plan, 1, 0, easy(12), 'build', TEMPLATE);
+
+    expect(result[1].sessions[0]!.distance).toBe(12);
+    expect(result[2].sessions[0]!.distance).toBe(12);
+    expect(result[3].sessions[0]).toEqual(completed);
+    expect(result[4].sessions[0]!.distance).toBe(12);
   });
 });
 

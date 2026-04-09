@@ -32,6 +32,7 @@ export function propagateChange(
 
     const sessions = w.sessions.map((d, di) => {
       if (di !== dayIndex) return d;
+      if (d?.actualActivityId) return d;
 
       // Target week gets the exact updated session
       if (wi === weekIndex) return updated;

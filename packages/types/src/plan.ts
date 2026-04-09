@@ -11,11 +11,17 @@ export interface PhaseConfig {
 
 export type PhaseName = keyof PhaseConfig;
 
+export interface SwapLogEntry {
+  from: number;
+  to: number;
+}
+
 export interface PlanWeek {
   weekNumber: number; // 1-indexed
   phase: PhaseName;
   sessions: (PlannedSession | null)[]; // 7 elements, Mon–Sun
   plannedKm: number; // calculated from sessions
+  swapLog?: SwapLogEntry[];
 }
 
 export interface TrainingPlan {

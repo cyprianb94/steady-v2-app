@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { usePlan } from '../../hooks/usePlan';
+import { RearrangeSheet } from '../../components/block/RearrangeSheet';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { PHASE_COLOR } from '../../constants/phase-meta';
@@ -28,8 +29,10 @@ import {
   type Activity,
   type BlockPhaseSegment,
   type CrossTrainingEntry,
+  type PlannedSession,
   type PlanWeek,
   type SessionType,
+  type SwapLogEntry,
 } from '@steady/types';
 
 const COMPACT_PHASE_LABEL: Record<BlockPhaseSegment['name'], string> = {
@@ -98,10 +101,19 @@ function getStatusBadge(status: ReturnType<typeof buildBlockWeekDayDetails>[numb
   }
 }
 
+function isFullyCompletedWeek(week: PlanWeek): boolean {
+  return (
+    week.sessions.length === 7 &&
+    week.sessions.every((session) => Boolean(session?.actualActivityId))
+  );
+}
+
 export default function BlockTab() {
-  const { plan, loading, currentWeekIndex } = usePlan();
+  const { plan, loading, currentWeekIndex, refresh } = usePlan();
   const isFocused = useIsFocused();
   const [expandedWeekNumber, setExpandedWeekNumber] = useState<number | null>(null);
+  const [rearrangeWeekIndex, setRearrangeWeekIndex] = useState<number | null>(null);
+  const [isSavingRearrange, setIsSavingRearrange] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [crossTrainingEntries, setCrossTrainingEntries] = useState<CrossTrainingEntry[]>([]);
   const [isLoadingCrossTraining, setIsLoadingCrossTraining] = useState(false);
@@ -226,20 +238,51 @@ export default function BlockTab() {
     setExpandedWeekNumber((current) => (current === weekNumber ? null : weekNumber));
   }
 
+  async function handleRearrangeDone(
+    sessions: (PlannedSession | null)[],
+    swapLog: SwapLogEntry[],
+  ) {
+    if (!plan || rearrangeWeekIndex == null) return;
+
+    const nextWeeks = plan.weeks.map((week, index) => {
+      if (index !== rearrangeWeekIndex) return week;
+      return {
+        ...week,
+        sessions,
+        plannedKm: Math.round(weekKm(sessions)),
+        swapLog: [...(week.swapLog ?? []), ...swapLog],
+      };
+    });
+
+    try {
+      setIsSavingRearrange(true);
+      await trpc.plan.updateWeeks.mutate({ weeks: nextWeeks });
+      await refresh();
+      setRearrangeWeekIndex(null);
+    } catch (error) {
+      console.error('Failed to rearrange sessions:', error);
+    } finally {
+      setIsSavingRearrange(false);
+    }
+  }
+
+  const rearrangeWeek = rearrangeWeekIndex == null ? null : plan.weeks[rearrangeWeekIndex] ?? null;
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Race header */}
-      <View style={styles.header}>
-        <Text style={styles.label}>GOAL RACE</Text>
-        <Text style={styles.raceTitle}>{plan.raceName}</Text>
-        <View style={styles.metaRow}>
-          <Text style={[styles.metaValue, { color: C.clay }]}>{plan.raceDate}</Text>
-          <Text style={[styles.metaValue, { color: C.muted }]}>
-            {plan.weeks.length - currentWeekIndex} weeks out
-          </Text>
-          <Text style={[styles.metaValue, { color: C.navy }]}>{plan.targetTime}</Text>
+    <>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        {/* Race header */}
+        <View style={styles.header}>
+          <Text style={styles.label}>GOAL RACE</Text>
+          <Text style={styles.raceTitle}>{plan.raceName}</Text>
+          <View style={styles.metaRow}>
+            <Text style={[styles.metaValue, { color: C.clay }]}>{plan.raceDate}</Text>
+            <Text style={[styles.metaValue, { color: C.muted }]}>
+              {plan.weeks.length - currentWeekIndex} weeks out
+            </Text>
+            <Text style={[styles.metaValue, { color: C.navy }]}>{plan.targetTime}</Text>
+          </View>
         </View>
-      </View>
 
       {/* Phase strip */}
       <View style={styles.phaseSection}>
@@ -301,12 +344,14 @@ export default function BlockTab() {
       {plan.weeks.map((week, i) => {
         const isCurrent = i === currentWeekIndex;
         const isPast = i < currentWeekIndex;
+        const isFuture = i > currentWeekIndex;
         const injuryWeek = isInjuryWeek(i, injuryRange);
         const isExpanded = expandedWeekNumber === week.weekNumber;
         const weekEntries = injuryWeek ? getWeekEntries(crossTrainingEntries, week) : [];
         const volumeTone = getBlockVolumeTone(i, currentWeekIndex);
         const volumeSummary = getWeekVolumeSummary(week, activitiesById, volumeTone);
         const blockDayDetails = buildBlockWeekDayDetails(week);
+        const canRearrange = !injuryWeek && !isFullyCompletedWeek(week);
 
         return (
           <View
@@ -316,6 +361,7 @@ export default function BlockTab() {
               isCurrent && styles.weekRowCurrent,
               isPast && styles.weekRowPast,
               injuryWeek && styles.weekRowInjury,
+              isExpanded && isFuture && styles.weekRowFutureExpanded,
               isExpanded && styles.weekRowExpanded,
             ]}
           >
@@ -412,11 +458,32 @@ export default function BlockTab() {
             </Pressable>
 
             {isExpanded ? (
-              <View style={styles.expandedWeek}>
+              <View
+                style={[
+                  styles.expandedWeek,
+                  !isPast && styles.expandedWeekNoDivider,
+                  isFuture && styles.expandedWeekFuture,
+                ]}
+              >
+                {canRearrange ? (
+                  <Pressable
+                    testID={`rearrange-week-${week.weekNumber}`}
+                    onPress={() => setRearrangeWeekIndex(i)}
+                    style={styles.rearrangeButton}
+                  >
+                    <Text style={styles.rearrangeButtonText}>
+                      {isSavingRearrange && rearrangeWeekIndex === i ? 'Saving...' : 'Rearrange sessions'}
+                    </Text>
+                  </Pressable>
+                ) : null}
+
                 {blockDayDetails.map((detail) => {
                   const badge = getStatusBadge(detail.status);
                   return (
-                    <View key={`${week.weekNumber}-${detail.dayLabel}`} style={styles.dayRow}>
+                    <View
+                      key={`${week.weekNumber}-${detail.dayLabel}`}
+                      style={[styles.dayRow, isFuture && styles.dayRowFuture]}
+                    >
                       <View style={styles.dayMeta}>
                         <Text style={styles.dayName}>{detail.dayLabel}</Text>
                         <Text style={styles.dayDate}>{formatShortDate(detail.date)}</Text>
@@ -462,7 +529,17 @@ export default function BlockTab() {
       })}
 
       <View style={{ height: 40 }} />
-    </ScrollView>
+      </ScrollView>
+      {rearrangeWeek ? (
+        <RearrangeSheet
+          visible={Boolean(rearrangeWeek)}
+          weekNumber={rearrangeWeek.weekNumber}
+          sessions={rearrangeWeek.sessions}
+          onCancel={() => setRearrangeWeekIndex(null)}
+          onDone={handleRearrangeDone}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -572,6 +649,11 @@ const styles = StyleSheet.create({
   weekRowInjury: {
     backgroundColor: C.clayBg,
     borderColor: `${C.clay}22`,
+  },
+  weekRowFutureExpanded: {
+    backgroundColor: C.surface,
+    borderColor: `${C.muted}55`,
+    borderWidth: 1.5,
   },
   weekRowExpanded: {
     paddingBottom: 12,
@@ -695,10 +777,40 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     gap: 8,
   },
+  expandedWeekNoDivider: {
+    borderTopWidth: 0,
+    paddingTop: 0,
+  },
+  expandedWeekFuture: {
+    gap: 6,
+  },
+  rearrangeButton: {
+    minHeight: 38,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: `${C.clay}45`,
+    backgroundColor: C.clayBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  rearrangeButtonText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 12,
+    color: C.clay,
+  },
   dayRow: {
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 28,
+  },
+  dayRowFuture: {
+    minHeight: 34,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: '#FBF7F0',
   },
   dayMeta: {
     width: 74,
