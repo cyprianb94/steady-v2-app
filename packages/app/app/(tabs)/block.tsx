@@ -26,10 +26,20 @@ import {
   getWeekVolumeSummary,
   isInjuryWeek,
   type Activity,
+  type BlockPhaseSegment,
   type CrossTrainingEntry,
   type PlanWeek,
   type SessionType,
 } from '@steady/types';
+
+const COMPACT_PHASE_LABEL: Record<BlockPhaseSegment['name'], string> = {
+  BASE: 'B',
+  BUILD: 'BLD',
+  RECOVERY: 'REC',
+  PEAK: 'PK',
+  TAPER: 'TP',
+  INJURY: 'INJ',
+};
 
 function getWeekStartDate(week: PlanWeek): string {
   const fallbackDate =
@@ -55,6 +65,15 @@ function getPhaseCaption(
   }
 
   return `${currentPhase} phase · Week ${currentWeekNumber} of ${totalWeeks}`;
+}
+
+function getPhaseStripLabel(segment: BlockPhaseSegment, totalWeeks: number): string {
+  const charsPerWeek = totalWeeks >= 20 ? 2.2 : totalWeeks >= 14 ? 3 : 4.5;
+  const maxFullLabelChars = Math.max(1, Math.floor(segment.weeks * charsPerWeek));
+
+  return segment.name.length > maxFullLabelChars
+    ? COMPACT_PHASE_LABEL[segment.name]
+    : segment.name;
 }
 
 function formatShortDate(date: string | null): string {
@@ -224,45 +243,53 @@ export default function BlockTab() {
       {/* Phase strip */}
       <View style={styles.phaseSection}>
         <View style={styles.phaseStrip}>
-          {phases.map((p, i) => (
-            <View
-              key={i}
-              style={[
-                styles.phaseSegment,
-                {
-                  flex: p.weeks,
-                  backgroundColor:
-                    p.name === 'INJURY'
-                      ? p.isCurrent
-                        ? C.clay
-                        : C.clayBg
-                      : p.isCurrent
-                        ? PHASE_COLOR[p.name]
-                        : C.border,
-                  borderWidth: p.name === 'INJURY' && !p.isCurrent ? 1 : 0,
-                  borderColor: p.name === 'INJURY' ? `${C.clay}35` : 'transparent',
-                },
-              ]}
-            >
-              <Text
+          {phases.map((p, i) => {
+            const label = getPhaseStripLabel(p, plan.weeks.length);
+            const isCompactLabel = label !== p.name;
+
+            return (
+              <View
+                key={i}
+                accessibilityLabel={`${p.name} phase, ${p.weeks} ${p.weeks === 1 ? 'week' : 'weeks'}`}
                 style={[
-                  styles.phaseLabel,
+                  styles.phaseSegment,
                   {
-                    color:
+                    flex: p.weeks,
+                    backgroundColor:
                       p.name === 'INJURY'
                         ? p.isCurrent
-                          ? 'white'
-                          : C.clay
+                          ? C.clay
+                          : C.clayBg
                         : p.isCurrent
-                          ? 'white'
-                          : C.muted,
+                          ? PHASE_COLOR[p.name]
+                          : C.border,
+                    borderWidth: p.name === 'INJURY' && !p.isCurrent ? 1 : 0,
+                    borderColor: p.name === 'INJURY' ? `${C.clay}35` : 'transparent',
                   },
                 ]}
               >
-                {p.name}
-              </Text>
-            </View>
-          ))}
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.phaseLabel,
+                    isCompactLabel && styles.phaseLabelCompact,
+                    {
+                      color:
+                        p.name === 'INJURY'
+                          ? p.isCurrent
+                            ? 'white'
+                            : C.clay
+                          : p.isCurrent
+                            ? 'white'
+                            : C.muted,
+                    },
+                  ]}
+                >
+                  {label}
+                </Text>
+              </View>
+            );
+          })}
         </View>
         <Text style={styles.phaseCaption}>
           {getPhaseCaption(currentPhase, currentWeekIndex + 1, plan.weeks.length, injuryRange)}
@@ -507,6 +534,12 @@ const styles = StyleSheet.create({
     fontSize: 8.5,
     letterSpacing: 1,
     textTransform: 'uppercase',
+    maxWidth: '100%',
+    includeFontPadding: false,
+  },
+  phaseLabelCompact: {
+    fontSize: 8,
+    letterSpacing: 0.6,
   },
   phaseCaption: {
     fontFamily: FONTS.sans,

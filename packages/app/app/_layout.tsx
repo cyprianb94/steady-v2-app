@@ -1,6 +1,7 @@
 import React from 'react';
 import { Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '../lib/auth';
 
 export default function RootLayout() {
@@ -15,11 +16,13 @@ export default function RootLayout() {
   });
 
   return (
-    <AuthProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="onboarding" />
-      </Stack>
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="onboarding" />
+        </Stack>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAppRouter } from '../src/trpc/router';
 import { InMemoryActivityRepo } from '../src/repos/activity-repo.memory';
 import { InMemoryConversationRepo } from '../src/repos/conversation-repo.memory';
@@ -51,6 +51,7 @@ describe('plan subjective input', () => {
   let caller: ReturnType<ReturnType<typeof createAppRouter>['createCaller']>;
 
   beforeEach(async () => {
+    vi.useRealTimers();
     planRepo = new InMemoryPlanRepo();
     const appRouter = createAppRouter({
       profileRepo: new InMemoryProfileRepo(),
@@ -61,6 +62,10 @@ describe('plan subjective input', () => {
     });
     caller = appRouter.createCaller({ userId: 'user-1' });
     await planRepo.save(makePlan());
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('saves subjective input for a session and returns it from the plan query', async () => {
@@ -92,5 +97,40 @@ describe('plan subjective input', () => {
 
     expect(plan?.weeks[0].sessions[0]?.subjectiveInput).toBeUndefined();
     expect(plan?.weeks[0].sessions[0]?.subjectiveInputDismissed).toBe(true);
+  });
+
+  it('builds the coach annotation from the weekday slot when session dates are stale', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-10T12:00:00Z')); // Friday
+    await planRepo.save({
+      ...makePlan(),
+      weeks: [
+        {
+          weekNumber: 1,
+          phase: 'BASE',
+          plannedKm: 8,
+          sessions: [
+            null,
+            null,
+            null,
+            null,
+            {
+              id: 'friday-session',
+              type: 'EASY',
+              date: '2026-06-19',
+              distance: 8,
+              pace: '5:20',
+            },
+            null,
+            null,
+          ],
+        },
+      ],
+    });
+
+    const plan = await caller.plan.get();
+
+    expect(plan?.coachAnnotation).toMatch(/first week|consistency/i);
+    expect(plan?.coachAnnotation).not.toMatch(/rest day/i);
   });
 });

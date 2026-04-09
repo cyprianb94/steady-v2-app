@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 // Mock auth and plan hooks — these are the seams we control
 const mockAuth: { session: any; isLoading: boolean; signIn: any; signOut: any } = {
@@ -44,6 +44,7 @@ import HomeScreen from '../app/(tabs)/home';
 
 describe('HomeScreen', () => {
   beforeEach(() => {
+    vi.useRealTimers();
     mockAuth.session = null;
     mockAuth.isLoading = true;
     mockPlan.plan = null;
@@ -52,6 +53,10 @@ describe('HomeScreen', () => {
     mockPlan.refresh = vi.fn();
     mockSaveSubjectiveInput.mockReset();
     mockDismissSubjectiveInput.mockReset();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('shows a loading indicator while auth is loading', () => {
@@ -163,6 +168,55 @@ describe('HomeScreen', () => {
 
     expect(screen.getByTestId('coach-annotation')).toBeTruthy();
     expect(screen.getByText(/keep today conversational/i)).toBeTruthy();
+  });
+
+  it('uses the weekday slot for today when saved session dates are out of range', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-10T12:00:00Z')); // Friday
+
+    const week = {
+      weekNumber: 1,
+      phase: 'BASE' as const,
+      sessions: [
+        null,
+        null,
+        null,
+        null,
+        {
+          id: 'friday-session',
+          type: 'EASY',
+          date: '2026-06-19',
+          distance: 8,
+          pace: '5:20',
+        },
+        {
+          id: 'saturday-session',
+          type: 'LONG',
+          date: '2026-06-20',
+          distance: 16,
+          pace: '5:10',
+        },
+        null,
+      ],
+      plannedKm: 24,
+    };
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-07-26',
+      coachAnnotation: 'Keep this one conversational.',
+    };
+    mockPlan.currentWeek = week;
+
+    render(<HomeScreen />);
+
+    expect(screen.getByText('8km @ 5:20')).toBeTruthy();
+    expect(screen.getByText('Sat')).toBeTruthy();
+    expect(screen.getByText('16km @ 5:10')).toBeTruthy();
   });
 
   it('saves subjective input from the completed-session prompt', async () => {

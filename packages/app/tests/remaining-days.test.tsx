@@ -55,4 +55,21 @@ describe('RemainingDaysList', () => {
     // No day rows should be rendered
     expect(screen.queryAllByTestId('compact-day-row')).toHaveLength(0);
   });
+
+  it('falls back to weekday position when saved dates do not include today', () => {
+    const sessions = DAYS.map((_, i) =>
+      makeSession(`2026-06-${String(15 + i).padStart(2, '0')}`),
+    );
+
+    render(
+      <RemainingDaysList
+        sessions={sessions}
+        today="2026-04-10" // Friday
+      />,
+    );
+
+    expect(screen.queryByText('Fri')).toBeNull();
+    expect(screen.getByText('Sat')).toBeTruthy();
+    expect(screen.getByText('Sun')).toBeTruthy();
+  });
 });

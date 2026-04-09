@@ -51,4 +51,19 @@ describe('PhaseInfoStrip', () => {
     expect(screen.getByText('Race week')).toBeTruthy();
     expect(screen.queryByText('0 weeks to go')).toBeNull();
   });
+
+  it('caps a stale race-date countdown to the remaining plan length', () => {
+    render(
+      <PhaseInfoStrip
+        phase="BASE"
+        weekNumber={1}
+        totalWeeks={16}
+        raceDate="2026-10-04"
+        today="2026-04-09"
+      />,
+    );
+
+    expect(screen.getByText('16 weeks to go')).toBeTruthy();
+    expect(screen.queryByText('26 weeks to go')).toBeNull();
+  });
 });

@@ -8,6 +8,7 @@ import { FONTS } from '../../../constants/typography';
 import { Btn } from '../../../components/ui/Btn';
 import { SessionDot } from '../../../components/ui/SessionDot';
 import { SessionRow } from '../../../components/plan-builder/SessionRow';
+import { raceDateForPlanStartingThisWeek } from '../../../lib/plan-helpers';
 import { generatePlan, propagateChange, assignDates } from '@steady/types';
 import { trpc } from '../../../lib/trpc';
 import type { PlannedSession, PhaseConfig, PlanWeek } from '@steady/types';
@@ -54,7 +55,8 @@ export default function StepPlan() {
   const handleDone = async () => {
     setSaving(true);
     try {
-      const raceDate = '2026-10-04'; // TODO: Pass from StepGoal
+      const today = new Date().toISOString().slice(0, 10);
+      const raceDate = raceDateForPlanStartingThisWeek(today, weeks);
       const datedWeeks = assignDates(plan, raceDate);
       await trpc.plan.save.mutate({
         raceName: params.race || 'Race',

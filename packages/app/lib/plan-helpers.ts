@@ -59,6 +59,34 @@ export function startOfWeekIso(date: string): string {
   return value.toISOString().slice(0, 10);
 }
 
+export function dayIndexForIsoDate(date: string): number {
+  const day = new Date(`${date}T00:00:00Z`).getUTCDay();
+  return day === 0 ? 6 : day - 1;
+}
+
+export function raceDateForPlanStartingThisWeek(today: string, totalWeeks: number): string {
+  const weekStart = startOfWeekIso(today);
+  return addDaysIso(weekStart, totalWeeks * 7 - 1);
+}
+
+export function findSessionForDateOrWeekday(
+  sessions: (PlannedSession | null)[],
+  date: string,
+): PlannedSession | null {
+  const exactSession = sessions.find((session) => session?.date === date);
+  if (exactSession) return exactSession;
+
+  return sessions[dayIndexForIsoDate(date)] ?? null;
+}
+
+export function getRemainingWeekStartIndex(
+  sessions: (PlannedSession | null)[],
+  date: string,
+): number {
+  const exactIndex = sessions.findIndex((session) => session?.date === date);
+  return (exactIndex >= 0 ? exactIndex : dayIndexForIsoDate(date)) + 1;
+}
+
 export function inferWeekStartDate(week: PlanWeek, fallbackDate = new Date().toISOString().slice(0, 10)): string {
   for (let i = 0; i < week.sessions.length; i++) {
     const session = week.sessions[i];

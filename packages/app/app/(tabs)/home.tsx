@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { useAuth } from '../../lib/auth';
@@ -12,9 +13,13 @@ import { PhaseInfoStrip } from '../../components/home/PhaseInfoStrip';
 import { TodayHeroCard } from '../../components/home/TodayHeroCard';
 import { RemainingDaysList } from '../../components/home/RemainingDaysList';
 import { CoachAnnotationCard } from '../../components/home/CoachAnnotationCard';
+import { findSessionForDateOrWeekday } from '../../lib/plan-helpers';
 import type { SubjectiveInput } from '@steady/types';
 
+const HOME_SCROLL_TOP_PADDING = 14;
+
 export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
   const { session, isLoading: authLoading } = useAuth();
   const { plan, loading, currentWeek, refresh } = usePlan();
   const today = new Date().toISOString().slice(0, 10);
@@ -57,7 +62,7 @@ export default function HomeScreen() {
   }
 
   const week = currentWeek;
-  const todaySession = week.sessions.find((s) => s?.date === today) ?? null;
+  const todaySession = findSessionForDateOrWeekday(week.sessions, today);
 
   async function saveSubjectiveInput(input: SubjectiveInput) {
     if (!todaySession) return;
@@ -82,7 +87,10 @@ export default function HomeScreen() {
         <ScrollView
           testID="home-scroll"
           style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: insets.top + HOME_SCROLL_TOP_PADDING },
+          ]}
         >
           <View style={styles.header}>
             <Text style={styles.headerKicker}>Today</Text>
@@ -137,7 +145,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 18,
     paddingBottom: 20,
-    paddingTop: 14,
+    paddingTop: HOME_SCROLL_TOP_PADDING,
   },
   header: {
     paddingHorizontal: 4,

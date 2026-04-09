@@ -38,7 +38,14 @@ function countdownLabel(countdown: number | null): string | null {
 
 export function PhaseInfoStrip({ phase, weekNumber, totalWeeks, raceDate, today }: PhaseInfoStripProps) {
   const colors = getPhaseColors(phase);
-  const countdown = raceDate && today ? weeksUntil(today, raceDate) : null;
+  const dateCountdown = raceDate && today ? weeksUntil(today, raceDate) : null;
+  const blockCountdown = Math.max(0, totalWeeks - weekNumber + 1);
+  const countdown =
+    dateCountdown === null
+      ? null
+      : dateCountdown === 0
+        ? 0
+        : Math.min(dateCountdown, blockCountdown);
   const countdownCopy = countdownLabel(countdown);
 
   return (

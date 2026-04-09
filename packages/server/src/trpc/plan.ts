@@ -33,6 +33,21 @@ function addDays(date: string, days: number): string {
   return value.toISOString().slice(0, 10);
 }
 
+function dayIndexForDate(date: string): number {
+  const day = new Date(`${date}T00:00:00.000Z`).getUTCDay();
+  return day === 0 ? 6 : day - 1;
+}
+
+function findSessionForDateOrWeekday(
+  sessions: (PlannedSession | null)[],
+  date: string,
+): PlannedSession | null {
+  const exactSession = sessions.find((session) => session?.date === date);
+  if (exactSession) return exactSession;
+
+  return sessions[dayIndexForDate(date)] ?? null;
+}
+
 function withCoachAnnotation(plan: TrainingPlan | null): TrainingPlanWithAnnotation | null {
   if (!plan) return null;
 
@@ -47,8 +62,8 @@ function withCoachAnnotation(plan: TrainingPlan | null): TrainingPlanWithAnnotat
   }
 
   const tomorrow = addDays(today, 1);
-  const todaySession = currentWeek.sessions.find((session) => session?.date === today) ?? null;
-  const tomorrowSession = currentWeek.sessions.find((session) => session?.date === tomorrow) ?? null;
+  const todaySession = findSessionForDateOrWeekday(currentWeek.sessions, today);
+  const tomorrowSession = findSessionForDateOrWeekday(currentWeek.sessions, tomorrow);
 
   return {
     ...plan,
