@@ -27,6 +27,8 @@ const SubjectiveInputSchema = z.object({
   overall: z.enum(['could-go-again', 'done', 'shattered']),
 });
 
+const PhaseNameSchema = z.enum(['BASE', 'BUILD', 'RECOVERY', 'PEAK', 'TAPER']);
+
 function addDays(date: string, days: number): string {
   const value = new Date(`${date}T00:00:00.000Z`);
   value.setUTCDate(value.getUTCDate() + days);
@@ -188,6 +190,7 @@ export function createPlanRouter(planRepo: PlanRepo) {
           dayIndex: z.number().min(0).max(6),
           updated: z.any(),
           scope: z.enum(['this', 'remaining', 'build']),
+          targetPhase: PhaseNameSchema.optional(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
@@ -203,6 +206,7 @@ export function createPlanRouter(planRepo: PlanRepo) {
           input.updated as PlannedSession | null,
           input.scope,
           plan.templateWeek,
+          input.targetPhase,
         );
 
         return planRepo.updateWeeks(plan.id, newWeeks);

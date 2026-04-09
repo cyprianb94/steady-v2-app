@@ -50,7 +50,7 @@ describe('propagateSwap', () => {
     expect(result[2].swapLog).toEqual([{ from: 0, to: 2 }]);
   });
 
-  it('only applies to BUILD phase weeks from target onward for build scope', () => {
+  it('only applies to the target phase weeks for build scope', () => {
     const plan = [
       week(1, 'BASE', 'w1'),
       week(2, 'BUILD', 'w2'),
@@ -68,6 +68,38 @@ describe('propagateSwap', () => {
     expect(result[4].sessions[0]?.id).toBe('w5-easy');
     expect(result[1].swapLog).toEqual([{ from: 0, to: 2 }]);
     expect(result[3].swapLog).toEqual([{ from: 0, to: 2 }]);
+  });
+
+  it('can apply the phase-scoped option to BASE weeks', () => {
+    const plan = [
+      week(1, 'BASE', 'w1'),
+      week(2, 'BUILD', 'w2'),
+      week(3, 'BASE', 'w3'),
+      week(4, 'PEAK', 'w4'),
+    ];
+
+    const result = propagateSwap(plan, 0, 0, 2, 'build', 'BASE');
+
+    expect(result[0].sessions[0]?.id).toBe('w1-long');
+    expect(result[1].sessions[0]?.id).toBe('w2-easy');
+    expect(result[2].sessions[0]?.id).toBe('w3-long');
+    expect(result[3].sessions[0]?.id).toBe('w4-easy');
+    expect(result[0].swapLog).toEqual([{ from: 0, to: 2 }]);
+    expect(result[2].swapLog).toEqual([{ from: 0, to: 2 }]);
+  });
+
+  it('also applies to earlier weeks in the same phase', () => {
+    const plan = [
+      week(1, 'BASE', 'w1'),
+      week(2, 'BASE', 'w2'),
+      week(3, 'PEAK', 'w3'),
+    ];
+
+    const result = propagateSwap(plan, 1, 0, 2, 'build', 'BASE');
+
+    expect(result[0].sessions[0]?.id).toBe('w1-long');
+    expect(result[1].sessions[0]?.id).toBe('w2-long');
+    expect(result[2].sessions[0]?.id).toBe('w3-easy');
   });
 
   it('silently skips weeks where either swap position is completed', () => {

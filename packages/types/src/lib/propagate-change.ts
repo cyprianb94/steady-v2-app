@@ -1,5 +1,5 @@
 import type { PlannedSession } from '../session';
-import type { PlanWeek } from '../plan';
+import type { PhaseName, PlanWeek } from '../plan';
 import { sessionKm } from './session-km';
 
 export type PropagateScope = 'this' | 'remaining' | 'build';
@@ -12,7 +12,7 @@ export type PropagateScope = 'this' | 'remaining' | 'build';
  *
  * - 'this':      only the target week
  * - 'remaining': target week and all subsequent weeks
- * - 'build':     target week and all subsequent BUILD-phase weeks
+ * - 'build':     all weeks in the same phase as the target week
  */
 export function propagateChange(
   plan: PlanWeek[],
@@ -21,12 +21,15 @@ export function propagateChange(
   updated: PlannedSession | null,
   scope: PropagateScope,
   template: (PlannedSession | null)[],
+  targetPhase?: PhaseName,
 ): PlanWeek[] {
+  const phaseScope = targetPhase ?? plan[weekIndex]?.phase ?? 'BUILD';
+
   return plan.map((w, wi) => {
     let apply = false;
     if (scope === 'this') apply = wi === weekIndex;
     else if (scope === 'remaining') apply = wi >= weekIndex;
-    else if (scope === 'build') apply = wi >= weekIndex && w.phase === 'BUILD';
+    else if (scope === 'build') apply = w.phase === phaseScope;
 
     if (!apply) return w;
 

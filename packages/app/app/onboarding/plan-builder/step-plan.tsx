@@ -44,7 +44,15 @@ export default function StepPlan() {
     scope: 'this' | 'remaining' | 'build',
   ) => {
     setPlan((prev) =>
-      propagateChange(prev, weekIndex, dayIndex, updated as PlannedSession | null, scope, template),
+      propagateChange(
+        prev,
+        weekIndex,
+        dayIndex,
+        updated as PlannedSession | null,
+        scope,
+        template,
+        prev[weekIndex]?.phase,
+      ),
     );
   };
 
@@ -233,6 +241,7 @@ export default function StepPlan() {
                       dayIndex={di}
                       weekIndex={wi}
                       totalWeeks={plan.length}
+                      phaseName={w.phase}
                       onChanged={(dayIdx, updated, scope) => applyChange(wi, dayIdx, updated, scope)}
                     />
                   ))}

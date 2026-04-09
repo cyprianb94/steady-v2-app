@@ -1,5 +1,5 @@
 import type { PlannedSession, SessionType } from '../session';
-import type { PlanWeek, SwapLogEntry } from '../plan';
+import type { PhaseName, PlanWeek, SwapLogEntry } from '../plan';
 import type { PropagateScope } from './propagate-change';
 import { weekKm } from './session-km';
 
@@ -37,11 +37,13 @@ export function propagateSwap(
   fromIndex: number,
   toIndex: number,
   scope: PropagateScope,
+  targetPhase?: PhaseName,
 ): PlanWeek[] {
   const swapLog: SwapLogEntry = { from: fromIndex, to: toIndex };
+  const phaseScope = targetPhase ?? plan[weekIndex]?.phase ?? 'BUILD';
 
   return plan.map((week, index) => {
-    if (!shouldApplySwap(index, week, weekIndex, scope)) return week;
+    if (!shouldApplySwap(index, week, weekIndex, scope, phaseScope)) return week;
     if (hasCompletedSwapPosition(week, fromIndex, toIndex)) return week;
 
     const sessions = swapSessions(week.sessions, fromIndex, toIndex);
@@ -61,10 +63,11 @@ function shouldApplySwap(
   week: PlanWeek,
   weekIndex: number,
   scope: PropagateScope,
+  targetPhase: PhaseName,
 ): boolean {
   if (scope === 'this') return index === weekIndex;
   if (scope === 'remaining') return index >= weekIndex;
-  return index >= weekIndex && week.phase === 'BUILD';
+  return week.phase === targetPhase;
 }
 
 function hasCompletedSwapPosition(week: PlanWeek, fromIndex: number, toIndex: number): boolean {

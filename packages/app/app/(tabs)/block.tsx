@@ -332,6 +332,8 @@ export default function BlockTab() {
 
   async function applyPendingRearrange(scope: PropagateScope) {
     if (!plan || !pendingRearrange) return;
+    const sourceWeek = plan.weeks[pendingRearrange.weekIndex];
+    if (!sourceWeek) return;
 
     const nextWeeks = pendingRearrange.swapLog.reduce(
       (weeks, swap) => propagateSwap(
@@ -340,6 +342,7 @@ export default function BlockTab() {
         swap.from,
         swap.to,
         scope,
+        sourceWeek.phase,
       ),
       plan.weeks,
     );
@@ -392,6 +395,7 @@ export default function BlockTab() {
         updatedSession,
         scope,
         plan.templateWeek,
+        sourceWeek.phase,
       ),
       pendingEdit.dayIndex,
     );
@@ -696,6 +700,7 @@ export default function BlockTab() {
           changeDesc={`${pendingRearrange.swapLog.length} session ${pendingRearrange.swapLog.length === 1 ? 'swap' : 'swaps'}`}
           weekIndex={pendingRearrange.weekIndex}
           totalWeeks={plan.weeks.length}
+          phaseName={plan.weeks[pendingRearrange.weekIndex]?.phase ?? 'BUILD'}
           onApply={applyPendingRearrange}
           onClose={() => setPendingRearrange(null)}
         />
@@ -713,6 +718,7 @@ export default function BlockTab() {
           changeDesc={isSavingEdit ? 'Saving…' : pendingEdit.desc}
           weekIndex={pendingEdit.weekIndex}
           totalWeeks={plan.weeks.length}
+          phaseName={plan.weeks[pendingEdit.weekIndex]?.phase ?? 'BUILD'}
           onApply={applyPendingEdit}
           onClose={() => setPendingEdit(null)}
         />

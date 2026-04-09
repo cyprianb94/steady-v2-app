@@ -105,6 +105,8 @@ describe('BlockTab session rearrange', () => {
 
     expect(screen.getByText('Apply change where?')).toBeTruthy();
     expect(screen.getByText('1 session swap')).toBeTruthy();
+    expect(screen.getByText('Base phase only')).toBeTruthy();
+    expect(screen.queryByText('Build phase only')).toBeNull();
 
     fireEvent.click(screen.getByText('Apply change'));
 

@@ -7,17 +7,18 @@ import { TypeStrip } from './TypeStrip';
 import { PropagateModal } from './PropagateModal';
 import { SessionDot } from '../ui/SessionDot';
 import { DAYS, REP_DISTS, TYPE_DEFAULTS } from '../../lib/plan-helpers';
-import type { PlannedSession, SessionType } from '@steady/types';
+import type { PhaseName, PlannedSession, SessionType } from '@steady/types';
 
 interface SessionRowProps {
   sess: Partial<PlannedSession> | null;
   dayIndex: number;
   weekIndex: number;
   totalWeeks: number;
+  phaseName: PhaseName;
   onChanged: (dayIndex: number, updated: Partial<PlannedSession> | null, scope: 'this' | 'remaining' | 'build') => void;
 }
 
-export function SessionRow({ sess, dayIndex, weekIndex, totalWeeks, onChanged }: SessionRowProps) {
+export function SessionRow({ sess, dayIndex, weekIndex, totalWeeks, phaseName, onChanged }: SessionRowProps) {
   const [pending, setPending] = useState<{ updated: Partial<PlannedSession> | null; desc: string } | null>(null);
 
   const currentType: SessionType = (sess?.type as SessionType) || 'REST';
@@ -152,6 +153,7 @@ export function SessionRow({ sess, dayIndex, weekIndex, totalWeeks, onChanged }:
           changeDesc={pending.desc}
           weekIndex={weekIndex}
           totalWeeks={totalWeeks}
+          phaseName={phaseName}
           onApply={(scope) => {
             onChanged(dayIndex, pending.updated, scope);
             setPending(null);
