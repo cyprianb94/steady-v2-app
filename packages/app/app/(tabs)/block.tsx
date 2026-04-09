@@ -107,8 +107,9 @@ export default function BlockTab() {
   const [isLoadingCrossTraining, setIsLoadingCrossTraining] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
 
-  const injury = plan?.activeInjury ?? null;
-  const injuryRange = plan ? getInjuryWeekRange(plan.weeks, injury, today) : null;
+  const activeInjury =
+    plan?.activeInjury && plan.activeInjury.status !== 'resolved' ? plan.activeInjury : null;
+  const injuryRange = plan ? getInjuryWeekRange(plan.weeks, activeInjury, today) : null;
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -194,7 +195,7 @@ export default function BlockTab() {
     return () => {
       cancelled = true;
     };
-  }, [injury?.markedDate, injury?.resolvedDate, injury?.status, plan]);
+  }, [activeInjury?.markedDate, activeInjury?.resolvedDate, activeInjury?.status, plan]);
 
   if (loading) {
     return (
@@ -213,7 +214,7 @@ export default function BlockTab() {
     );
   }
 
-  const phases = buildBlockPhaseSegments(plan.weeks, currentWeekIndex, injury, today);
+  const phases = buildBlockPhaseSegments(plan.weeks, currentWeekIndex, activeInjury, today);
   const currentPhase = isInjuryWeek(currentWeekIndex, injuryRange)
     ? 'INJURY'
     : plan.weeks[currentWeekIndex]?.phase ?? 'BUILD';
@@ -361,11 +362,8 @@ export default function BlockTab() {
                           style={[
                             styles.dot,
                             {
-                              backgroundColor:
-                                isPast || isCurrent
-                                  ? SESSION_TYPE[type].color
-                                  : C.border,
-                              opacity: !isPast && !isCurrent ? 0.4 : 1,
+                              backgroundColor: SESSION_TYPE[type].color,
+                              opacity: !isPast && !isCurrent ? 0.55 : 1,
                             },
                           ]}
                         />

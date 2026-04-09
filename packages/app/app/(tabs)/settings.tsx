@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, Alert, ScrollView, Pressable } from 'react-native';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Btn } from '../../components/ui/Btn';
 import { usePlan } from '../../hooks/usePlan';
 import { RecoveryFlowModal } from '../../components/recovery/RecoveryFlowModal';
@@ -10,7 +11,11 @@ import { useAuth } from '../../lib/auth';
 import { clearResumeWeekOverride, setResumeWeekOverride } from '../../lib/resume-week';
 import { trpc } from '../../lib/trpc';
 
+const SETTINGS_TOP_SPACING = 14;
+const SETTINGS_BOTTOM_SPACING = 24;
+
 export default function SettingsTab() {
+  const insets = useSafeAreaInsets();
   const { signInWithGoogle, signOut, session, isLoading } = useAuth();
   const { plan, loading: planLoading, currentWeekIndex, refresh } = usePlan();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -80,8 +85,19 @@ export default function SettingsTab() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Settings</Text>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[
+        styles.content,
+        {
+          paddingTop: insets.top + SETTINGS_TOP_SPACING,
+          paddingBottom: insets.bottom + SETTINGS_BOTTOM_SPACING,
+        },
+      ]}
+    >
+      <View style={styles.header}>
+        <Text style={styles.title}>Settings</Text>
+      </View>
       <View style={styles.card}>
         <Text style={styles.label}>Authentication</Text>
         <Text style={styles.status}>
@@ -169,15 +185,17 @@ const styles = StyleSheet.create({
     backgroundColor: C.cream,
   },
   content: {
-    paddingHorizontal: 20,
-    paddingVertical: 48,
+    paddingHorizontal: 18,
     gap: 16,
   },
+  header: {
+    paddingHorizontal: 4,
+    paddingBottom: 8,
+  },
   title: {
-    fontSize: 24,
-    fontFamily: FONTS.sansSemiBold,
+    fontSize: 28,
+    fontFamily: FONTS.serifBold,
     color: C.ink,
-    textAlign: 'center',
   },
   card: {
     backgroundColor: C.surface,
