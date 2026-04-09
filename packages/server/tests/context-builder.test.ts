@@ -156,6 +156,24 @@ describe('buildSystemPrompt — activity log', () => {
     expect(prompt).toContain('✓');
     expect(prompt).toContain('actual:');
   });
+
+  it('includes subjective session feedback when present', () => {
+    const sessionWithFeedback = {
+      ...EASY_SESSION,
+      subjectiveInput: {
+        legs: 'heavy',
+        breathing: 'controlled',
+        overall: 'done',
+      },
+    } as const;
+    const plan = makePlan([
+      makeWeek(10, 'BUILD', [sessionWithFeedback, null, null, null, null, null, null]),
+    ]);
+
+    const prompt = buildSystemPrompt(USER, plan, [], 'free_form');
+
+    expect(prompt).toContain('felt: legs heavy, breathing controlled, overall done');
+  });
 });
 
 describe('buildSystemPrompt — conversation types', () => {

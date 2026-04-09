@@ -2,6 +2,10 @@ export type {
   SessionType,
   PlannedSession,
   RecoveryDuration,
+  SubjectiveBreathing,
+  SubjectiveInput,
+  SubjectiveLegs,
+  SubjectiveOverall,
 } from './session';
 export { RECOVERY_KM } from './session';
 
@@ -25,7 +29,6 @@ export { CROSS_TRAINING_TYPES } from './injury';
 export type {
   Activity,
   ActivitySplit,
-  SubjectiveInput,
 } from './activity';
 
 export type {

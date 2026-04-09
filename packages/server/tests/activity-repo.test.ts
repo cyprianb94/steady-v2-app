@@ -56,7 +56,7 @@ function runActivityRepoTests(name: string, createRepo: () => ActivityRepo) {
       const activity = makeActivity('user-1');
       await repo.save(activity);
 
-      const input: SubjectiveInput = { legs: 3, breathing: 4, overall: 3, note: 'Felt okay' };
+      const input: SubjectiveInput = { legs: 'normal', breathing: 'controlled', overall: 'done' };
       const updated = await repo.updateSubjectiveInput(activity.id, input);
 
       expect(updated).not.toBeNull();
@@ -64,11 +64,15 @@ function runActivityRepoTests(name: string, createRepo: () => ActivityRepo) {
 
       // Persisted
       const retrieved = (await repo.getByUserId('user-1'))[0];
-      expect(retrieved.subjectiveInput!.legs).toBe(3);
+      expect(retrieved.subjectiveInput!.legs).toBe('normal');
     });
 
     it('returns null when updating subjective input for nonexistent activity', async () => {
-      expect(await repo.updateSubjectiveInput('ghost', { legs: 1, breathing: 1, overall: 1 })).toBeNull();
+      expect(await repo.updateSubjectiveInput('ghost', {
+        legs: 'heavy',
+        breathing: 'labored',
+        overall: 'shattered',
+      })).toBeNull();
     });
 
     it('updates matched session id', async () => {

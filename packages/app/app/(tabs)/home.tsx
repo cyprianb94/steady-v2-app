@@ -5,16 +5,18 @@ import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { useAuth } from '../../lib/auth';
 import { usePlan } from '../../hooks/usePlan';
+import { trpc } from '../../lib/trpc';
 import { Btn } from '../../components/ui/Btn';
 import { PhaseThemeProvider } from '../../components/home/PhaseThemeProvider';
 import { PhaseInfoStrip } from '../../components/home/PhaseInfoStrip';
 import { TodayHeroCard } from '../../components/home/TodayHeroCard';
 import { RemainingDaysList } from '../../components/home/RemainingDaysList';
 import { CoachAnnotationCard } from '../../components/home/CoachAnnotationCard';
+import type { SubjectiveInput } from '@steady/types';
 
 export default function HomeScreen() {
   const { session, isLoading: authLoading } = useAuth();
-  const { plan, loading, currentWeek } = usePlan();
+  const { plan, loading, currentWeek, refresh } = usePlan();
   const today = new Date().toISOString().slice(0, 10);
 
   if (authLoading || loading) {
@@ -57,6 +59,23 @@ export default function HomeScreen() {
   const week = currentWeek;
   const todaySession = week.sessions.find((s) => s?.date === today) ?? null;
 
+  async function saveSubjectiveInput(input: SubjectiveInput) {
+    if (!todaySession) return;
+    await trpc.plan.saveSubjectiveInput.mutate({
+      sessionId: todaySession.id,
+      input,
+    });
+    await refresh();
+  }
+
+  async function dismissSubjectiveInput() {
+    if (!todaySession) return;
+    await trpc.plan.dismissSubjectiveInput.mutate({
+      sessionId: todaySession.id,
+    });
+    await refresh();
+  }
+
   return (
     <PhaseThemeProvider phase={week.phase}>
       <View style={styles.container}>
@@ -72,7 +91,11 @@ export default function HomeScreen() {
             raceDate={plan.raceDate}
             today={today}
           />
-          <TodayHeroCard session={todaySession} />
+          <TodayHeroCard
+            session={todaySession}
+            onSaveSubjectiveInput={saveSubjectiveInput}
+            onDismissSubjectiveInput={dismissSubjectiveInput}
+          />
           <CoachAnnotationCard annotation={plan.coachAnnotation} />
           <RemainingDaysList sessions={week.sessions} today={today} />
         </ScrollView>

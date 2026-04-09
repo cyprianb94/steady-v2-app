@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 // Mock auth and plan hooks — these are the seams we control
@@ -24,8 +24,20 @@ vi.mock('../hooks/usePlan', () => ({
   usePlan: () => mockPlan,
 }));
 
+const mockSaveSubjectiveInput = vi.hoisted(() => vi.fn());
+const mockDismissSubjectiveInput = vi.hoisted(() => vi.fn());
+
 vi.mock('../lib/trpc', () => ({
-  trpc: {},
+  trpc: {
+    plan: {
+      saveSubjectiveInput: {
+        mutate: mockSaveSubjectiveInput,
+      },
+      dismissSubjectiveInput: {
+        mutate: mockDismissSubjectiveInput,
+      },
+    },
+  },
 }));
 
 import HomeScreen from '../app/(tabs)/home';
@@ -36,6 +48,10 @@ describe('HomeScreen', () => {
     mockAuth.isLoading = true;
     mockPlan.plan = null;
     mockPlan.loading = true;
+    mockPlan.currentWeek = null;
+    mockPlan.refresh = vi.fn();
+    mockSaveSubjectiveInput.mockReset();
+    mockDismissSubjectiveInput.mockReset();
   });
 
   it('shows a loading indicator while auth is loading', () => {
@@ -122,5 +138,154 @@ describe('HomeScreen', () => {
 
     expect(screen.getByTestId('coach-annotation')).toBeTruthy();
     expect(screen.getByText(/keep today conversational/i)).toBeTruthy();
+  });
+
+  it('saves subjective input from the completed-session prompt', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const week = {
+      weekNumber: 3,
+      phase: 'BASE' as const,
+      sessions: [
+        {
+          id: 'session-1',
+          type: 'EASY',
+          date: today,
+          distance: 8,
+          pace: '5:20',
+          actualActivityId: 'activity-1',
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+      ],
+      plannedKm: 40,
+    };
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-07-15',
+      coachAnnotation: 'Nice work.',
+    };
+    mockPlan.currentWeek = week;
+    mockPlan.refresh = vi.fn().mockResolvedValue(undefined);
+    mockSaveSubjectiveInput.mockResolvedValue({});
+
+    render(<HomeScreen />);
+
+    expect(screen.getByTestId('subjective-input-prompt')).toBeTruthy();
+    fireEvent.click(screen.getByText('Heavy'));
+    fireEvent.click(screen.getByText('Controlled'));
+    fireEvent.click(screen.getByText('Done'));
+    fireEvent.click(screen.getByText('Save feel'));
+
+    await waitFor(() => {
+      expect(mockSaveSubjectiveInput).toHaveBeenCalledWith({
+        sessionId: 'session-1',
+        input: {
+          legs: 'heavy',
+          breathing: 'controlled',
+          overall: 'done',
+        },
+      });
+    });
+    expect(mockPlan.refresh).toHaveBeenCalled();
+  });
+
+  it('dismisses the subjective input prompt without saving ratings', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const week = {
+      weekNumber: 3,
+      phase: 'BASE' as const,
+      sessions: [
+        {
+          id: 'session-1',
+          type: 'EASY',
+          date: today,
+          distance: 8,
+          pace: '5:20',
+          actualActivityId: 'activity-1',
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+      ],
+      plannedKm: 40,
+    };
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-07-15',
+      coachAnnotation: 'Nice work.',
+    };
+    mockPlan.currentWeek = week;
+    mockPlan.refresh = vi.fn().mockResolvedValue(undefined);
+    mockDismissSubjectiveInput.mockResolvedValue({});
+
+    render(<HomeScreen />);
+
+    fireEvent.click(screen.getByText('Skip'));
+
+    await waitFor(() => {
+      expect(mockDismissSubjectiveInput).toHaveBeenCalledWith({
+        sessionId: 'session-1',
+      });
+    });
+    expect(mockSaveSubjectiveInput).not.toHaveBeenCalled();
+    expect(mockPlan.refresh).toHaveBeenCalled();
+  });
+
+  it('does not show the subjective prompt after it has been dismissed', () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const week = {
+      weekNumber: 3,
+      phase: 'BASE' as const,
+      sessions: [
+        {
+          id: 'session-1',
+          type: 'EASY',
+          date: today,
+          distance: 8,
+          pace: '5:20',
+          actualActivityId: 'activity-1',
+          subjectiveInputDismissed: true,
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+      ],
+      plannedKm: 40,
+    };
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-07-15',
+      coachAnnotation: 'Nice work.',
+    };
+    mockPlan.currentWeek = week;
+
+    render(<HomeScreen />);
+
+    expect(screen.queryByTestId('subjective-input-prompt')).toBeNull();
   });
 });

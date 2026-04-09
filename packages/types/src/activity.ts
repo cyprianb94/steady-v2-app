@@ -1,3 +1,5 @@
+import type { SubjectiveInput } from './session';
+
 export interface ActivitySplit {
   km: number; // 1-indexed
   pace: number; // seconds per km
@@ -27,11 +29,4 @@ export interface Activity {
 
   // Matched session (set by matching algorithm)
   matchedSessionId?: string;
-}
-
-export interface SubjectiveInput {
-  legs: 1 | 2 | 3 | 4 | 5; // 1=heavy, 5=fresh
-  breathing: 1 | 2 | 3 | 4 | 5; // 1=laboured, 5=easy
-  overall: 1 | 2 | 3 | 4 | 5; // 1=terrible, 5=great
-  note?: string;
 }

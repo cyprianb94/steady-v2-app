@@ -9,9 +9,10 @@ function resolveStyle(style: any): any {
 function createMockComponent(tag: string) {
   return function MockComponent({ testID, children, style, ...props }: any) {
     const resolved = style ? resolveStyle(style) : undefined;
+    const { onPress, ...rest } = props;
     return React.createElement(
       'div',
-      { 'data-testid': testID, 'data-rn': tag, style: resolved, ...props },
+      { 'data-testid': testID, 'data-rn': tag, style: resolved, onClick: onPress, ...rest },
       children,
     );
   };

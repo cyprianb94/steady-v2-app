@@ -1,4 +1,4 @@
-import type { User, TrainingPlan, Activity, PlanWeek, PlannedSession, ConversationType } from '@steady/types';
+import type { User, TrainingPlan, Activity, PlanWeek, PlannedSession, ConversationType, SubjectiveInput } from '@steady/types';
 import { expectedDistance } from '@steady/types';
 import { secondsToPace } from './pace-utils';
 import { getCoachingKnowledge } from './coaching-knowledge';
@@ -108,6 +108,9 @@ function buildPlanSection(plan: TrainingPlan, activities: Activity[], charBudget
           if (matched.avgHR) desc += `, HR ${matched.avgHR}`;
           desc += ')';
         }
+        if (s.subjectiveInput) {
+          desc += ` (${formatSubjectiveInput(s.subjectiveInput)})`;
+        }
         line = `  ${dayNames[d] ?? `D${d}`}: ${desc}`;
       }
 
@@ -135,6 +138,7 @@ function buildActivityLog(activities: Activity[], charBudget: number): string {
     const date = a.startTime.slice(0, 10);
     let line = `  ${date}: ${a.distance.toFixed(1)}km in ${formatDuration(a.duration)} @ ${secondsToPace(a.avgPace)}`;
     if (a.avgHR) line += `, HR ${a.avgHR}`;
+    if (a.subjectiveInput) line += ` (${formatSubjectiveInput(a.subjectiveInput)})`;
 
     if (charCount + line.length > charBudget) break;
     lines.push(line);
@@ -158,6 +162,8 @@ function buildConversationFrame(
 
       let frame = `JUST COMPLETED:\n${session.type}: ${actual}\nPlanned: ${planned}\nDistance deviation: ${distDev}%`;
       if (activity.avgHR) frame += `\nAvg HR: ${activity.avgHR} bpm`;
+      if (session.subjectiveInput) frame += `\nSession felt: ${formatSubjectiveInput(session.subjectiveInput)}`;
+      if (activity.subjectiveInput) frame += `\nActivity felt: ${formatSubjectiveInput(activity.subjectiveInput)}`;
       frame += '\n\nProvide a brief debrief. Comment on execution vs plan. Highlight anything notable.';
       return frame;
     }
@@ -189,6 +195,10 @@ function formatDuration(seconds: number): string {
   const m = Math.floor((seconds % 3600) / 60);
   if (h > 0) return `${h}h${String(m).padStart(2, '0')}m`;
   return `${m}m`;
+}
+
+function formatSubjectiveInput(input: SubjectiveInput): string {
+  return `felt: legs ${input.legs}, breathing ${input.breathing}, overall ${input.overall}`;
 }
 
 function findCurrentWeekIndex(plan: TrainingPlan): number {
