@@ -43,6 +43,43 @@ describe('CompactDayRow', () => {
     expect(screen.getByTestId('day-row-check')).toBeTruthy();
   });
 
+  it('shows missed state for an unfinished past session', () => {
+    render(
+      <CompactDayRow
+        dayName="Tue"
+        status="missed"
+        session={{
+          id: 's3',
+          type: 'TEMPO',
+          date: '2026-04-08',
+          distance: 10,
+          pace: '4:20',
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('day-row-missed')).toBeTruthy();
+    expect(screen.getByText('Missed')).toBeTruthy();
+  });
+
+  it('shows a today badge for the current planned session', () => {
+    render(
+      <CompactDayRow
+        dayName="Thu"
+        status="today"
+        session={{
+          id: 's4',
+          type: 'TEMPO',
+          date: '2026-04-09',
+          distance: 10,
+          pace: '4:20',
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('day-row-today')).toBeTruthy();
+  });
+
   it('renders rest day with muted label', () => {
     render(
       <CompactDayRow

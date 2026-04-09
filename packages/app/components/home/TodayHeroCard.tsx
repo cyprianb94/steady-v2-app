@@ -17,6 +17,7 @@ interface ActivitySummary {
 interface TodayHeroCardProps {
   session: PlannedSession | null;
   activity?: ActivitySummary;
+  steadyNote?: string | null;
   onPress?: () => void;
   onSaveSubjectiveInput?: (input: SubjectiveInput) => void | Promise<void>;
   onDismissSubjectiveInput?: () => void | Promise<void>;
@@ -35,9 +36,27 @@ function plannedSummary(session: PlannedSession): string {
   return `${session.distance}km @ ${session.pace}`;
 }
 
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+
+function formatSessionDate(date: string): string {
+  const value = new Date(`${date}T00:00:00Z`);
+  return `${WEEKDAYS[value.getUTCDay()]}, ${MONTHS[value.getUTCMonth()]} ${value.getUTCDate()}`;
+}
+
+function plannedTitle(session: PlannedSession): string {
+  if (session.type === 'INTERVAL') {
+    return `${session.reps}×${session.repDist}m Intervals`;
+  }
+
+  const typeTitle = session.type === 'TEMPO' ? 'Tempo' : SESSION_TYPE[session.type].label;
+  return `${session.distance}km ${typeTitle}`;
+}
+
 export function TodayHeroCard({
   session,
   activity,
+  steadyNote,
   onPress,
   onSaveSubjectiveInput,
   onDismissSubjectiveInput,
@@ -84,17 +103,28 @@ export function TodayHeroCard({
 
   return (
     <View style={[styles.card, { backgroundColor: meta.bg }]} testID="hero-card">
-      <Text style={[styles.typeLabel, { color: meta.color }]}>{meta.label}</Text>
+      <View style={styles.topRow}>
+        <Text style={[styles.typeLabel, styles.typeLabelChip, { color: meta.color, borderColor: `${meta.color}66` }]}>
+          {session.type}
+        </Text>
+        <Text style={styles.todayBadge}>TODAY</Text>
+      </View>
 
-      {isInterval ? (
-        <Text style={[styles.mainStat, { color: meta.color }]}>
-          {session.reps}×{session.repDist}m @ {session.pace}
-        </Text>
-      ) : (
-        <Text style={[styles.mainStat, { color: meta.color }]}>
-          {session.distance}km @ {session.pace}
-        </Text>
-      )}
+      <Text style={[styles.mainTitle, { color: meta.color }]}>{plannedTitle(session)}</Text>
+      <Text style={styles.dateText}>{formatSessionDate(session.date)}</Text>
+
+      <View style={styles.metricGrid}>
+        <View style={styles.metricCard}>
+          <Text style={styles.metricValue}>
+            {isInterval ? `${session.reps}×${session.repDist}m` : `${session.distance}km`}
+          </Text>
+          <Text style={styles.metricLabel}>{isInterval ? 'session' : 'distance'}</Text>
+        </View>
+        <View style={styles.metricCard}>
+          <Text style={styles.metricValue}>{session.pace}</Text>
+          <Text style={styles.metricLabel}>{isInterval ? 'target pace' : 'target pace'}</Text>
+        </View>
+      </View>
 
       {(session.warmup || session.cooldown) && (
         <View style={styles.extras}>
@@ -106,6 +136,14 @@ export function TodayHeroCard({
           ) : null}
         </View>
       )}
+      {steadyNote ? (
+        <View style={styles.steadyNote}>
+          <View style={[styles.steadyDot, { backgroundColor: meta.color }]} />
+          <Text style={styles.steadyText}>
+            <Text style={styles.steadyLabel}>Steady</Text>: {steadyNote}
+          </Text>
+        </View>
+      ) : null}
       {showSubjectivePrompt ? (
         <SubjectiveInputPrompt
           onSave={onSaveSubjectiveInput}
@@ -228,12 +266,31 @@ const styles = StyleSheet.create({
   completedCard: {
     opacity: 0.9,
   },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
   typeLabel: {
     fontFamily: FONTS.sansSemiBold,
     fontSize: 13,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
-    marginBottom: 8,
+  },
+  typeLabelChip: {
+    borderWidth: 1.5,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    overflow: 'hidden',
+  },
+  todayBadge: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 10,
+    color: C.ink2,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   completedBadge: {
     fontFamily: FONTS.sansSemiBold,
@@ -246,9 +303,70 @@ const styles = StyleSheet.create({
     fontSize: 26,
     marginBottom: 12,
   },
+  mainTitle: {
+    fontFamily: FONTS.serifBold,
+    fontSize: 30,
+    marginBottom: 8,
+  },
+  dateText: {
+    fontFamily: FONTS.sans,
+    fontSize: 14,
+    color: C.muted,
+    marginBottom: 16,
+  },
+  metricGrid: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  metricCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  metricValue: {
+    fontFamily: FONTS.serifBold,
+    fontSize: 20,
+    color: C.ink,
+    marginBottom: 2,
+  },
+  metricLabel: {
+    fontFamily: FONTS.sans,
+    fontSize: 11,
+    color: C.muted,
+    textTransform: 'lowercase',
+  },
   extras: {
     flexDirection: 'row',
     gap: 12,
+  },
+  steadyNote: {
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(28,21,16,0.08)',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  steadyDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 999,
+    marginTop: 7,
+  },
+  steadyLabel: {
+    fontFamily: FONTS.sansSemiBold,
+    color: C.ink,
+  },
+  steadyText: {
+    flex: 1,
+    fontFamily: FONTS.sans,
+    fontSize: 13,
+    lineHeight: 19,
+    color: C.ink2,
   },
   extraText: {
     fontFamily: FONTS.sans,

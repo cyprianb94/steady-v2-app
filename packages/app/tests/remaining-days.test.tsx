@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { vi, describe, it, expect } from 'vitest';
+import type { PlannedSession } from '@steady/types';
 
 vi.mock('../lib/trpc', () => ({ trpc: {} }));
 
@@ -8,15 +9,15 @@ import { RemainingDaysList } from '../components/home/RemainingDaysList';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-function makeSession(date: string, type: 'EASY' | 'REST' = 'EASY') {
+function makeSession(date: string, type: 'EASY' | 'REST' = 'EASY'): PlannedSession | null {
   return type === 'REST'
     ? null
     : { id: `s-${date}`, type, date, distance: 8, pace: '5:20' };
 }
 
 describe('RemainingDaysList', () => {
-  it('only renders days after today', () => {
-    // Today is Wednesday (index 2), so Thu/Fri/Sat/Sun should show
+  it('renders the full current week with past, today, and future days', () => {
+    // Today is Thursday (index 3), so the full Mon-Sun week should show.
     const sessions = DAYS.map((_, i) =>
       makeSession(`2026-04-${String(7 + i).padStart(2, '0')}`),
     );
@@ -24,36 +25,37 @@ describe('RemainingDaysList', () => {
     render(
       <RemainingDaysList
         sessions={sessions}
-        today="2026-04-09" // Wednesday
+        today="2026-04-09" // Thursday
       />,
     );
 
-    // Past + today should NOT appear
-    expect(screen.queryByText('Mon')).toBeNull();
-    expect(screen.queryByText('Tue')).toBeNull();
-    expect(screen.queryByText('Wed')).toBeNull();
-
-    // Future should appear
+    expect(screen.getByText('This week')).toBeTruthy();
+    expect(screen.getByText('Mon')).toBeTruthy();
+    expect(screen.getByText('Tue')).toBeTruthy();
+    expect(screen.getByText('Wed')).toBeTruthy();
     expect(screen.getByText('Thu')).toBeTruthy();
     expect(screen.getByText('Fri')).toBeTruthy();
     expect(screen.getByText('Sat')).toBeTruthy();
     expect(screen.getByText('Sun')).toBeTruthy();
+    expect(screen.getAllByTestId('day-row-missed')).toHaveLength(3);
+    expect(screen.getByTestId('day-row-today')).toBeTruthy();
   });
 
-  it('renders nothing when today is Sunday (no remaining days)', () => {
+  it('still renders all days when today is Sunday', () => {
     const sessions = DAYS.map((_, i) =>
       makeSession(`2026-04-${String(7 + i).padStart(2, '0')}`),
     );
 
-    const { container } = render(
+    render(
       <RemainingDaysList
         sessions={sessions}
-        today="2026-04-13" // Sunday
+        today="2026-04-12" // Sunday
       />,
     );
 
-    // No day rows should be rendered
-    expect(screen.queryAllByTestId('compact-day-row')).toHaveLength(0);
+    expect(screen.queryAllByTestId('compact-day-row')).toHaveLength(7);
+    expect(screen.getAllByTestId('day-row-missed')).toHaveLength(6);
+    expect(screen.getByTestId('day-row-today')).toBeTruthy();
   });
 
   it('falls back to weekday position when saved dates do not include today', () => {
@@ -68,8 +70,94 @@ describe('RemainingDaysList', () => {
       />,
     );
 
-    expect(screen.queryByText('Fri')).toBeNull();
+    expect(screen.getByText('Fri')).toBeTruthy();
+    expect(screen.getByTestId('day-row-today')).toBeTruthy();
     expect(screen.getByText('Sat')).toBeTruthy();
     expect(screen.getByText('Sun')).toBeTruthy();
+  });
+
+  it('shows actual distance for completed sessions when activity data is available', () => {
+    const sessions = DAYS.map((_, i) =>
+      makeSession(`2026-04-${String(7 + i).padStart(2, '0')}`),
+    );
+    sessions[0] = {
+      id: 's-2026-04-07',
+      type: 'EASY',
+      date: '2026-04-07',
+      distance: 8,
+      pace: '5:20',
+      actualActivityId: 'act-1',
+    };
+
+    render(
+      <RemainingDaysList
+        sessions={sessions}
+        today="2026-04-09"
+        activitiesBySessionId={
+          new Map([
+            [
+              's-2026-04-07',
+              {
+                id: 'act-1',
+                userId: 'u1',
+                source: 'strava',
+                externalId: 'ext-1',
+                startTime: '2026-04-07T07:00:00.000Z',
+                distance: 8.2,
+                duration: 2600,
+                avgPace: 317,
+                splits: [],
+                matchedSessionId: 's-2026-04-07',
+              },
+            ],
+          ])
+        }
+      />,
+    );
+
+    expect(screen.getByText('8.2km')).toBeTruthy();
+  });
+
+  it('shows an off-target warning when a completed session is materially short of plan', () => {
+    const sessions = DAYS.map((_, i) =>
+      makeSession(`2026-04-${String(7 + i).padStart(2, '0')}`),
+    );
+    sessions[0] = {
+      id: 's-2026-04-07',
+      type: 'EASY',
+      date: '2026-04-07',
+      distance: 8,
+      pace: '5:20',
+      actualActivityId: 'act-1',
+    };
+
+    render(
+      <RemainingDaysList
+        sessions={sessions}
+        today="2026-04-09"
+        activitiesBySessionId={
+          new Map([
+            [
+              's-2026-04-07',
+              {
+                id: 'act-1',
+                userId: 'u1',
+                source: 'strava',
+                externalId: 'ext-1',
+                startTime: '2026-04-07T07:00:00.000Z',
+                distance: 5.5,
+                duration: 2200,
+                avgPace: 400,
+                splits: [],
+                matchedSessionId: 's-2026-04-07',
+              },
+            ],
+          ])
+        }
+      />,
+    );
+
+    expect(screen.getByText('5.5km')).toBeTruthy();
+    expect(screen.getByTestId('day-row-warning')).toBeTruthy();
   });
 });

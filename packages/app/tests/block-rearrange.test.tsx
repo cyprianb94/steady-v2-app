@@ -157,4 +157,59 @@ describe('BlockTab session rearrange', () => {
 
     expect(screen.queryByText('Rearrange sessions')).toBeNull();
   });
+
+  it('lets the user turn a planned day into a rest day from the expanded week editor', async () => {
+    planState.current = makePlan([
+      makeWeek(1, [
+        session('w1-int', 'INTERVAL', { reps: 6, repDist: 800, recovery: '90s', warmup: 1.5, cooldown: 1 }),
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+      ]),
+      makeWeek(2, [
+        session('w2-int', 'INTERVAL', { reps: 6, repDist: 800, recovery: '90s', warmup: 1.5, cooldown: 1 }),
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+      ]),
+    ]);
+
+    render(<BlockTab />);
+
+    fireEvent.click(screen.getByText('W1'));
+    fireEvent.click(screen.getByTestId('block-day-1-0'));
+    fireEvent.click(screen.getByText('R'));
+    fireEvent.click(screen.getByText('Update session'));
+    fireEvent.click(screen.getByText('This week only'));
+    fireEvent.click(screen.getByText('Apply change'));
+
+    await waitFor(() => expect(mockUpdateWeeks).toHaveBeenCalledTimes(1));
+    const input = mockUpdateWeeks.mock.calls[0][0];
+    expect(input.weeks[0].sessions[0]).toBeNull();
+    expect(input.weeks[1].sessions[0]?.id).toBe('w2-int');
+    expect(input.weeks[1].sessions[0]?.type).toBe('INTERVAL');
+  });
+
+  it('lets the user add a session on an empty rest slot from the expanded week editor', async () => {
+    render(<BlockTab />);
+
+    fireEvent.click(screen.getByText('W1'));
+    fireEvent.click(screen.getByTestId('block-day-1-1'));
+    fireEvent.click(screen.getByText('Add session'));
+    fireEvent.click(screen.getByText('This week only'));
+    fireEvent.click(screen.getByText('Apply change'));
+
+    await waitFor(() => expect(mockUpdateWeeks).toHaveBeenCalledTimes(1));
+    const input = mockUpdateWeeks.mock.calls[0][0];
+    expect(input.weeks[0].sessions[1]?.type).toBe('EASY');
+    expect(input.weeks[0].sessions[1]?.id).toBeTruthy();
+    expect(input.weeks[0].sessions[1]?.date).toBe('2026-04-07');
+    expect(input.weeks[1].sessions[1]).toBeNull();
+  });
 });

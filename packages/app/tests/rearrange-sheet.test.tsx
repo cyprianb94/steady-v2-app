@@ -61,6 +61,64 @@ describe('RearrangeSheet', () => {
     expect(swapLog).toEqual([{ from: 0, to: 5 }]);
   });
 
+  it('supports long-press drag as an alternative way to swap days', () => {
+    const onDone = vi.fn();
+    render(
+      <RearrangeSheet
+        visible={true}
+        weekNumber={4}
+        sessions={weekSessions}
+        onCancel={vi.fn()}
+        onDone={onDone}
+      />,
+    );
+
+    const monday = screen.getByTestId('rearrange-day-0');
+    fireEvent.mouseDown(monday);
+    fireEvent.mouseMove(monday, { clientY: 260 });
+    fireEvent.mouseUp(monday);
+    fireEvent.click(screen.getByTestId('rearrange-done'));
+
+    const [sessions, swapLog] = onDone.mock.calls[0];
+    expect(sessions[0]?.id).toBe('long');
+    expect(sessions[5]?.id).toBe('easy');
+    expect(swapLog).toEqual([{ from: 0, to: 5 }]);
+  });
+
+  it('does not drop onto completed sessions during drag', () => {
+    const onDone = vi.fn();
+    const sessions = [
+      session('easy', 'EASY', { distance: 8 }),
+      null,
+      session('long', 'LONG', { distance: 18, actualActivityId: 'act-1' }),
+      null,
+      null,
+      null,
+      null,
+    ];
+
+    render(
+      <RearrangeSheet
+        visible={true}
+        weekNumber={4}
+        sessions={sessions}
+        onCancel={vi.fn()}
+        onDone={onDone}
+      />,
+    );
+
+    const monday = screen.getByTestId('rearrange-day-0');
+    fireEvent.mouseDown(monday);
+    fireEvent.mouseMove(monday, { clientY: 104 });
+    fireEvent.mouseUp(monday);
+    fireEvent.click(screen.getByTestId('rearrange-done'));
+
+    const [nextSessions, swapLog] = onDone.mock.calls[0];
+    expect(nextSessions[0]?.id).toBe('easy');
+    expect(nextSessions[2]?.id).toBe('long');
+    expect(swapLog).toEqual([]);
+  });
+
   it('highlights a selected day and deselects it when tapped again', () => {
     render(
       <RearrangeSheet

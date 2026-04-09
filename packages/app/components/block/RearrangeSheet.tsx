@@ -1,5 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type GestureResponderEvent,
+} from 'react-native';
 import {
   detectHardSessionConflicts,
   swapSessions,
@@ -24,6 +32,13 @@ interface RearrangeSnapshot {
   swapLog: SwapLogEntry[];
 }
 
+interface DragState {
+  fromIndex: number;
+  overIndex: number;
+}
+
+const DRAG_SLOT_PITCH = 52;
+
 export function RearrangeSheet({
   visible,
   weekNumber,
@@ -33,18 +48,44 @@ export function RearrangeSheet({
 }: RearrangeSheetProps) {
   const [layout, setLayout] = useState<(PlannedSession | null)[]>(sessions);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [dragState, setDragState] = useState<DragState | null>(null);
   const [swapLog, setSwapLog] = useState<SwapLogEntry[]>([]);
   const [history, setHistory] = useState<RearrangeSnapshot[]>([]);
+  const dragY = useRef(new Animated.Value(0)).current;
+  const dragStateRef = useRef<DragState | null>(null);
+  const pressStartPageYRef = useRef(0);
+  const suppressTapRef = useRef(false);
 
   useEffect(() => {
     if (!visible) return;
     setLayout(sessions);
     setSelectedIndex(null);
+    dragStateRef.current = null;
+    setDragState(null);
+    dragY.setValue(0);
     setSwapLog([]);
     setHistory([]);
-  }, [sessions, visible]);
+  }, [dragY, sessions, visible]);
 
   const conflicts = useMemo(() => detectHardSessionConflicts(layout), [layout]);
+
+  const canMoveDay = (index: number) => !layout[index]?.actualActivityId;
+
+  function setCurrentDragState(nextDragState: DragState | null) {
+    dragStateRef.current = nextDragState;
+    setDragState(nextDragState);
+  }
+
+  function applySwap(fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex) return;
+    if (!canMoveDay(fromIndex) || !canMoveDay(toIndex)) return;
+
+    const nextSwap = { from: fromIndex, to: toIndex };
+    setHistory((current) => [...current, { sessions: layout, swapLog }]);
+    setLayout(swapSessions(layout, fromIndex, toIndex));
+    setSwapLog((current) => [...current, nextSwap]);
+    setSelectedIndex(null);
+  }
 
   function handleDayPress(index: number) {
     const tapped = layout[index];
@@ -66,11 +107,59 @@ export function RearrangeSheet({
       return;
     }
 
-    const nextSwap = { from: selectedIndex, to: index };
-    setHistory((current) => [...current, { sessions: layout, swapLog }]);
-    setLayout(swapSessions(layout, selectedIndex, index));
-    setSwapLog((current) => [...current, nextSwap]);
+    applySwap(selectedIndex, index);
+  }
+
+  function beginDrag(index: number) {
+    if (!canMoveDay(index)) return;
+    dragY.setValue(0);
     setSelectedIndex(null);
+    suppressTapRef.current = true;
+    setCurrentDragState({ fromIndex: index, overIndex: index });
+  }
+
+  function updateDrag(pageY: number) {
+    const current = dragStateRef.current;
+    if (!current) return;
+
+    const dy = pageY - pressStartPageYRef.current;
+    dragY.setValue(dy);
+
+    const offset = Math.round(dy / DRAG_SLOT_PITCH);
+    const overIndex = Math.max(0, Math.min(layout.length - 1, current.fromIndex + offset));
+
+    if (current.overIndex !== overIndex) {
+      setCurrentDragState({ ...current, overIndex });
+    }
+  }
+
+  function finishDrag() {
+    const current = dragStateRef.current;
+    dragY.setValue(0);
+    setCurrentDragState(null);
+
+    if (!current) return;
+    applySwap(current.fromIndex, current.overIndex);
+  }
+
+  function cancelDrag() {
+    dragY.setValue(0);
+    setCurrentDragState(null);
+  }
+
+  function handleTouchStart(index: number, event: GestureResponderEvent) {
+    if (!canMoveDay(index)) return;
+    pressStartPageYRef.current = event.nativeEvent.pageY;
+  }
+
+  function handleTouchMove(event: GestureResponderEvent) {
+    if (!dragStateRef.current) return;
+    updateDrag(event.nativeEvent.pageY);
+  }
+
+  function handleTouchEnd() {
+    if (!dragStateRef.current) return;
+    finishDrag();
   }
 
   function handleUndo() {
@@ -111,38 +200,78 @@ export function RearrangeSheet({
             </View>
           ) : null}
 
+          <Text style={styles.instructions}>
+            Long-press and drag a row, or tap two days to swap.
+          </Text>
+
           <View style={styles.days}>
             {layout.map((session, index) => {
               const type = session?.type ?? 'REST';
               const locked = Boolean(session?.actualActivityId);
               const selected = selectedIndex === index;
+              const dragging = dragState?.fromIndex === index;
+              const dropTarget = dragState?.overIndex === index && dragState.fromIndex !== index;
+              const invalidDropTarget = dropTarget && locked;
 
               return (
-                <Pressable
+                <Animated.View
                   key={index}
-                  testID={`rearrange-day-${index}`}
-                  onPress={locked ? undefined : () => handleDayPress(index)}
                   style={[
-                    styles.day,
-                    selected && styles.daySelected,
-                    locked && styles.dayLocked,
+                    dragging && styles.draggingSlot,
+                    dragging && { transform: [{ translateY: dragY }] },
                   ]}
                 >
-                  <View style={styles.dayMeta}>
-                    <Text style={styles.dayName}>{DAYS[index]}</Text>
-                    <View
-                      style={[
-                        styles.dot,
-                        { backgroundColor: SESSION_TYPE[type].color },
-                        type === 'REST' && styles.dotRest,
-                      ]}
-                    />
-                  </View>
-                  <Text style={[styles.session, type === 'REST' && styles.restSession]}>
-                    {sessionLabel(session)}
-                  </Text>
-                  {locked ? <Text style={styles.lockedText}>Completed</Text> : null}
-                </Pressable>
+                  <Pressable
+                    testID={`rearrange-day-${index}`}
+                    onPress={
+                      locked
+                        ? undefined
+                        : () => {
+                            if (suppressTapRef.current) {
+                              suppressTapRef.current = false;
+                              return;
+                            }
+                            handleDayPress(index);
+                          }
+                    }
+                    onTouchStart={locked ? undefined : (event) => handleTouchStart(index, event)}
+                    onLongPress={locked ? undefined : () => beginDrag(index)}
+                    onTouchMove={locked ? undefined : handleTouchMove}
+                    onTouchEnd={locked ? undefined : handleTouchEnd}
+                    delayLongPress={180}
+                    style={[
+                      styles.day,
+                      selected && styles.daySelected,
+                      dropTarget && styles.dayDropTarget,
+                      invalidDropTarget && styles.dayInvalidDropTarget,
+                      dragging && styles.dayDragging,
+                      locked && styles.dayLocked,
+                    ]}
+                  >
+                    <View style={styles.dayMeta}>
+                      <Text style={styles.dayName}>{DAYS[index]}</Text>
+                      <View
+                        style={[
+                          styles.dot,
+                          { backgroundColor: SESSION_TYPE[type].color },
+                          type === 'REST' && styles.dotRest,
+                        ]}
+                      />
+                    </View>
+                    <Text style={[styles.session, type === 'REST' && styles.restSession]}>
+                      {sessionLabel(session)}
+                    </Text>
+                    {locked ? (
+                      <Text style={styles.lockedText}>Completed</Text>
+                    ) : (
+                      <View testID={`rearrange-drag-handle-${index}`} style={styles.dragHandle}>
+                        <View style={styles.dragHandleLine} />
+                        <View style={styles.dragHandleLine} />
+                        <View style={styles.dragHandleLine} />
+                      </View>
+                    )}
+                  </Pressable>
+                </Animated.View>
               );
             })}
           </View>
@@ -237,8 +366,17 @@ const styles = StyleSheet.create({
     color: C.ink2,
     marginTop: 2,
   },
+  instructions: {
+    fontFamily: FONTS.sans,
+    fontSize: 12,
+    color: C.muted,
+    lineHeight: 17,
+  },
   days: {
     gap: 8,
+  },
+  draggingSlot: {
+    zIndex: 3,
   },
   day: {
     minHeight: 44,
@@ -256,6 +394,19 @@ const styles = StyleSheet.create({
     borderColor: C.clay,
     borderWidth: 2,
     backgroundColor: C.clayBg,
+  },
+  dayDropTarget: {
+    borderColor: C.forest,
+    backgroundColor: C.forestBg,
+  },
+  dayInvalidDropTarget: {
+    borderColor: C.amber,
+    backgroundColor: C.amberBg,
+  },
+  dayDragging: {
+    borderColor: C.clay,
+    backgroundColor: C.surface,
+    opacity: 0.92,
   },
   dayLocked: {
     opacity: 0.48,
@@ -293,6 +444,19 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.sansSemiBold,
     fontSize: 11,
     color: C.muted,
+  },
+  dragHandle: {
+    width: 28,
+    minHeight: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
+  dragHandleLine: {
+    width: 14,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: C.muted,
   },
   actions: {
     flexDirection: 'row',

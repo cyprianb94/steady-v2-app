@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 // Mock auth and plan hooks — these are the seams we control
@@ -26,6 +26,7 @@ vi.mock('../hooks/usePlan', () => ({
 
 const mockSaveSubjectiveInput = vi.hoisted(() => vi.fn());
 const mockDismissSubjectiveInput = vi.hoisted(() => vi.fn());
+const mockActivityList = vi.hoisted(() => vi.fn());
 
 vi.mock('../lib/trpc', () => ({
   trpc: {
@@ -35,6 +36,11 @@ vi.mock('../lib/trpc', () => ({
       },
       dismissSubjectiveInput: {
         mutate: mockDismissSubjectiveInput,
+      },
+    },
+    activity: {
+      list: {
+        query: mockActivityList,
       },
     },
   },
@@ -53,6 +59,8 @@ describe('HomeScreen', () => {
     mockPlan.refresh = vi.fn();
     mockSaveSubjectiveInput.mockReset();
     mockDismissSubjectiveInput.mockReset();
+    mockActivityList.mockReset();
+    mockActivityList.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -120,7 +128,7 @@ describe('HomeScreen', () => {
     expect(screen.getByTestId('home-scroll')).toBeTruthy();
   });
 
-  it('opens with today-first guidance above the session stack', () => {
+  it('keeps today-first guidance beneath the week header', () => {
     const week = {
       weekNumber: 3,
       phase: 'BASE' as const,
@@ -141,15 +149,112 @@ describe('HomeScreen', () => {
 
     render(<HomeScreen />);
 
-    expect(screen.getByText('Today')).toBeTruthy();
+    expect(screen.getByText(/week 3/i)).toBeTruthy();
     expect(screen.getByText(/focus on the session in front of you/i)).toBeTruthy();
   });
 
-  it('renders the coach annotation from the plan query', () => {
+  it('shows the current week date range and large week-phase heading', () => {
+    const week = {
+      weekNumber: 3,
+      phase: 'BUILD' as const,
+      sessions: [
+        { id: 'mon', type: 'EASY', date: '2026-04-06', distance: 8, pace: '5:20' },
+        null,
+        null,
+        { id: 'thu', type: 'TEMPO', date: '2026-04-09', distance: 10, pace: '4:20' },
+        null,
+        { id: 'sat', type: 'EASY', date: '2026-04-11', distance: 12, pace: '5:15' },
+        { id: 'sun', type: 'LONG', date: '2026-04-12', distance: 20, pace: '5:05' },
+      ],
+      plannedKm: 50,
+    };
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-07-15',
+      coachAnnotation: 'Keep the first half controlled.',
+    };
+    mockPlan.currentWeek = week;
+
+    render(<HomeScreen />);
+
+    expect(screen.getByText('APR 6 – 12 · 2026')).toBeTruthy();
+    expect(screen.getByText('Week 3 · Build Phase')).toBeTruthy();
+  });
+
+  it('shows weekly load with actual and planned distance', async () => {
+    const week = {
+      weekNumber: 3,
+      phase: 'BUILD' as const,
+      sessions: [
+        { id: 'mon', type: 'EASY', date: '2026-04-06', distance: 8, pace: '5:20', actualActivityId: 'act-1' },
+        null,
+        null,
+        { id: 'thu', type: 'TEMPO', date: '2026-04-09', distance: 10, pace: '4:20' },
+        null,
+        { id: 'sat', type: 'EASY', date: '2026-04-11', distance: 12, pace: '5:15' },
+        { id: 'sun', type: 'LONG', date: '2026-04-12', distance: 20, pace: '5:05' },
+      ],
+      plannedKm: 50,
+    };
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-07-15',
+      coachAnnotation: 'Keep the first half controlled.',
+    };
+    mockPlan.currentWeek = week;
+    mockActivityList.mockResolvedValue([
+      {
+        id: 'act-1',
+        userId: '1',
+        source: 'strava',
+        externalId: 'strava-1',
+        startTime: '2026-04-06T07:00:00.000Z',
+        distance: 8.2,
+        duration: 2620,
+        avgPace: 320,
+        splits: [],
+        matchedSessionId: 'mon',
+      },
+    ]);
+
+    render(<HomeScreen />);
+
+    expect(await screen.findByText('WEEKLY LOAD')).toBeTruthy();
+    const weeklyLoadCard = screen.getByTestId('weekly-load-card');
+    expect(within(weeklyLoadCard).getByText('8.2km')).toBeTruthy();
+    expect(within(weeklyLoadCard).getByText('/ 50km')).toBeTruthy();
+  });
+
+  it('uses the annotation as an inline Steady note and suppresses the duplicate coach card', () => {
+    const today = new Date().toISOString().slice(0, 10);
     const week = {
       weekNumber: 3,
       phase: 'BASE' as const,
-      sessions: [null, null, null, null, null, null, null],
+      sessions: [
+        {
+          id: 'today-session',
+          type: 'EASY',
+          date: today,
+          distance: 8,
+          pace: '5:20',
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+      ],
       plannedKm: 40,
     };
     mockAuth.isLoading = false;
@@ -166,8 +271,9 @@ describe('HomeScreen', () => {
 
     render(<HomeScreen />);
 
-    expect(screen.getByTestId('coach-annotation')).toBeTruthy();
-    expect(screen.getByText(/keep today conversational/i)).toBeTruthy();
+    expect(screen.getByText('Steady')).toBeTruthy();
+    expect(screen.getAllByText(/keep today conversational/i).length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('coach-annotation')).toBeNull();
   });
 
   it('uses the weekday slot for today when saved session dates are out of range', () => {
@@ -214,7 +320,7 @@ describe('HomeScreen', () => {
 
     render(<HomeScreen />);
 
-    expect(screen.getByText('8km @ 5:20')).toBeTruthy();
+    expect(screen.getAllByText('8km @ 5:20').length).toBeGreaterThan(0);
     expect(screen.getByText('Sat')).toBeTruthy();
     expect(screen.getByText('16km @ 5:10')).toBeTruthy();
   });

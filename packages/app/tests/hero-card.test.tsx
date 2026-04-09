@@ -20,9 +20,9 @@ describe('TodayHeroCard', () => {
       />,
     );
 
-    expect(screen.getByText('Easy Run')).toBeTruthy();
-    expect(screen.getByText(/8/)).toBeTruthy();
-    expect(screen.getByText(/5:20/)).toBeTruthy();
+    expect(screen.getByText('EASY')).toBeTruthy();
+    expect(screen.getByText('8km Easy Run')).toBeTruthy();
+    expect(screen.getByText('5:20')).toBeTruthy();
   });
 
   it('shows reps, rep distance, and recovery for an interval session', () => {
@@ -42,9 +42,9 @@ describe('TodayHeroCard', () => {
       />,
     );
 
-    expect(screen.getByText('Intervals')).toBeTruthy();
-    expect(screen.getByText(/6×800m/)).toBeTruthy();
-    expect(screen.getByText(/3:50/)).toBeTruthy();
+    expect(screen.getByText('INTERVAL')).toBeTruthy();
+    expect(screen.getByText('6×800m Intervals')).toBeTruthy();
+    expect(screen.getByText('3:50')).toBeTruthy();
     expect(screen.getByText(/1.5km warm/)).toBeTruthy();
     expect(screen.getByText(/1km cool/)).toBeTruthy();
   });
@@ -72,10 +72,30 @@ describe('TodayHeroCard', () => {
       />,
     );
 
-    expect(screen.getByText('Tempo')).toBeTruthy();
-    expect(screen.getByText(/10/)).toBeTruthy();
+    expect(screen.getByText('TEMPO')).toBeTruthy();
+    expect(screen.getByText('10km Tempo')).toBeTruthy();
     expect(screen.getByText(/2km warm/)).toBeTruthy();
     expect(screen.getByText(/1.5km cool/)).toBeTruthy();
+  });
+
+  it('renders the planned tempo hero with a today badge, session title, and formatted date', () => {
+    render(
+      <TodayHeroCard
+        session={{
+          id: 's3',
+          type: 'TEMPO',
+          date: '2026-04-09',
+          distance: 10,
+          pace: '4:20',
+          warmup: 2,
+          cooldown: 1.5,
+        }}
+      />,
+    );
+
+    expect(screen.getByText('TODAY')).toBeTruthy();
+    expect(screen.getByText('10km Tempo')).toBeTruthy();
+    expect(screen.getByText('Thursday, Apr 9')).toBeTruthy();
   });
 
   it('shows completed state with actual distance and pace when activity exists', () => {

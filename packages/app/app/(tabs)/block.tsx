@@ -13,11 +13,12 @@ import { useIsFocused } from '@react-navigation/native';
 import { usePlan } from '../../hooks/usePlan';
 import { RearrangeSheet } from '../../components/block/RearrangeSheet';
 import { PropagateModal } from '../../components/plan-builder/PropagateModal';
+import { SessionEditor } from '../../components/plan-builder/SessionEditor';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { PHASE_COLOR } from '../../constants/phase-meta';
 import { SESSION_TYPE } from '../../constants/session-types';
-import { addDaysIso, inferWeekStartDate, weekKm } from '../../lib/plan-helpers';
+import { addDaysIso, DAYS, inferWeekStartDate, sessionLabel, weekKm } from '../../lib/plan-helpers';
 import { trpc } from '../../lib/trpc';
 import {
   buildBlockPhaseSegments,
@@ -28,6 +29,7 @@ import {
   getWeekVolumeRatio,
   getWeekVolumeSummary,
   isInjuryWeek,
+  propagateChange,
   type Activity,
   type BlockPhaseSegment,
   type CrossTrainingEntry,
@@ -116,6 +118,70 @@ interface PendingRearrange {
   swapLog: SwapLogEntry[];
 }
 
+interface EditingDay {
+  weekIndex: number;
+  dayIndex: number;
+}
+
+interface PendingEdit {
+  weekIndex: number;
+  dayIndex: number;
+  updated: Partial<PlannedSession> | null;
+  desc: string;
+}
+
+function buildEditDescription(dayIndex: number, updated: Partial<PlannedSession> | null): string {
+  return updated ? `${DAYS[dayIndex]} → ${sessionLabel(updated)}` : `${DAYS[dayIndex]} → Rest`;
+}
+
+function materializeSessionForWeek(
+  week: PlanWeek,
+  dayIndex: number,
+  updated: Partial<PlannedSession> | null,
+): PlannedSession | null {
+  if (!updated || updated.type === 'REST') return null;
+
+  const existing = week.sessions[dayIndex];
+  return {
+    ...existing,
+    ...updated,
+    id: existing?.id ?? crypto.randomUUID(),
+    date: existing?.date ?? addDaysIso(getWeekStartDate(week), dayIndex),
+  };
+}
+
+function normalizeEditedDayIdentity(
+  originalWeeks: PlanWeek[],
+  nextWeeks: PlanWeek[],
+  dayIndex: number,
+): PlanWeek[] {
+  return nextWeeks.map((nextWeek, weekIndex) => {
+    const nextSession = nextWeek.sessions[dayIndex];
+    if (!nextSession) return nextWeek;
+
+    const originalWeek = originalWeeks[weekIndex] ?? nextWeek;
+    const originalSession = originalWeek.sessions[dayIndex];
+    const id = originalSession?.id ?? crypto.randomUUID();
+    const date = originalSession?.date ?? addDaysIso(getWeekStartDate(originalWeek), dayIndex);
+
+    if (nextSession.id === id && nextSession.date === date) {
+      return nextWeek;
+    }
+
+    const sessions = [...nextWeek.sessions];
+    sessions[dayIndex] = {
+      ...nextSession,
+      id,
+      date,
+    };
+
+    return {
+      ...nextWeek,
+      sessions,
+    };
+  });
+}
+
 export default function BlockTab() {
   const { plan, loading, currentWeekIndex, refresh } = usePlan();
   const isFocused = useIsFocused();
@@ -123,6 +189,9 @@ export default function BlockTab() {
   const [rearrangeWeekIndex, setRearrangeWeekIndex] = useState<number | null>(null);
   const [pendingRearrange, setPendingRearrange] = useState<PendingRearrange | null>(null);
   const [isSavingRearrange, setIsSavingRearrange] = useState(false);
+  const [editingDay, setEditingDay] = useState<EditingDay | null>(null);
+  const [pendingEdit, setPendingEdit] = useState<PendingEdit | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [crossTrainingEntries, setCrossTrainingEntries] = useState<CrossTrainingEntry[]>([]);
   const [isLoadingCrossTraining, setIsLoadingCrossTraining] = useState(false);
@@ -285,6 +354,57 @@ export default function BlockTab() {
       console.error('Failed to rearrange sessions:', error);
     } finally {
       setIsSavingRearrange(false);
+    }
+  }
+
+  function handleDayEditSave(
+    weekIndex: number,
+    dayIndex: number,
+    updated: Partial<PlannedSession> | null,
+  ) {
+    setEditingDay(null);
+    setPendingEdit({
+      weekIndex,
+      dayIndex,
+      updated,
+      desc: buildEditDescription(dayIndex, updated),
+    });
+  }
+
+  async function applyPendingEdit(scope: PropagateScope) {
+    if (!plan || !pendingEdit) return;
+
+    const sourceWeek = plan.weeks[pendingEdit.weekIndex];
+    if (!sourceWeek) return;
+
+    const updatedSession = materializeSessionForWeek(
+      sourceWeek,
+      pendingEdit.dayIndex,
+      pendingEdit.updated,
+    );
+
+    const nextWeeks = normalizeEditedDayIdentity(
+      plan.weeks,
+      propagateChange(
+        plan.weeks,
+        pendingEdit.weekIndex,
+        pendingEdit.dayIndex,
+        updatedSession,
+        scope,
+        plan.templateWeek,
+      ),
+      pendingEdit.dayIndex,
+    );
+
+    try {
+      setIsSavingEdit(true);
+      await trpc.plan.updateWeeks.mutate({ weeks: nextWeeks });
+      await refresh();
+      setPendingEdit(null);
+    } catch (error) {
+      console.error('Failed to edit session:', error);
+    } finally {
+      setIsSavingEdit(false);
     }
   }
 
@@ -499,12 +619,21 @@ export default function BlockTab() {
                   </Pressable>
                 ) : null}
 
-                {blockDayDetails.map((detail) => {
+                {blockDayDetails.map((detail, dayIndex) => {
                   const badge = getStatusBadge(detail.status);
+                  const canEditDay = !injuryWeek && !week.sessions[dayIndex]?.actualActivityId;
                   return (
-                    <View
+                    <Pressable
                       key={`${week.weekNumber}-${detail.dayLabel}`}
-                      style={[styles.dayRow, isFuture && styles.dayRowFuture]}
+                      testID={`block-day-${week.weekNumber}-${dayIndex}`}
+                      disabled={!canEditDay}
+                      onPress={canEditDay ? () => setEditingDay({ weekIndex: i, dayIndex }) : undefined}
+                      style={[
+                        styles.dayRow,
+                        isFuture && styles.dayRowFuture,
+                        canEditDay && styles.dayRowEditable,
+                        canEditDay && isFuture && styles.dayRowFutureEditable,
+                      ]}
                     >
                       <View style={styles.dayMeta}>
                         <Text style={styles.dayName}>{detail.dayLabel}</Text>
@@ -528,6 +657,7 @@ export default function BlockTab() {
                         {detail.distanceLabel ? (
                           <Text style={styles.dayDistance}>{detail.distanceLabel}</Text>
                         ) : null}
+                        {canEditDay ? <Text style={styles.dayEdit}>Edit</Text> : null}
                         {badge ? (
                           <Text
                             style={[
@@ -541,7 +671,7 @@ export default function BlockTab() {
                           </Text>
                         ) : null}
                       </View>
-                    </View>
+                    </Pressable>
                   );
                 })}
               </View>
@@ -568,6 +698,23 @@ export default function BlockTab() {
           totalWeeks={plan.weeks.length}
           onApply={applyPendingRearrange}
           onClose={() => setPendingRearrange(null)}
+        />
+      ) : null}
+      {editingDay ? (
+        <SessionEditor
+          dayIndex={editingDay.dayIndex}
+          existing={plan.weeks[editingDay.weekIndex]?.sessions[editingDay.dayIndex] ?? null}
+          onSave={(dayIndex, updated) => handleDayEditSave(editingDay.weekIndex, dayIndex, updated)}
+          onClose={() => setEditingDay(null)}
+        />
+      ) : null}
+      {pendingEdit ? (
+        <PropagateModal
+          changeDesc={isSavingEdit ? 'Saving…' : pendingEdit.desc}
+          weekIndex={pendingEdit.weekIndex}
+          totalWeeks={plan.weeks.length}
+          onApply={applyPendingEdit}
+          onClose={() => setPendingEdit(null)}
         />
       ) : null}
     </>
@@ -835,6 +982,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minHeight: 28,
   },
+  dayRowEditable: {
+    borderRadius: 8,
+  },
   dayRowFuture: {
     minHeight: 34,
     paddingHorizontal: 8,
@@ -842,6 +992,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.border,
     backgroundColor: '#FBF7F0',
+  },
+  dayRowFutureEditable: {
+    backgroundColor: C.surface,
   },
   dayMeta: {
     width: 74,
@@ -884,6 +1037,12 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'center',
     gap: 8,
+  },
+  dayEdit: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 10,
+    color: C.clay,
+    textTransform: 'uppercase',
   },
   dayDistance: {
     fontFamily: FONTS.mono,
