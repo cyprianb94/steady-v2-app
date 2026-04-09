@@ -7,12 +7,12 @@
     "packages/app"
   ],
   "scripts": {
-    "test": "npm run test --workspaces --if-present",
-    "test:server": "npm run test -w packages/server",
+    "test": "npm run build:types && npm run test --workspaces --if-present",
+    "test:server": "npm run build:types && npm run test -w packages/server",
     "dev:server": "npm run dev -w packages/server",
     "dev:app": "npm run start -w packages/app",
     "build:types": "npm run build -w packages/types",
-    "typecheck": "tsc --noEmit -p packages/types/tsconfig.json && tsc --noEmit -p packages/server/tsconfig.json"
+    "typecheck": "npm run build:types && tsc --noEmit -p packages/server/tsconfig.json"
   },
   "overrides": {
     "react": "19.1.0"

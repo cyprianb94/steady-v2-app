@@ -37,6 +37,7 @@ function makePlan(weeks: PlanWeek[]): TrainingPlan {
     progressionPct: 7,
     templateWeek: [],
     weeks,
+    activeInjury: null,
   };
 }
 

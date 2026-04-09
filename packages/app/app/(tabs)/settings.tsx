@@ -1,14 +1,20 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import { View, Text, StyleSheet, Alert, ScrollView, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { Btn } from '../../components/ui/Btn';
+import { usePlan } from '../../hooks/usePlan';
+import { RecoveryFlowModal } from '../../components/recovery/RecoveryFlowModal';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { useAuth } from '../../lib/auth';
+import { clearResumeWeekOverride, setResumeWeekOverride } from '../../lib/resume-week';
+import { trpc } from '../../lib/trpc';
 
 export default function SettingsTab() {
   const { signInWithGoogle, signOut, session, isLoading } = useAuth();
+  const { plan, loading: planLoading, currentWeekIndex, refresh } = usePlan();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [recoveryModalMode, setRecoveryModalMode] = useState<'mark' | 'resume' | null>(null);
 
   async function handleGoogleSignIn() {
     try {
@@ -33,9 +39,48 @@ export default function SettingsTab() {
   }
 
   const busy = isLoading || isSubmitting;
+  const activeInjury =
+    plan?.activeInjury && plan.activeInjury.status !== 'resolved' ? plan.activeInjury : null;
+
+  async function handleMarkInjury(name: string) {
+    try {
+      setIsSubmitting(true);
+      await trpc.plan.markInjury.mutate({ name });
+      await refresh();
+      setRecoveryModalMode(null);
+      router.push('/(tabs)/week');
+    } catch (error) {
+      Alert.alert('Could not start recovery', error instanceof Error ? error.message : 'Unknown error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleEndRecovery(option: { type: 'current' } | { type: 'choose'; weekNumber: number }) {
+    if (!plan) return;
+
+    try {
+      setIsSubmitting(true);
+
+      if (option.type === 'current') {
+        await clearResumeWeekOverride(plan.id);
+      } else {
+        await setResumeWeekOverride(plan.id, option.weekNumber);
+      }
+
+      await trpc.plan.clearInjury.mutate();
+      await refresh();
+      setRecoveryModalMode(null);
+      router.push('/(tabs)/week');
+    } catch (error) {
+      Alert.alert('Could not end recovery', error instanceof Error ? error.message : 'Unknown error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Settings</Text>
       <View style={styles.card}>
         <Text style={styles.label}>Authentication</Text>
@@ -82,7 +127,46 @@ export default function SettingsTab() {
           Test flow: sign in here, build a plan, then open coach to send a message against your saved data.
         </Text>
       </View>
-    </View>
+
+      {session && plan ? (
+        <View style={styles.card}>
+          <Text style={styles.label}>Plan</Text>
+          <Text style={styles.status}>
+            {plan.raceName} · {plan.targetTime}
+          </Text>
+
+          <Pressable
+            onPress={() => setRecoveryModalMode(activeInjury ? 'resume' : 'mark')}
+            style={styles.row}
+            disabled={busy || planLoading}
+          >
+            <View>
+              <Text style={styles.rowTitle}>{activeInjury ? 'End Recovery' : 'Mark Injury'}</Text>
+              <Text style={styles.rowSub}>
+                {activeInjury
+                  ? `${activeInjury.name} · Week ${currentWeekIndex + 1}`
+                  : 'Switch the app into recovery mode'}
+              </Text>
+            </View>
+            <Text style={styles.rowValue}>{activeInjury ? 'Active' : 'Off'}</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {plan ? (
+        <RecoveryFlowModal
+          visible={recoveryModalMode !== null}
+          mode={recoveryModalMode ?? 'mark'}
+          plan={plan}
+          currentWeekNumber={plan.weeks[currentWeekIndex]?.weekNumber ?? 1}
+          injury={activeInjury}
+          busy={busy}
+          onClose={() => setRecoveryModalMode(null)}
+          onMarkInjury={handleMarkInjury}
+          onEndRecovery={handleEndRecovery}
+        />
+      ) : null}
+    </ScrollView>
   );
 }
 
@@ -90,8 +174,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: C.cream,
-    justifyContent: 'center',
+  },
+  content: {
     paddingHorizontal: 20,
+    paddingVertical: 48,
     gap: 16,
   },
   title: {
@@ -126,5 +212,30 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontFamily: FONTS.sans,
     color: C.muted,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: C.border,
+    paddingTop: 14,
+    marginTop: 2,
+  },
+  rowTitle: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 14,
+    color: C.ink,
+  },
+  rowSub: {
+    marginTop: 3,
+    fontFamily: FONTS.sans,
+    fontSize: 12,
+    color: C.muted,
+  },
+  rowValue: {
+    fontFamily: FONTS.monoBold,
+    fontSize: 11,
+    color: C.clay,
   },
 });

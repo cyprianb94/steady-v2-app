@@ -47,6 +47,7 @@ const testPlan: TrainingPlan = {
     ],
     plannedKm: 8,
   }],
+  activeInjury: null,
 };
 
 function createDeps(overrides?: Partial<CoachDeps>): CoachDeps {

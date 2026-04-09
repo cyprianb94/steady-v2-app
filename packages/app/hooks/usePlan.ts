@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
+import { getDisplayWeekIndex, type TrainingPlan, type PlanWeek } from '@steady/types';
 import { trpc } from '../lib/trpc';
-import type { TrainingPlan, PlanWeek } from '@steady/types';
 import { useAuth } from '../lib/auth';
+import { getResumeWeekOverride } from '../lib/resume-week';
 
 interface UsePlanResult {
   plan: TrainingPlan | null;
@@ -14,11 +15,13 @@ interface UsePlanResult {
 export function usePlan(): UsePlanResult {
   const { session, isLoading: authLoading } = useAuth();
   const [plan, setPlan] = useState<TrainingPlan | null>(null);
+  const [resumeWeekNumber, setResumeWeekNumber] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchPlan = useCallback(async () => {
     if (!session) {
       setPlan(null);
+      setResumeWeekNumber(null);
       setLoading(false);
       return;
     }
@@ -27,6 +30,7 @@ export function usePlan(): UsePlanResult {
       setLoading(true);
       const result = await trpc.plan.get.query();
       setPlan(result);
+      setResumeWeekNumber(result ? await getResumeWeekOverride(result.id) : null);
     } catch (err) {
       console.error('Failed to fetch plan:', err);
     } finally {
@@ -43,18 +47,9 @@ export function usePlan(): UsePlanResult {
   }, [authLoading, fetchPlan]);
 
   const today = new Date().toISOString().slice(0, 10);
-  let currentWeekIndex = 0;
-
-  if (plan) {
-    for (let i = 0; i < plan.weeks.length; i++) {
-      const sessions = plan.weeks[i].sessions.filter(Boolean);
-      const dates = sessions.map((s) => s!.date);
-      if (dates.some((d) => d >= today)) {
-        currentWeekIndex = i;
-        break;
-      }
-    }
-  }
+  const currentWeekIndex = plan
+    ? getDisplayWeekIndex(plan.weeks, today, resumeWeekNumber)
+    : 0;
 
   return {
     plan,

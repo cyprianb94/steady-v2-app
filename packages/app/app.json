@@ -13,7 +13,8 @@
       "backgroundColor": "#F4EFE6"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cyprianbrytan.steady"
     },
     "android": {
       "adaptiveIcon": {

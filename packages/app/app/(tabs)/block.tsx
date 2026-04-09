@@ -1,14 +1,102 @@
+import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { usePlan } from '../../hooks/usePlan';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { PHASE_COLOR } from '../../constants/phase-meta';
 import { SESSION_TYPE } from '../../constants/session-types';
-import { weekKm } from '../../lib/plan-helpers';
-import type { PlanWeek, PhaseName, SessionType } from '@steady/types';
+import { addDaysIso, inferWeekStartDate, weekKm } from '../../lib/plan-helpers';
+import { trpc } from '../../lib/trpc';
+import {
+  buildBlockPhaseSegments,
+  getBlockVolumeTone,
+  getInjuryWeekRange,
+  getWeekVolumeRatio,
+  isInjuryWeek,
+  type CrossTrainingEntry,
+  type PlanWeek,
+  type SessionType,
+} from '@steady/types';
+
+function getWeekStartDate(week: PlanWeek): string {
+  const fallbackDate =
+    week.sessions.find((session) => session?.date)?.date ??
+    new Date().toISOString().slice(0, 10);
+  return inferWeekStartDate(week, fallbackDate);
+}
+
+function getWeekEntries(entries: CrossTrainingEntry[], week: PlanWeek): CrossTrainingEntry[] {
+  const startDate = getWeekStartDate(week);
+  const endDate = addDaysIso(startDate, 6);
+  return entries.filter((entry) => entry.date >= startDate && entry.date <= endDate);
+}
+
+function getPhaseCaption(
+  currentPhase: PlanWeek['phase'] | 'INJURY',
+  currentWeekNumber: number,
+  totalWeeks: number,
+  injuryRange: ReturnType<typeof getInjuryWeekRange>,
+): string {
+  if (currentPhase === 'INJURY' && injuryRange) {
+    return `INJURY phase · Weeks ${injuryRange.startIndex + 1}-${injuryRange.endIndex + 1} affected`;
+  }
+
+  return `${currentPhase} phase · Week ${currentWeekNumber} of ${totalWeeks}`;
+}
 
 export default function BlockTab() {
   const { plan, loading, currentWeekIndex } = usePlan();
+  const [crossTrainingEntries, setCrossTrainingEntries] = useState<CrossTrainingEntry[]>([]);
+  const [isLoadingCrossTraining, setIsLoadingCrossTraining] = useState(false);
+  const today = new Date().toISOString().slice(0, 10);
+
+  const injury = plan?.activeInjury ?? null;
+  const injuryRange = plan ? getInjuryWeekRange(plan.weeks, injury, today) : null;
+
+  useEffect(() => {
+    if (!plan || !injuryRange) {
+      setCrossTrainingEntries([]);
+      setIsLoadingCrossTraining(false);
+      return;
+    }
+
+    const startWeek = plan.weeks[injuryRange.startIndex];
+    const endWeek = plan.weeks[injuryRange.endIndex];
+    if (!startWeek || !endWeek) {
+      setCrossTrainingEntries([]);
+      setIsLoadingCrossTraining(false);
+      return;
+    }
+
+    const startDate = getWeekStartDate(startWeek);
+    const endDate = addDaysIso(getWeekStartDate(endWeek), 6);
+    let cancelled = false;
+
+    async function fetchCrossTraining() {
+      try {
+        setIsLoadingCrossTraining(true);
+        const entries = await trpc.crossTraining.getForDateRange.query({ startDate, endDate });
+        if (!cancelled) {
+          setCrossTrainingEntries(entries);
+        }
+      } catch (error) {
+        console.error('Failed to fetch block cross-training entries:', error);
+        if (!cancelled) {
+          setCrossTrainingEntries([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingCrossTraining(false);
+        }
+      }
+    }
+
+    fetchCrossTraining();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [injury?.markedDate, injury?.resolvedDate, injury?.status, plan]);
 
   if (loading) {
     return (
@@ -27,11 +115,11 @@ export default function BlockTab() {
     );
   }
 
-  // Build phase segments for the strip
-  const phases = buildPhaseSegments(plan.weeks, currentWeekIndex);
-  const currentPhase = plan.weeks[currentWeekIndex]?.phase ?? 'BUILD';
+  const phases = buildBlockPhaseSegments(plan.weeks, currentWeekIndex, injury, today);
+  const currentPhase = isInjuryWeek(currentWeekIndex, injuryRange)
+    ? 'INJURY'
+    : plan.weeks[currentWeekIndex]?.phase ?? 'BUILD';
   const maxKm = Math.max(...plan.weeks.map(weekKm), 1);
-
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Race header */}
@@ -57,14 +145,32 @@ export default function BlockTab() {
                 styles.phaseSegment,
                 {
                   flex: p.weeks,
-                  backgroundColor: p.isCurrent ? PHASE_COLOR[p.name] : C.border,
+                  backgroundColor:
+                    p.name === 'INJURY'
+                      ? p.isCurrent
+                        ? C.clay
+                        : C.clayBg
+                      : p.isCurrent
+                        ? PHASE_COLOR[p.name]
+                        : C.border,
+                  borderWidth: p.name === 'INJURY' && !p.isCurrent ? 1 : 0,
+                  borderColor: p.name === 'INJURY' ? `${C.clay}35` : 'transparent',
                 },
               ]}
             >
               <Text
                 style={[
                   styles.phaseLabel,
-                  { color: p.isCurrent ? 'white' : C.muted },
+                  {
+                    color:
+                      p.name === 'INJURY'
+                        ? p.isCurrent
+                          ? 'white'
+                          : C.clay
+                        : p.isCurrent
+                          ? 'white'
+                          : C.muted,
+                  },
                 ]}
               >
                 {p.name}
@@ -73,7 +179,7 @@ export default function BlockTab() {
           ))}
         </View>
         <Text style={styles.phaseCaption}>
-          {currentPhase} phase · Week {currentWeekIndex + 1} of {plan.weeks.length}
+          {getPhaseCaption(currentPhase, currentWeekIndex + 1, plan.weeks.length, injuryRange)}
         </Text>
       </View>
 
@@ -81,6 +187,8 @@ export default function BlockTab() {
       {plan.weeks.map((week, i) => {
         const isCurrent = i === currentWeekIndex;
         const isPast = i < currentWeekIndex;
+        const injuryWeek = isInjuryWeek(i, injuryRange);
+        const weekEntries = injuryWeek ? getWeekEntries(crossTrainingEntries, week) : [];
         const km = weekKm(week);
 
         return (
@@ -90,47 +198,88 @@ export default function BlockTab() {
               styles.weekRow,
               isCurrent && styles.weekRowCurrent,
               isPast && styles.weekRowPast,
+              injuryWeek && styles.weekRowInjury,
             ]}
           >
-            <View style={styles.weekLeft}>
-              <Text
+            <View style={styles.weekRowMain}>
+              <View style={styles.weekLeft}>
+                <Text
+                  style={[
+                    styles.weekNum,
+                    isCurrent && { color: C.clay, fontWeight: '700' },
+                  ]}
+                >
+                  W{week.weekNumber}
+                </Text>
+                <Text style={[styles.weekPhaseTag, injuryWeek && styles.weekPhaseTagInjury]}>
+                  {injuryWeek ? 'INJURY' : week.phase}
+                </Text>
+              </View>
+
+              {injuryWeek ? (
+                <View style={styles.injuryEntries}>
+                  {isLoadingCrossTraining ? (
+                    <Text style={styles.injuryHelper}>Loading cross-training…</Text>
+                  ) : weekEntries.length > 0 ? (
+                    weekEntries.map((entry) => (
+                      <View key={entry.id} style={styles.crossTrainingChip}>
+                        <View style={styles.crossTrainingDot} />
+                        <Text style={styles.crossTrainingText}>
+                          {entry.type} {entry.durationMinutes}m
+                        </Text>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.injuryHelper}>No cross-training logged</Text>
+                  )}
+                </View>
+              ) : (
+                <View style={styles.dots}>
+                  {week.sessions.map((s, d) => {
+                    const type: SessionType = s?.type ?? 'REST';
+                    return (
+                      <View
+                        key={d}
+                        style={[
+                          styles.dot,
+                          {
+                            backgroundColor:
+                              isPast || isCurrent
+                                ? SESSION_TYPE[type].color
+                                : C.border,
+                            opacity: !isPast && !isCurrent ? 0.4 : 1,
+                          },
+                        ]}
+                      />
+                    );
+                  })}
+                </View>
+              )}
+
+              <View style={styles.weekRight}>
+                <Text style={[styles.weekKm, isCurrent && { color: C.clay }, injuryWeek && styles.weekKmInjury]}>
+                  {injuryWeek ? `${weekEntries.length} XT` : `${km}km`}
+                </Text>
+              </View>
+            </View>
+
+            <View
+              style={[
+                styles.volumeTrack,
+                getBlockVolumeTone(i, currentWeekIndex) === 'current' && styles.volumeTrackCurrent,
+              ]}
+            >
+              <View
                 style={[
-                  styles.weekNum,
-                  isCurrent && { color: C.clay, fontWeight: '700' },
+                  styles.volumeFill,
+                  {
+                    width: `${getWeekVolumeRatio(km, maxKm) * 100}%`,
+                  },
+                  getBlockVolumeTone(i, currentWeekIndex) === 'past' && styles.volumeFillPast,
+                  getBlockVolumeTone(i, currentWeekIndex) === 'current' && styles.volumeFillCurrent,
+                  getBlockVolumeTone(i, currentWeekIndex) === 'future' && styles.volumeFillFuture,
                 ]}
-              >
-                W{week.weekNumber}
-              </Text>
-              <Text style={styles.weekPhaseTag}>{week.phase}</Text>
-            </View>
-
-            {/* Session dots */}
-            <View style={styles.dots}>
-              {week.sessions.map((s, d) => {
-                const type: SessionType = s?.type ?? 'REST';
-                return (
-                  <View
-                    key={d}
-                    style={[
-                      styles.dot,
-                      {
-                        backgroundColor:
-                          isPast || isCurrent
-                            ? SESSION_TYPE[type].color
-                            : C.border,
-                        opacity: !isPast && !isCurrent ? 0.4 : 1,
-                      },
-                    ]}
-                  />
-                );
-              })}
-            </View>
-
-            {/* Volume */}
-            <View style={styles.weekRight}>
-              <Text style={[styles.weekKm, isCurrent && { color: C.clay }]}>
-                {km}km
-              </Text>
+              />
             </View>
           </View>
         );
@@ -139,34 +288,6 @@ export default function BlockTab() {
       <View style={{ height: 40 }} />
     </ScrollView>
   );
-}
-
-// --- helpers ---
-
-interface PhaseSegment {
-  name: PhaseName;
-  weeks: number;
-  isCurrent: boolean;
-}
-
-function buildPhaseSegments(weeks: PlanWeek[], currentIdx: number): PhaseSegment[] {
-  const segments: PhaseSegment[] = [];
-  let prev: PhaseName | null = null;
-
-  for (let i = 0; i < weeks.length; i++) {
-    const phase = weeks[i].phase;
-    if (phase === prev) {
-      segments[segments.length - 1].weeks++;
-    } else {
-      segments.push({ name: phase, weeks: 1, isCurrent: false });
-    }
-    if (i === currentIdx) {
-      segments[segments.length - 1].isCurrent = true;
-    }
-    prev = phase;
-  }
-
-  return segments;
 }
 
 const styles = StyleSheet.create({
@@ -244,14 +365,16 @@ const styles = StyleSheet.create({
 
   // Week rows
   weekRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingVertical: 10,
     paddingHorizontal: 12,
     marginBottom: 4,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: 'transparent',
+  },
+  weekRowMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   weekRowCurrent: {
     backgroundColor: C.surface,
@@ -260,6 +383,10 @@ const styles = StyleSheet.create({
   },
   weekRowPast: {
     borderColor: C.border,
+  },
+  weekRowInjury: {
+    backgroundColor: C.clayBg,
+    borderColor: `${C.clay}22`,
   },
   weekLeft: {
     width: 38,
@@ -276,6 +403,9 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginTop: 1,
   },
+  weekPhaseTagInjury: {
+    color: C.clay,
+  },
   dots: {
     flex: 1,
     flexDirection: 'row',
@@ -287,6 +417,40 @@ const styles = StyleSheet.create({
     height: 9,
     borderRadius: 4.5,
   },
+  injuryEntries: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    alignItems: 'center',
+  },
+  crossTrainingChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: `${C.navy}16`,
+  },
+  crossTrainingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: C.navy,
+  },
+  crossTrainingText: {
+    fontFamily: FONTS.sansMedium,
+    fontSize: 11,
+    color: C.navy,
+  },
+  injuryHelper: {
+    fontFamily: FONTS.sans,
+    fontSize: 11,
+    color: C.muted,
+  },
   weekRight: {
     width: 50,
     alignItems: 'flex-end',
@@ -295,6 +459,33 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.mono,
     fontSize: 10,
     color: C.ink,
+  },
+  weekKmInjury: {
+    color: C.clay,
+  },
+  volumeTrack: {
+    height: 2,
+    marginTop: 10,
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor: 'transparent',
+  },
+  volumeTrackCurrent: {
+    backgroundColor: C.border,
+  },
+  volumeFill: {
+    height: '100%',
+    borderRadius: 999,
+  },
+  volumeFillPast: {
+    backgroundColor: C.forest,
+  },
+  volumeFillCurrent: {
+    backgroundColor: C.clay,
+  },
+  volumeFillFuture: {
+    backgroundColor: C.border,
+    opacity: 0.55,
   },
 
   // Empty/loading

@@ -1,4 +1,5 @@
 import type { PlannedSession } from './session';
+import type { Injury } from './injury';
 
 export interface PhaseConfig {
   BASE: number;
@@ -39,4 +40,7 @@ export interface TrainingPlan {
 
   // Generated weeks
   weeks: PlanWeek[];
+
+  // Recovery & injury
+  activeInjury: Injury | null;
 }

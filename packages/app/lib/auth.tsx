@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { makeRedirectUri } from 'expo-auth-session';
+import Constants from 'expo-constants';
 import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
@@ -17,6 +18,13 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+function getRedirectTo() {
+  const isExpoGo = Constants.appOwnership === 'expo';
+  return isExpoGo
+    ? makeRedirectUri({ path: 'auth/callback' })
+    : makeRedirectUri({ scheme: 'steady', path: 'auth/callback' });
+}
 
 async function createSessionFromUrl(url: string): Promise<Session | null> {
   const supabase = requireSupabaseClient();
@@ -102,7 +110,7 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
     setIsLoading(true);
     try {
       const supabase = requireSupabaseClient();
-      const redirectTo = makeRedirectUri({ scheme: 'steady' });
+      const redirectTo = getRedirectTo();
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {

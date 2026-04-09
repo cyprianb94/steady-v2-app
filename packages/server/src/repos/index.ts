@@ -13,3 +13,7 @@ export { SupabaseActivityRepo } from './activity-repo.supabase';
 export type { ConversationRepo } from './conversation-repo';
 export { InMemoryConversationRepo } from './conversation-repo.memory';
 export { SupabaseConversationRepo } from './conversation-repo.supabase';
+
+export type { CrossTrainingRepo } from './cross-training-repo';
+export { InMemoryCrossTrainingRepo } from './cross-training-repo.memory';
+export { SupabaseCrossTrainingRepo } from './cross-training-repo.supabase';

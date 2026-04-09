@@ -13,6 +13,15 @@ export type {
 } from './plan';
 
 export type {
+  Injury,
+  InjuryUpdate,
+  CrossTrainingEntry,
+  CrossTrainingLogInput,
+  CrossTrainingType,
+} from './injury';
+export { CROSS_TRAINING_TYPES } from './injury';
+
+export type {
   Activity,
   ActivitySplit,
   SubjectiveInput,
@@ -33,3 +42,16 @@ export { sessionKm, expectedDistance, weekKm } from './lib/session-km';
 export { generatePlan, defaultPhases } from './lib/plan-generator';
 export { propagateChange } from './lib/propagate-change';
 export type { PropagateScope } from './lib/propagate-change';
+export { getRtrProgression, RTR_STEPS } from './lib/rtr-progression';
+export { getDisplayWeekIndex } from './lib/plan-current-week';
+export { buildBlockPhaseSegments, getInjuryWeekRange, isInjuryWeek } from './lib/block-injury';
+export { getBlockVolumeTone, getWeekVolumeRatio } from './lib/block-volume';
+export { buildBlockWeekDayDetails } from './lib/block-week-detail';
+export type {
+  RtrStepDefinition,
+  RtrProgressionStep,
+  RtrProgression,
+} from './lib/rtr-progression';
+export type { BlockPhaseSegment, InjuryWeekRange } from './lib/block-injury';
+export type { BlockVolumeTone } from './lib/block-volume';
+export type { BlockDayStatus, BlockWeekDayDetail } from './lib/block-week-detail';

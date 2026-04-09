@@ -144,5 +144,6 @@ function emptyPlan(userId: string): TrainingPlan {
     progressionPct: 0,
     templateWeek: [],
     weeks: [],
+    activeInjury: null,
   };
 }

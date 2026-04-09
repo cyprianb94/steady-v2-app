@@ -27,6 +27,7 @@ function makePlan(userId: string, overrides?: Partial<TrainingPlan>): TrainingPl
       ],
       plannedKm: 8,
     }],
+    activeInjury: null,
     ...overrides,
   };
 }
@@ -116,6 +117,67 @@ function runPlanRepoTests(name: string, createRepo: () => PlanRepo) {
       // But still exists in getAllByUserId
       const all = await repo.getAllByUserId('user-1');
       expect(all).toHaveLength(1);
+    });
+
+    it('marks an injury with the default recovery state', async () => {
+      const plan = makePlan('user-1');
+      await repo.save(plan);
+
+      const updated = await repo.markInjury(plan.id, 'Calf strain');
+      expect(updated).not.toBeNull();
+      expect(updated!.activeInjury).toEqual({
+        name: 'Calf strain',
+        markedDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        rtrStep: 0,
+        rtrStepCompletedDates: [],
+        status: 'recovering',
+      });
+
+      const retrieved = await repo.getActive('user-1');
+      expect(retrieved!.activeInjury!.name).toBe('Calf strain');
+    });
+
+    it('updates the active injury fields without losing existing metadata', async () => {
+      const plan = makePlan('user-1');
+      await repo.save(plan);
+      await repo.markInjury(plan.id, 'Calf strain');
+
+      const updated = await repo.updateInjury(plan.id, {
+        rtrStep: 2,
+        rtrStepCompletedDates: ['2026-04-01', '2026-04-03'],
+        reassessedTarget: 'sub-3:35',
+        status: 'returning',
+      });
+
+      expect(updated).not.toBeNull();
+      expect(updated!.activeInjury).toMatchObject({
+        name: 'Calf strain',
+        rtrStep: 2,
+        rtrStepCompletedDates: ['2026-04-01', '2026-04-03'],
+        reassessedTarget: 'sub-3:35',
+        status: 'returning',
+      });
+    });
+
+    it('returns null when updating injury on a plan without an active injury', async () => {
+      const plan = makePlan('user-1');
+      await repo.save(plan);
+
+      expect(await repo.updateInjury(plan.id, { status: 'returning' })).toBeNull();
+    });
+
+    it('clears an injury by marking it resolved', async () => {
+      const plan = makePlan('user-1');
+      await repo.save(plan);
+      await repo.markInjury(plan.id, 'Hamstring');
+
+      const updated = await repo.clearInjury(plan.id);
+      expect(updated).not.toBeNull();
+      expect(updated!.activeInjury).toMatchObject({
+        name: 'Hamstring',
+        status: 'resolved',
+        resolvedDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      });
     });
 
     it('isolates plans between users', async () => {

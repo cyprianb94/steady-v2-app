@@ -13,6 +13,13 @@ const PhaseConfigSchema = z.object({
   TAPER: z.number().min(0),
 });
 
+const InjuryUpdateSchema = z.object({
+  reassessedTarget: z.string().min(1).max(100).optional(),
+  rtrStep: z.number().min(0).max(4).optional(),
+  rtrStepCompletedDates: z.array(z.string()).optional(),
+  status: z.enum(['recovering', 'returning', 'resolved']).optional(),
+});
+
 export function createPlanRouter(planRepo: PlanRepo) {
   return router({
     /** Get the user's active training plan. */
@@ -91,6 +98,7 @@ export function createPlanRouter(planRepo: PlanRepo) {
           progressionPct: input.progressionPct,
           templateWeek: input.templateWeek as (PlannedSession | null)[],
           weeks,
+          activeInjury: existing?.activeInjury ?? null,
         };
 
         return planRepo.save(plan);
@@ -135,6 +143,39 @@ export function createPlanRouter(planRepo: PlanRepo) {
         const plan = await planRepo.getActive(ctx.userId);
         if (!plan) return null;
         return planRepo.updateWeeks(plan.id, input.weeks as PlanWeek[]);
+      }),
+
+    markInjury: authedProcedure
+      .input(
+        z.object({
+          name: z.string().trim().min(1).max(120),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const plan = await planRepo.getActive(ctx.userId);
+        if (!plan) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'No plan found' });
+        }
+        return planRepo.markInjury(plan.id, input.name);
+      }),
+
+    updateInjury: authedProcedure
+      .input(InjuryUpdateSchema)
+      .mutation(async ({ ctx, input }) => {
+        const plan = await planRepo.getActive(ctx.userId);
+        if (!plan) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'No plan found' });
+        }
+        return planRepo.updateInjury(plan.id, input);
+      }),
+
+    clearInjury: authedProcedure
+      .mutation(async ({ ctx }) => {
+        const plan = await planRepo.getActive(ctx.userId);
+        if (!plan) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'No plan found' });
+        }
+        return planRepo.clearInjury(plan.id);
       }),
   });
 }

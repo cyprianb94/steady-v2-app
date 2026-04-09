@@ -1,6 +1,16 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { TrainingPlan, PlanWeek, PhaseConfig, PlannedSession } from '@steady/types';
+import type { TrainingPlan, PlanWeek, PhaseConfig, PlannedSession, Injury, InjuryUpdate } from '@steady/types';
 import type { PlanRepo } from './plan-repo';
+
+function createActiveInjury(name: string): Injury {
+  return {
+    name,
+    markedDate: new Date().toISOString().slice(0, 10),
+    rtrStep: 0,
+    rtrStepCompletedDates: [],
+    status: 'recovering',
+  };
+}
 
 function rowToPlan(row: Record<string, unknown>): TrainingPlan {
   return {
@@ -15,6 +25,7 @@ function rowToPlan(row: Record<string, unknown>): TrainingPlan {
     progressionPct: row.progression_pct as number,
     templateWeek: row.template_week as (PlannedSession | null)[],
     weeks: row.weeks as PlanWeek[],
+    activeInjury: (row.active_injury as Injury | null) ?? null,
   };
 }
 
@@ -31,6 +42,7 @@ function planToRow(plan: TrainingPlan, isActive: boolean): Record<string, unknow
     progression_pct: plan.progressionPct,
     template_week: plan.templateWeek,
     weeks: plan.weeks,
+    active_injury: plan.activeInjury,
     is_active: isActive,
   };
 }
@@ -89,6 +101,53 @@ export class SupabasePlanRepo implements PlanRepo {
 
     if (error || !data) return null;
     return rowToPlan(data);
+  }
+
+  async markInjury(planId: string, name: string): Promise<TrainingPlan | null> {
+    const { data, error } = await this.supabase
+      .from('training_plans')
+      .update({ active_injury: createActiveInjury(name) })
+      .eq('id', planId)
+      .select()
+      .single();
+
+    if (error || !data) return null;
+    return rowToPlan(data);
+  }
+
+  async updateInjury(planId: string, updates: InjuryUpdate): Promise<TrainingPlan | null> {
+    const { data: existing, error: fetchError } = await this.supabase
+      .from('training_plans')
+      .select('*')
+      .eq('id', planId)
+      .single();
+
+    if (fetchError || !existing) return null;
+
+    const currentInjury = (existing.active_injury as Injury | null) ?? null;
+    if (!currentInjury) return null;
+
+    const { data, error } = await this.supabase
+      .from('training_plans')
+      .update({
+        active_injury: {
+          ...currentInjury,
+          ...updates,
+        },
+      })
+      .eq('id', planId)
+      .select()
+      .single();
+
+    if (error || !data) return null;
+    return rowToPlan(data);
+  }
+
+  async clearInjury(planId: string): Promise<TrainingPlan | null> {
+    return this.updateInjury(planId, {
+      status: 'resolved',
+      resolvedDate: new Date().toISOString().slice(0, 10),
+    });
   }
 
   async deactivate(planId: string): Promise<void> {

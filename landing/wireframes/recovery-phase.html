@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Steady - Home (Today Hero)</title>
+  <title>Steady - Home (Recovery Phase)</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Space+Mono:wght@400;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
 
@@ -54,86 +54,58 @@
     }
     .content-area::-webkit-scrollbar { display: none; }
 
-    /* Week header */
-    .header-meta {
-      font-size: 11px; color: var(--muted); letter-spacing: 0.5px;
-      text-transform: uppercase; margin-bottom: 3px; font-weight: 500;
-    }
-    h1 {
-      font-family: 'Playfair Display', serif; font-size: 24px; color: var(--ink);
-      margin: 0 0 12px; font-weight: 600; line-height: 1.2;
-    }
-
-    /* Load bar */
-    .load-bar-card {
-      background: var(--surface); border-radius: 12px; padding: 12px 14px;
-      border: 1px solid var(--border); margin-bottom: 12px;
-    }
-    .load-header {
-      display: flex; justify-content: space-between; margin-bottom: 8px;
-    }
-    .load-header .label {
-      font-size: 10px; color: var(--muted); letter-spacing: 1px;
-      text-transform: uppercase; font-weight: 600;
-    }
-    .load-header .values { font-family: 'Space Mono', monospace; font-size: 12px; display: flex; gap: 10px; font-weight: 700; }
-    .load-header .values .actual { color: var(--forest); }
-    .load-header .values .planned { color: var(--muted); font-weight: 400; }
-    .progress-track { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
-    .progress-fill { height: 100%; width: 46%; background: var(--forest); border-radius: 3px; }
-
-    /* TODAY HERO CARD */
-    .today-hero {
-      background: var(--amberBg);
-      border: 1.5px solid rgba(212, 136, 42, 0.35);
+    /* Injury Banner */
+    .injury-banner {
+      background: var(--clayBg);
+      border: 1.5px solid rgba(196, 82, 42, 0.35);
       border-radius: 14px;
       padding: 16px;
       margin-bottom: 10px;
-      box-shadow: 0 3px 14px rgba(212, 136, 42, 0.15);
-      position: relative;
     }
-    .today-hero-top {
+    .injury-banner-top {
       display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;
     }
-    .today-chip {
+    .injury-chip {
       font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
-      color: white; background: var(--amber); border-radius: 20px; padding: 3px 10px;
+      color: white; background: var(--clay); border-radius: 20px; padding: 3px 10px;
     }
-    .today-badge {
-      font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
-      color: var(--clay);
+    .recovering-pill {
+      font-size: 9px; font-weight: 600; color: var(--forest); background: var(--forestBg);
+      border-radius: 20px; padding: 3px 10px; border: 1px solid rgba(42, 92, 69, 0.2);
     }
-    .today-hero h2 {
+    .injury-banner h2 {
       font-family: 'Playfair Display', serif; font-size: 22px; color: var(--ink);
       margin: 0 0 4px; font-weight: 600; line-height: 1.2;
     }
-    .today-hero .date {
-      font-size: 12px; color: var(--muted); margin-bottom: 14px;
+    .injury-banner .meta {
+      font-size: 11px; color: var(--muted);
     }
-    .today-metrics {
-      display: flex; gap: 18px;
+    .goal-update {
+      margin-top: 12px;
     }
-    .today-metric .value {
-      font-family: 'Space Mono', monospace; font-size: 15px; color: var(--ink); font-weight: 700;
+    .goal-update-label {
+      font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 4px;
     }
-    .today-metric .label {
-      font-size: 10px; color: var(--muted); margin-top: 2px;
+    .goal-update-row {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .goal-old {
+      font-family: 'Space Mono', monospace; font-size: 13px;
+      text-decoration: line-through; color: var(--muted);
+    }
+    .goal-arrow {
+      color: var(--muted); font-size: 13px;
+    }
+    .goal-new {
+      font-family: 'Space Mono', monospace; font-size: 13px;
+      font-weight: 700; color: var(--clay);
+    }
+    .goal-reassessed {
+      font-size: 10px; color: var(--muted);
     }
 
-    /* Steady nudge inside hero */
-    .hero-nudge {
-      margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(212, 136, 42, 0.2);
-      display: flex; gap: 8px; align-items: flex-start;
-    }
-    .hero-nudge .dot {
-      width: 6px; height: 6px; border-radius: 50%; background: var(--amber); margin-top: 5px; flex-shrink: 0;
-    }
-    .hero-nudge p {
-      font-size: 12.5px; color: var(--ink2); line-height: 1.5;
-    }
-    .hero-nudge strong { font-weight: 600; color: var(--ink); }
-
-    /* REMAINING DAYS — vertical compact list */
+    /* Day list (reused from today-hero) */
     .day-list { display: flex; flex-direction: column; gap: 1px; margin-bottom: 8px; }
 
     .day-row {
@@ -161,7 +133,6 @@
     .day-session-name {
       font-size: 13px; color: var(--ink); font-weight: 500;
     }
-    .day-row.rest .day-session-name { color: var(--muted); font-weight: 400; }
 
     .day-right {
       flex-shrink: 0; display: flex; align-items: center; gap: 6px;
@@ -176,10 +147,59 @@
     /* Divider */
     .list-divider {
       font-size: 9px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
-      color: var(--muted); padding: 8px 10px 4px; margin-top: 2px;
+      color: var(--muted); padding: 8px 10px 4px; margin-top: 14px;
     }
 
-    /* Tab bar — 3 tabs */
+    /* Return-to-Running Card */
+    .rtr-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px; margin: 0 0 8px;
+    }
+    .rtr-steps {
+      display: flex; flex-direction: column; gap: 0; position: relative;
+    }
+    .rtr-step {
+      display: flex; align-items: center; gap: 12px; padding: 8px;
+      position: relative; z-index: 1;
+    }
+    .rtr-step.current {
+      background: rgba(196, 82, 42, 0.06); border-radius: 8px;
+    }
+    .rtr-circle {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .rtr-circle.active {
+      background: var(--clay); color: white;
+    }
+    .rtr-circle.inactive {
+      background: var(--border); color: var(--muted);
+    }
+    .rtr-label {
+      font-size: 13px; font-weight: 600; color: var(--ink);
+    }
+    .rtr-label.inactive {
+      font-weight: 400; color: var(--muted);
+    }
+    .rtr-plan-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--forest);
+      display: inline-block; margin-right: 4px;
+    }
+    /* Connecting line between circles */
+    .rtr-steps::before {
+      content: '';
+      position: absolute;
+      left: calc(8px + 14px - 1px); /* padding-left + half circle width - half line width */
+      top: 30px;
+      bottom: 30px;
+      width: 2px;
+      background: var(--border);
+      z-index: 0;
+    }
+
+    /* Tab bar */
     .tab-bar {
       height: 70px; border-top: 1px solid var(--border); background: var(--surface);
       display: flex; flex-shrink: 0; padding-bottom: 6px;
@@ -190,7 +210,8 @@
     }
     .tab span { font-size: 10px; color: var(--muted); letter-spacing: 0.2px; text-transform: capitalize; font-weight: 500; }
     .tab.active span { color: var(--clay); font-weight: 600; }
-    /* When embedded in iframe, strip the phone chrome */
+
+    /* Embedded mode */
     body.embedded {
       background: var(--cream); overflow: hidden;
       margin: 0;
@@ -224,140 +245,100 @@
 
       <!-- App Content -->
       <div class="content-area">
-        <div class="header-meta">MAR 17 – 23 · 2026</div>
-        <h1>Week 14 · Build Phase</h1>
 
-        <!-- Load bar -->
-        <div class="load-bar-card">
-          <div class="load-header">
-            <span class="label">WEEKLY LOAD</span>
-            <div class="values">
-              <span class="actual">31.1km</span>
-              <span class="planned">/ 67km</span>
-            </div>
+        <!-- Injury Banner -->
+        <div class="injury-banner">
+          <div class="injury-banner-top">
+            <span class="injury-chip">INJURY</span>
+            <span class="recovering-pill">Recovering</span>
           </div>
-          <div class="progress-track">
-            <div class="progress-fill"></div>
+          <h2>Calf Strain</h2>
+          <div class="meta">Marked Apr 2 · Week 14 of marathon plan</div>
+          <div class="goal-update">
+            <div class="goal-update-label">GOAL UPDATE</div>
+            <div class="goal-update-row">
+              <span class="goal-old">sub-3:30</span>
+              <span class="goal-arrow">&rarr;</span>
+              <span class="goal-new">sub-3:45</span>
+              <span class="goal-reassessed">reassessed</span>
+            </div>
           </div>
         </div>
 
-        <!-- TODAY HERO CARD -->
-        <div class="today-hero">
-          <div class="today-hero-top">
-            <span class="today-chip">TEMPO</span>
-            <span class="today-badge">TODAY</span>
-          </div>
-          <h2>12km Tempo</h2>
-          <div class="date">Thursday, Mar 20</div>
-          <div class="today-metrics">
-            <div class="today-metric">
-              <div class="value">12km</div>
-              <div class="label">distance</div>
-            </div>
-            <div class="today-metric">
-              <div class="value">4:10–4:20</div>
-              <div class="label">target pace</div>
-            </div>
-            <div class="today-metric">
-              <div class="value">Zone 4</div>
-              <div class="label">heart rate</div>
-            </div>
-          </div>
-          <div class="hero-nudge">
-            <div class="dot"></div>
-            <p><strong>Steady</strong>: Your last tempo faded in the back half. Start at 4:18 and build. Don't force 4:10 from the gun.</p>
-          </div>
-        </div>
-
-        <!-- REMAINING DAYS — vertical list -->
-        <div class="list-divider">THIS WEEK</div>
+        <!-- Cross-Training Section -->
+        <div class="list-divider" style="margin-top: 2px;">CROSS-TRAINING THIS WEEK</div>
         <div class="day-list">
-          <!-- Mon (completed) -->
+          <!-- Thu -->
           <div class="day-row">
             <div class="day-left">
-              <div class="day-name">Mon</div>
-              <div class="day-date">Mar 17</div>
-            </div>
-            <div class="day-center">
-              <div class="day-dot" style="background: var(--forest);"></div>
-              <span class="day-session-name">Easy 10km</span>
-            </div>
-            <div class="day-right">
-              <span class="day-status" style="color: var(--forest);">✓</span>
-              <span class="day-km">10.2km</span>
-            </div>
-          </div>
-          <!-- Tue (off-target) -->
-          <div class="day-row">
-            <div class="day-left">
-              <div class="day-name">Tue</div>
-              <div class="day-date">Mar 18</div>
-            </div>
-            <div class="day-center">
-              <div class="day-dot" style="background: var(--clay);"></div>
-              <span class="day-session-name">6×800m Intervals</span>
-            </div>
-            <div class="day-right">
-              <span class="day-status" style="color: var(--amber);">⚠</span>
-              <span class="day-km">12.8km</span>
-            </div>
-          </div>
-          <!-- Wed (completed) -->
-          <div class="day-row">
-            <div class="day-left">
-              <div class="day-name">Wed</div>
-              <div class="day-date">Mar 19</div>
-            </div>
-            <div class="day-center">
-              <div class="day-dot" style="background: var(--forest);"></div>
-              <span class="day-session-name">Easy 8km + Strides</span>
-            </div>
-            <div class="day-right">
-              <span class="day-status" style="color: var(--forest);">✓</span>
-              <span class="day-km">7.9km</span>
-            </div>
-          </div>
-          <!-- Fri (rest) -->
-          <div class="day-row rest">
-            <div class="day-left">
-              <div class="day-name">Fri</div>
-              <div class="day-date">Mar 21</div>
-            </div>
-            <div class="day-center">
-              <div class="day-dot" style="background: var(--border);"></div>
-              <span class="day-session-name">Rest</span>
-            </div>
-            <div class="day-right"></div>
-          </div>
-          <!-- Sat (upcoming) -->
-          <div class="day-row">
-            <div class="day-left">
-              <div class="day-name">Sat</div>
-              <div class="day-date">Mar 22</div>
-            </div>
-            <div class="day-center">
-              <div class="day-dot" style="background: var(--forest);"></div>
-              <span class="day-session-name">Easy 14km</span>
-            </div>
-            <div class="day-right">
-              <span class="day-km" style="color: var(--border);">14km</span>
-            </div>
-          </div>
-          <!-- Sun (upcoming) -->
-          <div class="day-row">
-            <div class="day-left">
-              <div class="day-name">Sun</div>
-              <div class="day-date">Mar 23</div>
+              <div class="day-name">Thu</div>
+              <div class="day-date">Apr 3</div>
             </div>
             <div class="day-center">
               <div class="day-dot" style="background: var(--navy);"></div>
-              <span class="day-session-name">22km Long Run</span>
+              <span class="day-session-name">Cycling — 45min</span>
             </div>
             <div class="day-right">
-              <span class="day-km" style="color: var(--border);">22km</span>
+              <span class="day-status" style="color: var(--forest);">&#10003;</span>
+            </div>
+          </div>
+          <!-- Wed -->
+          <div class="day-row">
+            <div class="day-left">
+              <div class="day-name">Wed</div>
+              <div class="day-date">Apr 2</div>
+            </div>
+            <div class="day-center">
+              <div class="day-dot" style="background: var(--navy);"></div>
+              <span class="day-session-name">Swimming — 30min</span>
+            </div>
+            <div class="day-right">
+              <span class="day-status" style="color: var(--forest);">&#10003;</span>
+            </div>
+          </div>
+          <!-- Mon -->
+          <div class="day-row">
+            <div class="day-left">
+              <div class="day-name">Mon</div>
+              <div class="day-date">Mar 31</div>
+            </div>
+            <div class="day-center">
+              <div class="day-dot" style="background: var(--navy);"></div>
+              <span class="day-session-name">Upper Body — 40min</span>
+            </div>
+            <div class="day-right">
+              <span class="day-status" style="color: var(--forest);">&#10003;</span>
             </div>
           </div>
         </div>
+
+        <!-- Return to Running -->
+        <div class="list-divider">RETURN TO RUNNING</div>
+        <div class="rtr-card">
+          <div class="rtr-steps">
+            <!-- Step 1 (current) -->
+            <div class="rtr-step current">
+              <div class="rtr-circle active">1</div>
+              <span class="rtr-label">Walk/Jog 3km</span>
+            </div>
+            <!-- Step 2 -->
+            <div class="rtr-step">
+              <div class="rtr-circle inactive">2</div>
+              <span class="rtr-label inactive">Easy 5km</span>
+            </div>
+            <!-- Step 3 -->
+            <div class="rtr-step">
+              <div class="rtr-circle inactive">3</div>
+              <span class="rtr-label inactive">Easy 8km + Strides</span>
+            </div>
+            <!-- Step 4 -->
+            <div class="rtr-step">
+              <div class="rtr-circle inactive">4</div>
+              <span class="rtr-label inactive"><span class="rtr-plan-dot"></span>Resume plan — Build W15</span>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <!-- Tab bar — 3 tabs -->

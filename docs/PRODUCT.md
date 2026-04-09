@@ -1,126 +1,64 @@
 # Steady — Product
 
-## The core belief
+## What Steady is
 
-A training plan is a living document, not a prescription. The best runners in the world adapt constantly — not because they're undisciplined, but because the body doesn't follow a spreadsheet. The gap in the market is not AI plan generation. Every app already does that. The gap is AI that serves a plan the user already trusts, watching it unfold in reality, and helping adapt it when reality diverges.
-
-Steady is not a plan generator. It is a plan executor and adapter.
-
----
+Steady is a free training plan manager for runners who already have a plan. The core app is free forever. No trial timers, no feature gates on the things that matter.
 
 ## The problem it solves
 
-### What self-coached runners actually do today
+Most runners manage training across multiple disconnected tools — a spreadsheet or notes app for the plan, Garmin/Apple Watch/Strava for run data, and some kind of AI chat to stitch it together. When something goes wrong mid-block, there's no easy way to see it in context. Steady puts the plan and the runs in the same place so the full picture is always there.
 
-1. They create a training plan — from Pfitzinger, Jack Daniels, 80/20, or increasingly from an LLM conversation
-2. They run with Garmin, Apple Watch, or Strava
-3. They track planned vs actual in a Google Sheets document, or they don't track it at all
-4. When something goes wrong (injury, fatigue, missed session) they either re-open ChatGPT to adapt the plan, or they just wing it
-5. They have no persistent record of why adaptations were made
+## Core features (free)
 
-This workflow is broken in four places:
-- **No single home for the plan.** It lives in a doc somewhere
-- **No planned vs actual view.** They can see what they ran; they can't easily compare it to what they were supposed to run
-- **No adaptive intelligence.** The plan is static the moment it's created
-- **No coach memory.** Every ChatGPT session starts from scratch
+- **Import a training plan** via in-app builder, CSV upload, or screenshot/photo
+- **Week view** with today's session front and centre
+- **Block view** showing training phases (Base, Build, Peak, Taper) and progress across the full block
+- **Sync runs** from Garmin, Apple Watch, and Strava
+- **Planned vs actual** comparison per session
+- **Recovery phase** — injury as a first-class part of training (see below)
+- **Coach mode** — invite your real human coach into the plan (see below)
 
-Steady fixes all four.
+## Recovery phase
 
-### The specific pain points, validated by research
+When a runner gets injured, Steady doesn't just pause the plan and leave a gap. You mark the injury, log what you can do while you're out, and follow a return-to-running progression as you come back. The remaining training block adapts around the time you've lost. Your goal — whether that's a race date or a target time — gets reassessed too.
 
-**TrainingPeaks is expensive and dated.** Price increased to $135/year in 2025. Athletes describe it as "stuck in 2010-era development." Power users are migrating to Intervals.icu (free) but Intervals.icu has zero AI and a steep learning curve.
+If you've lost three weeks, Steady should be honest that sub-3:30 might need revisiting. But if you come back ahead of schedule and your fitness held up better than expected, you can reset the goal back to where it was. The whole thing stays in one place so you're not starting from scratch every time something goes wrong.
 
-**Runna doesn't accept custom plans.** It generates its own plans only. Athletes who want to follow Pfitzinger 18/70, a coach's programme, or an LLM-generated block have no use for Runna. Runna also has an injury problem — it defaults to ~60/40 intensity split, violating the 80/20 principle. Physical therapists report multiple Runna-related injury cases per week (The5KRunner, Feb 2026).
+No other app treats injury as a first-class part of training — it's either ignored or it breaks the plan entirely. This is one of the main reasons Steady exists.
 
-**Strava's AI is a joke.** "Athlete Intelligence" launched late 2024 and generated universal mockery for being generic and contextless. After a cyclist was hit by a car, Strava's AI congratulated them on their consistency.
+## Coach mode
 
-**Garmin can't import custom plans.** A Garmin forum thread requesting custom plan import has been open for 5+ years with hundreds of frustrated replies.
+A runner can invite their real human coach into the app. The coach can see everything and make changes to the plan directly, based on how the runner is feeling and performing. This mirrors how a real coaching relationship actually works: the runner logs what happened, the coach adjusts what's next. No spreadsheets over email, no re-explaining the block before every call. Free always.
 
-**LLM-generated plans are real but unsupported.** Runners are creating plans with ChatGPT and Claude, but then have nowhere to track them. The plan exists in a chat window. Academic research (Düking et al., 2024) confirms LLM plans improve significantly with more detailed prompts — but the runner still has no tool to execute the result.
+## Steady AI (paid add-on, ~£8–10/month)
 
----
+After key sessions, Steady AI reads the full training block and gives feedback — not just on the last run, but in context of the whole block. It can suggest plan changes when training drifts and initiates the conversation proactively. This is the only paid feature and exists to cover LLM costs. It should never feel like it's being pushed on users who don't want it.
 
-## Target users
+## Important naming distinction
 
-### Primary: The self-coached serious runner
-
-- Runs 4–6 days per week, 50–80km per week
-- Training for a specific goal race (marathon, half marathon, 10K)
-- Has created their plan from literature (Pfitzinger, Hansons, Jack Daniels), YouTube, Reddit, or an LLM
-- Uses Garmin, Apple Watch, or Strava to track runs
-- Understands periodisation, knows what a tempo run is, doesn't need terms explained
-- Has probably used TrainingPeaks or Runna and found them limiting
-- Age typically 28–45, London/NYC/Berlin/Sydney demographic
-
-### Secondary: The AI-assisted planner
-
-- Used ChatGPT or Claude to create a training block
-- Ran the plan for a few weeks in their head or on paper
-- Frustrated that the LLM doesn't remember what happened last week
-- Looking for a way to close the loop between the plan and the execution
-
-### Out of scope for MVP: Coaches and their athletes
-
-This is a V2 feature. The coach-athlete platform requires a different auth model, different UX patterns, and B2B thinking. Do not build it in V1.
+The AI feature is called **Steady AI**. The word "coach" is reserved exclusively for the real human coach a runner might already work with. Keep these two things clearly separate in all copy and UI.
 
 ---
 
-## The core loop
-
-Three actions, repeated weekly:
-
-```
-Build / import plan → Track against reality → Talk to coach and adapt
-```
-
-Every screen must serve one of these three actions. If a feature doesn't, cut it.
-
----
-
-## What makes Steady different from every other app
+## What makes Steady different
 
 | Capability | Strava | Runna | TrainingPeaks | Intervals.icu | **Steady** |
 |---|---|---|---|---|---|
 | Import your own plan | ✗ | ✗ | ✓ | ✓ | ✓ |
 | Planned vs actual view | ✗ | Partial | ✓ | ✓ | ✓ |
+| Injury/recovery management | ✗ | ✗ | ✗ | ✗ | **✓** |
+| Coach collaboration | ✗ | ✗ | ✓ | ✗ | **✓** |
 | AI conversation about sessions | ✗ | Limited | ✗ | ✗ | **✓** |
 | AI adapts plan mid-cycle | ✗ | ✗ | ✗ | ✗ | **✓** |
-| Coach initiates (proactive) | ✗ | ✗ | ✗ | ✗ | **✓** |
-| Pace trace: planned vs actual | ✗ | ✗ | ✗ | Limited | **✓** |
-| Phase-aware plan structure | ✗ | Partial | ✓ | ✓ | **✓** |
+| AI initiates (proactive) | ✗ | ✗ | ✗ | ✗ | **✓** |
+| Price | Free* | £10/mo | £11/mo | Free | **Free** |
 
-The two columns in bold are Steady's exclusive territory. No other app does them.
-
----
-
-## MVP scope
-
-### In
-
-- Plan creation (3-step builder: goal → template week → full plan)
-- Strava sync (OAuth + webhook for new activities)
-- Apple Health sync (HKWorkout reads)
-- Week view (current week, planned vs actual, load bar, AI nudge)
-- Block view (full plan timeline with phase strip)
-- Session detail (planned vs actual with pace trace)
-- AI coach (Steady) — post-run debrief, weekly preview, plan adaptation
-- Settings (integrations, plan management, subscription)
-
-### Explicitly out of MVP
-
-- Coach / athlete platform (V2)
-- In-app GPS recording (competes with Garmin/Apple Watch; not our bet)
-- Social features (Strava owns this)
-- Nutrition tracking (scope creep)
-- Workout push to watch (Garmin API complexity)
-- Marketplace for plans (monetise later)
-- Android (ship iOS first, validate, then Android in 3–6 months)
+The bold rows are Steady's exclusive territory. No other app does them.
 
 ---
 
 ## Monetisation
 
-- Free tier: plan creation and tracking, no AI coach
-- Steady Pro: £9.99/month or £89.99/year — unlocks AI coach, post-run debriefs, plan adaptation
-- Target: 5,000 paying users = £600K ARR. Viable indie business.
-- Conversion model: hard paywall after 2-week free trial (Runna model)
+- **Free tier:** plan management, tracking, recovery phase, coach mode — everything except AI
+- **Steady AI:** ~£8–10/month — AI debriefs, adaptation suggestions, proactive session analysis
+- No trial timers. No feature gates on the core app. The free product must be genuinely useful on its own.

@@ -1,12 +1,15 @@
 import { router } from './trpc';
 import { createPlanRouter } from './plan';
 import { createCoachRouter } from './coach';
+import { createCrossTrainingRouter } from './cross-training';
 import type { ActivityRepo } from '../repos/activity-repo';
 import type { ConversationRepo } from '../repos/conversation-repo';
+import type { CrossTrainingRepo } from '../repos/cross-training-repo';
 import type { PlanRepo } from '../repos/plan-repo';
 import type { ProfileRepo } from '../repos/profile-repo';
 import { InMemoryActivityRepo } from '../repos/activity-repo.memory';
 import { InMemoryConversationRepo } from '../repos/conversation-repo.memory';
+import { InMemoryCrossTrainingRepo } from '../repos/cross-training-repo.memory';
 import { InMemoryPlanRepo } from '../repos/plan-repo.memory';
 import { InMemoryProfileRepo } from '../repos/profile-repo.memory';
 
@@ -15,12 +18,14 @@ export interface RouterDeps {
   planRepo: PlanRepo;
   activityRepo: ActivityRepo;
   conversationRepo: ConversationRepo;
+  crossTrainingRepo: CrossTrainingRepo;
 }
 
 export function createAppRouter(deps: RouterDeps) {
   return router({
     plan: createPlanRouter(deps.planRepo),
     coach: createCoachRouter(deps),
+    crossTraining: createCrossTrainingRouter(deps.crossTrainingRepo, deps.planRepo),
   });
 }
 
@@ -30,5 +35,6 @@ const _dummyRouter = createAppRouter({
   planRepo: new InMemoryPlanRepo(),
   activityRepo: new InMemoryActivityRepo(),
   conversationRepo: new InMemoryConversationRepo(),
+  crossTrainingRepo: new InMemoryCrossTrainingRepo(),
 });
 export type AppRouter = typeof _dummyRouter;

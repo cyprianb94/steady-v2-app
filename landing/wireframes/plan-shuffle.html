@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Steady - Plan Shuffle (Drag & Drop)</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Space+Mono:wght@400;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
+
+    :root {
+      --cream: #F4EFE6; --surface: #FDFAF5; --card: #F0EAE0;
+      --ink: #1C1510; --ink2: #3D3028; --muted: #9A8E7E; --border: #E5DDD0;
+      --clay: #C4522A; --clayBg: #FDF0EB;
+      --amber: #D4882A; --amberBg: #FDF6EB;
+      --forest: #2A5C45; --forestBg: #EEF4F1;
+      --navy: #1B3A6B; --navyBg: #EDF1F8;
+      --slate: #8A8E9A; --purple: #7C5CBF;
+      --danger: #C44B2A; --dangerBg: #FDF0EB;
+    }
+
+    * { box-sizing: border-box; -webkit-font-smoothing: antialiased; margin: 0; padding: 0; }
+
+    body {
+      margin: 0; padding: 0;
+      background: var(--cream);
+      display: flex; justify-content: center; align-items: flex-start;
+      min-height: 100vh; font-family: 'DM Sans', system-ui, sans-serif;
+      gap: 40px; padding: 40px;
+      flex-wrap: wrap;
+    }
+
+    .phone-wrapper { padding: 0; }
+
+    .phone-frame {
+      width: 375px; height: 812px;
+      background: var(--cream);
+      border-radius: 44px;
+      border: 12px solid var(--ink);
+      box-shadow: 0 40px 100px rgba(28,21,16,0.25),
+                  0 0 0 1px rgba(28,21,16,0.1),
+                  inset 0 1px 0 rgba(255,255,255,0.6);
+      overflow: hidden; position: relative;
+      display: flex; flex-direction: column; z-index: 20;
+    }
+
+    .phone-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px; color: var(--muted);
+      text-align: center; margin-bottom: 10px;
+      letter-spacing: 1px; text-transform: uppercase;
+    }
+
+    .status-bar {
+      height: 44px; display: flex; justify-content: space-between; align-items: center;
+      padding: 0 28px; background: var(--cream); flex-shrink: 0;
+      font-weight: 600; font-size: 13px; color: var(--ink);
+    }
+    .status-bar .right { display: flex; gap: 7px; align-items: center; }
+    .signal { display: flex; gap: 2px; align-items: flex-end; height: 10px; }
+    .signal div { width: 3px; background: var(--ink); border-radius: 1px; }
+
+    .content-area {
+      flex: 1; overflow-y: auto; padding: 18px 14px 0; display: flex; flex-direction: column;
+    }
+    .content-area::-webkit-scrollbar { display: none; }
+
+    /* ── Edit mode header ── */
+    .edit-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 14px;
+    }
+    .edit-header h2 {
+      font-family: 'Playfair Display', serif; font-size: 20px; color: var(--ink); font-weight: 600;
+    }
+    .edit-header .done-btn {
+      font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+      color: var(--clay); background: var(--clayBg); border: none;
+      padding: 6px 14px; border-radius: 8px; cursor: pointer;
+    }
+    .edit-header .cancel-btn {
+      font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+      color: var(--muted); background: none; border: none;
+      padding: 6px 10px; cursor: pointer;
+    }
+
+    /* ── Week label ── */
+    .week-label {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+    }
+    .week-label .wk {
+      font-family: 'Space Mono', monospace; font-size: 12px; color: var(--clay); font-weight: 700;
+    }
+    .week-label .phase-chip {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.8px;
+      text-transform: uppercase; padding: 2px 8px; border-radius: 4px;
+    }
+    .week-label .scope-chip {
+      font-size: 9px; font-weight: 500; color: var(--muted);
+      margin-left: auto; letter-spacing: 0.3px;
+    }
+
+    /* ── Day grid ── */
+    .day-grid {
+      display: grid; grid-template-columns: 1fr; gap: 4px; margin-bottom: 16px;
+    }
+
+    .day-slot {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: 10px;
+      background: var(--surface); border: 1.5px solid var(--border);
+      position: relative; min-height: 52px;
+      transition: all 0.2s ease;
+    }
+
+    .day-slot.drop-target {
+      border-color: var(--clay); border-style: dashed;
+      background: var(--clayBg);
+    }
+
+    .day-slot.dragging {
+      opacity: 0.5; border-color: var(--clay);
+      box-shadow: 0 4px 16px rgba(196,82,42,0.2);
+      transform: scale(0.97);
+    }
+
+    .day-slot.selected {
+      border-color: var(--clay); background: var(--clayBg);
+      box-shadow: 0 0 0 2px rgba(196,82,42,0.15);
+    }
+
+    .day-slot .day-name {
+      font-family: 'Space Mono', monospace; font-size: 11px;
+      color: var(--muted); width: 30px; flex-shrink: 0;
+      font-weight: 400;
+    }
+
+    .day-slot .session-chip {
+      display: flex; align-items: center; gap: 7px; flex: 1;
+    }
+
+    .session-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+
+    .session-info {
+      display: flex; flex-direction: column;
+    }
+    .session-info .type-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.6px;
+      text-transform: uppercase;
+    }
+    .session-info .detail {
+      font-family: 'Space Mono', monospace; font-size: 10px;
+      color: var(--muted); margin-top: 1px;
+    }
+
+    .drag-handle {
+      width: 18px; display: flex; flex-direction: column;
+      align-items: center; gap: 2px; flex-shrink: 0;
+      cursor: grab; padding: 4px 0;
+    }
+    .drag-handle div {
+      width: 14px; height: 2px; background: var(--border); border-radius: 1px;
+    }
+
+    .day-slot.rest-day { opacity: 0.55; }
+    .day-slot.rest-day .session-info .type-label { color: var(--slate); }
+
+    /* ── Warning banner ── */
+    .warning-banner {
+      display: flex; align-items: flex-start; gap: 8px;
+      background: var(--amberBg); border: 1px solid rgba(212,136,42,0.3);
+      border-radius: 8px; padding: 10px 12px; margin-bottom: 14px;
+    }
+    .warning-banner .icon {
+      font-size: 14px; flex-shrink: 0; margin-top: 1px;
+    }
+    .warning-banner .msg {
+      font-size: 11px; color: var(--ink2); line-height: 1.5;
+    }
+    .warning-banner .msg strong { color: var(--amber); }
+
+    /* ── Scope selector (propagate) ── */
+    .scope-selector {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px; margin-bottom: 16px;
+    }
+    .scope-selector .title {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.8px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 8px;
+    }
+    .scope-options { display: flex; flex-direction: column; gap: 6px; }
+    .scope-opt {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; border-radius: 8px; cursor: pointer;
+      border: 1.5px solid transparent;
+      transition: all 0.15s ease;
+    }
+    .scope-opt.active {
+      border-color: var(--clay); background: var(--clayBg);
+    }
+    .scope-radio {
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid var(--border); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .scope-opt.active .scope-radio {
+      border-color: var(--clay);
+    }
+    .scope-radio-inner {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--clay); display: none;
+    }
+    .scope-opt.active .scope-radio-inner { display: block; }
+    .scope-opt .label { font-size: 12px; color: var(--ink); font-weight: 500; }
+    .scope-opt .sub {
+      font-size: 10px; color: var(--muted); margin-left: auto;
+      font-family: 'Space Mono', monospace;
+    }
+
+    /* ── Tap-swap mode indicator ── */
+    .swap-indicator {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 8px; background: var(--clayBg); border-radius: 8px;
+      margin-bottom: 12px;
+    }
+    .swap-indicator .text {
+      font-size: 11px; color: var(--clay); font-weight: 500;
+    }
+    .swap-arrow {
+      font-size: 14px; color: var(--clay);
+    }
+
+    /* ── Tab bar ── */
+    .tab-bar {
+      height: 70px; border-top: 1px solid var(--border); background: var(--surface);
+      display: flex; flex-shrink: 0; padding-bottom: 6px;
+    }
+    .tab {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 3px; background: none; border: none; padding: 7px 0;
+    }
+    .tab span { font-size: 10px; color: var(--muted); letter-spacing: 0.2px; text-transform: capitalize; font-weight: 500; }
+    .tab.active span { color: var(--clay); font-weight: 600; }
+
+    /* ── Screen 2: Swap confirmation ── */
+    .swap-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: var(--clay); color: white; font-size: 9px;
+      font-weight: 700; letter-spacing: 0.5px; padding: 3px 8px;
+      border-radius: 4px; text-transform: uppercase;
+    }
+
+    .swap-preview {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 14px; padding: 0 4px;
+    }
+    .swap-card {
+      flex: 1; background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 10px;
+    }
+    .swap-card.from { border-color: rgba(196,82,42,0.35); }
+    .swap-card.to { border-color: rgba(42,92,69,0.35); }
+    .swap-card .day-label {
+      font-family: 'Space Mono', monospace; font-size: 10px;
+      color: var(--muted); margin-bottom: 4px;
+    }
+    .swap-card .session-name {
+      font-size: 12px; font-weight: 600; color: var(--ink); margin-bottom: 2px;
+    }
+    .swap-card .session-detail {
+      font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted);
+    }
+    .swap-arrow-center {
+      font-size: 18px; color: var(--clay); flex-shrink: 0;
+    }
+
+    body.embedded {
+      background: var(--cream); overflow: hidden; margin: 0;
+    }
+    body.embedded .phone-wrapper { padding: 0; }
+    body.embedded .phone-frame {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      border: none; border-radius: 0; box-shadow: none;
+    }
+  </style>
+</head>
+<body>
+  <script>if (window.self !== window.top) document.body.classList.add('embedded');</script>
+
+  <!-- ════════════════════════════════════════════════════
+       SCREEN 1: Drag/Swap Edit Mode — Week View
+       ════════════════════════════════════════════════════ -->
+  <div class="phone-wrapper">
+    <div class="phone-label">1. Edit mode — drag or tap to swap</div>
+    <div class="phone-frame">
+      <div class="status-bar">
+        <span>9:41</span>
+        <div class="right">
+          <div class="signal">
+            <div style="height: 3px;"></div><div style="height: 5px;"></div>
+            <div style="height: 7px;"></div><div style="height: 10px;"></div>
+          </div>
+          <svg width="15" height="10" fill="none"><rect x=".75" y=".75" width="12" height="8.5" rx="1.5" stroke="#1C1510" stroke-width="1.5"/><rect x="13.5" y="3" width="1.5" height="4" rx=".75" fill="#1C1510"/><rect x="2" y="2.25" width="8" height="5.5" rx=".75" fill="#1C1510"/></svg>
+        </div>
+      </div>
+
+      <div class="content-area">
+        <div class="edit-header">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <button class="cancel-btn">Cancel</button>
+            <h2>Rearrange Week</h2>
+          </div>
+          <button class="done-btn">Done</button>
+        </div>
+
+        <div class="week-label">
+          <span class="wk">W14 — Mar 24</span>
+          <span class="phase-chip" style="background: var(--clayBg); color: var(--clay);">BUILD</span>
+          <span class="scope-chip">67km planned</span>
+        </div>
+
+        <!-- Swap mode indicator -->
+        <div class="swap-indicator">
+          <span class="text">Tap a session, then tap where to move it</span>
+        </div>
+
+        <!-- Day slots — showing a week with sessions -->
+        <div class="day-grid">
+          <!-- Mon: Easy -->
+          <div class="day-slot">
+            <span class="day-name">Mon</span>
+            <div class="session-chip">
+              <div class="session-dot" style="background: var(--forest);"></div>
+              <div class="session-info">
+                <span class="type-label" style="color: var(--forest);">Easy</span>
+                <span class="detail">8km @ 5:30</span>
+              </div>
+            </div>
+            <div class="drag-handle"><div></div><div></div><div></div></div>
+          </div>
+
+          <!-- Tue: Intervals (SELECTED — first tap) -->
+          <div class="day-slot selected">
+            <span class="day-name">Tue</span>
+            <div class="session-chip">
+              <div class="session-dot" style="background: var(--navy);"></div>
+              <div class="session-info">
+                <span class="type-label" style="color: var(--navy);">Intervals</span>
+                <span class="detail">6x800m @ 3:50</span>
+              </div>
+            </div>
+            <div class="drag-handle"><div></div><div></div><div></div></div>
+          </div>
+
+          <!-- Wed: Easy -->
+          <div class="day-slot">
+            <span class="day-name">Wed</span>
+            <div class="session-chip">
+              <div class="session-dot" style="background: var(--forest);"></div>
+              <div class="session-info">
+                <span class="type-label" style="color: var(--forest);">Easy</span>
+                <span class="detail">6km @ 5:40</span>
+              </div>
+            </div>
+            <div class="drag-handle"><div></div><div></div><div></div></div>
+          </div>
+
+          <!-- Thu: Tempo -->
+          <div class="day-slot">
+            <span class="day-name">Thu</span>
+            <div class="session-chip">
+              <div class="session-dot" style="background: var(--clay);"></div>
+              <div class="session-info">
+                <span class="type-label" style="color: var(--clay);">Tempo</span>
+                <span class="detail">10km @ 4:50</span>
+              </div>
+            </div>
+            <div class="drag-handle"><div></div><div></div><div></div></div>
+          </div>
+
+          <!-- Fri: Rest -->
+          <div class="day-slot rest-day">
+            <span class="day-name">Fri</span>
+            <div class="session-chip">
+              <div class="session-dot" style="background: var(--slate);"></div>
+              <div class="session-info">
+                <span class="type-label" style="color: var(--slate);">Rest</span>
+              </div>
+            </div>
+            <div class="drag-handle"><div></div><div></div><div></div></div>
+          </div>
+
+          <!-- Sat: Long (drop target — second tap destination) -->
+          <div class="day-slot drop-target">
+            <span class="day-name">Sat</span>
+            <div class="session-chip">
+              <div class="session-dot" style="background: var(--amber);"></div>
+              <div class="session-info">
+                <span class="type-label" style="color: var(--amber);">Long</span>
+                <span class="detail">22km @ 5:20</span>
+              </div>
+            </div>
+            <div class="drag-handle"><div></div><div></div><div></div></div>
+          </div>
+
+          <!-- Sun: Easy -->
+          <div class="day-slot">
+            <span class="day-name">Sun</span>
+            <div class="session-chip">
+              <div class="session-dot" style="background: var(--forest);"></div>
+              <div class="session-info">
+                <span class="type-label" style="color: var(--forest);">Easy</span>
+                <span class="detail">10km @ 5:30</span>
+              </div>
+            </div>
+            <div class="drag-handle"><div></div><div></div><div></div></div>
+          </div>
+        </div>
+
+        <!-- Warning: back-to-back hard sessions -->
+        <div class="warning-banner">
+          <span class="icon">&#9888;</span>
+          <div class="msg">
+            <strong>Back-to-back quality sessions.</strong>
+            Moving Intervals to Sat puts it next to Sunday's Easy — but Tempo on Thu + rest Fri looks fine. Consider spacing hard sessions with a rest or easy day between.
+          </div>
+        </div>
+
+      </div>
+
+      <div class="tab-bar">
+        <div class="tab">
+          <svg width="22" height="22" fill="none" viewBox="0 0 22 22"><path d="M3 9.5L11 3l8 6.5V19a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="var(--muted)" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 20v-6h4v6" stroke="var(--muted)" stroke-width="1.5" stroke-linejoin="round"/></svg>
+          <span>Home</span>
+        </div>
+        <div class="tab active">
+          <svg width="22" height="22" fill="none" viewBox="0 0 22 22"><rect x="2" y="3" width="18" height="4" rx="1.5" fill="var(--clay)"/><rect x="2" y="9" width="18" height="4" rx="1.5" fill="var(--clay)"/><rect x="2" y="15" width="18" height="4" rx="1.5" fill="var(--clay)"/></svg>
+          <span>Block</span>
+        </div>
+        <div class="tab">
+          <svg width="22" height="22" fill="none" viewBox="0 0 22 22"><circle cx="11" cy="11" r="3" stroke="var(--muted)" stroke-width="1.5"/><path d="M11 2v2M11 18v2M2 11h2M18 11h2M4.93 4.93l1.41 1.41M15.66 15.66l1.41 1.41M4.93 17.07l1.41-1.41M15.66 6.34l1.41-1.41" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span>Settings</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       SCREEN 2: After Swap — Confirmation + Propagate
+       ════════════════════════════════════════════════════ -->
+  <div class="phone-wrapper">
+    <div class="phone-label">2. After swap — confirm + propagate</div>
+    <div class="phone-frame">
+      <div class="status-bar">
+        <span>9:41</span>
+        <div class="right">
+          <div class="signal">
+            <div style="height: 3px;"></div><div style="height: 5px;"></div>
+            <div style="height: 7px;"></div><div style="height: 10px;"></div>
+          </div>
+          <svg width="15" height="10" fill="none"><rect x=".75" y=".75" width="12" height="8.5" rx="1.5" stroke="#1C1510" stroke-width="1.5"/><rect x="13.5" y="3" width="1.5" height="4" rx=".75" fill="#1C1510"/><rect x="2" y="2.25" width="8" height="5.5" rx=".75" fill="#1C1510"/></svg>
+        </div>
+      </div>
+
+      <div class="content-area">
+        <div class="edit-header">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <button class="cancel-btn">Undo</button>
+            <h2>Confirm Swap</h2>
+          </div>
+          <button class="done-btn">Apply</button>
+        </div>
+
+        <div class="week-label">
+          <span class="wk">W14 — Mar 24</span>
+          <span class="phase-chip" style="background: var(--clayBg); color: var(--clay);">BUILD</span>
+        </div>
+
+        <!-- Swap preview cards -->
+        <div class="swap-preview">
+          <div class="swap-card from">
+            <div class="day-label">WAS TUE</div>
+            <div class="session-name" style="color: var(--navy);">Intervals</div>
+            <div class="session-detail">6x800m @ 3:50</div>
+          </div>
+          <span class="swap-arrow-center">&#8644;</span>
+          <div class="swap-card to">
+            <div class="day-label">NOW SAT</div>
+            <div class="session-name" style="color: var(--navy);">Intervals</div>
+            <div class="session-detail">6x800m @ 3:50</div>
+          </div>
+        </div>
+
+        <!-- Updated day grid (post-swap) -->
+        <div class="day-grid">
+          <div class="day-slot">
+            <span class="day-name">Mon</span>
+            <div class="session-chip">
+              <div class="session-dot" style="background: var(--forest);"></div>
+              <div class="session-info">
+                <span class="type-label" style="color: var(--forest);">Easy</span>
+                <span class="detail">8km @ 5:30</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tue: now has Long (swapped from Sat) -->
+          <div class="day-slot" style="border-color: rgba(212,136,42,0.4); background: var(--amberBg);">
+            <span class="day-name">Tue</span>
+            <div class="session-chip">
+              <div class="session-dot" style="background: var(--amber);"></div>
+              <div class="session-info">
+                <span class="type-label" style="color: var(--amber);">Long</span>
+                <span class="detail">22km @ 5:20</span>
+              </div>
+            </div>
+            <span class="swap-badge">Moved</span>
+          </div>
+
+          <div class="day-slot">
+            <span class="day-name">Wed</span>
+            <div class="session-chip">
+              <div class="session-dot" style="background: var(--forest);"></div>
+              <div class="session-info">
+                <span class="type-label" style="color: var(--forest);">Easy</span>
+                <span class="detail">6km @ 5:40</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="day-slot">
+            <span class="day-name">Thu</span>
+            <div class="session-chip">
+              <div class="session-dot" style="background: var(--clay);"></div>
+              <div class="session-info">
+                <span class="type-label" style="color: var(--clay);">Tempo</span>
+                <span class="detail">10km @ 4:50</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="day-slot rest-day">
+            <span class="day-name">Fri</span>
+            <div class="session-chip">
+              <div class="session-dot" style="background: var(--slate);"></div>
+              <div class="session-info">
+                <span class="type-label" style="color: var(--slate);">Rest</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sat: now has Intervals (swapped from Tue) -->
+          <div class="day-slot" style="border-color: rgba(27,58,107,0.4); background: var(--navyBg);">
+            <span class="day-name">Sat</span>
+            <div class="session-chip">
+              <div class="session-dot" style="background: var(--navy);"></div>
+              <div class="session-info">
+                <span class="type-label" style="color: var(--navy);">Intervals</span>
+                <span class="detail">6x800m @ 3:50</span>
+              </div>
+            </div>
+            <span class="swap-badge">Moved</span>
+          </div>
+
+          <div class="day-slot">
+            <span class="day-name">Sun</span>
+            <div class="session-chip">
+              <div class="session-dot" style="background: var(--forest);"></div>
+              <div class="session-info">
+                <span class="type-label" style="color: var(--forest);">Easy</span>
+                <span class="detail">10km @ 5:30</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scope selector — reuses PropagateModal pattern -->
+        <div class="scope-selector">
+          <div class="title">Apply this layout to</div>
+          <div class="scope-options">
+            <div class="scope-opt active">
+              <div class="scope-radio"><div class="scope-radio-inner"></div></div>
+              <span class="label">This week only</span>
+              <span class="sub">W14</span>
+            </div>
+            <div class="scope-opt">
+              <div class="scope-radio"><div class="scope-radio-inner"></div></div>
+              <span class="label">All remaining weeks</span>
+              <span class="sub">W14–W18</span>
+            </div>
+            <div class="scope-opt">
+              <div class="scope-radio"><div class="scope-radio-inner"></div></div>
+              <span class="label">Build phase only</span>
+              <span class="sub">W14–W16</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="tab-bar">
+        <div class="tab">
+          <svg width="22" height="22" fill="none" viewBox="0 0 22 22"><path d="M3 9.5L11 3l8 6.5V19a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="var(--muted)" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 20v-6h4v6" stroke="var(--muted)" stroke-width="1.5" stroke-linejoin="round"/></svg>
+          <span>Home</span>
+        </div>
+        <div class="tab active">
+          <svg width="22" height="22" fill="none" viewBox="0 0 22 22"><rect x="2" y="3" width="18" height="4" rx="1.5" fill="var(--clay)"/><rect x="2" y="9" width="18" height="4" rx="1.5" fill="var(--clay)"/><rect x="2" y="15" width="18" height="4" rx="1.5" fill="var(--clay)"/></svg>
+          <span>Block</span>
+        </div>
+        <div class="tab">
+          <svg width="22" height="22" fill="none" viewBox="0 0 22 22"><circle cx="11" cy="11" r="3" stroke="var(--muted)" stroke-width="1.5"/><path d="M11 2v2M11 18v2M2 11h2M18 11h2M4.93 4.93l1.41 1.41M15.66 15.66l1.41 1.41M4.93 17.07l1.41-1.41M15.66 6.34l1.41-1.41" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span>Settings</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       SCREEN 3: Entry point — Block view with Edit button
+       ════════════════════════════════════════════════════ -->
+  <div class="phone-wrapper">
+    <div class="phone-label">3. Entry — long-press or edit button on week</div>
+    <div class="phone-frame">
+      <div class="status-bar">
+        <span>9:41</span>
+        <div class="right">
+          <div class="signal">
+            <div style="height: 3px;"></div><div style="height: 5px;"></div>
+            <div style="height: 7px;"></div><div style="height: 10px;"></div>
+          </div>
+          <svg width="15" height="10" fill="none"><rect x=".75" y=".75" width="12" height="8.5" rx="1.5" stroke="#1C1510" stroke-width="1.5"/><rect x="13.5" y="3" width="1.5" height="4" rx=".75" fill="#1C1510"/><rect x="2" y="2.25" width="8" height="5.5" rx=".75" fill="#1C1510"/></svg>
+        </div>
+      </div>
+
+      <div class="content-area">
+        <div style="margin-bottom: 14px;">
+          <div style="font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; font-weight: 600; margin-bottom: 3px;">GOAL RACE</div>
+          <h1 style="font-family: 'Playfair Display', serif; font-size: 22px; color: var(--ink); margin: 0; font-weight: 600;">San Sebastián Marathon</h1>
+          <div style="display: flex; gap: 14px; margin-top: 6px;">
+            <span style="font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700; color: var(--clay);">Nov 22, 2026</span>
+            <span style="font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700; color: var(--muted);">18 weeks out</span>
+            <span style="font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700; color: var(--navy);">sub-3:30</span>
+          </div>
+        </div>
+
+        <!-- Phase strip -->
+        <div style="margin-bottom: 18px;">
+          <div style="display: flex; gap: 2px; height: 26px; border-radius: 6px; overflow: hidden; margin-bottom: 5px;">
+            <div style="flex: 4; background: var(--navy); opacity: 0.35; display: flex; align-items: center; justify-content: center;">
+              <span style="font-size: 8px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,0.7);">BASE</span>
+            </div>
+            <div style="flex: 8; background: var(--clay); box-shadow: 0 1px 6px rgba(196,82,42,0.35); display: flex; align-items: center; justify-content: center;">
+              <span style="font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: white;">BUILD</span>
+            </div>
+            <div style="flex: 2; background: var(--purple); opacity: 0.35; display: flex; align-items: center; justify-content: center;">
+              <span style="font-size: 8px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,0.7);">REC</span>
+            </div>
+            <div style="flex: 2; background: var(--amber); opacity: 0.35; display: flex; align-items: center; justify-content: center;">
+              <span style="font-size: 8px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,0.7);">PEAK</span>
+            </div>
+            <div style="flex: 2; background: var(--forest); opacity: 0.35; display: flex; align-items: center; justify-content: center;">
+              <span style="font-size: 8px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,0.7);">TAPER</span>
+            </div>
+          </div>
+          <p style="font-size: 11px; color: var(--muted); margin: 0;"><strong style="color: var(--clay);">Current phase:</strong> Build. Week 5 of 8. Peak volume approaching.</p>
+        </div>
+
+        <!-- Week row (expanded) with rearrange button -->
+        <div style="margin-bottom: 6px; background: var(--surface); border: 1.5px solid rgba(196,82,42,0.35); border-radius: 10px; padding: 10px 12px;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+            <div style="flex-shrink: 0;">
+              <div style="font-family: 'Space Mono', monospace; font-size: 11px; color: var(--clay); font-weight: 700;">W14</div>
+              <div style="font-size: 9px; color: var(--muted); margin-top: 1px;">Mar 24</div>
+            </div>
+            <div style="display: flex; gap: 3.5px; flex: 1; align-items: center;">
+              <div style="width: 9px; height: 9px; border-radius: 50%; background: var(--forest);"></div>
+              <div style="width: 9px; height: 9px; border-radius: 50%; background: var(--navy);"></div>
+              <div style="width: 9px; height: 9px; border-radius: 50%; background: var(--forest);"></div>
+              <div style="width: 9px; height: 9px; border-radius: 50%; background: var(--clay);"></div>
+              <div style="width: 9px; height: 9px; border-radius: 50%; background: var(--slate);"></div>
+              <div style="width: 9px; height: 9px; border-radius: 50%; background: var(--amber);"></div>
+              <div style="width: 9px; height: 9px; border-radius: 50%; background: var(--forest);"></div>
+            </div>
+            <div style="text-align: right; flex-shrink: 0;">
+              <span style="font-family: 'Space Mono', monospace; font-size: 10px; color: var(--clay);">31/67km</span>
+            </div>
+          </div>
+
+          <!-- Expanded session rows -->
+          <div style="display: flex; flex-direction: column; gap: 3px; margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px; padding: 5px 0;">
+              <span style="font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); width: 26px;">Mon</span>
+              <div style="width: 7px; height: 7px; border-radius: 50%; background: var(--forest);"></div>
+              <span style="font-size: 11px; color: var(--ink);">Easy 8km</span>
+              <span style="font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); margin-left: auto;">@ 5:30</span>
+              <span style="color: var(--forest); font-size: 11px;">&#10003;</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; padding: 5px 0;">
+              <span style="font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); width: 26px;">Tue</span>
+              <div style="width: 7px; height: 7px; border-radius: 50%; background: var(--navy);"></div>
+              <span style="font-size: 11px; color: var(--ink);">6x800m</span>
+              <span style="font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); margin-left: auto;">@ 3:50</span>
+              <span style="color: var(--forest); font-size: 11px;">&#10003;</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; padding: 5px 0;">
+              <span style="font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); width: 26px;">Wed</span>
+              <div style="width: 7px; height: 7px; border-radius: 50%; background: var(--forest);"></div>
+              <span style="font-size: 11px; color: var(--ink);">Easy 6km</span>
+              <span style="font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); margin-left: auto;">@ 5:40</span>
+              <span style="color: var(--forest); font-size: 11px;">&#10003;</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; padding: 5px 0;">
+              <span style="font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); width: 26px;">Thu</span>
+              <div style="width: 7px; height: 7px; border-radius: 50%; background: var(--clay);"></div>
+              <span style="font-size: 11px; color: var(--ink);">Tempo 10km</span>
+              <span style="font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); margin-left: auto;">@ 4:50</span>
+              <span style="color: var(--forest); font-size: 11px;">&#10003;</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; padding: 5px 0; opacity: 0.5;">
+              <span style="font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); width: 26px;">Fri</span>
+              <div style="width: 7px; height: 7px; border-radius: 50%; background: var(--slate);"></div>
+              <span style="font-size: 11px; color: var(--muted);">Rest</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; padding: 5px 0;">
+              <span style="font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); width: 26px;">Sat</span>
+              <div style="width: 7px; height: 7px; border-radius: 50%; background: var(--amber);"></div>
+              <span style="font-size: 11px; color: var(--ink);">Long 22km</span>
+              <span style="font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); margin-left: auto;">@ 5:20</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; padding: 5px 0;">
+              <span style="font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); width: 26px;">Sun</span>
+              <div style="width: 7px; height: 7px; border-radius: 50%; background: var(--forest);"></div>
+              <span style="font-size: 11px; color: var(--ink);">Easy 10km</span>
+              <span style="font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); margin-left: auto;">@ 5:30</span>
+            </div>
+          </div>
+
+          <!-- Rearrange button -->
+          <button style="
+            width: 100%; padding: 10px; border-radius: 8px;
+            background: var(--cream); border: 1.5px solid var(--border);
+            font-family: 'DM Sans', sans-serif; font-size: 12px;
+            font-weight: 600; color: var(--ink2); cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+          ">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M4 6L2 8L4 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 6L14 8L12 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M2 8H14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            Rearrange sessions
+          </button>
+        </div>
+
+        <!-- Another week row (collapsed) -->
+        <div style="margin-bottom: 6px; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="flex-shrink: 0;">
+              <div style="font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); font-weight: 400;">W15</div>
+              <div style="font-size: 9px; color: var(--muted); margin-top: 1px;">Mar 31</div>
+            </div>
+            <div style="display: flex; gap: 3.5px; flex: 1; align-items: center;">
+              <div style="width: 9px; height: 9px; border-radius: 50%; background: var(--forest); opacity: 0.6;"></div>
+              <div style="width: 9px; height: 9px; border-radius: 50%; background: var(--clay); opacity: 0.6;"></div>
+              <div style="width: 9px; height: 9px; border-radius: 50%; background: var(--forest); opacity: 0.6;"></div>
+              <div style="width: 9px; height: 9px; border-radius: 50%; background: var(--amber); opacity: 0.6;"></div>
+              <div style="width: 9px; height: 9px; border-radius: 50%; background: var(--slate); opacity: 0.6;"></div>
+              <div style="width: 9px; height: 9px; border-radius: 50%; background: var(--forest); opacity: 0.6;"></div>
+              <div style="width: 9px; height: 9px; border-radius: 50%; background: var(--navy); opacity: 0.6;"></div>
+            </div>
+            <div style="text-align: right; flex-shrink: 0;">
+              <span style="font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted);">70km</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- W16 -->
+        <div style="margin-bottom: 6px; border: 1px solid transparent; border-radius: 10px; padding: 10px 12px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="flex-shrink: 0;">
+              <div style="font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); font-weight: 400;">W16</div>
+              <div style="font-size: 9px; color: var(--muted); margin-top: 1px;">Apr 7</div>
+            </div>
+            <div style="display: flex; gap: 3.5px; flex: 1; align-items: center;">
+              <div style="width: 9px; height: 9px; border-radius: 50%; background: var(--forest); opacity: 0.6;"></div>
+              <div style="width: 9px; height: 9px; border-radius: 50%; background: var(--clay); opacity: 0.6;"></div>
+              <div style="width: 9px; height: 9px; border-radius: 50%; background: var(--forest); opacity: 0.6;"></div>
+              <div style="width: 9px; height: 9px; border-radius: 50%; background: var(--amber); opacity: 0.6;"></div>
+              <div style="width: 9px; height: 9px; border-radius: 50%; background: var(--slate); opacity: 0.6;"></div>
+              <div style="width: 9px; height: 9px; border-radius: 50%; background: var(--forest); opacity: 0.6;"></div>
+              <div style="width: 9px; height: 9px; border-radius: 50%; background: var(--navy); opacity: 0.6;"></div>
+            </div>
+            <div style="text-align: right; flex-shrink: 0;">
+              <span style="font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted);">72km</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-bar">
+        <div class="tab">
+          <svg width="22" height="22" fill="none" viewBox="0 0 22 22"><path d="M3 9.5L11 3l8 6.5V19a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="var(--muted)" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 20v-6h4v6" stroke="var(--muted)" stroke-width="1.5" stroke-linejoin="round"/></svg>
+          <span>Home</span>
+        </div>
+        <div class="tab active">
+          <svg width="22" height="22" fill="none" viewBox="0 0 22 22"><rect x="2" y="3" width="18" height="4" rx="1.5" fill="var(--clay)"/><rect x="2" y="9" width="18" height="4" rx="1.5" fill="var(--clay)"/><rect x="2" y="15" width="18" height="4" rx="1.5" fill="var(--clay)"/></svg>
+          <span>Block</span>
+        </div>
+        <div class="tab">
+          <svg width="22" height="22" fill="none" viewBox="0 0 22 22"><circle cx="11" cy="11" r="3" stroke="var(--muted)" stroke-width="1.5"/><path d="M11 2v2M11 18v2M2 11h2M18 11h2M4.93 4.93l1.41 1.41M15.66 15.66l1.41 1.41M4.93 17.07l1.41-1.41M15.66 6.34l1.41-1.41" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span>Settings</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
