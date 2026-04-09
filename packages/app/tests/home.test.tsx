@@ -115,6 +115,31 @@ describe('HomeScreen', () => {
     expect(screen.getByTestId('home-scroll')).toBeTruthy();
   });
 
+  it('opens with today-first guidance above the session stack', () => {
+    const week = {
+      weekNumber: 3,
+      phase: 'BASE' as const,
+      sessions: [null, null, null, null, null, null, null],
+      plannedKm: 40,
+    };
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-07-15',
+      coachAnnotation: 'Keep this one conversational.',
+    };
+    mockPlan.currentWeek = week;
+
+    render(<HomeScreen />);
+
+    expect(screen.getByText('Today')).toBeTruthy();
+    expect(screen.getByText(/focus on the session in front of you/i)).toBeTruthy();
+  });
+
   it('renders the coach annotation from the plan query', () => {
     const week = {
       weekNumber: 3,

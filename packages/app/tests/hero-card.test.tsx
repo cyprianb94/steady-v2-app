@@ -106,7 +106,7 @@ describe('TodayHeroCard', () => {
     expect(screen.getByText(/5:18/)).toBeTruthy();
   });
 
-  it('shows planned state when session has actualActivityId but no activity data passed', () => {
+  it('shows completed state when session has actualActivityId even before activity details load', () => {
     render(
       <TodayHeroCard
         session={{
@@ -120,7 +120,9 @@ describe('TodayHeroCard', () => {
       />,
     );
 
-    // Should still render (falls back to planned view when no activity data)
+    expect(screen.getByTestId('hero-completed')).toBeTruthy();
+    expect(screen.getByText('Completed')).toBeTruthy();
     expect(screen.getByText('Easy Run')).toBeTruthy();
+    expect(screen.getByText(/8km @ 5:20/)).toBeTruthy();
   });
 });

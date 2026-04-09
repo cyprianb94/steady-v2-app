@@ -36,4 +36,19 @@ describe('PhaseInfoStrip', () => {
     expect(screen.getByText('Week 1 of 16')).toBeTruthy();
     expect(screen.queryByText(/weeks to go/)).toBeNull();
   });
+
+  it('uses a clear race-week label when the countdown is zero', () => {
+    render(
+      <PhaseInfoStrip
+        phase="TAPER"
+        weekNumber={16}
+        totalWeeks={16}
+        raceDate="2026-07-15"
+        today="2026-07-15"
+      />,
+    );
+
+    expect(screen.getByText('Race week')).toBeTruthy();
+    expect(screen.queryByText('0 weeks to go')).toBeNull();
+  });
 });

@@ -20,9 +20,26 @@ function weeksUntil(fromDate: string, toDate: string): number {
   return Math.max(0, Math.ceil(diffMs / (7 * 24 * 60 * 60 * 1000)));
 }
 
+function countdownLabel(countdown: number | null): string | null {
+  if (countdown === null) {
+    return null;
+  }
+
+  if (countdown === 0) {
+    return 'Race week';
+  }
+
+  if (countdown === 1) {
+    return '1 week to go';
+  }
+
+  return `${countdown} weeks to go`;
+}
+
 export function PhaseInfoStrip({ phase, weekNumber, totalWeeks, raceDate, today }: PhaseInfoStripProps) {
   const colors = getPhaseColors(phase);
   const countdown = raceDate && today ? weeksUntil(today, raceDate) : null;
+  const countdownCopy = countdownLabel(countdown);
 
   return (
     <View style={styles.container} testID="phase-info-strip">
@@ -30,8 +47,8 @@ export function PhaseInfoStrip({ phase, weekNumber, totalWeeks, raceDate, today 
         <Text style={[styles.badgeText, { color: colors.badgeText }]}>{phase}</Text>
       </View>
       <Text style={styles.weekText}>Week {weekNumber} of {totalWeeks}</Text>
-      {countdown !== null && (
-        <Text style={styles.countdown}>{countdown} weeks to go</Text>
+      {countdownCopy && (
+        <Text style={styles.countdown}>{countdownCopy}</Text>
       )}
     </View>
   );

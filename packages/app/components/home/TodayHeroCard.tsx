@@ -28,6 +28,13 @@ function formatPace(secPerKm: number): string {
   return `${mins}:${String(secs).padStart(2, '0')}`;
 }
 
+function plannedSummary(session: PlannedSession): string {
+  if (session.type === 'INTERVAL') {
+    return `${session.reps}×${session.repDist}m @ ${session.pace}`;
+  }
+  return `${session.distance}km @ ${session.pace}`;
+}
+
 export function TodayHeroCard({
   session,
   activity,
@@ -46,7 +53,7 @@ export function TodayHeroCard({
 
   const meta = SESSION_TYPE[session.type];
   const isInterval = session.type === 'INTERVAL';
-  const completed = !!session.actualActivityId && !!activity;
+  const completed = !!session.actualActivityId;
   const showSubjectivePrompt =
     !!session.actualActivityId &&
     !session.subjectiveInput &&
@@ -58,9 +65,11 @@ export function TodayHeroCard({
         <Text style={[styles.typeLabel, { color: meta.color }]}>{meta.label}</Text>
         <Text style={styles.completedBadge}>Completed</Text>
         <Text style={[styles.mainStat, { color: meta.color }]}>
-          {activity.distance.toFixed(1)}km @ {formatPace(activity.avgPace)}
+          {activity
+            ? `${activity.distance.toFixed(1)}km @ ${formatPace(activity.avgPace)}`
+            : plannedSummary(session)}
         </Text>
-        {activity.avgHR ? (
+        {activity?.avgHR ? (
           <Text style={styles.extraText}>{activity.avgHR} bpm avg</Text>
         ) : null}
         {showSubjectivePrompt ? (

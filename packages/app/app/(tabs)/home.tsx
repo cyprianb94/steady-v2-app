@@ -84,6 +84,10 @@ export default function HomeScreen() {
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
         >
+          <View style={styles.header}>
+            <Text style={styles.headerKicker}>Today</Text>
+            <Text style={styles.headerSubtitle}>Focus on the session in front of you.</Text>
+          </View>
           <PhaseInfoStrip
             phase={week.phase}
             weekNumber={week.weekNumber}
@@ -134,5 +138,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingBottom: 20,
     paddingTop: 14,
+  },
+  header: {
+    paddingHorizontal: 4,
+    paddingBottom: 8,
+  },
+  headerKicker: {
+    fontFamily: FONTS.serifBold,
+    fontSize: 28,
+    color: C.ink,
+  },
+  headerSubtitle: {
+    fontFamily: FONTS.sans,
+    fontSize: 13,
+    color: C.muted,
+    marginTop: 2,
   },
 });
