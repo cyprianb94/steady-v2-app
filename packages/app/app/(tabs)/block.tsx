@@ -12,6 +12,7 @@ import {
 import { useIsFocused } from '@react-navigation/native';
 import { usePlan } from '../../hooks/usePlan';
 import { RearrangeSheet } from '../../components/block/RearrangeSheet';
+import { PropagateModal } from '../../components/plan-builder/PropagateModal';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { PHASE_COLOR } from '../../constants/phase-meta';
@@ -23,6 +24,7 @@ import {
   buildBlockWeekDayDetails,
   getBlockVolumeTone,
   getInjuryWeekRange,
+  propagateSwap,
   getWeekVolumeRatio,
   getWeekVolumeSummary,
   isInjuryWeek,
@@ -31,6 +33,7 @@ import {
   type CrossTrainingEntry,
   type PlannedSession,
   type PlanWeek,
+  type PropagateScope,
   type SessionType,
   type SwapLogEntry,
 } from '@steady/types';
@@ -108,11 +111,17 @@ function isFullyCompletedWeek(week: PlanWeek): boolean {
   );
 }
 
+interface PendingRearrange {
+  weekIndex: number;
+  swapLog: SwapLogEntry[];
+}
+
 export default function BlockTab() {
   const { plan, loading, currentWeekIndex, refresh } = usePlan();
   const isFocused = useIsFocused();
   const [expandedWeekNumber, setExpandedWeekNumber] = useState<number | null>(null);
   const [rearrangeWeekIndex, setRearrangeWeekIndex] = useState<number | null>(null);
+  const [pendingRearrange, setPendingRearrange] = useState<PendingRearrange | null>(null);
   const [isSavingRearrange, setIsSavingRearrange] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [crossTrainingEntries, setCrossTrainingEntries] = useState<CrossTrainingEntry[]>([]);
@@ -238,27 +247,40 @@ export default function BlockTab() {
     setExpandedWeekNumber((current) => (current === weekNumber ? null : weekNumber));
   }
 
-  async function handleRearrangeDone(
-    sessions: (PlannedSession | null)[],
+  function handleRearrangeDone(
+    _sessions: (PlannedSession | null)[],
     swapLog: SwapLogEntry[],
   ) {
     if (!plan || rearrangeWeekIndex == null) return;
+    if (swapLog.length === 0) {
+      setRearrangeWeekIndex(null);
+      return;
+    }
 
-    const nextWeeks = plan.weeks.map((week, index) => {
-      if (index !== rearrangeWeekIndex) return week;
-      return {
-        ...week,
-        sessions,
-        plannedKm: Math.round(weekKm(sessions)),
-        swapLog: [...(week.swapLog ?? []), ...swapLog],
-      };
-    });
+    setPendingRearrange({ weekIndex: rearrangeWeekIndex, swapLog });
+    setRearrangeWeekIndex(null);
+  }
+
+  async function applyPendingRearrange(scope: PropagateScope) {
+    if (!plan || !pendingRearrange) return;
+
+    const nextWeeks = pendingRearrange.swapLog.reduce(
+      (weeks, swap) => propagateSwap(
+        weeks,
+        pendingRearrange.weekIndex,
+        swap.from,
+        swap.to,
+        scope,
+      ),
+      plan.weeks,
+    );
+
 
     try {
       setIsSavingRearrange(true);
       await trpc.plan.updateWeeks.mutate({ weeks: nextWeeks });
       await refresh();
-      setRearrangeWeekIndex(null);
+      setPendingRearrange(null);
     } catch (error) {
       console.error('Failed to rearrange sessions:', error);
     } finally {
@@ -537,6 +559,15 @@ export default function BlockTab() {
           sessions={rearrangeWeek.sessions}
           onCancel={() => setRearrangeWeekIndex(null)}
           onDone={handleRearrangeDone}
+        />
+      ) : null}
+      {pendingRearrange ? (
+        <PropagateModal
+          changeDesc={`${pendingRearrange.swapLog.length} session ${pendingRearrange.swapLog.length === 1 ? 'swap' : 'swaps'}`}
+          weekIndex={pendingRearrange.weekIndex}
+          totalWeeks={plan.weeks.length}
+          onApply={applyPendingRearrange}
+          onClose={() => setPendingRearrange(null)}
         />
       ) : null}
     </>

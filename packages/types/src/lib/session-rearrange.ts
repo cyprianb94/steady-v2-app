@@ -1,4 +1,7 @@
 import type { PlannedSession, SessionType } from '../session';
+import type { PlanWeek, SwapLogEntry } from '../plan';
+import type { PropagateScope } from './propagate-change';
+import { weekKm } from './session-km';
 
 export interface HardSessionConflict {
   firstDayIndex: number;
@@ -26,6 +29,46 @@ export function swapSessions(
   next[fromIndex] = next[toIndex] ?? null;
   next[toIndex] = from;
   return next;
+}
+
+export function propagateSwap(
+  plan: PlanWeek[],
+  weekIndex: number,
+  fromIndex: number,
+  toIndex: number,
+  scope: PropagateScope,
+): PlanWeek[] {
+  const swapLog: SwapLogEntry = { from: fromIndex, to: toIndex };
+
+  return plan.map((week, index) => {
+    if (!shouldApplySwap(index, week, weekIndex, scope)) return week;
+    if (hasCompletedSwapPosition(week, fromIndex, toIndex)) return week;
+
+    const sessions = swapSessions(week.sessions, fromIndex, toIndex);
+    if (sessions === week.sessions) return week;
+
+    return {
+      ...week,
+      sessions,
+      plannedKm: Math.round(weekKm(sessions)),
+      swapLog: [...(week.swapLog ?? []), swapLog],
+    };
+  });
+}
+
+function shouldApplySwap(
+  index: number,
+  week: PlanWeek,
+  weekIndex: number,
+  scope: PropagateScope,
+): boolean {
+  if (scope === 'this') return index === weekIndex;
+  if (scope === 'remaining') return index >= weekIndex;
+  return index >= weekIndex && week.phase === 'BUILD';
+}
+
+function hasCompletedSwapPosition(week: PlanWeek, fromIndex: number, toIndex: number): boolean {
+  return Boolean(week.sessions[fromIndex]?.actualActivityId || week.sessions[toIndex]?.actualActivityId);
 }
 
 function isDayIndex(index: number, sessions: (PlannedSession | null)[]): boolean {
