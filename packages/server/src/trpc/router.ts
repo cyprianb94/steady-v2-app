@@ -1,4 +1,5 @@
 import { router } from './trpc';
+import { createActivityRouter } from './activity';
 import { createPlanRouter } from './plan';
 import { createCoachRouter } from './coach';
 import { createCrossTrainingRouter } from './cross-training';
@@ -23,6 +24,7 @@ export interface RouterDeps {
 
 export function createAppRouter(deps: RouterDeps) {
   return router({
+    activity: createActivityRouter(deps.activityRepo),
     plan: createPlanRouter(deps.planRepo),
     coach: createCoachRouter(deps),
     crossTraining: createCrossTrainingRouter(deps.crossTrainingRepo, deps.planRepo),

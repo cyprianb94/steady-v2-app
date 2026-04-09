@@ -1,5 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  Pressable,
+  LayoutAnimation,
+  Platform,
+  UIManager,
+} from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import { usePlan } from '../../hooks/usePlan';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
@@ -9,10 +19,13 @@ import { addDaysIso, inferWeekStartDate, weekKm } from '../../lib/plan-helpers';
 import { trpc } from '../../lib/trpc';
 import {
   buildBlockPhaseSegments,
+  buildBlockWeekDayDetails,
   getBlockVolumeTone,
   getInjuryWeekRange,
   getWeekVolumeRatio,
+  getWeekVolumeSummary,
   isInjuryWeek,
+  type Activity,
   type CrossTrainingEntry,
   type PlanWeek,
   type SessionType,
@@ -44,14 +57,80 @@ function getPhaseCaption(
   return `${currentPhase} phase · Week ${currentWeekNumber} of ${totalWeeks}`;
 }
 
+function formatShortDate(date: string | null): string {
+  if (!date) return '';
+  const value = new Date(`${date}T00:00:00`);
+  return value.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function getStatusBadge(status: ReturnType<typeof buildBlockWeekDayDetails>[number]['status']): string | null {
+  switch (status) {
+    case 'completed':
+      return '✓';
+    case 'off-target':
+      return '⚠';
+    case 'missed':
+      return '—';
+    default:
+      return null;
+  }
+}
+
 export default function BlockTab() {
   const { plan, loading, currentWeekIndex } = usePlan();
+  const isFocused = useIsFocused();
+  const [expandedWeekNumber, setExpandedWeekNumber] = useState<number | null>(null);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [crossTrainingEntries, setCrossTrainingEntries] = useState<CrossTrainingEntry[]>([]);
   const [isLoadingCrossTraining, setIsLoadingCrossTraining] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
 
   const injury = plan?.activeInjury ?? null;
   const injuryRange = plan ? getInjuryWeekRange(plan.weeks, injury, today) : null;
+
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      UIManager.setLayoutAnimationEnabledExperimental?.(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isFocused) {
+      setExpandedWeekNumber(null);
+    }
+  }, [isFocused]);
+
+  useEffect(() => {
+    if (!plan) {
+      setActivities([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function fetchActivities() {
+      try {
+        const nextActivities = await trpc.activity.list.query();
+        if (!cancelled) {
+          setActivities(nextActivities);
+        }
+      } catch (error) {
+        console.error('Failed to fetch activities for block view:', error);
+        if (!cancelled) {
+          setActivities([]);
+        }
+      }
+    }
+
+    fetchActivities();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [plan?.id]);
 
   useEffect(() => {
     if (!plan || !injuryRange) {
@@ -120,6 +199,13 @@ export default function BlockTab() {
     ? 'INJURY'
     : plan.weeks[currentWeekIndex]?.phase ?? 'BUILD';
   const maxKm = Math.max(...plan.weeks.map(weekKm), 1);
+  const activitiesById = new Map(activities.map((activity) => [activity.id, activity] as const));
+
+  function toggleWeek(weekNumber: number) {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedWeekNumber((current) => (current === weekNumber ? null : weekNumber));
+  }
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Race header */}
@@ -188,8 +274,11 @@ export default function BlockTab() {
         const isCurrent = i === currentWeekIndex;
         const isPast = i < currentWeekIndex;
         const injuryWeek = isInjuryWeek(i, injuryRange);
+        const isExpanded = expandedWeekNumber === week.weekNumber;
         const weekEntries = injuryWeek ? getWeekEntries(crossTrainingEntries, week) : [];
-        const km = weekKm(week);
+        const volumeTone = getBlockVolumeTone(i, currentWeekIndex);
+        const volumeSummary = getWeekVolumeSummary(week, activitiesById, volumeTone);
+        const blockDayDetails = buildBlockWeekDayDetails(week);
 
         return (
           <View
@@ -199,88 +288,150 @@ export default function BlockTab() {
               isCurrent && styles.weekRowCurrent,
               isPast && styles.weekRowPast,
               injuryWeek && styles.weekRowInjury,
+              isExpanded && styles.weekRowExpanded,
             ]}
           >
-            <View style={styles.weekRowMain}>
-              <View style={styles.weekLeft}>
-                <Text
-                  style={[
-                    styles.weekNum,
-                    isCurrent && { color: C.clay, fontWeight: '700' },
-                  ]}
-                >
-                  W{week.weekNumber}
-                </Text>
-                <Text style={[styles.weekPhaseTag, injuryWeek && styles.weekPhaseTagInjury]}>
-                  {injuryWeek ? 'INJURY' : week.phase}
-                </Text>
-              </View>
+            <Pressable onPress={() => toggleWeek(week.weekNumber)} style={styles.weekPressable}>
+              <View style={styles.weekRowMain}>
+                <View style={styles.weekLeft}>
+                  <Text
+                    style={[
+                      styles.weekNum,
+                      isCurrent && { color: C.clay, fontWeight: '700' },
+                    ]}
+                  >
+                    W{week.weekNumber}
+                  </Text>
+                  <Text style={[styles.weekPhaseTag, injuryWeek && styles.weekPhaseTagInjury]}>
+                    {injuryWeek ? 'INJURY' : week.phase}
+                  </Text>
+                </View>
 
-              {injuryWeek ? (
-                <View style={styles.injuryEntries}>
-                  {isLoadingCrossTraining ? (
-                    <Text style={styles.injuryHelper}>Loading cross-training…</Text>
-                  ) : weekEntries.length > 0 ? (
-                    weekEntries.map((entry) => (
-                      <View key={entry.id} style={styles.crossTrainingChip}>
-                        <View style={styles.crossTrainingDot} />
-                        <Text style={styles.crossTrainingText}>
-                          {entry.type} {entry.durationMinutes}m
-                        </Text>
-                      </View>
-                    ))
+                {injuryWeek ? (
+                  <View style={styles.injuryEntries}>
+                    {isLoadingCrossTraining ? (
+                      <Text style={styles.injuryHelper}>Loading cross-training…</Text>
+                    ) : weekEntries.length > 0 ? (
+                      weekEntries.map((entry) => (
+                        <View key={entry.id} style={styles.crossTrainingChip}>
+                          <View style={styles.crossTrainingDot} />
+                          <Text style={styles.crossTrainingText}>
+                            {entry.type} {entry.durationMinutes}m
+                          </Text>
+                        </View>
+                      ))
+                    ) : (
+                      <Text style={styles.injuryHelper}>No cross-training logged</Text>
+                    )}
+                  </View>
+                ) : (
+                  <View style={styles.dots}>
+                    {week.sessions.map((s, d) => {
+                      const type: SessionType = s?.type ?? 'REST';
+                      return (
+                        <View
+                          key={d}
+                          style={[
+                            styles.dot,
+                            {
+                              backgroundColor:
+                                isPast || isCurrent
+                                  ? SESSION_TYPE[type].color
+                                  : C.border,
+                              opacity: !isPast && !isCurrent ? 0.4 : 1,
+                            },
+                          ]}
+                        />
+                      );
+                    })}
+                  </View>
+                )}
+
+                <View style={styles.weekRight}>
+                  {injuryWeek ? (
+                    <Text style={[styles.weekKm, isCurrent && { color: C.clay }, styles.weekKmInjury]}>
+                      {`${weekEntries.length} XT`}
+                    </Text>
+                  ) : volumeSummary.showActual && volumeSummary.actualKm != null ? (
+                    <Text style={styles.weekKmComposite}>
+                      <Text style={styles.weekKmActual}>{volumeSummary.actualKm}km</Text>
+                      <Text style={styles.weekKmDivider}> / </Text>
+                      <Text style={styles.weekKmPlanned}>{volumeSummary.plannedKm}km</Text>
+                    </Text>
                   ) : (
-                    <Text style={styles.injuryHelper}>No cross-training logged</Text>
+                    <Text style={[styles.weekKm, isCurrent && { color: C.clay }]}>
+                      {volumeSummary.plannedKm}km
+                    </Text>
                   )}
                 </View>
-              ) : (
-                <View style={styles.dots}>
-                  {week.sessions.map((s, d) => {
-                    const type: SessionType = s?.type ?? 'REST';
-                    return (
-                      <View
-                        key={d}
-                        style={[
-                          styles.dot,
-                          {
-                            backgroundColor:
-                              isPast || isCurrent
-                                ? SESSION_TYPE[type].color
-                                : C.border,
-                            opacity: !isPast && !isCurrent ? 0.4 : 1,
-                          },
-                        ]}
-                      />
-                    );
-                  })}
-                </View>
-              )}
-
-              <View style={styles.weekRight}>
-                <Text style={[styles.weekKm, isCurrent && { color: C.clay }, injuryWeek && styles.weekKmInjury]}>
-                  {injuryWeek ? `${weekEntries.length} XT` : `${km}km`}
-                </Text>
               </View>
-            </View>
 
-            <View
-              style={[
-                styles.volumeTrack,
-                getBlockVolumeTone(i, currentWeekIndex) === 'current' && styles.volumeTrackCurrent,
-              ]}
-            >
               <View
                 style={[
-                  styles.volumeFill,
-                  {
-                    width: `${getWeekVolumeRatio(km, maxKm) * 100}%`,
-                  },
-                  getBlockVolumeTone(i, currentWeekIndex) === 'past' && styles.volumeFillPast,
-                  getBlockVolumeTone(i, currentWeekIndex) === 'current' && styles.volumeFillCurrent,
-                  getBlockVolumeTone(i, currentWeekIndex) === 'future' && styles.volumeFillFuture,
+                  styles.volumeTrack,
+                  volumeTone === 'current' && styles.volumeTrackCurrent,
                 ]}
-              />
-            </View>
+              >
+                <View
+                  style={[
+                    styles.volumeFill,
+                    {
+                      width: `${getWeekVolumeRatio(volumeSummary.barKm, maxKm) * 100}%`,
+                    },
+                    volumeTone === 'past' && styles.volumeFillPast,
+                    volumeTone === 'current' && styles.volumeFillCurrent,
+                    volumeTone === 'future' && styles.volumeFillFuture,
+                  ]}
+                />
+              </View>
+            </Pressable>
+
+            {isExpanded ? (
+              <View style={styles.expandedWeek}>
+                {blockDayDetails.map((detail) => {
+                  const badge = getStatusBadge(detail.status);
+                  return (
+                    <View key={`${week.weekNumber}-${detail.dayLabel}`} style={styles.dayRow}>
+                      <View style={styles.dayMeta}>
+                        <Text style={styles.dayName}>{detail.dayLabel}</Text>
+                        <Text style={styles.dayDate}>{formatShortDate(detail.date)}</Text>
+                      </View>
+
+                      <View style={styles.daySession}>
+                        <View
+                          style={[
+                            styles.dayDot,
+                            { backgroundColor: SESSION_TYPE[detail.sessionType].color },
+                            detail.isRest && styles.dayDotRest,
+                          ]}
+                        />
+                        <Text style={[styles.daySessionLabel, detail.isRest && styles.daySessionLabelRest]}>
+                          {detail.sessionLabel}
+                        </Text>
+                      </View>
+
+                      <View style={styles.dayRight}>
+                        {detail.distanceLabel ? (
+                          <Text style={styles.dayDistance}>{detail.distanceLabel}</Text>
+                        ) : null}
+                        {badge ? (
+                          <Text
+                            style={[
+                              styles.dayBadge,
+                              detail.status === 'completed' && styles.dayBadgeComplete,
+                              detail.status === 'off-target' && styles.dayBadgeWarning,
+                              detail.status === 'missed' && styles.dayBadgeMissed,
+                            ]}
+                          >
+                            {badge}
+                          </Text>
+                        ) : null}
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            ) : null}
           </View>
         );
       })}
@@ -376,6 +527,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  weekPressable: {
+    width: '100%',
+  },
   weekRowCurrent: {
     backgroundColor: C.surface,
     borderColor: `${C.clay}35`,
@@ -387,6 +541,9 @@ const styles = StyleSheet.create({
   weekRowInjury: {
     backgroundColor: C.clayBg,
     borderColor: `${C.clay}22`,
+  },
+  weekRowExpanded: {
+    paddingBottom: 12,
   },
   weekLeft: {
     width: 38,
@@ -460,6 +617,19 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: C.ink,
   },
+  weekKmComposite: {
+    fontFamily: FONTS.mono,
+    fontSize: 10,
+  },
+  weekKmActual: {
+    color: C.forest,
+  },
+  weekKmDivider: {
+    color: C.muted,
+  },
+  weekKmPlanned: {
+    color: C.muted,
+  },
   weekKmInjury: {
     color: C.clay,
   },
@@ -486,6 +656,80 @@ const styles = StyleSheet.create({
   volumeFillFuture: {
     backgroundColor: C.border,
     opacity: 0.55,
+  },
+  expandedWeek: {
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: C.border,
+    paddingTop: 10,
+    gap: 8,
+  },
+  dayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 28,
+  },
+  dayMeta: {
+    width: 74,
+  },
+  dayName: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 12,
+    color: C.ink2,
+  },
+  dayDate: {
+    fontFamily: FONTS.sans,
+    fontSize: 10,
+    color: C.muted,
+  },
+  daySession: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dayDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+  },
+  dayDotRest: {
+    backgroundColor: C.slate,
+  },
+  daySessionLabel: {
+    fontFamily: FONTS.sans,
+    fontSize: 12,
+    color: C.ink,
+  },
+  daySessionLabelRest: {
+    color: C.muted,
+  },
+  dayRight: {
+    minWidth: 74,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dayDistance: {
+    fontFamily: FONTS.mono,
+    fontSize: 11,
+    color: C.ink2,
+  },
+  dayBadge: {
+    minWidth: 16,
+    textAlign: 'center',
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 12,
+  },
+  dayBadgeComplete: {
+    color: C.forest,
+  },
+  dayBadgeWarning: {
+    color: C.amber,
+  },
+  dayBadgeMissed: {
+    color: C.muted,
   },
 
   // Empty/loading
