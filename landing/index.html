@@ -101,6 +101,28 @@
     .form-note {
       font-size: 12px; color: var(--muted); margin-top: 10px; text-align: center;
     }
+    .waitlist-form.is-hidden { display: none !important; }
+    .waitlist-feedback {
+      display: none; max-width: 420px; margin: 14px auto 0; padding: 16px 18px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      text-align: center;
+    }
+    .waitlist-feedback[data-state] { display: block; }
+    .waitlist-feedback[data-state="success"] {
+      border-color: rgba(42, 92, 69, 0.24);
+      background: rgba(42, 92, 69, 0.06);
+    }
+    .waitlist-feedback[data-state="error"] {
+      border-color: rgba(196, 82, 42, 0.24);
+      background: rgba(196, 82, 42, 0.06);
+    }
+    .waitlist-feedback-title {
+      font-family: 'Playfair Display', serif; font-size: 20px; line-height: 1.2;
+      color: var(--ink); margin: 0 0 6px;
+    }
+    .waitlist-feedback-copy {
+      font-size: 14px; color: var(--ink2); margin: 0;
+    }
 
     /* Sections */
     section { padding: 50px 0; }
@@ -269,10 +291,11 @@
     <section class="hero">
       <h1>Your running plan deserves better than a spreadsheet</h1>
       <p class="subhead">Bring your Pfitz, your coach's block, or your LLM plan. Sync your runs from Garmin, Apple Watch, or Strava. See planned vs actual. Adapt your plan when injuries or bad days happen.</p>
-      <form class="waitlist-form" id="waitlist" action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
+      <form class="waitlist-form" id="waitlist" action="https://formspree.io/f/xwvwjpgo" method="POST">
         <input type="email" name="email" placeholder="your@email.com" required>
         <button type="submit">Join the waitlist</button>
       </form>
+      <div class="waitlist-feedback" aria-live="polite"></div>
     </section>
   </div>
 
@@ -299,7 +322,7 @@
       <div class="section-label">Your plan, your way</div>
       <div class="feature-row">
         <div class="feature-text">
-          <h2>Bring your plan in however you already have it.</h2>
+          <h2>Bring your own plan in whatever shape or form.</h2>
           <p>Use the builder for a clean setup. Upload a CSV if your plan lives in a sheet. Or drop in a screenshot and let Steady turn it into something you can actually use.</p>
           <p>Sync runs from Garmin, Apple Watch, or Strava so your plan and your real training finally sit in the same place.</p>
         </div>
@@ -318,7 +341,7 @@
       <div class="section-label">When things go wrong</div>
       <div class="feature-row reverse">
         <div class="feature-text">
-          <h2>Injuries don't end your plan. They adapt it.</h2>
+          <h2>Injuries will happen, the key is to adapt.</h2>
           <p>Mark the injury, log what you can do while you're out, and follow a return-to-running progression as you come back. The remaining block adapts around the time you've lost.</p>
           <p>Your goal gets reassessed too. If you've lost three weeks, Steady is honest that your target might need revisiting. But if you come back ahead of schedule, you can reset it.</p>
           <p>No other app treats injury as a first-class part of training. This is one of the main reasons Steady exists.</p>
@@ -355,7 +378,7 @@
     <div class="container fade-in">
       <div class="section-label">Real coaching, not a chatbot</div>
       <h2>Invite your coach into the plan.</h2>
-      <p>Your real human coach can see everything — every session, every planned vs actual gap — and make changes to the plan directly. No spreadsheets over email. No re-explaining the block before every call. The coach adjusts what's next based on how you're actually performing.</p>
+      <p>Your real human coach can see everything - every session, every planned vs actual gap - and make changes to the plan directly. No spreadsheets over email. No re-explaining the block before every call. The coach adjusts what's next based on how you're actually performing.</p>
     </div>
   </section>
 
@@ -382,7 +405,7 @@
     <div class="container fade-in">
       <div class="section-label">WHO IT'S FOR</div>
       <h2>Built for runners who already have a plan.</h2>
-      <p>You already have a plan — from a coach, a book, or one you built yourself. You want to track it properly, handle the weeks where things go sideways, and not switch to an app that replaces your plan with its own. That's the gap Steady fills.</p>
+      <p>You already have a plan - from a coach, a book, or one you built yourself. You want to track it properly, handle the weeks where things go sideways, and not switch to an app that replaces your plan with its own. That's the gap Steady fills.</p>
     </div>
   </section>
 
@@ -392,15 +415,15 @@
       <h2>Roadmap</h2>
       <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 24px;">
         <div style="background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--clay); border-radius: 12px; padding: 18px 20px;">
-          <div style="font-family: 'Space Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--clay); margin-bottom: 8px;">v1 — building now</div>
-          <div style="font-size: 14px; color: var(--ink2);">Plan import (manual + CSV), week view, today's session hero, Strava sync, injury phase mode</div>
+          <div style="font-family: 'Space Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--clay); margin-bottom: 8px;">v1 - building now</div>
+          <div style="font-size: 14px; color: var(--ink2);">Plan import (manual), block and today's view, Strava sync, injury phase mode</div>
         </div>
         <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px;">
-          <div style="font-family: 'Space Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 8px;">v1.1 — next</div>
-          <div style="font-size: 14px; color: var(--ink2);">Garmin + Apple Health sync, block view, coach invite</div>
+          <div style="font-family: 'Space Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 8px;">v1.1 - next</div>
+          <div style="font-size: 14px; color: var(--ink2);">Garmin + Apple Health sync, csv plan import, coach invite</div>
         </div>
         <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px;">
-          <div style="font-family: 'Space Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 8px;">v1.2 — later</div>
+          <div style="font-family: 'Space Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 8px;">v1.2 - later</div>
           <div style="font-size: 14px; color: var(--ink2);">Steady AI debrief after key sessions, plan adaptation suggestions</div>
         </div>
       </div>
@@ -410,9 +433,9 @@
   <!-- What's Free -->
   <section>
     <div class="container fade-in">
-      <div class="section-label">No bait-and-switch</div>
-      <h2>What's free. What's not.</h2>
-      <p style="margin-bottom: 24px;">The core app is free. No trial timers. No feature gates on the stuff that matters.</p>
+      <div class="section-label">Pay only for AI features</div>
+      <h2>No hidden charges.</h2>
+      <p style="margin-bottom: 24px;">The core app is free. No trial timers or feature gates on core, non-AI functionality.</p>
       <div class="pricing-cards">
         <div class="pricing-card">
           <span class="tag" style="color: var(--forest); background: rgba(42,92,69,0.1);">FREE</span>
@@ -431,7 +454,7 @@
         <div class="pricing-card pro">
           <span class="tag" style="color: var(--clay); background: rgba(196,82,42,0.1);">OPTIONAL ADD-ON</span>
           <h3>Steady AI</h3>
-          <div class="price">&pound;8&ndash;10 <small>/month</small></div>
+          <div class="price">&pound;~8&ndash;10 <small>/month</small></div>
           <ul>
             <li>Everything in Free</li>
             <li>Steady AI debriefs after key sessions</li>
@@ -449,10 +472,11 @@
     <div class="container fade-in">
       <h2>A passion project by a runner.</h2>
       <p class="tagline">We're launching soon. Leave your email and we'll let you know.</p>
-      <form class="waitlist-form" action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
+      <form class="waitlist-form" action="https://formspree.io/f/xwvwjpgo" method="POST">
         <input type="email" name="email" placeholder="your@email.com" required>
         <button type="submit">Join the waitlist</button>
       </form>
+      <div class="waitlist-feedback" aria-live="polite"></div>
     </div>
   </section>
 
@@ -476,8 +500,15 @@
         e.preventDefault();
         const btn = form.querySelector('button');
         const email = form.querySelector('input[type="email"]');
+        const feedback = form.nextElementSibling?.classList.contains('waitlist-feedback')
+          ? form.nextElementSibling
+          : null;
         btn.textContent = 'Sending\u2026';
         btn.disabled = true;
+        if (feedback) {
+          feedback.removeAttribute('data-state');
+          feedback.innerHTML = '';
+        }
         try {
           const res = await fetch(form.action, {
             method: 'POST',
@@ -485,16 +516,33 @@
             body: JSON.stringify({ email: email.value })
           });
           if (res.ok) {
-            btn.textContent = "You're in \u2713";
-            btn.style.background = '#2A5C45';
-            email.value = '';
+            form.classList.add('is-hidden');
+            if (feedback) {
+              feedback.dataset.state = 'success';
+              feedback.innerHTML = `
+                <p class="waitlist-feedback-title">You're on the list.</p>
+                <p class="waitlist-feedback-copy">Thanks - I'll email you when Steady is ready.</p>
+              `;
+            }
           } else {
             btn.textContent = 'Try again';
             btn.disabled = false;
+            if (feedback) {
+              feedback.dataset.state = 'error';
+              feedback.innerHTML = `
+                <p class="waitlist-feedback-copy">Something went wrong. Please try again in a moment.</p>
+              `;
+            }
           }
         } catch {
           btn.textContent = 'Try again';
           btn.disabled = false;
+          if (feedback) {
+            feedback.dataset.state = 'error';
+            feedback.innerHTML = `
+              <p class="waitlist-feedback-copy">Something went wrong. Please try again in a moment.</p>
+            `;
+          }
         }
       });
     });
