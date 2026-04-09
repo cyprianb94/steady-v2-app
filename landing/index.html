@@ -101,6 +101,28 @@
     .form-note {
       font-size: 12px; color: var(--muted); margin-top: 10px; text-align: center;
     }
+    .waitlist-form.is-hidden { display: none !important; }
+    .waitlist-feedback {
+      display: none; max-width: 420px; margin: 14px auto 0; padding: 16px 18px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      text-align: center;
+    }
+    .waitlist-feedback[data-state] { display: block; }
+    .waitlist-feedback[data-state="success"] {
+      border-color: rgba(42, 92, 69, 0.24);
+      background: rgba(42, 92, 69, 0.06);
+    }
+    .waitlist-feedback[data-state="error"] {
+      border-color: rgba(196, 82, 42, 0.24);
+      background: rgba(196, 82, 42, 0.06);
+    }
+    .waitlist-feedback-title {
+      font-family: 'Playfair Display', serif; font-size: 20px; line-height: 1.2;
+      color: var(--ink); margin: 0 0 6px;
+    }
+    .waitlist-feedback-copy {
+      font-size: 14px; color: var(--ink2); margin: 0;
+    }
 
     /* Sections */
     section { padding: 50px 0; }
@@ -273,6 +295,7 @@
         <input type="email" name="email" placeholder="your@email.com" required>
         <button type="submit">Join the waitlist</button>
       </form>
+      <div class="waitlist-feedback" aria-live="polite"></div>
     </section>
   </div>
 
@@ -453,6 +476,7 @@
         <input type="email" name="email" placeholder="your@email.com" required>
         <button type="submit">Join the waitlist</button>
       </form>
+      <div class="waitlist-feedback" aria-live="polite"></div>
     </div>
   </section>
 
@@ -476,8 +500,15 @@
         e.preventDefault();
         const btn = form.querySelector('button');
         const email = form.querySelector('input[type="email"]');
+        const feedback = form.nextElementSibling?.classList.contains('waitlist-feedback')
+          ? form.nextElementSibling
+          : null;
         btn.textContent = 'Sending\u2026';
         btn.disabled = true;
+        if (feedback) {
+          feedback.removeAttribute('data-state');
+          feedback.innerHTML = '';
+        }
         try {
           const res = await fetch(form.action, {
             method: 'POST',
@@ -485,16 +516,33 @@
             body: JSON.stringify({ email: email.value })
           });
           if (res.ok) {
-            btn.textContent = "You're in \u2713";
-            btn.style.background = '#2A5C45';
-            email.value = '';
+            form.classList.add('is-hidden');
+            if (feedback) {
+              feedback.dataset.state = 'success';
+              feedback.innerHTML = `
+                <p class="waitlist-feedback-title">You're on the list.</p>
+                <p class="waitlist-feedback-copy">Thanks — I'll email you when Steady is ready.</p>
+              `;
+            }
           } else {
             btn.textContent = 'Try again';
             btn.disabled = false;
+            if (feedback) {
+              feedback.dataset.state = 'error';
+              feedback.innerHTML = `
+                <p class="waitlist-feedback-copy">Something went wrong. Please try again in a moment.</p>
+              `;
+            }
           }
         } catch {
           btn.textContent = 'Try again';
           btn.disabled = false;
+          if (feedback) {
+            feedback.dataset.state = 'error';
+            feedback.innerHTML = `
+              <p class="waitlist-feedback-copy">Something went wrong. Please try again in a moment.</p>
+            `;
+          }
         }
       });
     });
