@@ -2,6 +2,7 @@
   "name": "steady-v2",
   "private": true,
   "workspaces": [
+    "landing",
     "packages/types",
     "packages/server",
     "packages/app"
