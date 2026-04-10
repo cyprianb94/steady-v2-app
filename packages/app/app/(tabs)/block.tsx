@@ -49,6 +49,24 @@ const COMPACT_PHASE_LABEL: Record<BlockPhaseSegment['name'], string> = {
   INJURY: 'INJ',
 };
 
+const INACTIVE_PHASE_BACKGROUND: Record<PlanWeek['phase'], string> = {
+  BASE: `${C.navy}59`,
+  BUILD: `${C.clay}59`,
+  RECOVERY: `${PHASE_COLOR.RECOVERY}59`,
+  PEAK: `${C.amber}59`,
+  TAPER: `${C.forest}59`,
+};
+
+function formatRaceDate(date: string | null | undefined): string {
+  if (!date) return '';
+  const value = new Date(`${date}T00:00:00`);
+  return value.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
 function getWeekStartDate(week: PlanWeek): string {
   const fallbackDate =
     week.sessions.find((session) => session?.date)?.date ??
@@ -62,17 +80,75 @@ function getWeekEntries(entries: CrossTrainingEntry[], week: PlanWeek): CrossTra
   return entries.filter((entry) => entry.date >= startDate && entry.date <= endDate);
 }
 
-function getPhaseCaption(
+function formatPhaseName(phase: PlanWeek['phase'] | 'INJURY'): string {
+  return phase === 'INJURY'
+    ? 'Injury'
+    : `${phase.slice(0, 1)}${phase.slice(1).toLowerCase()}`;
+}
+
+function getPhaseOutlook(phase: PlanWeek['phase'] | 'INJURY'): string {
+  switch (phase) {
+    case 'BASE':
+      return 'Aerobic foundation building steadily.';
+    case 'BUILD':
+      return 'Peak volume approaching.';
+    case 'RECOVERY':
+      return 'Absorb the work and keep it light.';
+    case 'PEAK':
+      return 'Race-specific sharpness is coming together.';
+    case 'TAPER':
+      return 'Freshening up for race day.';
+    case 'INJURY':
+      return 'Modified training is in progress.';
+    default:
+      return '';
+  }
+}
+
+function getPhaseProgress(
+  weeks: PlanWeek[],
+  currentWeekIndex: number,
   currentPhase: PlanWeek['phase'] | 'INJURY',
-  currentWeekNumber: number,
-  totalWeeks: number,
   injuryRange: ReturnType<typeof getInjuryWeekRange>,
-): string {
+): { weekInPhase: number; totalWeeksInPhase: number } {
   if (currentPhase === 'INJURY' && injuryRange) {
-    return `INJURY phase · Weeks ${injuryRange.startIndex + 1}-${injuryRange.endIndex + 1} affected`;
+    return {
+      weekInPhase: currentWeekIndex - injuryRange.startIndex + 1,
+      totalWeeksInPhase: injuryRange.endIndex - injuryRange.startIndex + 1,
+    };
   }
 
-  return `${currentPhase} phase · Week ${currentWeekNumber} of ${totalWeeks}`;
+  let start = currentWeekIndex;
+  let end = currentWeekIndex;
+
+  while (start > 0 && weeks[start - 1]?.phase === currentPhase) {
+    start -= 1;
+  }
+
+  while (end < weeks.length - 1 && weeks[end + 1]?.phase === currentPhase) {
+    end += 1;
+  }
+
+  return {
+    weekInPhase: currentWeekIndex - start + 1,
+    totalWeeksInPhase: end - start + 1,
+  };
+}
+
+function getPhaseCaption(
+  weeks: PlanWeek[],
+  currentWeekIndex: number,
+  currentPhase: PlanWeek['phase'] | 'INJURY',
+  injuryRange: ReturnType<typeof getInjuryWeekRange>,
+): string {
+  const { weekInPhase, totalWeeksInPhase } = getPhaseProgress(
+    weeks,
+    currentWeekIndex,
+    currentPhase,
+    injuryRange,
+  );
+
+  return `${formatPhaseName(currentPhase)}. Week ${weekInPhase} of ${totalWeeksInPhase}. ${getPhaseOutlook(currentPhase)}`;
 }
 
 function getPhaseStripLabel(segment: BlockPhaseSegment, totalWeeks: number): string {
@@ -422,7 +498,7 @@ export default function BlockTab() {
           <Text style={styles.label}>GOAL RACE</Text>
           <Text style={styles.raceTitle}>{plan.raceName}</Text>
           <View style={styles.metaRow}>
-            <Text style={[styles.metaValue, { color: C.clay }]}>{plan.raceDate}</Text>
+            <Text style={[styles.metaValue, { color: C.clay }]}>{formatRaceDate(plan.raceDate)}</Text>
             <Text style={[styles.metaValue, { color: C.muted }]}>
               {plan.weeks.length - currentWeekIndex} weeks out
             </Text>
@@ -452,9 +528,13 @@ export default function BlockTab() {
                           : C.clayBg
                         : p.isCurrent
                           ? PHASE_COLOR[p.name]
-                          : C.border,
+                          : INACTIVE_PHASE_BACKGROUND[p.name],
                     borderWidth: p.name === 'INJURY' && !p.isCurrent ? 1 : 0,
                     borderColor: p.name === 'INJURY' ? `${C.clay}35` : 'transparent',
+                  },
+                  p.isCurrent && styles.phaseSegmentCurrent,
+                  p.isCurrent && {
+                    shadowColor: p.name === 'INJURY' ? C.clay : PHASE_COLOR[p.name],
                   },
                 ]}
               >
@@ -471,7 +551,7 @@ export default function BlockTab() {
                             : C.clay
                           : p.isCurrent
                             ? 'white'
-                            : C.muted,
+                            : 'rgba(255,255,255,0.74)',
                     },
                   ]}
                 >
@@ -482,7 +562,8 @@ export default function BlockTab() {
           })}
         </View>
         <Text style={styles.phaseCaption}>
-          {getPhaseCaption(currentPhase, currentWeekIndex + 1, plan.weeks.length, injuryRange)}
+          <Text style={styles.phaseCaptionLead}>Current phase:</Text>
+          <Text>{` ${getPhaseCaption(plan.weeks, currentWeekIndex, currentPhase, injuryRange)}`}</Text>
         </Text>
       </View>
 
@@ -611,18 +692,6 @@ export default function BlockTab() {
                   isFuture && styles.expandedWeekFuture,
                 ]}
               >
-                {canRearrange ? (
-                  <Pressable
-                    testID={`rearrange-week-${week.weekNumber}`}
-                    onPress={() => setRearrangeWeekIndex(i)}
-                    style={styles.rearrangeButton}
-                  >
-                    <Text style={styles.rearrangeButtonText}>
-                      {isSavingRearrange && rearrangeWeekIndex === i ? 'Saving...' : 'Rearrange sessions'}
-                    </Text>
-                  </Pressable>
-                ) : null}
-
                 {blockDayDetails.map((detail, dayIndex) => {
                   const badge = getStatusBadge(detail.status);
                   const canEditDay = !injuryWeek && !week.sessions[dayIndex]?.actualActivityId;
@@ -678,6 +747,25 @@ export default function BlockTab() {
                     </Pressable>
                   );
                 })}
+
+                {canRearrange ? (
+                  <Pressable
+                    testID={`rearrange-week-${week.weekNumber}`}
+                    onPress={() => setRearrangeWeekIndex(i)}
+                    style={styles.rearrangeButton}
+                  >
+                    <View style={styles.rearrangeButtonContent}>
+                      <View style={styles.rearrangeButtonIcon}>
+                        <View style={styles.rearrangeButtonIconLeftHead} />
+                        <View style={styles.rearrangeButtonIconShaft} />
+                        <View style={styles.rearrangeButtonIconRightHead} />
+                      </View>
+                      <Text style={styles.rearrangeButtonText}>
+                        {isSavingRearrange && rearrangeWeekIndex === i ? 'Saving...' : 'Rearrange sessions'}
+                      </Text>
+                    </View>
+                  </Pressable>
+                ) : null}
               </View>
             ) : null}
           </View>
@@ -779,14 +867,21 @@ const styles = StyleSheet.create({
   phaseStrip: {
     flexDirection: 'row',
     gap: 2,
-    height: 26,
+    height: 28,
     borderRadius: 6,
     overflow: 'hidden',
-    marginBottom: 5,
+    marginBottom: 8,
   },
   phaseSegment: {
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  phaseSegmentCurrent: {
+    shadowColor: C.clay,
+    shadowOpacity: 0.22,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
   },
   phaseLabel: {
     fontFamily: FONTS.sansSemiBold,
@@ -804,6 +899,10 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.sans,
     fontSize: 11,
     color: C.muted,
+  },
+  phaseCaptionLead: {
+    fontFamily: FONTS.sansSemiBold,
+    color: C.clay,
   },
 
   // Week rows
@@ -959,7 +1058,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: C.border,
     paddingTop: 10,
-    gap: 8,
+    gap: 10,
   },
   expandedWeekNoDivider: {
     borderTopWidth: 0,
@@ -969,19 +1068,68 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   rearrangeButton: {
-    minHeight: 38,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: `${C.clay}45`,
-    backgroundColor: C.clayBg,
+    minHeight: 46,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    backgroundColor: C.cream,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 2,
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  rearrangeButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  rearrangeButtonIcon: {
+    width: 16,
+    height: 12,
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rearrangeButtonIconShaft: {
+    position: 'absolute',
+    left: 3,
+    right: 3,
+    top: 5,
+    height: 1.5,
+    backgroundColor: C.ink2,
+  },
+  rearrangeButtonIconLeftHead: {
+    position: 'absolute',
+    left: 0,
+    top: 2,
+    width: 0,
+    height: 0,
+    borderTopWidth: 4,
+    borderBottomWidth: 4,
+    borderRightWidth: 5,
+    borderTopColor: 'transparent',
+    borderBottomColor: 'transparent',
+    borderRightColor: C.ink2,
+  },
+  rearrangeButtonIconRightHead: {
+    position: 'absolute',
+    right: 0,
+    top: 2,
+    width: 0,
+    height: 0,
+    borderTopWidth: 4,
+    borderBottomWidth: 4,
+    borderLeftWidth: 5,
+    borderTopColor: 'transparent',
+    borderBottomColor: 'transparent',
+    borderLeftColor: C.ink2,
   },
   rearrangeButtonText: {
     fontFamily: FONTS.sansSemiBold,
     fontSize: 12,
-    color: C.clay,
+    color: C.ink2,
   },
   dayRow: {
     flexDirection: 'row',
