@@ -12,27 +12,42 @@ interface DayCardProps {
   dayName: string;
   isToday: boolean;
   onPress?: () => void;
+  muted?: boolean;
 }
 
-export function DayCard({ session, dayName, isToday, onPress }: DayCardProps) {
+export function DayCard({ session, dayName, isToday, onPress, muted = false }: DayCardProps) {
   const isRest = !session || session.type === 'REST';
+  const isOpenable = !isRest && typeof onPress === 'function';
   const tc = session ? SESSION_TYPE[session.type] : null;
   const hasActual = !!session?.actualActivityId;
 
   return (
     <Pressable
       onPress={onPress}
+      disabled={!isOpenable}
       style={[
         styles.card,
         {
-          backgroundColor: isToday ? '#FFFDF8' : isRest ? C.cream : tc?.bg || C.cream,
-          borderColor: isToday ? C.clay : isRest ? C.border : `${tc?.color}35`,
+          backgroundColor: muted
+            ? C.surface
+            : isToday
+              ? '#FFFDF8'
+              : isRest
+                ? C.cream
+                : tc?.bg || C.cream,
+          borderColor: muted ? C.border : isToday ? C.clay : isRest ? C.border : `${tc?.color}35`,
         },
         isToday && styles.todayShadow,
+        muted && styles.mutedCard,
       ]}
     >
       <View style={styles.left}>
-        <Text style={[styles.dayName, { color: isRest ? C.muted : tc?.color || C.muted }]}>
+        <Text
+          style={[
+            styles.dayName,
+            { color: muted ? C.muted : isRest ? C.muted : tc?.color || C.muted },
+          ]}
+        >
           {dayName}
         </Text>
         {!isRest && <SessionDot type={session.type} size={7} />}
@@ -40,20 +55,20 @@ export function DayCard({ session, dayName, isToday, onPress }: DayCardProps) {
 
       <View style={styles.center}>
         {isRest ? (
-          <Text style={styles.restText}>Rest</Text>
+            <Text style={styles.restText}>Rest</Text>
         ) : (
           <>
-            <Text style={styles.sessionMain} numberOfLines={1}>
+            <Text style={[styles.sessionMain, muted && styles.mutedText]} numberOfLines={1}>
               {sessionLabel(session)}
             </Text>
-            <Text style={styles.sessionType}>{tc?.label}</Text>
+            <Text style={styles.sessionType}>{muted ? 'Planned session' : tc?.label}</Text>
           </>
         )}
       </View>
 
       <View style={styles.right}>
         {hasActual && <Text style={styles.checkmark}>✓</Text>}
-        {!isRest && <Text style={styles.chevron}>›</Text>}
+        {isOpenable && <Text style={styles.chevron}>›</Text>}
       </View>
     </Pressable>
   );
@@ -75,6 +90,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 10,
     elevation: 4,
+  },
+  mutedCard: {
+    opacity: 0.72,
   },
   left: {
     width: 34,
@@ -105,6 +123,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: C.muted,
     marginTop: 1,
+  },
+  mutedText: {
+    color: C.ink2,
   },
   right: {
     flexDirection: 'row',

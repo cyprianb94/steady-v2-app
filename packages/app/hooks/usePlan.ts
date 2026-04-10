@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
+import { getDisplayWeekIndex, type TrainingPlanWithAnnotation, type PlanWeek } from '@steady/types';
 import { trpc } from '../lib/trpc';
-import type { TrainingPlan, PlanWeek } from '@steady/types';
+import { useAuth } from '../lib/auth';
+import { getResumeWeekOverride } from '../lib/resume-week';
+import { useTodayIso } from './useTodayIso';
 
 interface UsePlanResult {
-  plan: TrainingPlan | null;
+  plan: TrainingPlanWithAnnotation | null;
   loading: boolean;
   currentWeek: PlanWeek | null;
   currentWeekIndex: number;
@@ -11,38 +14,43 @@ interface UsePlanResult {
 }
 
 export function usePlan(): UsePlanResult {
-  const [plan, setPlan] = useState<TrainingPlan | null>(null);
+  const { session, isLoading: authLoading } = useAuth();
+  const [plan, setPlan] = useState<TrainingPlanWithAnnotation | null>(null);
+  const [resumeWeekNumber, setResumeWeekNumber] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchPlan = useCallback(async () => {
+    if (!session) {
+      setPlan(null);
+      setResumeWeekNumber(null);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const result = await trpc.plan.get.query();
       setPlan(result);
+      setResumeWeekNumber(result ? await getResumeWeekOverride(result.id) : null);
     } catch (err) {
       console.error('Failed to fetch plan:', err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [session]);
 
   useEffect(() => {
-    fetchPlan();
-  }, [fetchPlan]);
-
-  const today = new Date().toISOString().slice(0, 10);
-  let currentWeekIndex = 0;
-
-  if (plan) {
-    for (let i = 0; i < plan.weeks.length; i++) {
-      const sessions = plan.weeks[i].sessions.filter(Boolean);
-      const dates = sessions.map((s) => s!.date);
-      if (dates.some((d) => d >= today)) {
-        currentWeekIndex = i;
-        break;
-      }
+    if (authLoading) {
+      setLoading(true);
+      return;
     }
-  }
+    fetchPlan();
+  }, [authLoading, fetchPlan]);
+
+  const today = useTodayIso();
+  const currentWeekIndex = plan
+    ? getDisplayWeekIndex(plan.weeks, today, resumeWeekNumber)
+    : 0;
 
   return {
     plan,

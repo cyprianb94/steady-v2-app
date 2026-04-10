@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { C } from '../../constants/colours';
 
-type TabName = 'week' | 'block' | 'coach' | 'settings';
+type TabName = 'home' | 'block' | 'settings';
 
 interface TabIconProps {
   name: TabName;
@@ -13,15 +13,12 @@ export function TabIcon({ name, focused }: TabIconProps) {
   const color = focused ? C.clay : C.muted;
 
   switch (name) {
-    case 'week':
+    case 'home':
       return (
         <View style={styles.container}>
-          {/* 7-dot grid representing a week */}
-          <View style={styles.weekGrid}>
-            {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-              <View key={i} style={[styles.weekDot, { backgroundColor: color }]} />
-            ))}
-          </View>
+          {/* House icon: triangle roof + square base */}
+          <View style={[styles.homeRoof, { borderBottomColor: color }]} />
+          <View style={[styles.homeBase, { backgroundColor: color }]} />
         </View>
       );
     case 'block':
@@ -31,16 +28,6 @@ export function TabIcon({ name, focused }: TabIconProps) {
           {[16, 12, 8].map((w, i) => (
             <View key={i} style={[styles.blockBar, { width: w, backgroundColor: color }]} />
           ))}
-        </View>
-      );
-    case 'coach':
-      return (
-        <View style={styles.container}>
-          {/* Speech bubble */}
-          <View style={[styles.bubble, { borderColor: color }]}>
-            <View style={[styles.bubbleDot, { backgroundColor: color }]} />
-            <View style={[styles.bubbleDot, { backgroundColor: color }]} />
-          </View>
         </View>
       );
     case 'settings':
@@ -62,36 +49,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  weekGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    width: 20,
-    gap: 2,
+  homeRoof: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 10,
+    borderRightWidth: 10,
+    borderBottomWidth: 8,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
   },
-  weekDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+  homeBase: {
+    width: 14,
+    height: 10,
+    borderBottomLeftRadius: 2,
+    borderBottomRightRadius: 2,
   },
   blockBar: {
     height: 3,
     borderRadius: 1.5,
     marginVertical: 1,
-  },
-  bubble: {
-    width: 20,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 3,
-  },
-  bubbleDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
   },
   settingsCircle: {
     width: 18,

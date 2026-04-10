@@ -1,4 +1,4 @@
-import type { PlannedSession, SessionType } from '@steady/types';
+import type { PlannedSession, SessionType, PlanWeek } from '@steady/types';
 
 // Re-export shared functions from types so existing app imports keep working
 export { sessionKm, weekKm } from '@steady/types';
@@ -43,4 +43,59 @@ export function sessionLabel(s: Partial<PlannedSession> | null): string {
     return `${s.reps ?? 6}×${s.repDist ?? 800}m @ ${s.pace ?? '—'}`;
   }
   return `${s.distance ?? '?'}km @ ${s.pace ?? '—'}`;
+}
+
+export function addDaysIso(date: string, days: number): string {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+export function todayIsoLocal(now: Date = new Date()): string {
+  const timezoneOffsetMs = now.getTimezoneOffset() * 60_000;
+  return new Date(now.getTime() - timezoneOffsetMs).toISOString().slice(0, 10);
+}
+
+export function startOfWeekIso(date: string): string {
+  const value = new Date(`${date}T00:00:00Z`);
+  const day = value.getUTCDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  value.setUTCDate(value.getUTCDate() + mondayOffset);
+  return value.toISOString().slice(0, 10);
+}
+
+export function dayIndexForIsoDate(date: string): number {
+  const day = new Date(`${date}T00:00:00Z`).getUTCDay();
+  return day === 0 ? 6 : day - 1;
+}
+
+export function raceDateForPlanStartingThisWeek(today: string, totalWeeks: number): string {
+  const weekStart = startOfWeekIso(today);
+  return addDaysIso(weekStart, totalWeeks * 7 - 1);
+}
+
+export function findSessionForDateOrWeekday(
+  sessions: (PlannedSession | null)[],
+  date: string,
+): PlannedSession | null {
+  return sessions[dayIndexForIsoDate(date)] ?? null;
+}
+
+export function getRemainingWeekStartIndex(
+  sessions: (PlannedSession | null)[],
+  date: string,
+): number {
+  const exactIndex = sessions.findIndex((session) => session?.date === date);
+  return (exactIndex >= 0 ? exactIndex : dayIndexForIsoDate(date)) + 1;
+}
+
+export function inferWeekStartDate(week: PlanWeek, fallbackDate = todayIsoLocal()): string {
+  for (let i = 0; i < week.sessions.length; i++) {
+    const session = week.sessions[i];
+    if (session?.date) {
+      return addDaysIso(session.date, -i);
+    }
+  }
+
+  return startOfWeekIso(fallbackDate);
 }

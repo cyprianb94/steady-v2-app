@@ -1,6 +1,8 @@
-# Steady — AI Coach
+# Steady — AI (Steady AI)
 
-The AI coach is named Steady. It is not a chatbot the user queries — it initiates. This is the most important product distinction. Every other AI coaching app waits for input. Steady comes to you.
+The AI feature is called Steady AI. It is not a chatbot the user queries — it initiates. This is the most important product distinction. Every other AI app waits for input. Steady AI comes to you.
+
+**Important naming rule:** The word "coach" is reserved exclusively for the real human coach a runner might work with. The AI feature is always "Steady AI". The AI's conversational persona name is "Steady" (e.g. "Message Steady…").
 
 ---
 
@@ -154,8 +156,8 @@ Every conversation turn sends full context to the Claude API. This is what allow
 ### System prompt structure
 
 ```
-You are Steady, an AI running coach in the Steady app. You are direct, 
-specific, knowledgeable, and concise. You never give generic advice. 
+You are Steady AI, the AI running assistant in the Steady app. You are direct,
+specific, knowledgeable, and concise. You never give generic advice.
 You always reference specific data from the runner's plan and runs.
 
 RUNNER CONTEXT:
@@ -177,6 +179,15 @@ JUST COMPLETED:
 {session_type}: {actual_data}
 Planned: {planned_data}
 Deviation: {calculated_deviation}
+
+[If injury/recovery active]
+INJURY CONTEXT:
+- Injury: {injury_type}, marked {injury_date}
+- Current stage: {recovery_stage} (e.g. "Week 2 of return-to-running")
+- Cross-training this week: {cross_training_log}
+- Return-to-running progression: {rtr_progression}
+- Original goal: {original_target}
+- Reassessed goal: {reassessed_target}
 ```
 
 ### Compact plan representation
@@ -228,10 +239,11 @@ If the API call fails:
 
 ## Conversation history
 
+- Steady AI is accessed from Settings (a "Steady AI" row that opens the conversation screen)
 - Conversations are per-session (one thread per debrief, one thread per weekly preview)
-- Users can also open a free-form conversation from the Coach tab at any time
+- Users can also open a free-form conversation from the Steady AI screen at any time
 - All messages persisted to Supabase `coach_messages` table
-- History displayed newest-first in the Coach tab, most recent thread at top
+- History displayed newest-first in the Steady AI screen, most recent thread at top
 - Thread titles: "Week 14 preview", "Tuesday intervals debrief", etc.
 
 ---

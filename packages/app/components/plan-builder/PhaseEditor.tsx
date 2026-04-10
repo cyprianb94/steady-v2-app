@@ -15,6 +15,8 @@ const PHASE_ORDER: PhaseName[] = ['BASE', 'BUILD', 'RECOVERY', 'PEAK', 'TAPER'];
 
 export function PhaseEditor({ phases, totalWeeks, onChange }: PhaseEditorProps) {
   const adjust = (phase: PhaseName, delta: number) => {
+    if (phase === 'BUILD') return; // BUILD absorbs changes from other phases
+
     const current = phases[phase];
     const next = Math.max(phase === 'RECOVERY' ? 0 : 1, current + delta);
     const diff = next - current;
@@ -44,24 +46,27 @@ export function PhaseEditor({ phases, totalWeeks, onChange }: PhaseEditorProps) 
       </View>
 
       {/* Phase controls */}
-      {PHASE_ORDER.map((phase) => (
-        <View key={phase} style={styles.row}>
-          <View style={[styles.dot, { backgroundColor: PHASE_COLOR[phase] }]} />
-          <Text style={styles.phaseName}>{phase}</Text>
-          <View style={styles.stepper}>
-            <Pressable onPress={() => adjust(phase, -1)} style={styles.stepBtn}>
-              <Text style={styles.stepBtnText}>−</Text>
-            </Pressable>
-            <Text style={styles.weekCount}>{phases[phase]}</Text>
-            <Pressable onPress={() => adjust(phase, 1)} style={styles.stepBtn}>
-              <Text style={styles.stepBtnText}>+</Text>
-            </Pressable>
+      {PHASE_ORDER.map((phase) => {
+        const isBuild = phase === 'BUILD';
+        return (
+          <View key={phase} style={styles.row}>
+            <View style={[styles.dot, { backgroundColor: PHASE_COLOR[phase] }]} />
+            <Text style={styles.phaseName}>{phase}</Text>
+            <View style={[styles.stepper, isBuild && { opacity: 0.4 }]}>
+              <Pressable onPress={() => adjust(phase, -1)} style={styles.stepBtn} disabled={isBuild}>
+                <Text style={styles.stepBtnText}>−</Text>
+              </Pressable>
+              <Text style={styles.weekCount}>{phases[phase]}</Text>
+              <Pressable onPress={() => adjust(phase, 1)} style={styles.stepBtn} disabled={isBuild}>
+                <Text style={styles.stepBtnText}>+</Text>
+              </Pressable>
+            </View>
+            <Text style={styles.weekLabel}>
+              {phases[phase] === 1 ? 'week' : 'weeks'}
+            </Text>
           </View>
-          <Text style={styles.weekLabel}>
-            {phases[phase] === 1 ? 'week' : 'weeks'}
-          </Text>
-        </View>
-      ))}
+        );
+      })}
 
       <Text style={styles.total}>
         Total: {Object.values(phases).reduce((a, b) => a + b, 0)} / {totalWeeks} weeks

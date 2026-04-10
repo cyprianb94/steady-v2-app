@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, Modal } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { C } from '../../../constants/colours';
 import { SESSION_TYPE } from '../../../constants/session-types';
 import { FONTS } from '../../../constants/typography';
 import { SectionLabel } from '../../../components/ui/SectionLabel';
 import { Btn } from '../../../components/ui/Btn';
+import { RearrangeSheet } from '../../../components/block/RearrangeSheet';
 import { SessionEditor } from '../../../components/plan-builder/SessionEditor';
 import { DAYS, sessionLabel, TYPE_DEFAULTS } from '../../../lib/plan-helpers';
 import { sessionKm } from '@steady/types';
@@ -21,19 +22,65 @@ const DEFAULT_TEMPLATE: (Partial<PlannedSession> | null)[] = [
   { type: 'LONG', distance: 20, pace: '5:10' },
 ];
 
+function toRearrangeSessions(template: (Partial<PlannedSession> | null)[]): (PlannedSession | null)[] {
+  return template.map((session, index) => {
+    if (!session || session.type === 'REST') return null;
+    return {
+      id: `template-${index}`,
+      date: 'template',
+      type: session.type ?? 'EASY',
+      ...session,
+    } as PlannedSession;
+  });
+}
+
+function toTemplateSessions(sessions: (PlannedSession | null)[]): (Partial<PlannedSession> | null)[] {
+  return sessions.map((session) => {
+    if (!session || session.type === 'REST') return null;
+    const { id: _id, date: _date, actualActivityId: _actualActivityId, ...templateSession } = session;
+    return templateSession;
+  });
+}
+
 export default function StepTemplate() {
-  const params = useLocalSearchParams<{ race: string; weeks: string; target: string; phases: string }>();
+  const params = useLocalSearchParams<{
+    race: string;
+    weeks: string;
+    target: string;
+    phases: string;
+    hasPerWeekTweaks?: string;
+  }>();
   const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
   const [editing, setEditing] = useState<number | null>(null);
+  const [rearranging, setRearranging] = useState(false);
+  const [pendingTemplate, setPendingTemplate] = useState<(Partial<PlannedSession> | null)[] | null>(null);
 
   const totalKm = template.reduce((acc, s) => acc + sessionKm(s as PlannedSession | null), 0);
   const weeks = Number(params.weeks) || 16;
+  const hasPerWeekTweaks = params.hasPerWeekTweaks === 'true';
 
   const handleSave = (dayIndex: number, session: Partial<PlannedSession> | null) => {
     const t = [...template];
     t[dayIndex] = session;
     setTemplate(t);
     setEditing(null);
+  };
+
+  const applyTemplateRearrange = (nextTemplate: (Partial<PlannedSession> | null)[]) => {
+    setTemplate(nextTemplate);
+    setPendingTemplate(null);
+  };
+
+  const handleRearrangeDone = (sessions: (PlannedSession | null)[]) => {
+    const nextTemplate = toTemplateSessions(sessions);
+    setRearranging(false);
+
+    if (hasPerWeekTweaks) {
+      setPendingTemplate(nextTemplate);
+      return;
+    }
+
+    applyTemplateRearrange(nextTemplate);
   };
 
   const handleNext = () => {
@@ -64,6 +111,16 @@ export default function StepTemplate() {
             <Text style={styles.infoStrong}>Steady</Text> — This is your base week. It repeats across
             all {weeks} weeks — you'll be able to fine-tune each week individually in the next step.
           </Text>
+        </View>
+
+        <View style={styles.templateActions}>
+          <View>
+            <Text style={styles.templateActionsTitle}>Weekly layout</Text>
+            <Text style={styles.templateActionsText}>Move sessions between days before generating.</Text>
+          </View>
+          <Pressable onPress={() => setRearranging(true)} style={styles.rearrangeButton}>
+            <Text style={styles.rearrangeButtonText}>Rearrange</Text>
+          </Pressable>
         </View>
 
         {/* Day cards */}
@@ -133,6 +190,43 @@ export default function StepTemplate() {
           onClose={() => setEditing(null)}
         />
       )}
+
+      {rearranging ? (
+        <RearrangeSheet
+          visible={rearranging}
+          weekNumber={1}
+          sessions={toRearrangeSessions(template)}
+          onCancel={() => setRearranging(false)}
+          onDone={handleRearrangeDone}
+        />
+      ) : null}
+
+      {pendingTemplate ? (
+        <Modal visible transparent animationType="fade">
+          <View style={styles.warningOverlay}>
+            <View style={styles.warningSheet}>
+              <Text style={styles.warningTitle}>Regenerate plan preview?</Text>
+              <Text style={styles.warningCopy}>
+                Rearranging the template will reset per-week edits already made in the preview.
+              </Text>
+              <View style={styles.warningActions}>
+                <Pressable
+                  onPress={() => setPendingTemplate(null)}
+                  style={styles.warningSecondary}
+                >
+                  <Text style={styles.warningSecondaryText}>Keep edits</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => applyTemplateRearrange(pendingTemplate)}
+                  style={styles.warningPrimary}
+                >
+                  <Text style={styles.warningPrimaryText}>Regenerate</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      ) : null}
     </View>
   );
 }
@@ -202,6 +296,45 @@ const styles = StyleSheet.create({
   infoStrong: {
     color: C.forest,
     fontWeight: '600',
+  },
+  templateActions: {
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 10,
+    padding: 12,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  templateActionsTitle: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 12,
+    color: C.ink,
+  },
+  templateActionsText: {
+    fontFamily: FONTS.sans,
+    fontSize: 11,
+    color: C.muted,
+    marginTop: 2,
+  },
+  rearrangeButton: {
+    minHeight: 34,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: `${C.clay}45`,
+    backgroundColor: C.clayBg,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rearrangeButtonText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 12,
+    color: C.clay,
   },
   dayCard: {
     flexDirection: 'row',
@@ -288,5 +421,59 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
     borderTopWidth: 1,
     borderTopColor: C.border,
+  },
+  warningOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(28,21,16,0.5)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  warningSheet: {
+    backgroundColor: C.surface,
+    borderRadius: 8,
+    padding: 18,
+    gap: 12,
+  },
+  warningTitle: {
+    fontFamily: FONTS.serifBold,
+    fontSize: 20,
+    color: C.ink,
+  },
+  warningCopy: {
+    fontFamily: FONTS.sans,
+    fontSize: 13,
+    lineHeight: 20,
+    color: C.ink2,
+  },
+  warningActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  warningSecondary: {
+    flex: 1,
+    minHeight: 40,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  warningPrimary: {
+    flex: 1,
+    minHeight: 40,
+    borderRadius: 8,
+    backgroundColor: C.clay,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  warningSecondaryText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 13,
+    color: C.ink2,
+  },
+  warningPrimaryText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 13,
+    color: '#FFFFFF',
   },
 });

@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useEffect } from 'react';
-import { View, FlatList, Text, StyleSheet, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
+import { View, ScrollView, Text, StyleSheet, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
@@ -21,7 +21,7 @@ export function ScrollPicker({
   onSelect,
   activeColor = C.clay,
 }: ScrollPickerProps) {
-  const flatListRef = useRef<FlatList>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
   // Pad items so the first/last can reach centre
   const paddedItems = [
@@ -31,10 +31,9 @@ export function ScrollPicker({
   ];
 
   useEffect(() => {
-    // Scroll to initial position
-    if (flatListRef.current && selectedIndex >= 0) {
-      flatListRef.current.scrollToOffset({
-        offset: selectedIndex * ITEM_H,
+    if (scrollRef.current && selectedIndex >= 0) {
+      scrollRef.current.scrollTo({
+        y: selectedIndex * ITEM_H,
         animated: false,
       });
     }
@@ -50,40 +49,6 @@ export function ScrollPicker({
       }
     },
     [items.length, selectedIndex, onSelect],
-  );
-
-  const getItemLayout = useCallback(
-    (_: unknown, index: number) => ({
-      length: ITEM_H,
-      offset: ITEM_H * index,
-      index,
-    }),
-    [],
-  );
-
-  const renderItem = useCallback(
-    ({ item, index }: { item: string; index: number }) => {
-      const realIndex = index - PAD;
-      const dist = Math.abs(realIndex - selectedIndex);
-      const isCentre = dist === 0;
-      const isAdjacent = dist === 1;
-
-      return (
-        <View style={styles.item}>
-          <Text
-            style={[
-              styles.itemText,
-              isCentre && { fontSize: 17, fontWeight: '700', color: activeColor },
-              isAdjacent && { fontSize: 13, fontWeight: '400', color: C.ink2 },
-              dist > 1 && { fontSize: 11, color: C.muted, opacity: 0.3 },
-            ]}
-          >
-            {item}
-          </Text>
-        </View>
-      );
-    },
-    [selectedIndex, activeColor],
   );
 
   return (
@@ -102,18 +67,37 @@ export function ScrollPicker({
         pointerEvents="none"
       />
 
-      <FlatList
-        ref={flatListRef}
-        data={paddedItems}
-        keyExtractor={(_, i) => String(i)}
-        renderItem={renderItem}
-        getItemLayout={getItemLayout}
+      <ScrollView
+        ref={scrollRef}
         snapToInterval={ITEM_H}
         decelerationRate="fast"
         showsVerticalScrollIndicator={false}
         onMomentumScrollEnd={handleMomentumScrollEnd}
+        nestedScrollEnabled
         style={styles.list}
-      />
+      >
+        {paddedItems.map((item, index) => {
+          const realIndex = index - PAD;
+          const dist = Math.abs(realIndex - selectedIndex);
+          const isCentre = dist === 0;
+          const isAdjacent = dist === 1;
+
+          return (
+            <View key={index} style={styles.item}>
+              <Text
+                style={[
+                  styles.itemText,
+                  isCentre && { fontSize: 17, fontWeight: '700', color: activeColor },
+                  isAdjacent && { fontSize: 13, fontWeight: '400', color: C.ink2 },
+                  dist > 1 && { fontSize: 11, color: C.muted, opacity: 0.3 },
+                ]}
+              >
+                {item}
+              </Text>
+            </View>
+          );
+        })}
+      </ScrollView>
 
       {/* Top fade gradient */}
       <LinearGradient

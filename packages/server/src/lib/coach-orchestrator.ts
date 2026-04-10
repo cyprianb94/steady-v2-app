@@ -15,26 +15,30 @@ import type {
 } from '@steady/types';
 import type { LLMClient, LLMMessage } from './llm-client';
 import { buildSystemPrompt } from './context-builder';
+import type { ConversationRepo } from '../repos/conversation-repo';
 
 export interface CoachDeps {
   llm: LLMClient;
+  conversationRepo: ConversationRepo;
   getPlan: (userId: string) => Promise<TrainingPlan | null>;
   getActivities: (userId: string) => Promise<Activity[]>;
   getUser: (userId: string) => Promise<User>;
 }
 
-// In-memory conversation store (replaced by Supabase in production)
-const conversations = new Map<string, CoachConversation>();
-// userId -> conversationId[]
-const userConversations = new Map<string, string[]>();
-
-function getOrCreateConversation(
+async function getOrCreateConversation(
   userId: string,
   conversationId: string | undefined,
   type: ConversationType,
-): CoachConversation {
-  if (conversationId && conversations.has(conversationId)) {
-    return conversations.get(conversationId)!;
+  conversationRepo: ConversationRepo,
+): Promise<CoachConversation> {
+  if (conversationId) {
+    const existing = await conversationRepo.getById(conversationId);
+    if (existing) {
+      if (existing.userId !== userId) {
+        throw new Error('Conversation does not belong to the current user');
+      }
+      return existing;
+    }
   }
 
   const conv: CoachConversation = {
@@ -46,13 +50,7 @@ function getOrCreateConversation(
     messages: [],
     planEdits: [],
   };
-  conversations.set(conv.id, conv);
-
-  const userConvs = userConversations.get(userId) ?? [];
-  userConvs.push(conv.id);
-  userConversations.set(userId, userConvs);
-
-  return conv;
+  return conversationRepo.create(conv);
 }
 
 export async function handleCoachMessage(
@@ -61,7 +59,12 @@ export async function handleCoachMessage(
   userMessage: string,
   deps: CoachDeps,
 ): Promise<{ conversation: CoachConversation; reply: CoachMessage }> {
-  const conv = getOrCreateConversation(userId, conversationId, 'free_form');
+  const conv = await getOrCreateConversation(
+    userId,
+    conversationId,
+    'free_form',
+    deps.conversationRepo,
+  );
 
   // Store user message
   const userMsg: CoachMessage = {
@@ -71,7 +74,7 @@ export async function handleCoachMessage(
     content: userMessage,
     createdAt: new Date().toISOString(),
   };
-  conv.messages.push(userMsg);
+  await deps.conversationRepo.addMessage(conv.id, userMsg);
 
   // Build context
   const [plan, activities, user] = await Promise.all([
@@ -88,7 +91,7 @@ export async function handleCoachMessage(
   );
 
   // Build message history for LLM
-  const llmMessages: LLMMessage[] = conv.messages.map((m) => ({
+  const llmMessages: LLMMessage[] = [...conv.messages, userMsg].map((m) => ({
     role: m.role,
     content: m.content,
   }));
@@ -104,20 +107,28 @@ export async function handleCoachMessage(
     content: replyText,
     createdAt: new Date().toISOString(),
   };
-  conv.messages.push(assistantMsg);
+  await deps.conversationRepo.addMessage(conv.id, assistantMsg);
 
-  return { conversation: conv, reply: assistantMsg };
+  const persistedConversation = await deps.conversationRepo.getById(conv.id);
+  if (!persistedConversation) {
+    throw new Error(`Conversation ${conv.id} disappeared after persistence`);
+  }
+
+  return { conversation: persistedConversation, reply: assistantMsg };
 }
 
-export function getConversation(conversationId: string): CoachConversation | null {
-  return conversations.get(conversationId) ?? null;
+export function getConversation(
+  conversationId: string,
+  conversationRepo: ConversationRepo,
+): Promise<CoachConversation | null> {
+  return conversationRepo.getById(conversationId);
 }
 
-export function getUserConversations(userId: string): CoachConversation[] {
-  const ids = userConversations.get(userId) ?? [];
-  return ids
-    .map((id) => conversations.get(id))
-    .filter(Boolean) as CoachConversation[];
+export function getUserConversations(
+  userId: string,
+  conversationRepo: ConversationRepo,
+): Promise<CoachConversation[]> {
+  return conversationRepo.listByUserId(userId);
 }
 
 function emptyPlan(userId: string): TrainingPlan {
@@ -133,5 +144,6 @@ function emptyPlan(userId: string): TrainingPlan {
     progressionPct: 0,
     templateWeek: [],
     weeks: [],
+    activeInjury: null,
   };
 }

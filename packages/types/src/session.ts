@@ -1,4 +1,13 @@
 export type SessionType = 'EASY' | 'INTERVAL' | 'TEMPO' | 'LONG' | 'REST';
+export type SubjectiveLegs = 'fresh' | 'normal' | 'heavy' | 'dead';
+export type SubjectiveBreathing = 'easy' | 'controlled' | 'labored';
+export type SubjectiveOverall = 'could-go-again' | 'done' | 'shattered';
+
+export interface SubjectiveInput {
+  legs: SubjectiveLegs;
+  breathing: SubjectiveBreathing;
+  overall: SubjectiveOverall;
+}
 
 export interface PlannedSession {
   id: string;
@@ -20,6 +29,10 @@ export interface PlannedSession {
 
   // Linked actual activity
   actualActivityId?: string;
+
+  // Post-session subjective check-in
+  subjectiveInput?: SubjectiveInput;
+  subjectiveInputDismissed?: boolean;
 }
 
 export type RecoveryDuration = '45s' | '60s' | '90s' | '2min' | '3min' | '4min' | '5min';

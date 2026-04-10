@@ -137,7 +137,14 @@
   </style>
 </head>
 <body>
-  <script>if (window.self !== window.top) document.body.classList.add('embedded');</script>
+  <script>
+    if (window.self !== window.top) document.body.classList.add('embedded');
+    // Auto-scroll chat to show proposal card
+    window.addEventListener('load', () => {
+      const chat = document.getElementById('chatArea');
+      if (chat) chat.scrollTop = chat.scrollHeight;
+    });
+  </script>
   <div class="phone-wrapper">
     <div class="phone-frame">
       <div class="status-bar">
@@ -159,15 +166,8 @@
         </div>
       </div>
 
-      <div class="chat-area">
+      <div class="chat-area" id="chatArea">
         <div class="date-divider">Today · Tue Mar 18</div>
-
-        <div class="msg-wrap coach">
-          <div class="msg coach">
-            <p>Yesterday's intervals. Here's the honest read.</p>
-            <div class="msg-time">9:14am</div>
-          </div>
-        </div>
 
         <div class="msg-wrap coach">
           <div class="msg coach">

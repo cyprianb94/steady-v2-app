@@ -56,8 +56,7 @@ steady-v2-app/
 │   ├── (tabs)/
 │   │   ├── week.tsx              # Week tab
 │   │   ├── block.tsx             # Block tab
-│   │   ├── coach.tsx             # Coach tab
-│   │   └── settings.tsx          # Settings tab
+│   │   └── settings.tsx          # Settings tab (includes Steady AI entry point)
 │   ├── onboarding/
 │   │   ├── welcome.tsx
 │   │   ├── plan-builder/
@@ -185,9 +184,9 @@ This is the highest priority UI feature. Build it first so you have data to popu
 
 **Reference:** `steady-app.jsx` is the complete working prototype.
 
-### Phase 4 — AI Coach (Week 7–8)
+### Phase 4 — Steady AI (Week 7–8)
 
-1. Coach tab conversation UI (`MessageBubble`, `CoachHeader`, `CoachInput`)
+1. Steady AI conversation UI (`MessageBubble`, `SteadyAIHeader`, `SteadyAIInput`)
 2. `PlanEditCard` component (before/after, apply/reject)
 3. Context builder in server (`lib/context-builder.ts`)
 4. Claude API proxy route in server
@@ -202,7 +201,7 @@ This is the highest priority UI feature. Build it first so you have data to popu
 2. Empty states for all screens
 3. Loading states and skeletons
 4. Error handling (no internet, sync failed, API error)
-5. Subscription / paywall (Steady Pro gating on Coach tab)
+5. Subscription / paywall (Steady AI gating in Settings)
 6. App Store assets and submission
 
 ---

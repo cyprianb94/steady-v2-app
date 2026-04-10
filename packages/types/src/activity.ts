@@ -1,3 +1,5 @@
+import type { SubjectiveInput } from './session';
+
 export interface ActivitySplit {
   km: number; // 1-indexed
   pace: number; // seconds per km
@@ -21,6 +23,9 @@ export interface Activity {
   maxHR?: number; // bpm
 
   splits: ActivitySplit[];
+
+  // Post-run subjective ratings
+  subjectiveInput?: SubjectiveInput;
 
   // Matched session (set by matching algorithm)
   matchedSessionId?: string;

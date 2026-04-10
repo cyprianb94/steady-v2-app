@@ -106,10 +106,22 @@ describe('propagateChange — scope: remaining', () => {
       expect(result[i].sessions[0]!.distance).toBeGreaterThanOrEqual(2);
     }
   });
+
+  it('skips completed sessions when propagating to remaining weeks', () => {
+    const plan = makePlan();
+    const completed = { ...plan[3].sessions[0]!, actualActivityId: 'activity-3' };
+    plan[3] = { ...plan[3], sessions: [completed, ...plan[3].sessions.slice(1)] };
+
+    const result = propagateChange(plan, 2, 0, easy(12), 'remaining', TEMPLATE);
+
+    expect(result[2].sessions[0]!.distance).toBe(12);
+    expect(result[3].sessions[0]).toEqual(completed);
+    expect(result[4].sessions[0]!.distance).toBe(12);
+  });
 });
 
 describe('propagateChange — scope: build', () => {
-  it('only changes BUILD phase weeks at or after target', () => {
+  it('changes every week in the target phase', () => {
     const plan = makePlan();
     // Phases: BASE(1), BUILD(4), PEAK(1)
     const updated = easy(12);
@@ -127,16 +139,58 @@ describe('propagateChange — scope: build', () => {
     expect(result[5].sessions[0]!.distance).toBe(8);
   });
 
-  it('skips non-BUILD weeks even if after target', () => {
-    const plan = makePlan();
+  it('can target a non-BUILD phase when requested', () => {
+    const plan = [
+      { ...week(1, 'BASE'), plannedKm: 18 },
+      { ...week(2, 'BUILD'), plannedKm: 18 },
+      { ...week(3, 'BASE'), plannedKm: 18 },
+      { ...week(4, 'PEAK'), plannedKm: 18 },
+    ];
     const updated = easy(15);
-    const result = propagateChange(plan, 1, 0, updated, 'build', TEMPLATE);
+    const result = propagateChange(plan, 0, 0, updated, 'build', TEMPLATE, 'BASE');
 
-    // PEAK week (index 5) should not be affected
-    expect(result[5].phase).toBe('PEAK');
-    expect(result[5].sessions[0]!.distance).toBe(8);
+    expect(result[0].sessions[0]!.distance).toBe(15);
+    expect(result[1].sessions[0]!.distance).toBe(8);
+    expect(result[2].sessions[0]!.distance).toBe(15);
+    expect(result[3].sessions[0]!.distance).toBe(8);
+  });
+
+  it('skips completed sessions in targeted phase weeks', () => {
+    const plan = makePlan();
+    const completed = { ...plan[3].sessions[0]!, actualActivityId: 'activity-build' };
+    plan[3] = { ...plan[3], sessions: [completed, ...plan[3].sessions.slice(1)] };
+
+    const result = propagateChange(plan, 1, 0, easy(12), 'build', TEMPLATE);
+
+    expect(result[1].sessions[0]!.distance).toBe(12);
+    expect(result[2].sessions[0]!.distance).toBe(12);
+    expect(result[3].sessions[0]).toEqual(completed);
+    expect(result[4].sessions[0]!.distance).toBe(12);
+  });
+
+  it('also updates earlier weeks in the same phase', () => {
+    const plan = [
+      { ...week(1, 'BASE'), plannedKm: 18 },
+      { ...week(2, 'BASE'), plannedKm: 18 },
+      { ...week(3, 'BUILD'), plannedKm: 18 },
+    ];
+
+    const result = propagateChange(plan, 1, 0, easy(14), 'build', TEMPLATE, 'BASE');
+
+    expect(result[0].sessions[0]!.distance).toBe(14);
+    expect(result[1].sessions[0]!.distance).toBe(14);
+    expect(result[2].sessions[0]!.distance).toBe(8);
   });
 });
+
+function week(weekNumber: number, phase: PlanWeek['phase']): PlanWeek {
+  return {
+    weekNumber,
+    phase,
+    sessions: [easy(8), interval(6), null, easy(10), null, null, null],
+    plannedKm: 24,
+  };
+}
 
 describe('propagateChange — edge cases', () => {
   it('handles null/REST updated session', () => {

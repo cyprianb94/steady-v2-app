@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, Alert } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { C } from '../../../constants/colours';
 import { SESSION_TYPE } from '../../../constants/session-types';
@@ -8,7 +8,8 @@ import { FONTS } from '../../../constants/typography';
 import { Btn } from '../../../components/ui/Btn';
 import { SessionDot } from '../../../components/ui/SessionDot';
 import { SessionRow } from '../../../components/plan-builder/SessionRow';
-import { generatePlan, propagateChange } from '@steady/types';
+import { raceDateForPlanStartingThisWeek, todayIsoLocal } from '../../../lib/plan-helpers';
+import { generatePlan, propagateChange, assignDates } from '@steady/types';
 import { trpc } from '../../../lib/trpc';
 import type { PlannedSession, PhaseConfig, PlanWeek } from '@steady/types';
 
@@ -43,7 +44,15 @@ export default function StepPlan() {
     scope: 'this' | 'remaining' | 'build',
   ) => {
     setPlan((prev) =>
-      propagateChange(prev, weekIndex, dayIndex, updated as PlannedSession | null, scope, template),
+      propagateChange(
+        prev,
+        weekIndex,
+        dayIndex,
+        updated as PlannedSession | null,
+        scope,
+        template,
+        prev[weekIndex]?.phase,
+      ),
     );
   };
 
@@ -54,21 +63,28 @@ export default function StepPlan() {
   const handleDone = async () => {
     setSaving(true);
     try {
+      const today = todayIsoLocal();
+      const raceDate = raceDateForPlanStartingThisWeek(today, weeks);
+      const datedWeeks = assignDates(plan, raceDate);
       await trpc.plan.save.mutate({
         raceName: params.race || 'Race',
-        raceDate: '2026-10-04', // TODO: Pass from StepGoal
+        raceDate,
         raceDistance: (params.race as any) || 'Marathon',
         targetTime: params.target || '',
         phases,
         progressionPct: progState ?? 0,
         templateWeek: template,
-        weeks: plan,
+        weeks: datedWeeks,
       });
-      router.replace('/(tabs)/week');
+      router.replace('/(tabs)/home');
     } catch (err) {
       console.error('Failed to save plan:', err);
-      // Still navigate — plan is available locally
-      router.replace('/(tabs)/week');
+      Alert.alert(
+        'Could not save plan',
+        err instanceof Error
+          ? err.message
+          : 'Please make sure you are signed in and the server is running.',
+      );
     } finally {
       setSaving(false);
     }
@@ -225,6 +241,8 @@ export default function StepPlan() {
                       dayIndex={di}
                       weekIndex={wi}
                       totalWeeks={plan.length}
+                      phaseName={w.phase}
+                      phaseWeekCount={plan.filter((week) => week.phase === w.phase).length}
                       onChanged={(dayIdx, updated, scope) => applyChange(wi, dayIdx, updated, scope)}
                     />
                   ))}

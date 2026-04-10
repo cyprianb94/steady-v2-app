@@ -26,10 +26,10 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="week"
+        name="home"
         options={{
-          title: 'Week',
-          tabBarIcon: ({ focused }) => <TabIcon name="week" focused={focused} />,
+          title: 'Home',
+          tabBarIcon: ({ focused }) => <TabIcon name="home" focused={focused} />,
         }}
       />
       <Tabs.Screen
@@ -40,10 +40,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="week"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
         name="coach"
         options={{
-          title: 'Coach',
-          tabBarIcon: ({ focused }) => <TabIcon name="coach" focused={focused} />,
+          href: null,
         }}
       />
       <Tabs.Screen

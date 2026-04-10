@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { router } from 'expo-router';
 import {
   View,
   FlatList,
@@ -9,9 +10,12 @@ import {
 import { CoachHeader } from '../../components/coach/CoachHeader';
 import { MessageBubble } from '../../components/coach/MessageBubble';
 import { CoachInput } from '../../components/coach/CoachInput';
+import { Btn } from '../../components/ui/Btn';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
+import { createId } from '../../lib/id';
 import { trpc } from '../../lib/trpc';
+import { useAuth } from '../../lib/auth';
 
 interface Message {
   id: string;
@@ -21,6 +25,7 @@ interface Message {
 }
 
 export default function CoachTab() {
+  const { session, isLoading } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [sending, setSending] = useState(false);
@@ -34,7 +39,7 @@ export default function CoachTab() {
   const handleSend = useCallback(
     async (text: string) => {
       const userMsg: Message = {
-        id: crypto.randomUUID(),
+        id: createId(),
         role: 'user',
         content: text,
         createdAt: new Date().toISOString(),
@@ -61,9 +66,12 @@ export default function CoachTab() {
         setMessages((prev) => [
           ...prev,
           {
-            id: crypto.randomUUID(),
+            id: createId(),
             role: 'assistant',
-            content: 'Sorry, I couldn\'t connect. Make sure the server is running.',
+            content:
+              err instanceof Error
+                ? `Sorry, that request failed: ${err.message}`
+                : 'Sorry, I couldn\'t connect. Make sure the server is running.',
             createdAt: new Date().toISOString(),
           },
         ]);
@@ -73,6 +81,31 @@ export default function CoachTab() {
     },
     [conversationId],
   );
+
+  if (isLoading) {
+    return (
+      <View style={styles.empty}>
+        <ActivityIndicator size="small" color={C.muted} />
+      </View>
+    );
+  }
+
+  if (!session) {
+    return (
+      <View style={styles.container}>
+        <CoachHeader />
+        <View style={styles.empty}>
+          <Text style={styles.emptyTitle}>Sign in to chat with Steady</Text>
+          <Text style={styles.emptyBody}>
+            Use the Settings tab to continue with Google, then come back here to test coach persistence.
+          </Text>
+          <View style={{ marginTop: 20 }}>
+            <Btn title="Go to settings" onPress={() => router.push('/(tabs)/settings')} />
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

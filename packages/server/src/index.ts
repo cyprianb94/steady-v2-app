@@ -1,10 +1,23 @@
 import Fastify from 'fastify';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   fastifyTRPCPlugin,
   type FastifyTRPCPluginOptions,
 } from '@trpc/server/adapters/fastify';
-import { appRouter, type AppRouter } from './trpc/router';
+import { createAppRouter, type AppRouter } from './trpc/router';
 import { createContext } from './trpc/context';
+import { createServerDeps } from './repos/server-deps';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const envPath = path.resolve(__dirname, '../../../.env');
+
+try {
+  process.loadEnvFile(envPath);
+} catch {
+  // Local env is optional in tests/CI and may be injected by the shell instead.
+}
 
 const server = Fastify({ logger: true });
 
@@ -12,6 +25,8 @@ const server = Fastify({ logger: true });
 server.get('/health', async () => {
   return { status: 'ok', service: 'steady-server' };
 });
+
+const appRouter = createAppRouter(createServerDeps());
 
 // tRPC
 server.register(fastifyTRPCPlugin, {

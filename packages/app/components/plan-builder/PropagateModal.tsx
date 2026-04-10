@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
+import type { PhaseName } from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { Btn } from '../ui/Btn';
@@ -8,6 +9,8 @@ interface PropagateModalProps {
   changeDesc: string;
   weekIndex: number;
   totalWeeks: number;
+  phaseName: PhaseName;
+  phaseWeekCount?: number;
   onApply: (scope: 'this' | 'remaining' | 'build') => void;
   onClose: () => void;
 }
@@ -15,16 +18,33 @@ interface PropagateModalProps {
 const OPTIONS = [
   { key: 'this' as const, label: 'This week only' },
   { key: 'remaining' as const, label: 'All remaining weeks' },
-  { key: 'build' as const, label: 'Build phase only' },
+  { key: 'build' as const, label: '' },
 ];
 
-export function PropagateModal({ changeDesc, weekIndex, totalWeeks, onApply, onClose }: PropagateModalProps) {
+function phaseLabel(phaseName: PhaseName): string {
+  return `${phaseName.slice(0, 1)}${phaseName.slice(1).toLowerCase()}`;
+}
+
+export function PropagateModal({
+  changeDesc,
+  weekIndex,
+  totalWeeks,
+  phaseName,
+  phaseWeekCount,
+  onApply,
+  onClose,
+}: PropagateModalProps) {
   const [scope, setScope] = useState<'this' | 'remaining' | 'build'>('remaining');
+  const phaseDisplay = phaseLabel(phaseName);
+  const phaseWeeks = phaseWeekCount ?? 1;
 
   const subs: Record<string, string> = {
     this: `Week ${weekIndex + 1} only`,
     remaining: `Weeks ${weekIndex + 1}–${totalWeeks}`,
-    build: 'Leaves peak & taper unchanged',
+    build:
+      phaseWeeks === 1
+        ? `Only 1 ${phaseDisplay.toLowerCase()} week in this plan`
+        : `${phaseWeeks} ${phaseDisplay.toLowerCase()} weeks in this plan`,
   };
 
   return (
@@ -46,6 +66,7 @@ export function PropagateModal({ changeDesc, weekIndex, totalWeeks, onApply, onC
           <View style={styles.options}>
             {OPTIONS.map((o) => {
               const active = scope === o.key;
+              const optionLabel = o.key === 'build' ? `${phaseDisplay} phase only` : o.label;
               return (
                 <Pressable
                   key={o.key}
@@ -65,7 +86,7 @@ export function PropagateModal({ changeDesc, weekIndex, totalWeeks, onApply, onC
                         { fontWeight: active ? '600' : '400' },
                       ]}
                     >
-                      {o.label}
+                      {optionLabel}
                     </Text>
                     <Text style={styles.optionSub}>{subs[o.key]}</Text>
                   </View>
