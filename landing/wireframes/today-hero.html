@@ -23,7 +23,6 @@
       background: var(--cream);
       display: flex; justify-content: center; align-items: center;
       min-height: 100vh; font-family: 'DM Sans', system-ui, sans-serif;
-      overflow: hidden;
     }
 
     .phone-wrapper { padding: 40px; }
@@ -193,12 +192,14 @@
     .tab.active span { color: var(--clay); font-weight: 600; }
     /* When embedded in iframe, strip the phone chrome */
     body.embedded {
-      background: var(--cream); overflow: hidden; display: block;
-      min-height: 100%; height: 100%;
+      background: var(--cream); overflow: hidden;
+      margin: 0;
     }
-    body.embedded .phone-wrapper { padding: 0; width: 100%; height: 100%; }
+    body.embedded .phone-wrapper { padding: 0; }
     body.embedded .phone-frame {
-      width: 100%; height: 100%; border: none; border-radius: 0;
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      border: none; border-radius: 0;
       box-shadow: none;
     }
   </style>
