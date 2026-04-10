@@ -32,6 +32,8 @@ export type {
   ActivitySplit,
 } from './activity';
 
+export type { IntegrationToken } from './integration-token';
+
 export type {
   ConversationType,
   CoachConversation,
