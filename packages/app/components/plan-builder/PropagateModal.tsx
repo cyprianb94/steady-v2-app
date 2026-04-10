@@ -10,6 +10,7 @@ interface PropagateModalProps {
   weekIndex: number;
   totalWeeks: number;
   phaseName: PhaseName;
+  phaseWeekCount?: number;
   onApply: (scope: 'this' | 'remaining' | 'build') => void;
   onClose: () => void;
 }
@@ -29,16 +30,21 @@ export function PropagateModal({
   weekIndex,
   totalWeeks,
   phaseName,
+  phaseWeekCount,
   onApply,
   onClose,
 }: PropagateModalProps) {
   const [scope, setScope] = useState<'this' | 'remaining' | 'build'>('remaining');
   const phaseDisplay = phaseLabel(phaseName);
+  const phaseWeeks = phaseWeekCount ?? 1;
 
   const subs: Record<string, string> = {
     this: `Week ${weekIndex + 1} only`,
     remaining: `Weeks ${weekIndex + 1}–${totalWeeks}`,
-    build: `Every ${phaseDisplay.toLowerCase()} week in the plan`,
+    build:
+      phaseWeeks === 1
+        ? `Only 1 ${phaseDisplay.toLowerCase()} week in this plan`
+        : `${phaseWeeks} ${phaseDisplay.toLowerCase()} weeks in this plan`,
   };
 
   return (

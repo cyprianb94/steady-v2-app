@@ -40,16 +40,25 @@ function session(id: string, type: PlannedSession['type'], overrides: Partial<Pl
 function makeWeek(
   weekNumber: number,
   sessions: (PlannedSession | null)[],
+  phase: TrainingPlanWithAnnotation['weeks'][number]['phase'] = 'BASE',
 ): TrainingPlanWithAnnotation['weeks'][number] {
   return {
     weekNumber,
-    phase: 'BASE',
+    phase,
     sessions,
     plannedKm: 24,
   };
 }
 
 function makePlan(weeks: TrainingPlanWithAnnotation['weeks']): TrainingPlanWithAnnotation {
+  const phases = weeks.reduce(
+    (acc, week) => {
+      acc[week.phase] += 1;
+      return acc;
+    },
+    { BASE: 0, BUILD: 0, RECOVERY: 0, PEAK: 0, TAPER: 0 } as TrainingPlanWithAnnotation['phases'],
+  );
+
   return {
     id: 'plan-1',
     userId: 'user-1',
@@ -58,7 +67,7 @@ function makePlan(weeks: TrainingPlanWithAnnotation['weeks']): TrainingPlanWithA
     raceDate: '2026-06-01',
     raceDistance: '10K',
     targetTime: 'sub-45',
-    phases: { BASE: weeks.length, BUILD: 0, RECOVERY: 0, PEAK: 0, TAPER: 0 },
+    phases,
     progressionPct: 0,
     templateWeek: weeks[0].sessions,
     weeks,
@@ -94,6 +103,16 @@ describe('BlockTab session rearrange', () => {
     ]);
   });
 
+  it('formats the race date and uses the wireframe-style phase caption copy', () => {
+    render(<BlockTab />);
+
+    expect(screen.getByText('Jun 1, 2026')).toBeTruthy();
+    expect(screen.getByText('Current phase:')).toBeTruthy();
+    expect(
+      screen.getByText(/Base\. Week 1 of 2\. Aerobic foundation building steadily\./),
+    ).toBeTruthy();
+  });
+
   it('shows the scope picker after done and persists the swap to remaining weeks by default', async () => {
     render(<BlockTab />);
 
@@ -106,6 +125,7 @@ describe('BlockTab session rearrange', () => {
     expect(screen.getByText('Apply change where?')).toBeTruthy();
     expect(screen.getByText('1 session swap')).toBeTruthy();
     expect(screen.getByText('Base phase only')).toBeTruthy();
+    expect(screen.getByText('2 base weeks in this plan')).toBeTruthy();
     expect(screen.queryByText('Build phase only')).toBeNull();
 
     fireEvent.click(screen.getByText('Apply change'));
@@ -213,5 +233,123 @@ describe('BlockTab session rearrange', () => {
     expect(input.weeks[0].sessions[1]?.id).toBeTruthy();
     expect(input.weeks[0].sessions[1]?.date).toBe('2026-04-07');
     expect(input.weeks[1].sessions[1]).toBeNull();
+  });
+
+  it('applies a build-phase edit across every build week only', async () => {
+    planState.current = makePlan([
+      makeWeek(1, [session('w1-easy', 'EASY'), null, null, null, null, null, null], 'BASE'),
+      makeWeek(2, [session('w2-easy', 'EASY'), null, null, null, null, null, null], 'BUILD'),
+      makeWeek(3, [session('w3-easy', 'EASY'), null, null, null, null, null, null], 'BUILD'),
+      makeWeek(4, [session('w4-easy', 'EASY'), null, null, null, null, null, null], 'PEAK'),
+    ]);
+
+    render(<BlockTab />);
+
+    fireEvent.click(screen.getByText('W2'));
+    fireEvent.click(screen.getByTestId('block-day-2-0'));
+    fireEvent.click(screen.getByText('R'));
+    fireEvent.click(screen.getByText('Update session'));
+
+    expect(screen.getByText('Build phase only')).toBeTruthy();
+    expect(screen.getByText('2 build weeks in this plan')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Build phase only'));
+    fireEvent.click(screen.getByText('Apply change'));
+
+    await waitFor(() => expect(mockUpdateWeeks).toHaveBeenCalledTimes(1));
+    const input = mockUpdateWeeks.mock.calls[0][0];
+    expect(input.weeks[0].sessions[0]?.type).toBe('EASY');
+    expect(input.weeks[1].sessions[0]).toBeNull();
+    expect(input.weeks[2].sessions[0]).toBeNull();
+    expect(input.weeks[3].sessions[0]?.type).toBe('EASY');
+  });
+
+  it('applies a future peak-phase edit across every peak week only', async () => {
+    planState.current = makePlan([
+      makeWeek(1, [session('w1-easy', 'EASY'), null, null, null, null, null, null], 'BASE'),
+      makeWeek(2, [session('w2-easy', 'EASY'), null, null, null, null, null, null], 'BUILD'),
+      makeWeek(3, [session('w3-easy', 'EASY'), null, null, null, null, null, null], 'PEAK'),
+      makeWeek(4, [session('w4-easy', 'EASY'), null, null, null, null, null, null], 'PEAK'),
+      makeWeek(5, [session('w5-easy', 'EASY'), null, null, null, null, null, null], 'TAPER'),
+    ]);
+
+    render(<BlockTab />);
+
+    fireEvent.click(screen.getByText('W4'));
+    fireEvent.click(screen.getByTestId('block-day-4-0'));
+    fireEvent.click(screen.getByText('R'));
+    fireEvent.click(screen.getByText('Update session'));
+
+    expect(screen.getByText('Peak phase only')).toBeTruthy();
+    expect(screen.getByText('2 peak weeks in this plan')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Peak phase only'));
+    fireEvent.click(screen.getByText('Apply change'));
+
+    await waitFor(() => expect(mockUpdateWeeks).toHaveBeenCalledTimes(1));
+    const input = mockUpdateWeeks.mock.calls[0][0];
+    expect(input.weeks[0].sessions[0]?.type).toBe('EASY');
+    expect(input.weeks[1].sessions[0]?.type).toBe('EASY');
+    expect(input.weeks[2].sessions[0]).toBeNull();
+    expect(input.weeks[3].sessions[0]).toBeNull();
+    expect(input.weeks[4].sessions[0]?.type).toBe('EASY');
+  });
+
+  it('applies a recovery-phase edit across every recovery week only', async () => {
+    planState.current = makePlan([
+      makeWeek(1, [session('w1-easy', 'EASY'), null, null, null, null, null, null], 'BASE'),
+      makeWeek(2, [session('w2-easy', 'EASY'), null, null, null, null, null, null], 'RECOVERY'),
+      makeWeek(3, [session('w3-easy', 'EASY'), null, null, null, null, null, null], 'RECOVERY'),
+      makeWeek(4, [session('w4-easy', 'EASY'), null, null, null, null, null, null], 'BUILD'),
+    ]);
+
+    render(<BlockTab />);
+
+    fireEvent.click(screen.getByText('W3'));
+    fireEvent.click(screen.getByTestId('block-day-3-0'));
+    fireEvent.click(screen.getByText('R'));
+    fireEvent.click(screen.getByText('Update session'));
+
+    expect(screen.getByText('Recovery phase only')).toBeTruthy();
+    expect(screen.getByText('2 recovery weeks in this plan')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Recovery phase only'));
+    fireEvent.click(screen.getByText('Apply change'));
+
+    await waitFor(() => expect(mockUpdateWeeks).toHaveBeenCalledTimes(1));
+    const input = mockUpdateWeeks.mock.calls[0][0];
+    expect(input.weeks[0].sessions[0]?.type).toBe('EASY');
+    expect(input.weeks[1].sessions[0]).toBeNull();
+    expect(input.weeks[2].sessions[0]).toBeNull();
+    expect(input.weeks[3].sessions[0]?.type).toBe('EASY');
+  });
+
+  it('applies a taper-phase edit across every taper week only', async () => {
+    planState.current = makePlan([
+      makeWeek(1, [session('w1-easy', 'EASY'), null, null, null, null, null, null], 'BUILD'),
+      makeWeek(2, [session('w2-easy', 'EASY'), null, null, null, null, null, null], 'PEAK'),
+      makeWeek(3, [session('w3-easy', 'EASY'), null, null, null, null, null, null], 'TAPER'),
+      makeWeek(4, [session('w4-easy', 'EASY'), null, null, null, null, null, null], 'TAPER'),
+    ]);
+
+    render(<BlockTab />);
+
+    fireEvent.click(screen.getByText('W4'));
+    fireEvent.click(screen.getByTestId('block-day-4-0'));
+    fireEvent.click(screen.getByText('R'));
+    fireEvent.click(screen.getByText('Update session'));
+
+    expect(screen.getByText('Taper phase only')).toBeTruthy();
+    expect(screen.getByText('2 taper weeks in this plan')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Taper phase only'));
+    fireEvent.click(screen.getByText('Apply change'));
+
+    await waitFor(() => expect(mockUpdateWeeks).toHaveBeenCalledTimes(1));
+    const input = mockUpdateWeeks.mock.calls[0][0];
+    expect(input.weeks[0].sessions[0]?.type).toBe('EASY');
+    expect(input.weeks[1].sessions[0]?.type).toBe('EASY');
+    expect(input.weeks[2].sessions[0]).toBeNull();
+    expect(input.weeks[3].sessions[0]).toBeNull();
   });
 });

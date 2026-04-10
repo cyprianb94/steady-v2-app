@@ -17,12 +17,14 @@ interface DayCardProps {
 
 export function DayCard({ session, dayName, isToday, onPress, muted = false }: DayCardProps) {
   const isRest = !session || session.type === 'REST';
+  const isOpenable = !isRest && typeof onPress === 'function';
   const tc = session ? SESSION_TYPE[session.type] : null;
   const hasActual = !!session?.actualActivityId;
 
   return (
     <Pressable
       onPress={onPress}
+      disabled={!isOpenable}
       style={[
         styles.card,
         {
@@ -66,7 +68,7 @@ export function DayCard({ session, dayName, isToday, onPress, muted = false }: D
 
       <View style={styles.right}>
         {hasActual && <Text style={styles.checkmark}>✓</Text>}
-        {!isRest && <Text style={styles.chevron}>›</Text>}
+        {isOpenable && <Text style={styles.chevron}>›</Text>}
       </View>
     </Pressable>
   );

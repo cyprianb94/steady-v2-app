@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, StyleSheet, Alert, RefreshControl } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { router } from 'expo-router';
-import { type CrossTrainingEntry } from '@steady/types';
+import { type Activity, type CrossTrainingEntry, type PlannedSession } from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { usePlan } from '../../hooks/usePlan';
 import { useStravaSync } from '../../hooks/useStravaSync';
+import { useTodayIso } from '../../hooks/useTodayIso';
 import { useAuth } from '../../lib/auth';
 import { WeekHeader } from '../../components/week/WeekHeader';
 import { LoadBar } from '../../components/week/LoadBar';
@@ -17,6 +18,7 @@ import { InjuryBanner } from '../../components/recovery/InjuryBanner';
 import { CrossTrainingLog } from '../../components/recovery/CrossTrainingLog';
 import { RecoveryFlowModal } from '../../components/recovery/RecoveryFlowModal';
 import { ReturnToRunning } from '../../components/recovery/ReturnToRunning';
+import { SessionDetailSheet } from '../../components/home/SessionDetailSheet';
 import { trpc } from '../../lib/trpc';
 import { clearResumeWeekOverride, setResumeWeekOverride } from '../../lib/resume-week';
 
@@ -33,12 +35,52 @@ export default function WeekTab() {
   const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
   const [isUpdatingRtr, setIsUpdatingRtr] = useState(false);
   const [showResumeModal, setShowResumeModal] = useState(false);
-  const today = new Date().toISOString().slice(0, 10);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [selectedSession, setSelectedSession] = useState<PlannedSession | null>(null);
+  const today = useTodayIso();
   const weekIdx = plan ? currentWeekIndex + weekOffset : 0;
   const week = plan?.weeks[weekIdx] ?? null;
   const activeInjury =
     plan?.activeInjury && plan.activeInjury.status !== 'resolved' ? plan.activeInjury : null;
   const weekStartDate = week ? inferWeekStartDate(week, today) : today;
+  const activitiesBySessionId = useMemo(() => {
+    return new Map(
+      activities
+        .filter((activity) => Boolean(activity.matchedSessionId))
+        .map((activity) => [activity.matchedSessionId!, activity]),
+    );
+  }, [activities]);
+  const selectedActivity =
+    selectedSession?.id ? activitiesBySessionId.get(selectedSession.id) ?? null : null;
+
+  useEffect(() => {
+    if (!plan) {
+      setActivities([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function fetchActivities() {
+      try {
+        const nextActivities = await trpc.activity.list.query();
+        if (!cancelled) {
+          setActivities(nextActivities);
+        }
+      } catch (error) {
+        console.error('Failed to fetch activities for week view:', error);
+        if (!cancelled) {
+          setActivities([]);
+        }
+      }
+    }
+
+    fetchActivities();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [plan?.id, syncRevision]);
 
   useEffect(() => {
     if (!session || !plan || !week || !activeInjury) {
@@ -301,6 +343,7 @@ export default function WeekTab() {
         {week.sessions.map((session, i) => {
           const sessionDate = session?.date ?? '';
           const isToday = sessionDate === today;
+          const activity = session?.id ? activitiesBySessionId.get(session.id) : undefined;
 
           return (
             <DayCard
@@ -309,9 +352,7 @@ export default function WeekTab() {
               dayName={DAYS[i]}
               isToday={isToday}
               muted={!!activeInjury && !session?.actualActivityId}
-              onPress={() => {
-                // TODO: Open session detail sheet (Slice 16)
-              }}
+              onPress={activity && session ? () => setSelectedSession(session) : undefined}
             />
           );
         })}
@@ -328,6 +369,14 @@ export default function WeekTab() {
           onClose={() => setShowResumeModal(false)}
           onMarkInjury={async () => {}}
           onEndRecovery={handleCompleteRecovery}
+        />
+      ) : null}
+      {selectedSession && selectedActivity ? (
+        <SessionDetailSheet
+          visible
+          session={selectedSession}
+          activity={selectedActivity}
+          onClose={() => setSelectedSession(null)}
         />
       ) : null}
     </View>

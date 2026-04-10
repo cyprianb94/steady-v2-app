@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import type { PlannedSession } from '@steady/types';
 import { SESSION_TYPE } from '../../constants/session-types';
-import { sessionLabel } from '../../lib/plan-helpers';
 import { FONTS } from '../../constants/typography';
 import { C } from '../../constants/colours';
 
@@ -12,6 +11,41 @@ interface CompactDayRowProps {
   session: PlannedSession | null;
   status?: 'completed' | 'off-target' | 'missed' | 'today' | 'upcoming' | 'rest';
   metricLabel?: string | null;
+}
+
+function StatusIcon({ status }: { status: 'completed' | 'off-target' | 'missed' }) {
+  if (status === 'completed') {
+    return (
+      <View style={styles.checkBadge} testID="day-row-check">
+        <Text style={styles.checkGlyph}>✓</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.warningWrap} testID="day-row-warning">
+      <View style={styles.warningTriangle} />
+      <Text style={styles.warningGlyph}>!</Text>
+    </View>
+  );
+}
+
+function compactSessionLabel(session: PlannedSession | null): string {
+  if (!session || session.type === 'REST') return 'Rest';
+
+  switch (session.type) {
+    case 'INTERVAL':
+      return session.reps && session.repDist
+        ? `${session.reps}×${session.repDist}m Intervals`
+        : 'Intervals';
+    case 'TEMPO':
+      return `Tempo ${session.distance ?? 0}k`;
+    case 'LONG':
+      return `Long ${session.distance ?? 0}k`;
+    case 'EASY':
+    default:
+      return `Easy ${session.distance ?? 0}k`;
+  }
 }
 
 export function CompactDayRow({ dayName, dateLabel, session, status, metricLabel }: CompactDayRowProps) {
@@ -36,31 +70,13 @@ export function CompactDayRow({ dayName, dateLabel, session, status, metricLabel
       )}
 
       <Text style={[styles.label, isRest && styles.muted]} numberOfLines={1}>
-        {sessionLabel(session)}
+        {compactSessionLabel(session)}
       </Text>
 
       <View style={styles.statusBlock}>
         {metricLabel ? <Text style={styles.metricLabel}>{metricLabel}</Text> : null}
-        {rowStatus === 'completed' && (
-          <Text style={styles.check} testID="day-row-check">
-            ✓
-          </Text>
-        )}
-        {rowStatus === 'off-target' && (
-          <Text style={styles.warning} testID="day-row-warning">
-            ⚠
-          </Text>
-        )}
-        {rowStatus === 'missed' && (
-          <Text style={styles.missed} testID="day-row-missed">
-            Missed
-          </Text>
-        )}
-        {rowStatus === 'today' && (
-          <Text style={styles.todayBadge} testID="day-row-today">
-            Today
-          </Text>
-        )}
+        {rowStatus === 'completed' && <StatusIcon status="completed" />}
+        {(rowStatus === 'off-target' || rowStatus === 'missed') && <StatusIcon status={rowStatus} />}
       </View>
     </View>
   );
@@ -85,14 +101,17 @@ const styles = StyleSheet.create({
   },
   day: {
     fontFamily: FONTS.sansSemiBold,
-    fontSize: 13,
-    color: C.ink,
+    fontSize: 11,
+    color: C.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   date: {
-    fontFamily: FONTS.sans,
+    fontFamily: FONTS.sansMedium,
     fontSize: 10,
     color: C.muted,
     marginTop: 2,
+    textTransform: 'uppercase',
   },
   dot: {
     width: 8,
@@ -101,7 +120,7 @@ const styles = StyleSheet.create({
   },
   label: {
     flex: 1,
-    fontFamily: FONTS.sans,
+    fontFamily: FONTS.sansMedium,
     fontSize: 13,
     color: C.ink2,
   },
@@ -109,6 +128,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    minWidth: 40,
+    justifyContent: 'flex-end',
   },
   metricLabel: {
     fontFamily: FONTS.mono,
@@ -118,26 +139,46 @@ const styles = StyleSheet.create({
   muted: {
     color: C.muted,
   },
-  check: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 14,
-    color: C.forest,
+  checkBadge: {
+    width: 16,
+    height: 16,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(42,92,69,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(42,92,69,0.08)',
   },
-  missed: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 11,
-    color: C.clay,
-  },
-  warning: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 13,
-    color: C.amber,
-  },
-  todayBadge: {
+  checkGlyph: {
     fontFamily: FONTS.sansSemiBold,
     fontSize: 10,
-    color: C.amber,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    color: C.forest,
+    lineHeight: 10,
+  },
+  warningWrap: {
+    width: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  warningTriangle: {
+    position: 'absolute',
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderBottomWidth: 14,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: 'rgba(196,82,42,0.22)',
+    top: 1,
+  },
+  warningGlyph: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 10,
+    color: C.clay,
+    lineHeight: 10,
+    marginTop: 2,
   },
 });

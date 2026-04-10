@@ -13,6 +13,7 @@ import {
 import { useIsFocused } from '@react-navigation/native';
 import { usePlan } from '../../hooks/usePlan';
 import { useStravaSync } from '../../hooks/useStravaSync';
+import { useTodayIso } from '../../hooks/useTodayIso';
 import { RearrangeSheet } from '../../components/block/RearrangeSheet';
 import { PropagateModal } from '../../components/plan-builder/PropagateModal';
 import { SessionEditor } from '../../components/plan-builder/SessionEditor';
@@ -20,7 +21,8 @@ import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { PHASE_COLOR } from '../../constants/phase-meta';
 import { SESSION_TYPE } from '../../constants/session-types';
-import { addDaysIso, DAYS, inferWeekStartDate, sessionLabel, weekKm } from '../../lib/plan-helpers';
+import { createId } from '../../lib/id';
+import { addDaysIso, DAYS, inferWeekStartDate, sessionLabel, todayIsoLocal, weekKm } from '../../lib/plan-helpers';
 import { trpc } from '../../lib/trpc';
 import {
   buildBlockPhaseSegments,
@@ -72,7 +74,7 @@ function formatRaceDate(date: string | null | undefined): string {
 function getWeekStartDate(week: PlanWeek): string {
   const fallbackDate =
     week.sessions.find((session) => session?.date)?.date ??
-    new Date().toISOString().slice(0, 10);
+    todayIsoLocal();
   return inferWeekStartDate(week, fallbackDate);
 }
 
@@ -223,7 +225,8 @@ function materializeSessionForWeek(
   return {
     ...existing,
     ...updated,
-    id: existing?.id ?? crypto.randomUUID(),
+    type: updated.type ?? existing?.type ?? 'EASY',
+    id: existing?.id ?? createId(),
     date: existing?.date ?? addDaysIso(getWeekStartDate(week), dayIndex),
   };
 }
@@ -239,7 +242,7 @@ function normalizeEditedDayIdentity(
 
     const originalWeek = originalWeeks[weekIndex] ?? nextWeek;
     const originalSession = originalWeek.sessions[dayIndex];
-    const id = originalSession?.id ?? crypto.randomUUID();
+    const id = originalSession?.id ?? createId();
     const date = originalSession?.date ?? addDaysIso(getWeekStartDate(originalWeek), dayIndex);
 
     if (nextSession.id === id && nextSession.date === date) {
@@ -274,7 +277,7 @@ export default function BlockTab() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [crossTrainingEntries, setCrossTrainingEntries] = useState<CrossTrainingEntry[]>([]);
   const [isLoadingCrossTraining, setIsLoadingCrossTraining] = useState(false);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = useTodayIso();
 
   const activeInjury =
     plan?.activeInjury && plan.activeInjury.status !== 'resolved' ? plan.activeInjury : null;
@@ -825,6 +828,7 @@ export default function BlockTab() {
           weekIndex={pendingRearrange.weekIndex}
           totalWeeks={plan.weeks.length}
           phaseName={plan.weeks[pendingRearrange.weekIndex]?.phase ?? 'BUILD'}
+          phaseWeekCount={plan.weeks.filter((week) => week.phase === plan.weeks[pendingRearrange.weekIndex]?.phase).length}
           onApply={applyPendingRearrange}
           onClose={() => setPendingRearrange(null)}
         />
@@ -843,6 +847,7 @@ export default function BlockTab() {
           weekIndex={pendingEdit.weekIndex}
           totalWeeks={plan.weeks.length}
           phaseName={plan.weeks[pendingEdit.weekIndex]?.phase ?? 'BUILD'}
+          phaseWeekCount={plan.weeks.filter((week) => week.phase === plan.weeks[pendingEdit.weekIndex]?.phase).length}
           onApply={applyPendingEdit}
           onClose={() => setPendingEdit(null)}
         />

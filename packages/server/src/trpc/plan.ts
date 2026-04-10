@@ -44,9 +44,6 @@ function findSessionForDateOrWeekday(
   sessions: (PlannedSession | null)[],
   date: string,
 ): PlannedSession | null {
-  const exactSession = sessions.find((session) => session?.date === date);
-  if (exactSession) return exactSession;
-
   return sessions[dayIndexForDate(date)] ?? null;
 }
 

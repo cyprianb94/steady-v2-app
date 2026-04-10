@@ -3,6 +3,17 @@ import type { AppRouter } from '@steady/server/src/trpc/router';
 import { getAccessToken } from './auth-session';
 
 const getBaseUrl = () => {
+  const configuredBaseUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+  if (configuredBaseUrl) {
+    return configuredBaseUrl.replace(/\/+$/, '');
+  }
+
+  if (!__DEV__) {
+    throw new Error(
+      'Missing EXPO_PUBLIC_API_URL. Release builds need a public HTTPS API URL.',
+    );
+  }
+
   // In dev, use the machine's LAN IP so physical devices can reach the server.
   // expo-constants exposes the debuggerHost which includes the IP Metro is using.
   const { default: Constants } = require('expo-constants') as {

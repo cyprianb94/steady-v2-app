@@ -3,6 +3,7 @@ import { getDisplayWeekIndex, type TrainingPlanWithAnnotation, type PlanWeek } f
 import { trpc } from '../lib/trpc';
 import { useAuth } from '../lib/auth';
 import { getResumeWeekOverride } from '../lib/resume-week';
+import { useTodayIso } from './useTodayIso';
 
 interface UsePlanResult {
   plan: TrainingPlanWithAnnotation | null;
@@ -46,7 +47,7 @@ export function usePlan(): UsePlanResult {
     fetchPlan();
   }, [authLoading, fetchPlan]);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = useTodayIso();
   const currentWeekIndex = plan
     ? getDisplayWeekIndex(plan.weeks, today, resumeWeekNumber)
     : 0;

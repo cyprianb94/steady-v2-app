@@ -22,7 +22,25 @@ describe('CompactDayRow', () => {
     );
 
     expect(screen.getByText('Thu')).toBeTruthy();
-    expect(screen.getByText('8km @ 5:20')).toBeTruthy();
+    expect(screen.getByText('Easy 8k')).toBeTruthy();
+  });
+
+  it('renders interval rows with reps first and workout type after', () => {
+    render(
+      <CompactDayRow
+        dayName="Tue"
+        session={{
+          id: 's-interval',
+          type: 'INTERVAL',
+          date: '2026-04-08',
+          reps: 6,
+          repDist: 800,
+          pace: '3:50',
+        }}
+      />,
+    );
+
+    expect(screen.getByText('6×800m Intervals')).toBeTruthy();
   });
 
   it('shows a checkmark when session has actualActivityId', () => {
@@ -58,15 +76,15 @@ describe('CompactDayRow', () => {
       />,
     );
 
-    expect(screen.getByTestId('day-row-missed')).toBeTruthy();
-    expect(screen.getByText('Missed')).toBeTruthy();
+    expect(screen.getByTestId('day-row-warning')).toBeTruthy();
   });
 
-  it('shows a today badge for the current planned session', () => {
+  it('shows the right-hand metric for the current planned session', () => {
     render(
       <CompactDayRow
         dayName="Thu"
         status="today"
+        metricLabel="10k"
         session={{
           id: 's4',
           type: 'TEMPO',
@@ -77,7 +95,7 @@ describe('CompactDayRow', () => {
       />,
     );
 
-    expect(screen.getByTestId('day-row-today')).toBeTruthy();
+    expect(screen.getByText('10k')).toBeTruthy();
   });
 
   it('renders rest day with muted label', () => {

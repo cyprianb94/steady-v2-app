@@ -13,6 +13,7 @@ import { CoachInput } from '../../components/coach/CoachInput';
 import { Btn } from '../../components/ui/Btn';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
+import { createId } from '../../lib/id';
 import { trpc } from '../../lib/trpc';
 import { useAuth } from '../../lib/auth';
 
@@ -38,7 +39,7 @@ export default function CoachTab() {
   const handleSend = useCallback(
     async (text: string) => {
       const userMsg: Message = {
-        id: crypto.randomUUID(),
+        id: createId(),
         role: 'user',
         content: text,
         createdAt: new Date().toISOString(),
@@ -65,7 +66,7 @@ export default function CoachTab() {
         setMessages((prev) => [
           ...prev,
           {
-            id: crypto.randomUUID(),
+            id: createId(),
             role: 'assistant',
             content:
               err instanceof Error

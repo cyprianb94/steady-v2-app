@@ -7,6 +7,7 @@ import { FONTS } from '../../constants/typography';
 import { useAuth } from '../../lib/auth';
 import { usePlan } from '../../hooks/usePlan';
 import { useStravaSync } from '../../hooks/useStravaSync';
+import { useTodayIso } from '../../hooks/useTodayIso';
 import { trpc } from '../../lib/trpc';
 import { Btn } from '../../components/ui/Btn';
 import { PhaseThemeProvider } from '../../components/home/PhaseThemeProvider';
@@ -14,7 +15,7 @@ import { TodayHeroCard } from '../../components/home/TodayHeroCard';
 import { RemainingDaysList } from '../../components/home/RemainingDaysList';
 import { CoachAnnotationCard } from '../../components/home/CoachAnnotationCard';
 import { WeeklyLoadCard } from '../../components/home/WeeklyLoadCard';
-import { addDaysIso, findSessionForDateOrWeekday, inferWeekStartDate } from '../../lib/plan-helpers';
+import { addDaysIso, findSessionForDateOrWeekday, startOfWeekIso } from '../../lib/plan-helpers';
 import type { Activity, SubjectiveInput } from '@steady/types';
 
 const HOME_SCROLL_TOP_PADDING = 14;
@@ -38,7 +39,7 @@ export default function HomeScreen() {
   const { plan, loading, currentWeek, refresh } = usePlan();
   const { forceSync, syncRevision, syncing } = useStravaSync();
   const [activities, setActivities] = useState<Activity[]>([]);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = useTodayIso();
   const weekSessions = currentWeek?.sessions ?? [];
 
   const activitiesBySessionId = useMemo(() => {
@@ -132,7 +133,7 @@ export default function HomeScreen() {
 
   const week = currentWeek;
   const todaySession = findSessionForDateOrWeekday(week.sessions, today);
-  const weekStartDate = inferWeekStartDate(week, today);
+  const weekStartDate = startOfWeekIso(today);
   const steadyNote = todaySession ? plan.coachAnnotation : null;
   const coachNote = steadyNote && plan.coachAnnotation === steadyNote ? null : plan.coachAnnotation;
 
@@ -183,7 +184,6 @@ export default function HomeScreen() {
           <View style={styles.header}>
             <Text style={styles.headerMeta}>{formatWeekRangeLabel(weekStartDate)}</Text>
             <Text style={styles.headerKicker}>{formatPhaseHeading(week.weekNumber, week.phase)}</Text>
-            <Text style={styles.headerSubtitle}>Focus on the session in front of you.</Text>
           </View>
           <WeeklyLoadCard actualKm={weeklyActualKm} plannedKm={week.plannedKm} />
           <TodayHeroCard
@@ -250,13 +250,8 @@ const styles = StyleSheet.create({
   },
   headerKicker: {
     fontFamily: FONTS.serifBold,
-    fontSize: 30,
+    fontSize: 32,
+    fontWeight: '700',
     color: C.ink,
-  },
-  headerSubtitle: {
-    fontFamily: FONTS.sans,
-    fontSize: 13,
-    color: C.muted,
-    marginTop: 2,
   },
 });

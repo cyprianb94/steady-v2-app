@@ -51,6 +51,11 @@ export function addDaysIso(date: string, days: number): string {
   return value.toISOString().slice(0, 10);
 }
 
+export function todayIsoLocal(now: Date = new Date()): string {
+  const timezoneOffsetMs = now.getTimezoneOffset() * 60_000;
+  return new Date(now.getTime() - timezoneOffsetMs).toISOString().slice(0, 10);
+}
+
 export function startOfWeekIso(date: string): string {
   const value = new Date(`${date}T00:00:00Z`);
   const day = value.getUTCDay();
@@ -73,9 +78,6 @@ export function findSessionForDateOrWeekday(
   sessions: (PlannedSession | null)[],
   date: string,
 ): PlannedSession | null {
-  const exactSession = sessions.find((session) => session?.date === date);
-  if (exactSession) return exactSession;
-
   return sessions[dayIndexForIsoDate(date)] ?? null;
 }
 
@@ -87,7 +89,7 @@ export function getRemainingWeekStartIndex(
   return (exactIndex >= 0 ? exactIndex : dayIndexForIsoDate(date)) + 1;
 }
 
-export function inferWeekStartDate(week: PlanWeek, fallbackDate = new Date().toISOString().slice(0, 10)): string {
+export function inferWeekStartDate(week: PlanWeek, fallbackDate = todayIsoLocal()): string {
   for (let i = 0; i < week.sessions.length; i++) {
     const session = week.sessions[i];
     if (session?.date) {

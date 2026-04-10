@@ -133,4 +133,39 @@ describe('plan subjective input', () => {
     expect(plan?.coachAnnotation).toMatch(/first week|consistency/i);
     expect(plan?.coachAnnotation).not.toMatch(/rest day/i);
   });
+
+  it('treats today as rest when another slot carries a stale copy of today’s date', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-10T12:00:00Z')); // Friday
+    await planRepo.save({
+      ...makePlan(),
+      weeks: [
+        {
+          weekNumber: 1,
+          phase: 'BASE',
+          plannedKm: 12,
+          sessions: [
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              id: 'saturday-session',
+              type: 'EASY',
+              date: '2026-04-10',
+              distance: 12,
+              pace: '5:20',
+            },
+            null,
+          ],
+        },
+      ],
+    });
+
+    const plan = await caller.plan.get();
+
+    expect(plan?.coachAnnotation).toMatch(/rest day/i);
+    expect(plan?.coachAnnotation).not.toMatch(/consistency/i);
+  });
 });

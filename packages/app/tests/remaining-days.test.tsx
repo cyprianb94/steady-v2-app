@@ -31,14 +31,16 @@ describe('RemainingDaysList', () => {
 
     expect(screen.getByText('This week')).toBeTruthy();
     expect(screen.getByText('Mon')).toBeTruthy();
+    expect(screen.getByText('APR 6')).toBeTruthy();
     expect(screen.getByText('Tue')).toBeTruthy();
     expect(screen.getByText('Wed')).toBeTruthy();
     expect(screen.getByText('Thu')).toBeTruthy();
     expect(screen.getByText('Fri')).toBeTruthy();
     expect(screen.getByText('Sat')).toBeTruthy();
     expect(screen.getByText('Sun')).toBeTruthy();
-    expect(screen.getAllByTestId('day-row-missed')).toHaveLength(3);
-    expect(screen.getByTestId('day-row-today')).toBeTruthy();
+    expect(screen.getAllByTestId('day-row-warning')).toHaveLength(3);
+    expect(screen.getAllByText('8k').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Missed')).toBeNull();
   });
 
   it('still renders all days when today is Sunday', () => {
@@ -54,8 +56,8 @@ describe('RemainingDaysList', () => {
     );
 
     expect(screen.queryAllByTestId('compact-day-row')).toHaveLength(7);
-    expect(screen.getAllByTestId('day-row-missed')).toHaveLength(6);
-    expect(screen.getByTestId('day-row-today')).toBeTruthy();
+    expect(screen.getAllByTestId('day-row-warning')).toHaveLength(6);
+    expect(screen.getAllByText('8k').length).toBeGreaterThan(0);
   });
 
   it('falls back to weekday position when saved dates do not include today', () => {
@@ -71,7 +73,7 @@ describe('RemainingDaysList', () => {
     );
 
     expect(screen.getByText('Fri')).toBeTruthy();
-    expect(screen.getByTestId('day-row-today')).toBeTruthy();
+    expect(screen.getAllByText('8k').length).toBeGreaterThan(0);
     expect(screen.getByText('Sat')).toBeTruthy();
     expect(screen.getByText('Sun')).toBeTruthy();
   });
@@ -115,7 +117,8 @@ describe('RemainingDaysList', () => {
       />,
     );
 
-    expect(screen.getByText('8.2km')).toBeTruthy();
+    expect(screen.getByText('8.2k')).toBeTruthy();
+    expect(screen.getByTestId('day-row-check')).toBeTruthy();
   });
 
   it('shows an off-target warning when a completed session is materially short of plan', () => {
@@ -157,7 +160,30 @@ describe('RemainingDaysList', () => {
       />,
     );
 
-    expect(screen.getByText('5.5km')).toBeTruthy();
-    expect(screen.getByTestId('day-row-warning')).toBeTruthy();
+    expect(screen.getByText('5.5k')).toBeTruthy();
+    expect(screen.getAllByTestId('day-row-warning').length).toBeGreaterThan(0);
+  });
+
+  it('shows planned totals on the right for incomplete week rows', () => {
+    const sessions: (PlannedSession | null)[] = [
+      { id: 'mon', type: 'EASY', date: '2026-04-06', distance: 8, pace: '5:20' },
+      { id: 'tue', type: 'TEMPO', date: '2026-04-07', distance: 10, pace: '4:20' },
+      null,
+      { id: 'thu', type: 'EASY', date: '2026-04-09', distance: 12, pace: '5:10' },
+      null,
+      null,
+      null,
+    ];
+
+    render(
+      <RemainingDaysList
+        sessions={sessions}
+        today="2026-04-09"
+      />,
+    );
+
+    expect(screen.getAllByText('8k').length).toBeGreaterThan(0);
+    expect(screen.getByText('10k')).toBeTruthy();
+    expect(screen.getByText('12k')).toBeTruthy();
   });
 });

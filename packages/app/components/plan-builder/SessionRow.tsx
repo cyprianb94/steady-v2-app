@@ -15,10 +15,11 @@ interface SessionRowProps {
   weekIndex: number;
   totalWeeks: number;
   phaseName: PhaseName;
+  phaseWeekCount?: number;
   onChanged: (dayIndex: number, updated: Partial<PlannedSession> | null, scope: 'this' | 'remaining' | 'build') => void;
 }
 
-export function SessionRow({ sess, dayIndex, weekIndex, totalWeeks, phaseName, onChanged }: SessionRowProps) {
+export function SessionRow({ sess, dayIndex, weekIndex, totalWeeks, phaseName, phaseWeekCount, onChanged }: SessionRowProps) {
   const [pending, setPending] = useState<{ updated: Partial<PlannedSession> | null; desc: string } | null>(null);
 
   const currentType: SessionType = (sess?.type as SessionType) || 'REST';
@@ -154,6 +155,7 @@ export function SessionRow({ sess, dayIndex, weekIndex, totalWeeks, phaseName, o
           weekIndex={weekIndex}
           totalWeeks={totalWeeks}
           phaseName={phaseName}
+          phaseWeekCount={phaseWeekCount}
           onApply={(scope) => {
             onChanged(dayIndex, pending.updated, scope);
             setPending(null);

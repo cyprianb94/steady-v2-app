@@ -16,7 +16,7 @@ interface RemainingDaysListProps {
 
 function formatShortDate(date: string): string {
   const value = new Date(`${date}T00:00:00Z`);
-  return `${MONTHS[value.getUTCMonth()]} ${value.getUTCDate()}`;
+  return `${MONTHS[value.getUTCMonth()].toUpperCase()} ${value.getUTCDate()}`;
 }
 
 function statusForDay(
@@ -42,7 +42,12 @@ function statusForDay(
 
 function formatActualDistance(distance: number | undefined): string | null {
   if (typeof distance !== 'number') return null;
-  return `${distance.toFixed(1)}km`;
+  return `${Number(distance.toFixed(1)).toString()}k`;
+}
+
+function formatPlannedDistance(session: PlannedSession | null): string | null {
+  if (!session || session.type === 'REST') return null;
+  return `${Number(expectedDistance(session).toFixed(1)).toString()}k`;
 }
 
 export function RemainingDaysList({
@@ -66,7 +71,7 @@ export function RemainingDaysList({
             dateLabel={formatShortDate(addDaysIso(weekStart, index))}
             session={session}
             status={statusForDay(session, index, todayIndex, activity)}
-            metricLabel={formatActualDistance(activity?.distance)}
+            metricLabel={formatActualDistance(activity?.distance) ?? formatPlannedDistance(session)}
           />
         );
       })}

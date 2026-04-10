@@ -98,6 +98,32 @@ describe('TodayHeroCard', () => {
     expect(screen.getByText('Thursday, Apr 9')).toBeTruthy();
   });
 
+  it('uses a framed accent treatment and shows a planned heart-rate zone on the today card', () => {
+    render(
+      <TodayHeroCard
+        session={{
+          id: 's3',
+          type: 'TEMPO',
+          date: '2026-04-09',
+          distance: 10,
+          pace: '4:20',
+          warmup: 2,
+          cooldown: 1.5,
+        }}
+      />,
+    );
+
+    expect(screen.getByText('Zone 4')).toBeTruthy();
+    expect(screen.getByText('heart rate')).toBeTruthy();
+
+    const heroCard = screen.getByTestId('hero-card');
+    expect(heroCard.getAttribute('style')).toContain('border-width: 1.5px');
+    expect(heroCard.getAttribute('style')).toContain('background-color: rgb(241, 232, 218)');
+
+    const typeChip = screen.getByTestId('hero-type-chip');
+    expect(typeChip.getAttribute('style')).toContain('background-color: rgb(212, 136, 42)');
+  });
+
   it('shows completed state with actual distance and pace when activity exists', () => {
     render(
       <TodayHeroCard

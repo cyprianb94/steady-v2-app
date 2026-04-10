@@ -23,6 +23,13 @@ interface TodayHeroCardProps {
   onDismissSubjectiveInput?: () => void | Promise<void>;
 }
 
+const PLANNED_CARD_BG: Record<Exclude<PlannedSession['type'], 'REST'>, string> = {
+  EASY: '#E6F0EA',
+  INTERVAL: '#F9E3DA',
+  TEMPO: '#F1E8DA',
+  LONG: '#E5ECF7',
+};
+
 function formatPace(secPerKm: number): string {
   const mins = Math.floor(secPerKm / 60);
   const secs = Math.floor(secPerKm % 60);
@@ -51,6 +58,20 @@ function plannedTitle(session: PlannedSession): string {
 
   const typeTitle = session.type === 'TEMPO' ? 'Tempo' : SESSION_TYPE[session.type].label;
   return `${session.distance}km ${typeTitle}`;
+}
+
+function plannedHeartRateZone(session: PlannedSession): string {
+  switch (session.type) {
+    case 'INTERVAL':
+      return 'Zone 5';
+    case 'TEMPO':
+      return 'Zone 4';
+    case 'LONG':
+      return 'Zone 2';
+    case 'EASY':
+    default:
+      return 'Zone 2';
+  }
 }
 
 export function TodayHeroCard({
@@ -102,9 +123,23 @@ export function TodayHeroCard({
   }
 
   return (
-    <View style={[styles.card, { backgroundColor: meta.bg }]} testID="hero-card">
+    <View
+      style={[
+        styles.card,
+        styles.plannedCard,
+        { backgroundColor: PLANNED_CARD_BG[session.type], borderColor: meta.color },
+      ]}
+      testID="hero-card"
+    >
       <View style={styles.topRow}>
-        <Text style={[styles.typeLabel, styles.typeLabelChip, { color: meta.color, borderColor: `${meta.color}66` }]}>
+        <Text
+          style={[
+            styles.typeLabel,
+            styles.typeLabelChip,
+            { color: C.surface, backgroundColor: meta.color, borderColor: meta.color },
+          ]}
+          testID="hero-type-chip"
+        >
           {session.type}
         </Text>
         <Text style={styles.todayBadge}>TODAY</Text>
@@ -122,7 +157,11 @@ export function TodayHeroCard({
         </View>
         <View style={styles.metricCard}>
           <Text style={styles.metricValue}>{session.pace}</Text>
-          <Text style={styles.metricLabel}>{isInterval ? 'target pace' : 'target pace'}</Text>
+          <Text style={styles.metricLabel}>target pace</Text>
+        </View>
+        <View style={styles.metricCard}>
+          <Text style={styles.metricValue}>{plannedHeartRateZone(session)}</Text>
+          <Text style={styles.metricLabel}>heart rate</Text>
         </View>
       </View>
 
@@ -266,6 +305,9 @@ const styles = StyleSheet.create({
   completedCard: {
     opacity: 0.9,
   },
+  plannedCard: {
+    borderWidth: 1.5,
+  },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -288,7 +330,7 @@ const styles = StyleSheet.create({
   todayBadge: {
     fontFamily: FONTS.sansSemiBold,
     fontSize: 10,
-    color: C.ink2,
+    color: C.amber,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
