@@ -26,8 +26,8 @@ describe('StravaTokenService', () => {
         accessToken: 'refreshed-access',
         refreshToken: 'refreshed-refresh',
         expiresAt: '2026-04-10T12:30:00Z',
-        athleteId: 'athlete-42',
       }),
+      getActivities: async () => [],
     };
 
     await profileRepo.upsert({
@@ -99,6 +99,7 @@ describe('StravaTokenService', () => {
     expect(token).not.toBeNull();
     expect(token?.expiresAt).toBe('2026-04-10T12:30:00Z');
     expect(token?.encryptedAccessToken).not.toBe('refreshed-access');
+    expect(token?.externalAthleteId).toBe('athlete-42');
   });
 
   it('throws a typed error when no tokens exist for the user', async () => {

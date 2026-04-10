@@ -3,6 +3,8 @@ import { Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '../lib/auth';
+import { ToastProvider } from '../providers/ToastProvider';
+import { StravaSyncProvider } from '../providers/StravaSyncProvider';
 
 export default function RootLayout() {
   useFonts({
@@ -18,10 +20,14 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="onboarding" />
-        </Stack>
+        <ToastProvider>
+          <StravaSyncProvider>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="onboarding" />
+            </Stack>
+          </StravaSyncProvider>
+        </ToastProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

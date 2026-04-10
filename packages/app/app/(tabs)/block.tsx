@@ -5,12 +5,14 @@ import {
   ScrollView,
   StyleSheet,
   Pressable,
+  RefreshControl,
   LayoutAnimation,
   Platform,
   UIManager,
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { usePlan } from '../../hooks/usePlan';
+import { useStravaSync } from '../../hooks/useStravaSync';
 import { RearrangeSheet } from '../../components/block/RearrangeSheet';
 import { PropagateModal } from '../../components/plan-builder/PropagateModal';
 import { SessionEditor } from '../../components/plan-builder/SessionEditor';
@@ -261,6 +263,7 @@ function normalizeEditedDayIdentity(
 export default function BlockTab() {
   const { plan, loading, currentWeekIndex, refresh } = usePlan();
   const isFocused = useIsFocused();
+  const { requestAutoSync, forceSync, syncRevision, syncing } = useStravaSync();
   const [expandedWeekNumber, setExpandedWeekNumber] = useState<number | null>(null);
   const [rearrangeWeekIndex, setRearrangeWeekIndex] = useState<number | null>(null);
   const [pendingRearrange, setPendingRearrange] = useState<PendingRearrange | null>(null);
@@ -316,7 +319,7 @@ export default function BlockTab() {
     return () => {
       cancelled = true;
     };
-  }, [plan?.id]);
+  }, [plan?.id, syncRevision]);
 
   useEffect(() => {
     if (!plan || !injuryRange) {
@@ -362,6 +365,20 @@ export default function BlockTab() {
       cancelled = true;
     };
   }, [activeInjury?.markedDate, activeInjury?.resolvedDate, activeInjury?.status, plan]);
+
+  useEffect(() => {
+    if (!isFocused) return;
+    requestAutoSync().catch((error) => {
+      console.error('Failed to auto-sync Strava on block focus:', error);
+    });
+  }, [isFocused, requestAutoSync]);
+
+  useEffect(() => {
+    if (syncRevision === 0) return;
+    refresh().catch((error) => {
+      console.error('Failed to refresh block plan after Strava sync:', error);
+    });
+  }, [refresh, syncRevision]);
 
   if (loading) {
     return (
@@ -490,9 +507,28 @@ export default function BlockTab() {
 
   const rearrangeWeek = rearrangeWeekIndex == null ? null : plan.weeks[rearrangeWeekIndex] ?? null;
 
+  async function handleRefresh() {
+    await forceSync();
+    await refresh();
+  }
+
   return (
     <>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading || syncing}
+            onRefresh={() => {
+              handleRefresh().catch((error) => {
+                console.error('Failed to refresh block screen:', error);
+              });
+            }}
+            tintColor={C.clay}
+          />
+        }
+      >
         {/* Race header */}
         <View style={styles.header}>
           <Text style={styles.label}>GOAL RACE</Text>

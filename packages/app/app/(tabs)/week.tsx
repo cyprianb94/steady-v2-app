@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, StyleSheet, Alert } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, StyleSheet, Alert, RefreshControl } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { type CrossTrainingEntry } from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { usePlan } from '../../hooks/usePlan';
+import { useStravaSync } from '../../hooks/useStravaSync';
 import { useAuth } from '../../lib/auth';
 import { WeekHeader } from '../../components/week/WeekHeader';
 import { LoadBar } from '../../components/week/LoadBar';
@@ -19,8 +21,10 @@ import { trpc } from '../../lib/trpc';
 import { clearResumeWeekOverride, setResumeWeekOverride } from '../../lib/resume-week';
 
 export default function WeekTab() {
+  const isFocused = useIsFocused();
   const { session, isLoading: authLoading } = useAuth();
   const { plan, loading, currentWeekIndex, refresh } = usePlan();
+  const { requestAutoSync, forceSync, syncRevision, syncing } = useStravaSync();
   const [weekOffset, setWeekOffset] = useState(0);
   const [isSavingGoal, setIsSavingGoal] = useState(false);
   const [crossTrainingEntries, setCrossTrainingEntries] = useState<CrossTrainingEntry[]>([]);
@@ -72,6 +76,20 @@ export default function WeekTab() {
       setWeekOffset(0);
     }
   }, [activeInjury, plan?.id]);
+
+  useEffect(() => {
+    if (!isFocused || !session) return;
+    requestAutoSync().catch((error) => {
+      console.error('Failed to auto-sync Strava on week focus:', error);
+    });
+  }, [isFocused, requestAutoSync, session]);
+
+  useEffect(() => {
+    if (syncRevision === 0) return;
+    refresh().catch((error) => {
+      console.error('Failed to refresh week plan after Strava sync:', error);
+    });
+  }, [refresh, syncRevision]);
 
   if (authLoading || loading) {
     return (
@@ -219,6 +237,11 @@ export default function WeekTab() {
     }
   }
 
+  async function handleRefresh() {
+    await forceSync();
+    await refresh();
+  }
+
   return (
     <View style={styles.container}>
       {activeInjury ? null : (
@@ -231,7 +254,21 @@ export default function WeekTab() {
         />
       )}
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading || syncing}
+            onRefresh={() => {
+              handleRefresh().catch((error) => {
+                console.error('Failed to refresh week screen:', error);
+              });
+            }}
+            tintColor={C.clay}
+          />
+        }
+      >
         {activeInjury ? (
           <>
             <InjuryBanner

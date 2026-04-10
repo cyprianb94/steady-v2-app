@@ -76,7 +76,7 @@ export function createStravaTokenService(options: CreateStravaTokenServiceOption
           encryptedAccessToken: encrypt(refreshed.accessToken, options.encryptionKey),
           encryptedRefreshToken: encrypt(refreshed.refreshToken, options.encryptionKey),
           expiresAt: refreshed.expiresAt,
-          externalAthleteId: refreshed.athleteId,
+          externalAthleteId: refreshed.athleteId ?? token.externalAthleteId,
         });
 
         return refreshed.accessToken;

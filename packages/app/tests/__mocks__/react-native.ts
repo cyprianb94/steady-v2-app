@@ -68,11 +68,32 @@ class AnimatedValue {
 
 export const View = createMockComponent('View');
 export const Text = createMockComponent('Text');
-export const ScrollView = createMockComponent('ScrollView');
 export const ActivityIndicator = createMockComponent('ActivityIndicator');
+export const RefreshControl = createMockComponent('RefreshControl');
 export const TouchableOpacity = createMockComponent('TouchableOpacity');
 export const Pressable = createMockComponent('Pressable');
 export const FlatList = createMockComponent('FlatList');
+
+export const ScrollView = React.forwardRef(function MockScrollView(
+  { testID, children, style, contentContainerStyle: _contentContainerStyle, showsVerticalScrollIndicator: _showsVerticalScrollIndicator, snapToInterval: _snapToInterval, decelerationRate: _decelerationRate, nestedScrollEnabled: _nestedScrollEnabled, onMomentumScrollEnd: _onMomentumScrollEnd, ...props }: any,
+  ref: any,
+) {
+  const resolved = style ? resolveStyle(style) : undefined;
+  React.useImperativeHandle(ref, () => ({
+    scrollTo: () => {},
+  }));
+
+  return React.createElement(
+    'div',
+    {
+      'data-testid': testID,
+      'data-rn': 'ScrollView',
+      style: resolved,
+      ...props,
+    },
+    children,
+  );
+});
 export const Animated = {
   Value: AnimatedValue,
   View: createMockComponent('Animated.View'),
@@ -94,3 +115,9 @@ export const StyleSheet = {
   create: <T extends Record<string, any>>(styles: T): T => styles,
 };
 export const Platform = { OS: 'ios', select: (obj: any) => obj.ios ?? obj.default };
+export const AppState = {
+  currentState: 'active',
+  addEventListener: () => ({
+    remove: () => {},
+  }),
+};

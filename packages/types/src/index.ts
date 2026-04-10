@@ -33,6 +33,7 @@ export type {
 } from './activity';
 
 export type { IntegrationToken } from './integration-token';
+export type { StravaSyncMatchSummary, StravaSyncResult } from './strava';
 
 export type {
   ConversationType,

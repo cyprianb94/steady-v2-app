@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, StyleSheet, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { useAuth } from '../../lib/auth';
 import { usePlan } from '../../hooks/usePlan';
+import { useStravaSync } from '../../hooks/useStravaSync';
 import { trpc } from '../../lib/trpc';
 import { Btn } from '../../components/ui/Btn';
 import { PhaseThemeProvider } from '../../components/home/PhaseThemeProvider';
@@ -35,6 +36,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { session, isLoading: authLoading } = useAuth();
   const { plan, loading, currentWeek, refresh } = usePlan();
+  const { forceSync, syncRevision, syncing } = useStravaSync();
   const [activities, setActivities] = useState<Activity[]>([]);
   const today = new Date().toISOString().slice(0, 10);
   const weekSessions = currentWeek?.sessions ?? [];
@@ -82,7 +84,14 @@ export default function HomeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [plan?.id]);
+  }, [plan?.id, syncRevision]);
+
+  useEffect(() => {
+    if (syncRevision === 0) return;
+    refresh().catch((error) => {
+      console.error('Failed to refresh plan after Strava sync:', error);
+    });
+  }, [refresh, syncRevision]);
 
   if (authLoading || loading) {
     return (
@@ -144,12 +153,28 @@ export default function HomeScreen() {
     await refresh();
   }
 
+  async function handleRefresh() {
+    await forceSync();
+    await refresh();
+  }
+
   return (
     <PhaseThemeProvider phase={week.phase}>
       <View style={styles.container}>
         <ScrollView
           testID="home-scroll"
           style={styles.scroll}
+          refreshControl={
+            <RefreshControl
+              refreshing={loading || syncing}
+              onRefresh={() => {
+                handleRefresh().catch((error) => {
+                  console.error('Failed to refresh home screen:', error);
+                });
+              }}
+              tintColor={C.clay}
+            />
+          }
           contentContainerStyle={[
             styles.scrollContent,
             { paddingTop: insets.top + HOME_SCROLL_TOP_PADDING },
