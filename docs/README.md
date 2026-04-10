@@ -19,6 +19,7 @@ Read them in this order before writing a single line of code:
 5. `AI_COACH.md` — the Steady coach, conversation design, plan edit proposals
 6. `DATA_MODEL.md` — data structures, session types, plan schema
 7. `TECH_STACK.md` — stack, folder structure, build order, integrations
+8. `BRANCHING_WORKFLOW.md` — how to work safely with feature branches, PRs, and merge cleanup
 
 ---
 
@@ -62,7 +63,42 @@ Use this when a part of the codebase feels hard to navigate or test. Explore org
 2. write-a-prd  → document it properly
 3. prd-to-issues → break into tracer bullet issues
 4. tdd          → implement one vertical slice at a time
+5. update Linear → move issue/project status and leave a warm trace for the next human or agent
 ```
+
+### Branch workflow for humans and agents
+
+Unless there is a very good reason not to, work like this:
+
+1. Start from `main`.
+2. Create a fresh short-lived branch for the feature or fix.
+3. Keep the branch scoped to one logical piece of work.
+4. Commit on that branch only.
+5. Open a PR back into `main`.
+6. Merge to `main` when verified.
+7. Delete the feature branch after merge.
+
+See `BRANCHING_WORKFLOW.md` for the default branching rules.
+
+### Linear update and warm-trace rule
+
+When a feature or fix is worked on, Linear must be updated before stopping.
+
+Minimum expectation:
+
+1. Move the issue to the correct status.
+2. Update the related Linear project status if the feature changes project progress.
+3. Leave a warm trace in the Linear issue or project update so the next human, LLM, or agent can pick up quickly.
+
+A good warm trace should include:
+
+- what was completed
+- what is still pending
+- branch or PR link
+- tests run
+- known risks, caveats, or follow-up tasks
+
+Do not finish a work session with code changes only. Leave the project-management trace as well.
 
 ---
 

@@ -4,6 +4,45 @@ This document translates the project skills into concrete rules for how Steady's
 
 ---
 
+## Workflow hygiene
+
+### Branching
+
+Use `main` as the stable branch.
+
+For each feature or fix:
+
+1. Create a fresh short-lived branch from `main`.
+2. Keep the branch scoped to one logical piece of work.
+3. Commit only that work on the branch.
+4. Open a PR back into `main`.
+5. Merge when verified.
+6. Delete the branch after merge.
+
+Do not let one long-lived branch accumulate unrelated work across landing, app UI, backend, auth, and integrations.
+
+### Linear and warm trace
+
+Code changes are not a complete handoff on their own. When work is finished or paused, update Linear as part of the workflow.
+
+Minimum expectation:
+
+1. Move the Linear issue to the correct status.
+2. Update the related Linear project status if progress changed.
+3. Leave a warm trace in the issue or project update so the next human or agent can continue without reconstructing context from scratch.
+
+A good warm trace includes:
+
+- what was completed
+- what is still pending
+- branch or PR reference
+- tests run
+- known risks, caveats, or follow-up tasks
+
+This is especially important when multiple LLMs or agents may touch the same work over time.
+
+---
+
 ## Core principle: deep modules
 
 From `deep-modules.md` and "A Philosophy of Software Design":
