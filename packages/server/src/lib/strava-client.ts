@@ -16,6 +16,7 @@ export interface StravaClient {
   exchangeCode(code: string): Promise<StravaTokenResponse>;
   refreshToken(refreshToken: string): Promise<StravaTokenResponse>;
   getActivities(accessToken: string, after: string): Promise<StravaActivity[]>;
+  getGear(accessToken: string, gearId: string): Promise<StravaGear | null>;
 }
 
 export interface StravaActivitySplit {
@@ -32,6 +33,7 @@ export interface StravaActivity {
   name?: string;
   type?: string;
   sport_type?: string;
+  gear_id?: string;
   start_date: string;
   distance: number;
   moving_time?: number;
@@ -41,6 +43,14 @@ export interface StravaActivity {
   max_heartrate?: number;
   average_speed?: number;
   splits_metric?: StravaActivitySplit[];
+}
+
+export interface StravaGear {
+  id: string;
+  brand: string;
+  model: string;
+  name?: string;
+  retired: boolean;
 }
 
 interface CreateStravaClientOptions {
@@ -210,6 +220,7 @@ export function createStravaClient(options: CreateStravaClientOptions = {}): Str
           name: typeof detail.name === 'string' ? detail.name : undefined,
           type: typeof detail.type === 'string' ? detail.type : undefined,
           sport_type: typeof detail.sport_type === 'string' ? detail.sport_type : undefined,
+          gear_id: typeof detail.gear_id === 'string' ? detail.gear_id : undefined,
           start_date: detail.start_date,
           distance: typeof detail.distance === 'number' ? detail.distance : 0,
           moving_time: typeof detail.moving_time === 'number' ? detail.moving_time : undefined,
@@ -238,6 +249,42 @@ export function createStravaClient(options: CreateStravaClientOptions = {}): Str
       }
 
       return details;
+    },
+
+    async getGear(accessToken: string, gearId: string): Promise<StravaGear | null> {
+      const response = await fetchImpl(
+        `https://www.strava.com/api/v3/gear/${gearId}`,
+        {
+          headers: {
+            authorization: `Bearer ${accessToken}`,
+          },
+        },
+      );
+
+      if (response.status === 404) {
+        return null;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Strava gear fetch failed with status ${response.status}`);
+      }
+
+      const payload = await response.json() as Record<string, unknown>;
+      if (
+        typeof payload.id !== 'string'
+        || typeof payload.brand_name !== 'string'
+        || typeof payload.model_name !== 'string'
+      ) {
+        throw new Error('Strava gear detail returned an unexpected payload');
+      }
+
+      return {
+        id: payload.id,
+        brand: payload.brand_name,
+        model: payload.model_name,
+        name: typeof payload.name === 'string' ? payload.name : undefined,
+        retired: Boolean(payload.retired),
+      };
     },
   };
 }

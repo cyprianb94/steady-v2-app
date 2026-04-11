@@ -37,6 +37,7 @@ describe('strava router', () => {
         athleteId: 'athlete-99',
       }),
       getActivities: async () => [],
+      getGear: async () => null,
     };
 
     await profileRepo.upsert({

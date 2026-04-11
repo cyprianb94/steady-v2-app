@@ -13,12 +13,14 @@ import type { ActivityRepo } from '../repos/activity-repo';
 import type { IntegrationTokenRepo } from '../repos/integration-token-repo';
 import type { PlanRepo } from '../repos/plan-repo';
 import type { ProfileRepo } from '../repos/profile-repo';
+import type { ShoeRepo } from '../repos/shoe-repo';
 import { authedProcedure, router } from './trpc';
 
 interface StravaRouterDeps {
   profileRepo: ProfileRepo;
   planRepo?: PlanRepo;
   activityRepo?: ActivityRepo;
+  shoeRepo?: ShoeRepo;
   integrationTokenRepo?: IntegrationTokenRepo;
   stravaClient?: StravaClient;
   encryptionKey?: string;
@@ -64,8 +66,16 @@ function requireSyncDeps(deps: StravaRouterDeps): {
   encryptionKey: string;
   planRepo: PlanRepo;
   activityRepo: ActivityRepo;
+  shoeRepo: ShoeRepo;
 } {
-  if (!deps.integrationTokenRepo || !deps.stravaClient || !deps.encryptionKey || !deps.planRepo || !deps.activityRepo) {
+  if (
+    !deps.integrationTokenRepo
+    || !deps.stravaClient
+    || !deps.encryptionKey
+    || !deps.planRepo
+    || !deps.activityRepo
+    || !deps.shoeRepo
+  ) {
     throw new TRPCError({
       code: 'INTERNAL_SERVER_ERROR',
       message: 'Strava integration is not configured',
@@ -78,6 +88,7 @@ function requireSyncDeps(deps: StravaRouterDeps): {
     encryptionKey: deps.encryptionKey,
     planRepo: deps.planRepo,
     activityRepo: deps.activityRepo,
+    shoeRepo: deps.shoeRepo,
   };
 }
 
@@ -144,7 +155,7 @@ export function createStravaRouter(deps: StravaRouterDeps) {
 
     sync: authedProcedure
       .mutation(async ({ ctx }) => {
-        const { integrationTokenRepo, stravaClient, encryptionKey, planRepo, activityRepo } = requireSyncDeps(deps);
+        const { integrationTokenRepo, stravaClient, encryptionKey, planRepo, activityRepo, shoeRepo } = requireSyncDeps(deps);
         const tokenService = createStravaTokenService({
           integrationTokenRepo,
           profileRepo: deps.profileRepo,
@@ -157,6 +168,7 @@ export function createStravaRouter(deps: StravaRouterDeps) {
             activityRepo,
             integrationTokenRepo,
             planRepo,
+            shoeRepo,
             stravaClient,
             tokenService,
           });

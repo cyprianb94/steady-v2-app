@@ -30,4 +30,7 @@ export interface Activity {
 
   // Matched session (set by matching algorithm)
   matchedSessionId?: string;
+
+  // Auto-detected shoe from the source integration
+  shoeId?: string;
 }

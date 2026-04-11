@@ -139,4 +139,61 @@ describe('StravaClient', () => {
       distance: 10000,
     });
   });
+
+  it('fetches gear details and returns brand, model, and nickname fields', async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      id: 'gear-1',
+      name: 'Daily',
+      brand_name: 'Nike',
+      model_name: 'Pegasus',
+      retired: false,
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    }));
+
+    const client = createStravaClient({
+      clientId: 'client-id',
+      clientSecret: 'client-secret',
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    await expect(client.getGear('access-token', 'gear-1')).resolves.toEqual({
+      id: 'gear-1',
+      name: 'Daily',
+      brand: 'Nike',
+      model: 'Pegasus',
+      retired: false,
+    });
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://www.strava.com/api/v3/gear/gear-1',
+      expect.objectContaining({
+        headers: {
+          authorization: 'Bearer access-token',
+        },
+      }),
+    );
+  });
+
+  it('returns null when Strava returns a 404 for a gear lookup', async () => {
+    const fetchImpl = vi.fn(async () => new Response('{}', { status: 404 }));
+    const client = createStravaClient({
+      clientId: 'client-id',
+      clientSecret: 'client-secret',
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    await expect(client.getGear('access-token', 'missing-gear')).resolves.toBeNull();
+  });
+
+  it('throws when Strava gear lookup fails with a server error', async () => {
+    const fetchImpl = vi.fn(async () => new Response('{}', { status: 503 }));
+    const client = createStravaClient({
+      clientId: 'client-id',
+      clientSecret: 'client-secret',
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    await expect(client.getGear('access-token', 'gear-1')).rejects.toThrow(/gear fetch failed/i);
+  });
 });
