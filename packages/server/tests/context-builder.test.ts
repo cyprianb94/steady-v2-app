@@ -175,20 +175,20 @@ describe('buildSystemPrompt — activity log', () => {
     expect(prompt).toContain('actual:');
   });
 
-  it('includes subjective session feedback when present', () => {
-    const sessionWithFeedback = {
-      ...EASY_SESSION,
+  it('includes matched activity feedback when present', () => {
+    const plan = makePlan([
+      makeWeek(10, 'BUILD', [EASY_SESSION, null, null, null, null, null, null]),
+    ]);
+    const activity = makeActivity({
+      matchedSessionId: EASY_SESSION.id,
       subjectiveInput: {
         legs: 'heavy',
         breathing: 'controlled',
         overall: 'done',
       },
-    } as const;
-    const plan = makePlan([
-      makeWeek(10, 'BUILD', [sessionWithFeedback, null, null, null, null, null, null]),
-    ]);
+    });
 
-    const prompt = buildSystemPrompt(USER, plan, [], 'free_form');
+    const prompt = buildSystemPrompt(USER, plan, [activity], 'free_form');
 
     expect(prompt).toContain('felt: legs heavy, breathing controlled, overall done');
   });

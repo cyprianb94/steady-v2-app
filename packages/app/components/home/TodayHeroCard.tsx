@@ -12,6 +12,7 @@ interface ActivitySummary {
   duration: number; // seconds
   avgHR?: number;
   elevationGain?: number;
+  subjectiveInput?: SubjectiveInput;
 }
 
 interface TodayHeroCardProps {
@@ -74,6 +75,32 @@ function plannedHeartRateZone(session: PlannedSession): string {
   }
 }
 
+function titleCase(value: string): string {
+  return value
+    .split('-')
+    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function SavedSubjectiveInput({ input }: { input: SubjectiveInput }) {
+  return (
+    <View style={styles.savedFeelGroup}>
+      <Text style={styles.savedFeelTitle}>Saved feel</Text>
+      <View style={styles.savedFeelChips}>
+        <View style={styles.savedFeelChip}>
+          <Text style={styles.savedFeelChipText}>Legs: {titleCase(input.legs)}</Text>
+        </View>
+        <View style={styles.savedFeelChip}>
+          <Text style={styles.savedFeelChipText}>Breathing: {titleCase(input.breathing)}</Text>
+        </View>
+        <View style={styles.savedFeelChip}>
+          <Text style={styles.savedFeelChipText}>Overall: {titleCase(input.overall)}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 export function TodayHeroCard({
   session,
   activity,
@@ -94,10 +121,11 @@ export function TodayHeroCard({
   const meta = SESSION_TYPE[session.type];
   const isInterval = session.type === 'INTERVAL';
   const completed = !!session.actualActivityId;
+  const savedSubjectiveInput = activity?.subjectiveInput;
   const showSubjectivePrompt =
     !!session.actualActivityId &&
-    !session.subjectiveInput &&
-    !session.subjectiveInputDismissed;
+    !savedSubjectiveInput &&
+    Boolean(onSaveSubjectiveInput || onDismissSubjectiveInput);
 
   if (completed) {
     return (
@@ -111,6 +139,9 @@ export function TodayHeroCard({
         </Text>
         {activity?.avgHR ? (
           <Text style={styles.extraText}>{activity.avgHR} bpm avg</Text>
+        ) : null}
+        {savedSubjectiveInput ? (
+          <SavedSubjectiveInput input={savedSubjectiveInput} />
         ) : null}
         {showSubjectivePrompt ? (
           <SubjectiveInputPrompt
@@ -413,6 +444,35 @@ const styles = StyleSheet.create({
   extraText: {
     fontFamily: FONTS.sans,
     fontSize: 13,
+    color: C.ink2,
+  },
+  savedFeelGroup: {
+    marginTop: 14,
+    gap: 8,
+  },
+  savedFeelTitle: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 11,
+    color: C.ink2,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  savedFeelChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  savedFeelChip: {
+    borderWidth: 1,
+    borderColor: 'rgba(28,21,16,0.12)',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(255,255,255,0.45)',
+  },
+  savedFeelChipText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 12,
     color: C.ink2,
   },
   subjectivePrompt: {
