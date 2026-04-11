@@ -52,6 +52,17 @@ function runActivityRepoTests(name: string, createRepo: () => ActivityRepo) {
       expect(await repo.getByExternalId('user-1', 'garmin', 'strava-123')).toBeNull();
     });
 
+    it('gets an activity by id and supports deleting it', async () => {
+      const activity = makeActivity('user-1');
+      await repo.save(activity);
+
+      expect(await repo.getById(activity.id)).toMatchObject({ id: activity.id });
+
+      await repo.delete(activity.id);
+
+      expect(await repo.getById(activity.id)).toBeNull();
+    });
+
     it('updates subjective input on an activity', async () => {
       const activity = makeActivity('user-1');
       await repo.save(activity);
