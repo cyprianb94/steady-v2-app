@@ -171,4 +171,35 @@ describe('TodayHeroCard', () => {
     expect(screen.getByText('Easy Run')).toBeTruthy();
     expect(screen.getByText(/8km @ 5:20/)).toBeTruthy();
   });
+
+  it('renders saved feel from the matched activity in completed state', () => {
+    render(
+      <TodayHeroCard
+        session={{
+          id: 's6',
+          type: 'EASY',
+          date: '2026-04-09',
+          distance: 8,
+          pace: '5:20',
+          actualActivityId: 'act-2',
+        }}
+        activity={{
+          id: 'act-2',
+          distance: 8,
+          avgPace: 320,
+          duration: 2560,
+          subjectiveInput: {
+            legs: 'heavy',
+            breathing: 'controlled',
+            overall: 'done',
+          },
+        } as never}
+      />,
+    );
+
+    expect(screen.getByText('Legs: Heavy')).toBeTruthy();
+    expect(screen.getByText('Breathing: Controlled')).toBeTruthy();
+    expect(screen.getByText('Overall: Done')).toBeTruthy();
+    expect(screen.queryByTestId('subjective-input-prompt')).toBeNull();
+  });
 });
