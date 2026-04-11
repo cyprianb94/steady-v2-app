@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { Activity } from '@steady/types';
+import type { Activity, PlannedSession, Shoe, TrainingPlan } from '@steady/types';
 import { createAppRouter } from '../src/trpc/router';
 import { InMemoryActivityRepo } from '../src/repos/activity-repo.memory';
 import { InMemoryConversationRepo } from '../src/repos/conversation-repo.memory';
 import { InMemoryCrossTrainingRepo } from '../src/repos/cross-training-repo.memory';
+import { InMemoryNiggleRepo } from '../src/repos/niggle-repo.memory';
+import type { NiggleInput, NiggleRepo } from '../src/repos/niggle-repo';
 import { InMemoryPlanRepo } from '../src/repos/plan-repo.memory';
 import { InMemoryProfileRepo } from '../src/repos/profile-repo.memory';
+import { InMemoryShoeRepo } from '../src/repos/shoe-repo.memory';
 
 function makeActivity(userId: string, overrides: Partial<Activity> = {}): Activity {
   return {
@@ -22,16 +25,101 @@ function makeActivity(userId: string, overrides: Partial<Activity> = {}): Activi
   };
 }
 
+function makeShoe(userId: string, overrides: Partial<Shoe> = {}): Omit<Shoe, 'totalKm'> & { totalKm?: number } {
+  return {
+    id: crypto.randomUUID(),
+    userId,
+    brand: 'Nike',
+    model: 'Pegasus 41',
+    retired: false,
+    createdAt: '2026-04-01T00:00:00Z',
+    updatedAt: '2026-04-01T00:00:00Z',
+    ...overrides,
+  };
+}
+
+function makeSession(id: string, overrides: Partial<PlannedSession> = {}): PlannedSession {
+  return {
+    id,
+    type: 'EASY',
+    date: '2026-04-05',
+    distance: 8,
+    pace: '5:20',
+    ...overrides,
+  };
+}
+
+function makePlan(sessionAActivityId?: string, sessionBActivityId?: string): TrainingPlan {
+  return {
+    id: 'plan-1',
+    userId: 'user-1',
+    createdAt: '2026-01-01T00:00:00Z',
+    raceName: 'London Marathon',
+    raceDate: '2026-10-04',
+    raceDistance: 'Marathon',
+    targetTime: 'sub-3:30',
+    phases: { BASE: 3, BUILD: 8, RECOVERY: 2, PEAK: 1, TAPER: 2 },
+    progressionPct: 7,
+    templateWeek: [],
+    weeks: [
+      {
+        weekNumber: 1,
+        phase: 'BUILD',
+        plannedKm: 16,
+        sessions: [
+          makeSession('session-a', { actualActivityId: sessionAActivityId }),
+          makeSession('session-b', { date: '2026-04-06', actualActivityId: sessionBActivityId }),
+          null,
+          null,
+          null,
+          null,
+          null,
+        ],
+      },
+    ],
+    activeInjury: null,
+  };
+}
+
+class FlakyNiggleRepo extends InMemoryNiggleRepo {
+  private shouldFail = false;
+
+  constructor(activityRepo: InMemoryActivityRepo) {
+    super(activityRepo);
+  }
+
+  armFailure() {
+    this.shouldFail = true;
+  }
+
+  override async setForActivity(activityId: string, niggles: NiggleInput[]) {
+    if (this.shouldFail) {
+      this.shouldFail = false;
+      throw new Error('simulated niggle persistence failure');
+    }
+
+    return super.setForActivity(activityId, niggles);
+  }
+}
+
 describe('activity router', () => {
   let activityRepo: InMemoryActivityRepo;
+  let planRepo: InMemoryPlanRepo;
+  let niggleRepo: NiggleRepo;
+  let shoeRepo: InMemoryShoeRepo;
   let caller: ReturnType<ReturnType<typeof createAppRouter>['createCaller']>;
 
   beforeEach(() => {
     activityRepo = new InMemoryActivityRepo();
+    planRepo = new InMemoryPlanRepo();
+    niggleRepo = new InMemoryNiggleRepo(activityRepo);
+    shoeRepo = new InMemoryShoeRepo(activityRepo);
     const appRouter = createAppRouter({
       profileRepo: new InMemoryProfileRepo(),
-      planRepo: new InMemoryPlanRepo(),
+      planRepo,
       activityRepo,
+      niggleRepo,
+      shoeRepo,
       conversationRepo: new InMemoryConversationRepo(),
       crossTrainingRepo: new InMemoryCrossTrainingRepo(),
     });
@@ -47,5 +135,176 @@ describe('activity router', () => {
 
     expect(activities).toHaveLength(2);
     expect(activities.map((activity) => activity.distance)).toEqual([15, 8]);
+  });
+
+  it('saveRunDetail persists subjective input, niggles, notes, and shoeId in one call', async () => {
+    const activity = await activityRepo.save(makeActivity('user-1', { matchedSessionId: 'session-a' }));
+    await planRepo.save(makePlan(activity.id));
+    const shoe = await shoeRepo.save(makeShoe('user-1'));
+
+    await caller.activity.saveRunDetail({
+      activityId: activity.id,
+      subjectiveInput: { legs: 'normal', breathing: 'controlled', overall: 'done' },
+      niggles: [
+        { bodyPart: 'calf', side: 'left', severity: 'mild', when: 'during' },
+        { bodyPart: 'hamstring', side: 'right', severity: 'niggle', when: 'after' },
+      ],
+      notes: 'Felt smooth after 5k',
+      shoeId: shoe.id,
+    });
+
+    expect(await activityRepo.getById(activity.id)).toMatchObject({
+      subjectiveInput: { legs: 'normal', breathing: 'controlled', overall: 'done' },
+      notes: 'Felt smooth after 5k',
+      shoeId: shoe.id,
+      matchedSessionId: 'session-a',
+    });
+    expect(await niggleRepo.listByActivity(activity.id)).toMatchObject([
+      { bodyPart: 'calf', side: 'left', severity: 'mild', when: 'during' },
+      { bodyPart: 'hamstring', side: 'right', severity: 'niggle', when: 'after' },
+    ]);
+  });
+
+  it('replaces the niggle set on each save', async () => {
+    const activity = await activityRepo.save(makeActivity('user-1'));
+
+    await niggleRepo.setForActivity(activity.id, [
+      { bodyPart: 'calf', side: 'left', severity: 'mild', when: 'during' },
+    ]);
+
+    await caller.activity.saveRunDetail({
+      activityId: activity.id,
+      subjectiveInput: { legs: 'fresh', breathing: 'easy', overall: 'could-go-again' },
+      niggles: [
+        { bodyPart: 'ankle', side: null, severity: 'moderate', when: 'after' },
+      ],
+      notes: 'Rolled through it',
+    });
+
+    const niggles = await niggleRepo.listByActivity(activity.id);
+    expect(niggles).toHaveLength(1);
+    expect(niggles[0]).toMatchObject({
+      bodyPart: 'ankle',
+      side: null,
+      severity: 'moderate',
+      when: 'after',
+    });
+  });
+
+  it('handles bonus to matched transitions atomically', async () => {
+    const activity = await activityRepo.save(makeActivity('user-1'));
+    await planRepo.save(makePlan());
+
+    await caller.activity.saveRunDetail({
+      activityId: activity.id,
+      subjectiveInput: { legs: 'normal', breathing: 'controlled', overall: 'done' },
+      niggles: [],
+      matchedSessionId: 'session-a',
+    });
+
+    expect(await activityRepo.getById(activity.id)).toMatchObject({ matchedSessionId: 'session-a' });
+    const plan = await planRepo.getActive('user-1');
+    expect(plan?.weeks[0].sessions[0]).toMatchObject({ id: 'session-a', actualActivityId: activity.id });
+  });
+
+  it('handles matched A to matched B transitions atomically', async () => {
+    const activity = await activityRepo.save(makeActivity('user-1', { matchedSessionId: 'session-a' }));
+    await planRepo.save(makePlan(activity.id));
+
+    await caller.activity.saveRunDetail({
+      activityId: activity.id,
+      subjectiveInput: { legs: 'heavy', breathing: 'labored', overall: 'done' },
+      niggles: [],
+      matchedSessionId: 'session-b',
+    });
+
+    expect(await activityRepo.getById(activity.id)).toMatchObject({ matchedSessionId: 'session-b' });
+    const plan = await planRepo.getActive('user-1');
+    expect(plan?.weeks[0].sessions[0]).toMatchObject({ id: 'session-a', actualActivityId: undefined });
+    expect(plan?.weeks[0].sessions[1]).toMatchObject({ id: 'session-b', actualActivityId: activity.id });
+  });
+
+  it('handles matched to bonus transitions atomically', async () => {
+    const activity = await activityRepo.save(makeActivity('user-1', { matchedSessionId: 'session-a' }));
+    await planRepo.save(makePlan(activity.id));
+
+    await caller.activity.saveRunDetail({
+      activityId: activity.id,
+      subjectiveInput: { legs: 'dead', breathing: 'labored', overall: 'shattered' },
+      niggles: [],
+      matchedSessionId: null,
+    });
+
+    expect(await activityRepo.getById(activity.id)).toMatchObject({ matchedSessionId: undefined });
+    const plan = await planRepo.getActive('user-1');
+    expect(plan?.weeks[0].sessions[0]).toMatchObject({ id: 'session-a', actualActivityId: undefined });
+  });
+
+  it('does not change the current match when matchedSessionId is omitted', async () => {
+    const activity = await activityRepo.save(makeActivity('user-1', { matchedSessionId: 'session-a' }));
+    await planRepo.save(makePlan(activity.id));
+
+    await caller.activity.saveRunDetail({
+      activityId: activity.id,
+      subjectiveInput: { legs: 'normal', breathing: 'controlled', overall: 'done' },
+      niggles: [],
+      notes: 'Still the same run',
+    });
+
+    expect(await activityRepo.getById(activity.id)).toMatchObject({ matchedSessionId: 'session-a' });
+    const plan = await planRepo.getActive('user-1');
+    expect(plan?.weeks[0].sessions[0]).toMatchObject({ id: 'session-a', actualActivityId: activity.id });
+  });
+
+  it('rolls back activity, niggles, and match changes if any sub-write fails', async () => {
+    const failingNiggleRepo = new FlakyNiggleRepo(activityRepo);
+    const rollbackRouter = createAppRouter({
+      profileRepo: new InMemoryProfileRepo(),
+      planRepo,
+      activityRepo,
+      niggleRepo: failingNiggleRepo,
+      shoeRepo,
+      conversationRepo: new InMemoryConversationRepo(),
+      crossTrainingRepo: new InMemoryCrossTrainingRepo(),
+    });
+    const rollbackCaller = rollbackRouter.createCaller({ userId: 'user-1' });
+
+    const beforeShoe = await shoeRepo.save(makeShoe('user-1', { id: 'shoe-before' }));
+    const afterShoe = await shoeRepo.save(makeShoe('user-1', { id: 'shoe-after', model: 'Alphafly' }));
+    const activity = await activityRepo.save(makeActivity('user-1', {
+      matchedSessionId: 'session-a',
+      subjectiveInput: { legs: 'fresh', breathing: 'easy', overall: 'could-go-again' },
+      notes: 'before',
+      shoeId: beforeShoe.id,
+    }));
+    await planRepo.save(makePlan(activity.id));
+    await failingNiggleRepo.setForActivity(activity.id, [
+      { bodyPart: 'calf', side: 'left', severity: 'mild', when: 'during' },
+    ]);
+    failingNiggleRepo.armFailure();
+
+    await expect(
+      rollbackCaller.activity.saveRunDetail({
+        activityId: activity.id,
+        subjectiveInput: { legs: 'dead', breathing: 'labored', overall: 'shattered' },
+        niggles: [{ bodyPart: 'ankle', side: null, severity: 'stop', when: 'after' }],
+        notes: 'after',
+        shoeId: afterShoe.id,
+        matchedSessionId: 'session-b',
+      }),
+    ).rejects.toThrow(/simulated niggle persistence failure/i);
+
+    expect(await activityRepo.getById(activity.id)).toMatchObject({
+      matchedSessionId: 'session-a',
+      subjectiveInput: { legs: 'fresh', breathing: 'easy', overall: 'could-go-again' },
+      notes: 'before',
+      shoeId: beforeShoe.id,
+    });
+    expect(await failingNiggleRepo.listByActivity(activity.id)).toMatchObject([
+      { bodyPart: 'calf', side: 'left', severity: 'mild', when: 'during' },
+    ]);
+    const plan = await planRepo.getActive('user-1');
+    expect(plan?.weeks[0].sessions[0]).toMatchObject({ id: 'session-a', actualActivityId: activity.id });
+    expect(plan?.weeks[0].sessions[1]).toMatchObject({ id: 'session-b', actualActivityId: undefined });
   });
 });

@@ -42,6 +42,20 @@ export class InMemoryActivityRepo implements ActivityRepo {
     return { ...activity };
   }
 
+  async updateNotes(activityId: string, notes: string | null): Promise<Activity | null> {
+    const activity = this.store.get(activityId);
+    if (!activity) return null;
+    activity.notes = notes ?? undefined;
+    return { ...activity };
+  }
+
+  async setShoe(activityId: string, shoeId: string | null): Promise<Activity | null> {
+    const activity = this.store.get(activityId);
+    if (!activity) return null;
+    activity.shoeId = shoeId ?? undefined;
+    return { ...activity };
+  }
+
   async updateMatchedSession(activityId: string, sessionId: string | null): Promise<Activity | null> {
     const activity = this.store.get(activityId);
     if (!activity) return null;

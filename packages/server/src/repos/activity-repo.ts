@@ -7,5 +7,7 @@ export interface ActivityRepo {
   delete(activityId: string): Promise<void>;
   getByExternalId(userId: string, source: string, externalId: string): Promise<Activity | null>;
   updateSubjectiveInput(activityId: string, input: SubjectiveInput): Promise<Activity | null>;
+  updateNotes(activityId: string, notes: string | null): Promise<Activity | null>;
+  setShoe(activityId: string, shoeId: string | null): Promise<Activity | null>;
   updateMatchedSession(activityId: string, sessionId: string | null): Promise<Activity | null>;
 }
