@@ -10,12 +10,14 @@ import type { ActivityRepo } from '../repos/activity-repo';
 import type { ConversationRepo } from '../repos/conversation-repo';
 import type { CrossTrainingRepo } from '../repos/cross-training-repo';
 import type { IntegrationTokenRepo } from '../repos/integration-token-repo';
+import type { NiggleRepo } from '../repos/niggle-repo';
 import type { PlanRepo } from '../repos/plan-repo';
 import type { ProfileRepo } from '../repos/profile-repo';
 import type { ShoeRepo } from '../repos/shoe-repo';
 import { InMemoryActivityRepo } from '../repos/activity-repo.memory';
 import { InMemoryConversationRepo } from '../repos/conversation-repo.memory';
 import { InMemoryCrossTrainingRepo } from '../repos/cross-training-repo.memory';
+import { InMemoryNiggleRepo } from '../repos/niggle-repo.memory';
 import { InMemoryPlanRepo } from '../repos/plan-repo.memory';
 import { InMemoryProfileRepo } from '../repos/profile-repo.memory';
 import { InMemoryShoeRepo } from '../repos/shoe-repo.memory';
@@ -25,6 +27,7 @@ export interface RouterDeps {
   planRepo: PlanRepo;
   activityRepo: ActivityRepo;
   shoeRepo?: ShoeRepo;
+  niggleRepo?: NiggleRepo;
   conversationRepo: ConversationRepo;
   crossTrainingRepo: CrossTrainingRepo;
   integrationTokenRepo?: IntegrationTokenRepo;
@@ -34,8 +37,9 @@ export interface RouterDeps {
 
 export function createAppRouter(deps: RouterDeps) {
   const shoeRepo = deps.shoeRepo ?? new InMemoryShoeRepo(deps.activityRepo);
+  const niggleRepo = deps.niggleRepo ?? new InMemoryNiggleRepo(deps.activityRepo);
   return router({
-    activity: createActivityRouter(deps.activityRepo, deps.planRepo),
+    activity: createActivityRouter(deps.activityRepo, deps.planRepo, niggleRepo, shoeRepo),
     shoe: createShoeRouter(shoeRepo),
     plan: createPlanRouter(deps.planRepo),
     coach: createCoachRouter(deps),

@@ -94,6 +94,25 @@ function runActivityRepoTests(name: string, createRepo: () => ActivityRepo) {
       expect(updated!.matchedSessionId).toBe('session-42');
     });
 
+    it('updates notes and shoe assignments on an activity', async () => {
+      const activity = makeActivity('user-1');
+      await repo.save(activity);
+
+      const withNotes = await repo.updateNotes(activity.id, 'Legs woke up after 3k');
+      const withShoe = await repo.setShoe(activity.id, 'shoe-42');
+
+      expect(withNotes).toMatchObject({ notes: 'Legs woke up after 3k' });
+      expect(withShoe).toMatchObject({ shoeId: 'shoe-42' });
+
+      await repo.updateNotes(activity.id, null);
+      await repo.setShoe(activity.id, null);
+
+      expect(await repo.getById(activity.id)).toMatchObject({
+        notes: undefined,
+        shoeId: undefined,
+      });
+    });
+
     it('isolates activities between users', async () => {
       await repo.save(makeActivity('user-1'));
       await repo.save(makeActivity('user-2'));

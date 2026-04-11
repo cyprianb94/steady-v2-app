@@ -33,4 +33,7 @@ export interface Activity {
 
   // Auto-detected shoe from the source integration
   shoeId?: string;
+
+  // Freeform notes captured on Run Detail
+  notes?: string;
 }

@@ -6,6 +6,7 @@ import { InMemoryConversationRepo } from './conversation-repo.memory';
 import { InMemoryCrossTrainingRepo } from './cross-training-repo.memory';
 import type { IntegrationTokenRepo } from './integration-token-repo';
 import { InMemoryIntegrationTokenRepo } from './integration-token-repo.memory';
+import { InMemoryNiggleRepo } from './niggle-repo.memory';
 import { InMemoryPlanRepo } from './plan-repo.memory';
 import { InMemoryProfileRepo } from './profile-repo.memory';
 import { InMemoryShoeRepo } from './shoe-repo.memory';
@@ -13,6 +14,7 @@ import { SupabaseActivityRepo } from './activity-repo.supabase';
 import { SupabaseConversationRepo } from './conversation-repo.supabase';
 import { SupabaseCrossTrainingRepo } from './cross-training-repo.supabase';
 import { SupabaseIntegrationTokenRepo } from './integration-token-repo.supabase';
+import { SupabaseNiggleRepo } from './niggle-repo.supabase';
 import { SupabasePlanRepo } from './plan-repo.supabase';
 import { SupabaseProfileRepo } from './profile-repo.supabase';
 import { SupabaseShoeRepo } from './shoe-repo.supabase';
@@ -35,6 +37,7 @@ export function createServerDeps(): ServerDeps {
       planRepo: new InMemoryPlanRepo(),
       activityRepo,
       shoeRepo: new InMemoryShoeRepo(activityRepo),
+      niggleRepo: new InMemoryNiggleRepo(activityRepo),
       integrationTokenRepo: new InMemoryIntegrationTokenRepo(),
       conversationRepo: new InMemoryConversationRepo(),
       crossTrainingRepo: new InMemoryCrossTrainingRepo(),
@@ -49,6 +52,7 @@ export function createServerDeps(): ServerDeps {
     planRepo: new SupabasePlanRepo(supabase),
     activityRepo: new SupabaseActivityRepo(supabase),
     shoeRepo: new SupabaseShoeRepo(supabase),
+    niggleRepo: new SupabaseNiggleRepo(supabase),
     integrationTokenRepo: new SupabaseIntegrationTokenRepo(supabase),
     conversationRepo: new SupabaseConversationRepo(supabase),
     crossTrainingRepo: new SupabaseCrossTrainingRepo(supabase),

@@ -19,6 +19,7 @@ function rowToActivity(row: Record<string, unknown>): Activity {
     subjectiveInput: (row.subjective_input as SubjectiveInput) ?? undefined,
     matchedSessionId: (row.matched_session_id as string) ?? undefined,
     shoeId: (row.shoe_id as string) ?? undefined,
+    notes: (row.notes as string) ?? undefined,
   };
 }
 
@@ -39,6 +40,7 @@ function activityToRow(activity: Activity): Record<string, unknown> {
     subjective_input: activity.subjectiveInput ?? null,
     matched_session_id: activity.matchedSessionId ?? null,
     shoe_id: activity.shoeId ?? null,
+    notes: activity.notes ?? null,
   };
 }
 
@@ -106,6 +108,30 @@ export class SupabaseActivityRepo implements ActivityRepo {
     const { data, error } = await this.supabase
       .from('activities')
       .update({ subjective_input: input })
+      .eq('id', activityId)
+      .select()
+      .single();
+
+    if (error || !data) return null;
+    return rowToActivity(data);
+  }
+
+  async updateNotes(activityId: string, notes: string | null): Promise<Activity | null> {
+    const { data, error } = await this.supabase
+      .from('activities')
+      .update({ notes })
+      .eq('id', activityId)
+      .select()
+      .single();
+
+    if (error || !data) return null;
+    return rowToActivity(data);
+  }
+
+  async setShoe(activityId: string, shoeId: string | null): Promise<Activity | null> {
+    const { data, error } = await this.supabase
+      .from('activities')
+      .update({ shoe_id: shoeId })
       .eq('id', activityId)
       .select()
       .single();
