@@ -10,6 +10,10 @@ export type { ActivityRepo } from './activity-repo';
 export { InMemoryActivityRepo } from './activity-repo.memory';
 export { SupabaseActivityRepo } from './activity-repo.supabase';
 
+export type { ShoeRepo } from './shoe-repo';
+export { InMemoryShoeRepo } from './shoe-repo.memory';
+export { SupabaseShoeRepo } from './shoe-repo.supabase';
+
 export type { IntegrationTokenRepo } from './integration-token-repo';
 export { InMemoryIntegrationTokenRepo } from './integration-token-repo.memory';
 export { SupabaseIntegrationTokenRepo } from './integration-token-repo.supabase';

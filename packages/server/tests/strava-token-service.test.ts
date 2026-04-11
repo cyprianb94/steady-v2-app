@@ -28,6 +28,7 @@ describe('StravaTokenService', () => {
         expiresAt: '2026-04-10T12:30:00Z',
       }),
       getActivities: async () => [],
+      getGear: async () => null,
     };
 
     await profileRepo.upsert({
