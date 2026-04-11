@@ -71,6 +71,14 @@ export { buildBlockWeekDayDetails } from './lib/block-week-detail';
 export { assignDates } from './lib/assign-dates';
 export { normalizeSessionIds } from './lib/normalize-session-ids';
 export { detectHardSessionConflicts, propagateSwap, swapSessions } from './lib/session-rearrange';
+export {
+  DISTANCE_SHORT_PCT,
+  DISTANCE_TOLERANCE_PCT,
+  HR_ZONE2_MAX_BPM,
+  PACE_FAST_SEC,
+  PACE_SLOW_SEC,
+  summariseVsPlan,
+} from './plan-vs-actual';
 export type { HardSessionConflict } from './lib/session-rearrange';
 export type {
   RtrStepDefinition,
@@ -80,3 +88,11 @@ export type {
 export type { BlockPhaseSegment, InjuryWeekRange } from './lib/block-injury';
 export type { BlockVolumeTone, WeekVolumeSummary } from './lib/block-volume';
 export type { BlockDayStatus, BlockWeekDayDetail } from './lib/block-week-detail';
+export type {
+  PvaHeadline,
+  PvaResult,
+  PvaRow,
+  PvaVerdict,
+  PvaVerdictKind,
+  PvaVerdictStatus,
+} from './plan-vs-actual';
