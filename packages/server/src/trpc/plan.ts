@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, authedProcedure } from './trpc';
 import { generatePlan, getDisplayWeekIndex, propagateChange } from '@steady/types';
-import type { TrainingPlan, TrainingPlanWithAnnotation, PlanWeek, PhaseConfig, PlannedSession, SubjectiveInput } from '@steady/types';
+import type { TrainingPlan, TrainingPlanWithAnnotation, PlanWeek, PhaseConfig, PlannedSession } from '@steady/types';
 import type { PlanRepo } from '../repos/plan-repo';
 import { generateAnnotation } from '../lib/annotation-engine';
 
@@ -19,12 +19,6 @@ const InjuryUpdateSchema = z.object({
   rtrStep: z.number().min(0).max(4).optional(),
   rtrStepCompletedDates: z.array(z.string()).optional(),
   status: z.enum(['recovering', 'returning', 'resolved']).optional(),
-});
-
-const SubjectiveInputSchema = z.object({
-  legs: z.enum(['fresh', 'normal', 'heavy', 'dead']),
-  breathing: z.enum(['easy', 'controlled', 'labored']),
-  overall: z.enum(['could-go-again', 'done', 'shattered']),
 });
 
 const PhaseNameSchema = z.enum(['BASE', 'BUILD', 'RECOVERY', 'PEAK', 'TAPER']);
@@ -75,24 +69,6 @@ function withCoachAnnotation(plan: TrainingPlan | null): TrainingPlanWithAnnotat
       allSessions: currentWeek.sessions,
     }),
   };
-}
-
-function updateSessionInWeeks(
-  weeks: PlanWeek[],
-  sessionId: string,
-  update: (session: PlannedSession) => PlannedSession,
-): { weeks: PlanWeek[]; found: boolean } {
-  let found = false;
-  const updatedWeeks = weeks.map((week) => ({
-    ...week,
-    sessions: week.sessions.map((session) => {
-      if (!session || session.id !== sessionId) return session;
-      found = true;
-      return update(session);
-    }),
-  }));
-
-  return { weeks: updatedWeeks, found };
 }
 
 export function createPlanRouter(planRepo: PlanRepo) {
@@ -220,56 +196,6 @@ export function createPlanRouter(planRepo: PlanRepo) {
         const plan = await planRepo.getActive(ctx.userId);
         if (!plan) return null;
         return planRepo.updateWeeks(plan.id, input.weeks as PlanWeek[]);
-      }),
-
-    saveSubjectiveInput: authedProcedure
-      .input(
-        z.object({
-          sessionId: z.string().min(1),
-          input: SubjectiveInputSchema,
-        }),
-      )
-      .mutation(async ({ ctx, input }) => {
-        const plan = await planRepo.getActive(ctx.userId);
-        if (!plan) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'No plan found' });
-        }
-
-        const { weeks, found } = updateSessionInWeeks(plan.weeks, input.sessionId, (session) => ({
-          ...session,
-          subjectiveInput: input.input as SubjectiveInput,
-          subjectiveInputDismissed: true,
-        }));
-
-        if (!found) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Session not found' });
-        }
-
-        return planRepo.updateWeeks(plan.id, weeks);
-      }),
-
-    dismissSubjectiveInput: authedProcedure
-      .input(
-        z.object({
-          sessionId: z.string().min(1),
-        }),
-      )
-      .mutation(async ({ ctx, input }) => {
-        const plan = await planRepo.getActive(ctx.userId);
-        if (!plan) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'No plan found' });
-        }
-
-        const { weeks, found } = updateSessionInWeeks(plan.weeks, input.sessionId, (session) => ({
-          ...session,
-          subjectiveInputDismissed: true,
-        }));
-
-        if (!found) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Session not found' });
-        }
-
-        return planRepo.updateWeeks(plan.id, weeks);
       }),
 
     markInjury: authedProcedure

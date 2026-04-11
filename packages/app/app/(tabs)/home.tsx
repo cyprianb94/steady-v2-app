@@ -16,7 +16,7 @@ import { RemainingDaysList } from '../../components/home/RemainingDaysList';
 import { CoachAnnotationCard } from '../../components/home/CoachAnnotationCard';
 import { WeeklyLoadCard } from '../../components/home/WeeklyLoadCard';
 import { addDaysIso, findSessionForDateOrWeekday, startOfWeekIso } from '../../lib/plan-helpers';
-import type { Activity, SubjectiveInput } from '@steady/types';
+import type { Activity } from '@steady/types';
 
 const HOME_SCROLL_TOP_PADDING = 14;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
@@ -137,23 +137,6 @@ export default function HomeScreen() {
   const steadyNote = todaySession ? plan.coachAnnotation : null;
   const coachNote = steadyNote && plan.coachAnnotation === steadyNote ? null : plan.coachAnnotation;
 
-  async function saveSubjectiveInput(input: SubjectiveInput) {
-    if (!todaySession) return;
-    await trpc.plan.saveSubjectiveInput.mutate({
-      sessionId: todaySession.id,
-      input,
-    });
-    await refresh();
-  }
-
-  async function dismissSubjectiveInput() {
-    if (!todaySession) return;
-    await trpc.plan.dismissSubjectiveInput.mutate({
-      sessionId: todaySession.id,
-    });
-    await refresh();
-  }
-
   async function handleRefresh() {
     await forceSync();
     await refresh();
@@ -190,8 +173,6 @@ export default function HomeScreen() {
             session={todaySession}
             activity={todaySession?.id ? activitiesBySessionId.get(todaySession.id) : undefined}
             steadyNote={steadyNote}
-            onSaveSubjectiveInput={saveSubjectiveInput}
-            onDismissSubjectiveInput={dismissSubjectiveInput}
           />
           <CoachAnnotationCard annotation={coachNote} />
           <RemainingDaysList

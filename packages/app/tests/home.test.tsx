@@ -24,20 +24,10 @@ vi.mock('../hooks/usePlan', () => ({
   usePlan: () => mockPlan,
 }));
 
-const mockSaveSubjectiveInput = vi.hoisted(() => vi.fn());
-const mockDismissSubjectiveInput = vi.hoisted(() => vi.fn());
 const mockActivityList = vi.hoisted(() => vi.fn());
 
 vi.mock('../lib/trpc', () => ({
   trpc: {
-    plan: {
-      saveSubjectiveInput: {
-        mutate: mockSaveSubjectiveInput,
-      },
-      dismissSubjectiveInput: {
-        mutate: mockDismissSubjectiveInput,
-      },
-    },
     activity: {
       list: {
         query: mockActivityList,
@@ -62,8 +52,6 @@ describe('HomeScreen', () => {
     mockPlan.loading = true;
     mockPlan.currentWeek = null;
     mockPlan.refresh = vi.fn();
-    mockSaveSubjectiveInput.mockReset();
-    mockDismissSubjectiveInput.mockReset();
     mockActivityList.mockReset();
     mockActivityList.mockResolvedValue([]);
   });
@@ -455,7 +443,7 @@ describe('HomeScreen', () => {
     expect(screen.getByText('Easy 12k')).toBeTruthy();
   });
 
-  it('saves subjective input from the completed-session prompt', async () => {
+  it('renders saved feel for today’s matched activity from activity data', async () => {
     const today = new Date().toISOString().slice(0, 10);
     const sessions = [null, null, null, null, null, null, null] as any[];
     sessions[slotIndexForIsoDate(today)] = {
@@ -483,75 +471,32 @@ describe('HomeScreen', () => {
       coachAnnotation: 'Nice work.',
     };
     mockPlan.currentWeek = week;
-    mockPlan.refresh = vi.fn().mockResolvedValue(undefined);
-    mockSaveSubjectiveInput.mockResolvedValue({});
-
-    render(<HomeScreen />);
-
-    expect(screen.getByTestId('subjective-input-prompt')).toBeTruthy();
-    fireEvent.click(screen.getByText('Heavy'));
-    fireEvent.click(screen.getByText('Controlled'));
-    fireEvent.click(screen.getByText('Done'));
-    fireEvent.click(screen.getByText('Save feel'));
-
-    await waitFor(() => {
-      expect(mockSaveSubjectiveInput).toHaveBeenCalledWith({
-        sessionId: 'session-1',
-        input: {
+    mockActivityList.mockResolvedValue([
+      {
+        id: 'activity-1',
+        matchedSessionId: 'session-1',
+        distance: 8.1,
+        avgPace: 319,
+        duration: 2580,
+        subjectiveInput: {
           legs: 'heavy',
           breathing: 'controlled',
           overall: 'done',
         },
-      });
-    });
-    expect(mockPlan.refresh).toHaveBeenCalled();
-  });
-
-  it('dismisses the subjective input prompt without saving ratings', async () => {
-    const today = new Date().toISOString().slice(0, 10);
-    const sessions = [null, null, null, null, null, null, null] as any[];
-    sessions[slotIndexForIsoDate(today)] = {
-      id: 'session-1',
-      type: 'EASY',
-      date: today,
-      distance: 8,
-      pace: '5:20',
-      actualActivityId: 'activity-1',
-    };
-    const week = {
-      weekNumber: 3,
-      phase: 'BASE' as const,
-      sessions,
-      plannedKm: 40,
-    };
-    mockAuth.isLoading = false;
-    mockAuth.session = { user: { id: '1' } };
-    mockPlan.loading = false;
-    mockPlan.plan = {
-      id: 'p1',
-      weeks: [week],
-      phases: {},
-      raceDate: '2026-07-15',
-      coachAnnotation: 'Nice work.',
-    };
-    mockPlan.currentWeek = week;
-    mockPlan.refresh = vi.fn().mockResolvedValue(undefined);
-    mockDismissSubjectiveInput.mockResolvedValue({});
+      },
+    ]);
 
     render(<HomeScreen />);
 
-    fireEvent.click(screen.getByText('Skip'));
-
     await waitFor(() => {
-      expect(mockDismissSubjectiveInput).toHaveBeenCalledWith({
-        sessionId: 'session-1',
-      });
+      expect(screen.getByText('Legs: Heavy')).toBeTruthy();
     });
-    expect(mockSaveSubjectiveInput).not.toHaveBeenCalled();
-    expect(mockPlan.refresh).toHaveBeenCalled();
+    expect(screen.getByText('Breathing: Controlled')).toBeTruthy();
+    expect(screen.getByText('Overall: Done')).toBeTruthy();
+    expect(screen.queryByTestId('subjective-input-prompt')).toBeNull();
   });
 
-  it('does not show the subjective prompt after it has been dismissed', () => {
+  it('does not show a subjective prompt for a matched run without saved feel', () => {
     const today = new Date().toISOString().slice(0, 10);
     const sessions = [null, null, null, null, null, null, null] as any[];
     sessions[slotIndexForIsoDate(today)] = {
@@ -561,7 +506,6 @@ describe('HomeScreen', () => {
       distance: 8,
       pace: '5:20',
       actualActivityId: 'activity-1',
-      subjectiveInputDismissed: true,
     };
     const week = {
       weekNumber: 3,

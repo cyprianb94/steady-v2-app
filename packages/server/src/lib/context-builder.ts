@@ -109,8 +109,8 @@ function buildPlanSection(plan: TrainingPlan, activities: Activity[], charBudget
           if (matched.avgHR) desc += `, HR ${matched.avgHR}`;
           desc += ')';
         }
-        if (s.subjectiveInput) {
-          desc += ` (${formatSubjectiveInput(s.subjectiveInput)})`;
+        if (matched?.subjectiveInput) {
+          desc += ` (${formatSubjectiveInput(matched.subjectiveInput)})`;
         }
         line = `  ${DAY_NAMES[d] ?? `D${d}`}: ${desc}`;
       }
@@ -206,7 +206,6 @@ function buildConversationFrame(
 
       let frame = `JUST COMPLETED:\n${session.type}: ${actual}\nPlanned: ${planned}\nDistance deviation: ${distDev}%`;
       if (activity.avgHR) frame += `\nAvg HR: ${activity.avgHR} bpm`;
-      if (session.subjectiveInput) frame += `\nSession felt: ${formatSubjectiveInput(session.subjectiveInput)}`;
       if (activity.subjectiveInput) frame += `\nActivity felt: ${formatSubjectiveInput(activity.subjectiveInput)}`;
       frame += '\n\nProvide a brief debrief. Comment on execution vs plan. Highlight anything notable.';
       return frame;

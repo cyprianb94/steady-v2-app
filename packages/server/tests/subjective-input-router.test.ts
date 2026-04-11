@@ -46,14 +46,15 @@ function makePlan(): TrainingPlan {
   };
 }
 
-describe('plan subjective input', () => {
+describe('subjective input router contract', () => {
   let planRepo: InMemoryPlanRepo;
+  let appRouter: ReturnType<typeof createAppRouter>;
   let caller: ReturnType<ReturnType<typeof createAppRouter>['createCaller']>;
 
   beforeEach(async () => {
     vi.useRealTimers();
     planRepo = new InMemoryPlanRepo();
-    const appRouter = createAppRouter({
+    appRouter = createAppRouter({
       profileRepo: new InMemoryProfileRepo(),
       planRepo,
       activityRepo: new InMemoryActivityRepo(),
@@ -68,35 +69,15 @@ describe('plan subjective input', () => {
     vi.useRealTimers();
   });
 
-  it('saves subjective input for a session and returns it from the plan query', async () => {
-    await caller.plan.saveSubjectiveInput({
-      sessionId: 'session-1',
-      input: {
-        legs: 'heavy',
-        breathing: 'controlled',
-        overall: 'done',
-      },
-    });
-
-    const plan = await caller.plan.get();
-
-    expect(plan?.weeks[0].sessions[0]?.subjectiveInput).toEqual({
-      legs: 'heavy',
-      breathing: 'controlled',
-      overall: 'done',
-    });
-    expect(plan?.weeks[0].sessions[0]?.subjectiveInputDismissed).toBe(true);
+  it('does not expose the legacy plan subjective-input mutations', async () => {
+    const procedures = (appRouter as unknown as { _def: { procedures: Record<string, unknown> } })._def.procedures;
+    expect(procedures['plan.saveSubjectiveInput']).toBeUndefined();
+    expect(procedures['plan.dismissSubjectiveInput']).toBeUndefined();
   });
 
-  it('marks subjective input as dismissed without storing ratings', async () => {
-    await caller.plan.dismissSubjectiveInput({
-      sessionId: 'session-1',
-    });
-
-    const plan = await caller.plan.get();
-
-    expect(plan?.weeks[0].sessions[0]?.subjectiveInput).toBeUndefined();
-    expect(plan?.weeks[0].sessions[0]?.subjectiveInputDismissed).toBe(true);
+  it('does not expose an activity subjective-input tRPC mutation yet', async () => {
+    const procedures = (appRouter as unknown as { _def: { procedures: Record<string, unknown> } })._def.procedures;
+    expect(procedures['activity.updateSubjectiveInput']).toBeUndefined();
   });
 
   it('builds the coach annotation from the weekday slot when session dates are stale', async () => {
