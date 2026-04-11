@@ -26,6 +26,18 @@ export type {
   CrossTrainingType,
 } from './injury';
 export { CROSS_TRAINING_TYPES } from './injury';
+export {
+  BODY_PARTS,
+  NIGGLE_SEVERITIES,
+  NIGGLE_WHEN_OPTIONS,
+} from './niggle';
+export type {
+  BodyPart,
+  Niggle,
+  NiggleSeverity,
+  NiggleSide,
+  NiggleWhen,
+} from './niggle';
 
 export type {
   Activity,

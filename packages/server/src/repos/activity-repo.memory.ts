@@ -12,9 +12,18 @@ export class InMemoryActivityRepo implements ActivityRepo {
     return results;
   }
 
+  async getById(activityId: string): Promise<Activity | null> {
+    const activity = this.store.get(activityId);
+    return activity ? { ...activity } : null;
+  }
+
   async save(activity: Activity): Promise<Activity> {
     this.store.set(activity.id, { ...activity });
     return { ...activity };
+  }
+
+  async delete(activityId: string): Promise<void> {
+    this.store.delete(activityId);
   }
 
   async getByExternalId(userId: string, source: string, externalId: string): Promise<Activity | null> {
