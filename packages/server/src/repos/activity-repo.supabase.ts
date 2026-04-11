@@ -18,6 +18,7 @@ function rowToActivity(row: Record<string, unknown>): Activity {
     splits: (row.splits as Activity['splits']) ?? [],
     subjectiveInput: (row.subjective_input as SubjectiveInput) ?? undefined,
     matchedSessionId: (row.matched_session_id as string) ?? undefined,
+    shoeId: (row.shoe_id as string) ?? undefined,
   };
 }
 
@@ -37,6 +38,7 @@ function activityToRow(activity: Activity): Record<string, unknown> {
     splits: activity.splits,
     subjective_input: activity.subjectiveInput ?? null,
     matched_session_id: activity.matchedSessionId ?? null,
+    shoe_id: activity.shoeId ?? null,
   };
 }
 

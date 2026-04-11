@@ -2,21 +2,24 @@ import type {
   Activity,
   ActivitySplit,
   PlannedSession,
+  Shoe,
   StravaSyncMatchSummary,
   StravaSyncResult,
   TrainingPlan,
 } from '@steady/types';
 import { matchActivity } from './activity-matcher';
-import type { StravaActivity, StravaClient } from './strava-client';
+import type { StravaActivity, StravaClient, StravaGear } from './strava-client';
 import type { StravaTokenService } from './strava-token-service';
 import type { ActivityRepo } from '../repos/activity-repo';
 import type { IntegrationTokenRepo } from '../repos/integration-token-repo';
 import type { PlanRepo } from '../repos/plan-repo';
+import type { ShoeRepo } from '../repos/shoe-repo';
 
 interface SyncStravaActivitiesDeps {
   activityRepo: ActivityRepo;
   integrationTokenRepo: IntegrationTokenRepo;
   planRepo: PlanRepo;
+  shoeRepo: ShoeRepo;
   stravaClient: StravaClient;
   tokenService: StravaTokenService;
   now?: () => Date;
@@ -109,6 +112,56 @@ function describeMatchedSession(session: PlannedSession): StravaSyncMatchSummary
   };
 }
 
+function mapGearToShoe(userId: string, gear: StravaGear): Omit<Shoe, 'totalKm'> {
+  const now = new Date().toISOString();
+  return {
+    id: crypto.randomUUID(),
+    userId,
+    stravaGearId: gear.id,
+    brand: gear.brand,
+    model: gear.model,
+    nickname: gear.name,
+    retired: gear.retired,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+async function resolveShoeForActivity(
+  userId: string,
+  accessToken: string,
+  externalActivity: StravaActivity,
+  deps: SyncStravaActivitiesDeps,
+  gearCache: Map<string, Shoe | null>,
+): Promise<Shoe | null> {
+  const gearId = externalActivity.gear_id;
+  if (!gearId) return null;
+
+  if (gearCache.has(gearId)) {
+    return gearCache.get(gearId) ?? null;
+  }
+
+  try {
+    const gear = await deps.stravaClient.getGear(accessToken, gearId);
+    if (!gear) {
+      gearCache.set(gearId, null);
+      return null;
+    }
+
+    const shoe = await deps.shoeRepo.save(mapGearToShoe(userId, gear));
+    gearCache.set(gearId, shoe);
+    return shoe;
+  } catch (error) {
+    console.warn('[strava.sync.gear_lookup_failed]', {
+      userId,
+      gearId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    gearCache.set(gearId, null);
+    return null;
+  }
+}
+
 export async function syncStravaActivities(
   userId: string,
   deps: SyncStravaActivitiesDeps,
@@ -124,6 +177,7 @@ export async function syncStravaActivities(
 
   let currentPlan = plan;
   const newlyMatchedSessionIds = new Set<string>();
+  const gearCache = new Map<string, Shoe | null>();
   const result: StravaSyncResult = {
     new: 0,
     skipped: 0,
@@ -144,6 +198,10 @@ export async function syncStravaActivities(
     }
 
     const activity = mapActivity(userId, externalActivity);
+    const shoe = await resolveShoeForActivity(userId, accessToken, externalActivity, deps, gearCache);
+    if (shoe) {
+      activity.shoeId = shoe.id;
+    }
     const matchedSession = currentPlan
       ? matchActivity(activity, currentPlan.weeks, newlyMatchedSessionIds)
       : null;

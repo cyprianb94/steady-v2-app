@@ -8,12 +8,14 @@ import type { IntegrationTokenRepo } from './integration-token-repo';
 import { InMemoryIntegrationTokenRepo } from './integration-token-repo.memory';
 import { InMemoryPlanRepo } from './plan-repo.memory';
 import { InMemoryProfileRepo } from './profile-repo.memory';
+import { InMemoryShoeRepo } from './shoe-repo.memory';
 import { SupabaseActivityRepo } from './activity-repo.supabase';
 import { SupabaseConversationRepo } from './conversation-repo.supabase';
 import { SupabaseCrossTrainingRepo } from './cross-training-repo.supabase';
 import { SupabaseIntegrationTokenRepo } from './integration-token-repo.supabase';
 import { SupabasePlanRepo } from './plan-repo.supabase';
 import { SupabaseProfileRepo } from './profile-repo.supabase';
+import { SupabaseShoeRepo } from './shoe-repo.supabase';
 
 function hasSupabaseConfig(): boolean {
   return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY);
@@ -27,10 +29,12 @@ export interface ServerDeps extends RouterDeps {
 
 export function createServerDeps(): ServerDeps {
   if (!hasSupabaseConfig()) {
+    const activityRepo = new InMemoryActivityRepo();
     return {
       profileRepo: new InMemoryProfileRepo(),
       planRepo: new InMemoryPlanRepo(),
-      activityRepo: new InMemoryActivityRepo(),
+      activityRepo,
+      shoeRepo: new InMemoryShoeRepo(activityRepo),
       integrationTokenRepo: new InMemoryIntegrationTokenRepo(),
       conversationRepo: new InMemoryConversationRepo(),
       crossTrainingRepo: new InMemoryCrossTrainingRepo(),
@@ -44,6 +48,7 @@ export function createServerDeps(): ServerDeps {
     profileRepo: new SupabaseProfileRepo(supabase),
     planRepo: new SupabasePlanRepo(supabase),
     activityRepo: new SupabaseActivityRepo(supabase),
+    shoeRepo: new SupabaseShoeRepo(supabase),
     integrationTokenRepo: new SupabaseIntegrationTokenRepo(supabase),
     conversationRepo: new SupabaseConversationRepo(supabase),
     crossTrainingRepo: new SupabaseCrossTrainingRepo(supabase),

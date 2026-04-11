@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StravaClient } from '../src/lib/strava-client';
 import { createStravaTokenService } from '../src/lib/strava-token-service';
 import { syncStravaActivities } from '../src/lib/strava-sync';
@@ -7,12 +7,14 @@ import { InMemoryActivityRepo } from '../src/repos/activity-repo.memory';
 import { InMemoryIntegrationTokenRepo } from '../src/repos/integration-token-repo.memory';
 import { InMemoryPlanRepo } from '../src/repos/plan-repo.memory';
 import { InMemoryProfileRepo } from '../src/repos/profile-repo.memory';
+import { InMemoryShoeRepo } from '../src/repos/shoe-repo.memory';
 
 describe('syncStravaActivities', () => {
   let activityRepo: InMemoryActivityRepo;
   let integrationTokenRepo: InMemoryIntegrationTokenRepo;
   let planRepo: InMemoryPlanRepo;
   let profileRepo: InMemoryProfileRepo;
+  let shoeRepo: InMemoryShoeRepo;
   let stravaClient: StravaClient;
   const encryptionKey = 'test-encryption-key';
 
@@ -21,6 +23,7 @@ describe('syncStravaActivities', () => {
     integrationTokenRepo = new InMemoryIntegrationTokenRepo();
     planRepo = new InMemoryPlanRepo();
     profileRepo = new InMemoryProfileRepo();
+    shoeRepo = new InMemoryShoeRepo(activityRepo);
 
     await profileRepo.upsert({
       id: 'user-1',
@@ -54,6 +57,7 @@ describe('syncStravaActivities', () => {
         expiresAt: '2026-04-10T15:00:00Z',
       }),
       getActivities: async () => [],
+      getGear: async () => null,
     };
   });
 
@@ -145,6 +149,7 @@ describe('syncStravaActivities', () => {
       activityRepo,
       integrationTokenRepo,
       planRepo,
+      shoeRepo,
       stravaClient,
       tokenService,
       now: () => new Date('2026-04-10T11:05:00Z'),
@@ -231,6 +236,7 @@ describe('syncStravaActivities', () => {
       activityRepo,
       integrationTokenRepo,
       planRepo,
+      shoeRepo,
       stravaClient,
       tokenService,
       now: () => new Date('2026-04-10T12:05:00Z'),
@@ -262,11 +268,131 @@ describe('syncStravaActivities', () => {
       activityRepo,
       integrationTokenRepo,
       planRepo,
+      shoeRepo,
       stravaClient,
       tokenService,
       now: () => new Date('2026-04-10T12:00:00Z'),
     });
 
     expect(afterArg).toBe('2026-03-11T12:00:00.000Z');
+  });
+
+  it('upserts shoes, caches repeated gear lookups, and stamps shoe ids on synced activities', async () => {
+    const getGear = vi.fn(async () => ({
+      id: 'gear-1',
+      brand: 'Nike',
+      model: 'Pegasus',
+      name: 'Daily',
+      retired: false,
+    }));
+
+    stravaClient = {
+      ...stravaClient,
+      getActivities: async () => [
+        {
+          id: 101,
+          sport_type: 'Run',
+          start_date: '2026-04-08T07:00:00Z',
+          distance: 10000,
+          moving_time: 3000,
+          elapsed_time: 3030,
+          gear_id: 'gear-1',
+        },
+        {
+          id: 102,
+          sport_type: 'Run',
+          start_date: '2026-04-08T09:00:00Z',
+          distance: 8000,
+          moving_time: 2400,
+          elapsed_time: 2400,
+          gear_id: 'gear-1',
+        },
+      ],
+      getGear,
+    };
+
+    const tokenService = createStravaTokenService({
+      integrationTokenRepo,
+      profileRepo,
+      stravaClient,
+      encryptionKey,
+    });
+
+    await syncStravaActivities('user-1', {
+      activityRepo,
+      integrationTokenRepo,
+      planRepo,
+      shoeRepo,
+      stravaClient,
+      tokenService,
+      now: () => new Date('2026-04-10T12:05:00Z'),
+    });
+
+    expect(getGear).toHaveBeenCalledTimes(1);
+
+    const shoes = await shoeRepo.listByUserId('user-1');
+    expect(shoes).toEqual([
+      expect.objectContaining({
+        stravaGearId: 'gear-1',
+        brand: 'Nike',
+        model: 'Pegasus',
+        nickname: 'Daily',
+        totalKm: 18,
+      }),
+    ]);
+
+    const activities = await activityRepo.getByUserId('user-1');
+    expect(activities.map((activity) => activity.shoeId)).toEqual([shoes[0].id, shoes[0].id]);
+  });
+
+  it('logs and skips shoe stamping when gear lookup fails', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    stravaClient = {
+      ...stravaClient,
+      getActivities: async () => [
+        {
+          id: 101,
+          sport_type: 'Run',
+          start_date: '2026-04-08T07:00:00Z',
+          distance: 10000,
+          moving_time: 3000,
+          elapsed_time: 3030,
+          gear_id: 'gear-404',
+        },
+      ],
+      getGear: async () => {
+        throw new Error('gear fetch failed with status 503');
+      },
+    };
+
+    const tokenService = createStravaTokenService({
+      integrationTokenRepo,
+      profileRepo,
+      stravaClient,
+      encryptionKey,
+    });
+
+    await syncStravaActivities('user-1', {
+      activityRepo,
+      integrationTokenRepo,
+      planRepo,
+      shoeRepo,
+      stravaClient,
+      tokenService,
+      now: () => new Date('2026-04-10T12:05:00Z'),
+    });
+
+    const activities = await activityRepo.getByUserId('user-1');
+    expect(activities[0]?.shoeId).toBeUndefined();
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[strava.sync.gear_lookup_failed]',
+      expect.objectContaining({
+        userId: 'user-1',
+        gearId: 'gear-404',
+      }),
+    );
+
+    warnSpy.mockRestore();
   });
 });

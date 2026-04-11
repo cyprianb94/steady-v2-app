@@ -31,6 +31,7 @@ export type {
   Activity,
   ActivitySplit,
 } from './activity';
+export type { Shoe } from './shoe';
 
 export type { IntegrationToken } from './integration-token';
 export type { StravaSyncMatchSummary, StravaSyncResult } from './strava';
