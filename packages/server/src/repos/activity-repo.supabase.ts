@@ -54,6 +54,17 @@ export class SupabaseActivityRepo implements ActivityRepo {
     return data.map(rowToActivity);
   }
 
+  async getById(activityId: string): Promise<Activity | null> {
+    const { data, error } = await this.supabase
+      .from('activities')
+      .select('*')
+      .eq('id', activityId)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return rowToActivity(data);
+  }
+
   async save(activity: Activity): Promise<Activity> {
     const { data, error } = await this.supabase
       .from('activities')
@@ -63,6 +74,17 @@ export class SupabaseActivityRepo implements ActivityRepo {
 
     if (error) throw new Error(`Failed to save activity: ${error.message}`);
     return rowToActivity(data);
+  }
+
+  async delete(activityId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('activities')
+      .delete()
+      .eq('id', activityId);
+
+    if (error) {
+      throw new Error(`Failed to delete activity: ${error.message}`);
+    }
   }
 
   async getByExternalId(userId: string, source: string, externalId: string): Promise<Activity | null> {
