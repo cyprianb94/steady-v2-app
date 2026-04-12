@@ -158,16 +158,18 @@ export default function SyncRunDetailScreen() {
 
   useEffect(() => {
     if (!activity) return;
+    // Prefer today's session when the run happened today — this matches what home shows
+    if (todaySession && activity.startTime.slice(0, 10) === today) {
+      setSelectedSessionId(todaySession.id);
+      return;
+    }
+    // Fall back to whatever the auto-matcher assigned
     if (activity.matchedSessionId) {
       setSelectedSessionId(activity.matchedSessionId);
       return;
     }
-    if (todaySession && activity.startTime.slice(0, 10) === todaySession.date) {
-      setSelectedSessionId(todaySession.id);
-      return;
-    }
     setSelectedSessionId(null);
-  }, [activity, todaySession?.id, todaySession?.date]);
+  }, [activity, today, todaySession?.id, todaySession?.date]);
 
   // Pre-fill feel if activity already has subjective data
   useEffect(() => {
@@ -318,7 +320,7 @@ export default function SyncRunDetailScreen() {
                 <View style={styles.splitBar}>
                   <View style={[styles.splitFill, { width: paceBarWidth(split.pace, fastestPace, slowestPace) }]} />
                 </View>
-                <Text style={styles.splitHr}>{split.hr ? `${split.hr} bpm` : '—'}</Text>
+                <Text style={styles.splitHr}>{split.hr ? `${Math.round(split.hr)} bpm` : '—'}</Text>
               </View>
             ))}
           </View>
