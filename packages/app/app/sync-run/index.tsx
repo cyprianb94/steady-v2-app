@@ -8,7 +8,7 @@ import { useAuth } from '../../lib/auth';
 import { trpc } from '../../lib/trpc';
 import { usePlan } from '../../hooks/usePlan';
 import { useStravaSync } from '../../hooks/useStravaSync';
-import { findSessionForDateOrWeekday, startOfWeekIso, todayIsoLocal } from '../../lib/plan-helpers';
+import { addDaysIso, findSessionForDateOrWeekday, startOfWeekIso, todayIsoLocal } from '../../lib/plan-helpers';
 
 function formatPace(secPerKm: number): string {
   const mins = Math.floor(secPerKm / 60);
@@ -56,9 +56,12 @@ function isRunnableSession(session: PlannedSession | null): session is PlannedSe
  * runs so the user can review them.
  */
 function pickCandidates(activities: Activity[], today: string, weekStart: string): Activity[] {
+  // Look back one day before week start so runs just before midnight on Sunday
+  // still appear on Monday morning.
+  const windowStart = addDaysIso(weekStart, -1);
   const weekActivities = activities.filter((a) => {
     const date = a.startTime.slice(0, 10);
-    return a.source === 'strava' && date >= weekStart && date <= today;
+    return a.source === 'strava' && date >= windowStart && date <= today;
   });
 
   const unmatched = weekActivities.filter((a) => !a.matchedSessionId);
