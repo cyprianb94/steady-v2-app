@@ -33,12 +33,12 @@ You can also be more explicit:
 
 ## Branch naming
 
-Use short, descriptive names. Examples:
+Use short, descriptive names scoped to the feature or fix. No tool or LLM prefixes. Examples:
 
-- `codex/landing-anchor-fix`
-- `codex/strava-sync`
-- `codex/home-redesign`
-- `codex/block-rearrange`
+- `landing-anchor-fix`
+- `strava-sync`
+- `home-redesign`
+- `block-rearrange`
 
 ## Rules that help
 
