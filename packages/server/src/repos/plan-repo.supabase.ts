@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { TrainingPlan, PlanWeek, PhaseConfig, PlannedSession, Injury, InjuryUpdate } from '@steady/types';
+import { normalizeSessionIds } from '@steady/types';
 import type { PlanRepo } from './plan-repo';
 
 function createActiveInjury(name: string): Injury {
@@ -13,6 +14,7 @@ function createActiveInjury(name: string): Injury {
 }
 
 function rowToPlan(row: Record<string, unknown>): TrainingPlan {
+  const weeks = normalizeSessionIds(row.weeks as PlanWeek[]);
   return {
     id: row.id as string,
     userId: row.user_id as string,
@@ -24,7 +26,7 @@ function rowToPlan(row: Record<string, unknown>): TrainingPlan {
     phases: row.phases as PhaseConfig,
     progressionPct: row.progression_pct as number,
     templateWeek: row.template_week as (PlannedSession | null)[],
-    weeks: row.weeks as PlanWeek[],
+    weeks,
     activeInjury: (row.active_injury as Injury | null) ?? null,
   };
 }

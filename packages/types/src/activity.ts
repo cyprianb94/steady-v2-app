@@ -12,6 +12,7 @@ export interface Activity {
   userId: string;
   source: 'strava' | 'apple_health' | 'garmin' | 'manual';
   externalId: string;
+  name?: string; // Activity name from the source (e.g. Strava's activity.name)
 
   startTime: string; // ISO datetime
   distance: number; // km

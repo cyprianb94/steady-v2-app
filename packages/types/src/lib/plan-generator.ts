@@ -1,6 +1,7 @@
 import type { PlannedSession } from '../session';
 import type { PhaseConfig, PhaseName, PlanWeek } from '../plan';
 import { sessionKm } from './session-km';
+import { normalizeSessionIds } from './normalize-session-ids';
 
 /**
  * Compute default phase distribution for a given total week count.
@@ -71,7 +72,7 @@ export function generatePlan(
 
   const taperStart = weekPhases.lastIndexOf('PEAK') + 1;
 
-  return weekPhases.map((phase, w) => {
+  const rawWeeks = weekPhases.map((phase, w) => {
     const prog = Math.floor(w / 2);
     const isTaper = phase === 'TAPER';
     const isRecov = phase === 'RECOVERY';
@@ -119,4 +120,6 @@ export function generatePlan(
       plannedKm: Math.round(km),
     };
   });
+
+  return normalizeSessionIds(rawWeeks);
 }

@@ -56,6 +56,7 @@ export { buildBlockPhaseSegments, getInjuryWeekRange, isInjuryWeek } from './lib
 export { getBlockVolumeTone, getWeekVolumeRatio, getWeekVolumeSummary } from './lib/block-volume';
 export { buildBlockWeekDayDetails } from './lib/block-week-detail';
 export { assignDates } from './lib/assign-dates';
+export { normalizeSessionIds } from './lib/normalize-session-ids';
 export { detectHardSessionConflicts, propagateSwap, swapSessions } from './lib/session-rearrange';
 export type { HardSessionConflict } from './lib/session-rearrange';
 export type {

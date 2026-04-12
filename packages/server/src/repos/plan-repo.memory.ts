@@ -1,4 +1,5 @@
 import type { TrainingPlan, PlanWeek, Injury, InjuryUpdate } from '@steady/types';
+import { normalizeSessionIds } from '@steady/types';
 import type { PlanRepo } from './plan-repo';
 
 interface StoredPlan {
@@ -50,8 +51,9 @@ export class InMemoryPlanRepo implements PlanRepo {
       }
     }
 
-    this.store.set(plan.id, { plan: clonePlan(plan), isActive: true });
-    return clonePlan(plan);
+    const normalized = { ...plan, weeks: normalizeSessionIds(plan.weeks) };
+    this.store.set(plan.id, { plan: clonePlan(normalized), isActive: true });
+    return clonePlan(normalized);
   }
 
   async updateWeeks(planId: string, weeks: PlanWeek[]): Promise<TrainingPlan | null> {

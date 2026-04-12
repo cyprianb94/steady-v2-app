@@ -1,5 +1,6 @@
 import type { PlanWeek } from '../plan';
 import type { PlannedSession } from '../session';
+import { normalizeSessionIds } from './normalize-session-ids';
 
 /**
  * Assign real ISO dates to every session in the plan.
@@ -24,7 +25,7 @@ export function assignDates(weeks: PlanWeek[], raceDate: string): PlanWeek[] {
   const week1Monday = new Date(lastMonday);
   week1Monday.setUTCDate(lastMonday.getUTCDate() - (weeks.length - 1) * 7);
 
-  return weeks.map((week, wi) => {
+  const dated = weeks.map((week, wi) => {
     const weekMonday = new Date(week1Monday);
     weekMonday.setUTCDate(week1Monday.getUTCDate() + wi * 7);
 
@@ -38,4 +39,6 @@ export function assignDates(weeks: PlanWeek[], raceDate: string): PlanWeek[] {
 
     return { ...week, sessions };
   });
+
+  return normalizeSessionIds(dated);
 }

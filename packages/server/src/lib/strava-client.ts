@@ -29,6 +29,7 @@ export interface StravaActivitySplit {
 
 export interface StravaActivity {
   id: number;
+  name?: string;
   type?: string;
   sport_type?: string;
   start_date: string;
@@ -206,6 +207,7 @@ export function createStravaClient(options: CreateStravaClientOptions = {}): Str
 
         details.push({
           id: detail.id,
+          name: typeof detail.name === 'string' ? detail.name : undefined,
           type: typeof detail.type === 'string' ? detail.type : undefined,
           sport_type: typeof detail.sport_type === 'string' ? detail.sport_type : undefined,
           start_date: detail.start_date,

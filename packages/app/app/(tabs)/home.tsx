@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, StyleSheet, RefreshControl } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C } from '../../constants/colours';
@@ -34,6 +35,7 @@ function formatPhaseHeading(weekNumber: number, phase: string): string {
 }
 
 export default function HomeScreen() {
+  const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
   const { session, isLoading: authLoading } = useAuth();
   const { plan, loading, currentWeek, refresh } = usePlan();
@@ -42,24 +44,37 @@ export default function HomeScreen() {
   const today = useTodayIso();
   const weekSessions = currentWeek?.sessions ?? [];
 
-  const activitiesBySessionId = useMemo(() => {
+  // Two lookup maps so we handle both normalized and legacy session IDs
+  const activitiesById = useMemo(() => {
+    return new Map(activities.map((a) => [a.id, a]));
+  }, [activities]);
+
+  const activitiesByMatchedSessionId = useMemo(() => {
     return new Map(
       activities
-        .filter((activity) => Boolean(activity.matchedSessionId))
-        .map((activity) => [activity.matchedSessionId!, activity]),
+        .filter((a) => Boolean(a.matchedSessionId))
+        .map((a) => [a.matchedSessionId!, a]),
     );
   }, [activities]);
 
+  // Resolve activity for a session: prefer actualActivityId, fallback to matchedSessionId
+  function activityForSession(session: { id: string; actualActivityId?: string } | null): Activity | undefined {
+    if (!session) return undefined;
+    if (session.actualActivityId) return activitiesById.get(session.actualActivityId);
+    return activitiesByMatchedSessionId.get(session.id);
+  }
+
   const weeklyActualKm = useMemo(() => {
-    const total = weekSessions.reduce((sum, session) => {
-      if (!session?.id) return sum;
-      return sum + (activitiesBySessionId.get(session.id)?.distance ?? 0);
+    const total = weekSessions.reduce((sum, s) => {
+      if (!s?.id) return sum;
+      return sum + (activityForSession(s)?.distance ?? 0);
     }, 0);
     return Number(total.toFixed(1));
-  }, [activitiesBySessionId, weekSessions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activitiesById, activitiesByMatchedSessionId, weekSessions]);
 
   useEffect(() => {
-    if (!plan) {
+    if (!plan || !isFocused) {
       setActivities([]);
       return;
     }
@@ -85,7 +100,15 @@ export default function HomeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [plan?.id, syncRevision]);
+  }, [isFocused, plan?.id, syncRevision]);
+
+  useEffect(() => {
+    if (!isFocused || !session) return;
+
+    Promise.resolve(refresh()).catch((error) => {
+      console.error('Failed to refresh home plan on focus:', error);
+    });
+  }, [isFocused, refresh, session]);
 
   useEffect(() => {
     if (syncRevision === 0) return;
@@ -133,6 +156,9 @@ export default function HomeScreen() {
 
   const week = currentWeek;
   const todaySession = findSessionForDateOrWeekday(week.sessions, today);
+  const showFinishedRunCta = Boolean(
+    todaySession && todaySession.type !== 'REST' && !todaySession.actualActivityId,
+  );
   const weekStartDate = startOfWeekIso(today);
   const steadyNote = todaySession ? plan.coachAnnotation : null;
   const coachNote = steadyNote && plan.coachAnnotation === steadyNote ? null : plan.coachAnnotation;
@@ -188,16 +214,26 @@ export default function HomeScreen() {
           <WeeklyLoadCard actualKm={weeklyActualKm} plannedKm={week.plannedKm} />
           <TodayHeroCard
             session={todaySession}
-            activity={todaySession?.id ? activitiesBySessionId.get(todaySession.id) : undefined}
+            activity={activityForSession(todaySession)}
             steadyNote={steadyNote}
             onSaveSubjectiveInput={saveSubjectiveInput}
             onDismissSubjectiveInput={dismissSubjectiveInput}
           />
+          {showFinishedRunCta ? (
+            <View style={styles.ctaWrap}>
+              <Btn
+                title="I just finished this run"
+                fullWidth
+                onPress={() => router.push('/sync-run')}
+              />
+            </View>
+          ) : null}
           <CoachAnnotationCard annotation={coachNote} />
           <RemainingDaysList
             sessions={week.sessions}
             today={today}
-            activitiesBySessionId={activitiesBySessionId}
+            activitiesById={activitiesById}
+            activitiesByMatchedSessionId={activitiesByMatchedSessionId}
           />
         </ScrollView>
       </View>
@@ -239,6 +275,9 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 4,
     paddingBottom: 8,
+  },
+  ctaWrap: {
+    marginTop: 14,
   },
   headerMeta: {
     fontFamily: FONTS.sans,

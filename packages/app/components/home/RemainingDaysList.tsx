@@ -11,12 +11,27 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 interface RemainingDaysListProps {
   sessions: (PlannedSession | null)[];
   today: string;
+  /** Keyed by activity.id — for resolving via session.actualActivityId */
+  activitiesById?: Map<string, Activity>;
+  /** Keyed by activity.matchedSessionId — legacy fallback */
+  activitiesByMatchedSessionId?: Map<string, Activity>;
+  /** @deprecated Pass activitiesById + activitiesByMatchedSessionId instead */
   activitiesBySessionId?: Map<string, Activity>;
 }
 
 function formatShortDate(date: string): string {
   const value = new Date(`${date}T00:00:00Z`);
   return `${MONTHS[value.getUTCMonth()].toUpperCase()} ${value.getUTCDate()}`;
+}
+
+function resolveActivity(
+  session: PlannedSession | null,
+  byId: Map<string, Activity>,
+  byMatchedId: Map<string, Activity>,
+): Activity | undefined {
+  if (!session) return undefined;
+  if (session.actualActivityId) return byId.get(session.actualActivityId);
+  return byMatchedId.get(session.id);
 }
 
 function statusForDay(
@@ -53,16 +68,22 @@ function formatPlannedDistance(session: PlannedSession | null): string | null {
 export function RemainingDaysList({
   sessions,
   today,
+  activitiesById,
+  activitiesByMatchedSessionId,
   activitiesBySessionId,
 }: RemainingDaysListProps) {
   const todayIndex = dayIndexForIsoDate(today);
   const weekStart = startOfWeekIso(today);
 
+  // Support legacy single-map prop
+  const byId = activitiesById ?? new Map<string, Activity>();
+  const byMatchedId = activitiesByMatchedSessionId ?? activitiesBySessionId ?? new Map<string, Activity>();
+
   return (
     <View style={styles.wrapper}>
       <SectionLabel>This week</SectionLabel>
       {sessions.map((session, index) => {
-        const activity = session?.id ? activitiesBySessionId?.get(session.id) : undefined;
+        const activity = resolveActivity(session, byId, byMatchedId);
 
         return (
           <CompactDayRow
