@@ -157,7 +157,7 @@ describe('syncStravaActivities', () => {
       matched: 1,
       matchedSessions: [
         {
-          sessionId: 'session-1',
+          sessionId: 'w1d0',
           sessionType: 'EASY',
           sessionDate: '2026-04-08',
         },
@@ -170,7 +170,7 @@ describe('syncStravaActivities', () => {
       source: 'strava',
       externalId: '101',
       distance: 10,
-      matchedSessionId: 'session-1',
+      matchedSessionId: 'w1d0',
       avgPace: 300,
     });
     expect(activities[0].splits[0]).toMatchObject({

@@ -70,6 +70,7 @@ function mapActivity(userId: string, activity: StravaActivity): Activity {
     userId,
     source: 'strava',
     externalId: String(activity.id),
+    name: activity.name,
     startTime: activity.start_date,
     distance: Number(distanceKm.toFixed(3)),
     duration,

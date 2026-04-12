@@ -70,7 +70,7 @@ describe('plan subjective input', () => {
 
   it('saves subjective input for a session and returns it from the plan query', async () => {
     await caller.plan.saveSubjectiveInput({
-      sessionId: 'session-1',
+      sessionId: 'w1d0',
       input: {
         legs: 'heavy',
         breathing: 'controlled',
@@ -90,7 +90,7 @@ describe('plan subjective input', () => {
 
   it('marks subjective input as dismissed without storing ratings', async () => {
     await caller.plan.dismissSubjectiveInput({
-      sessionId: 'session-1',
+      sessionId: 'w1d0',
     });
 
     const plan = await caller.plan.get();

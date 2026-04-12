@@ -43,15 +43,25 @@ export default function WeekTab() {
   const activeInjury =
     plan?.activeInjury && plan.activeInjury.status !== 'resolved' ? plan.activeInjury : null;
   const weekStartDate = week ? inferWeekStartDate(week, today) : today;
-  const activitiesBySessionId = useMemo(() => {
+  const activitiesById = useMemo(() => {
+    return new Map(activities.map((a) => [a.id, a]));
+  }, [activities]);
+
+  const activitiesByMatchedSessionId = useMemo(() => {
     return new Map(
       activities
-        .filter((activity) => Boolean(activity.matchedSessionId))
-        .map((activity) => [activity.matchedSessionId!, activity]),
+        .filter((a) => Boolean(a.matchedSessionId))
+        .map((a) => [a.matchedSessionId!, a]),
     );
   }, [activities]);
-  const selectedActivity =
-    selectedSession?.id ? activitiesBySessionId.get(selectedSession.id) ?? null : null;
+
+  function activityForSession(s: { id: string; actualActivityId?: string } | null): Activity | undefined {
+    if (!s) return undefined;
+    if (s.actualActivityId) return activitiesById.get(s.actualActivityId);
+    return activitiesByMatchedSessionId.get(s.id);
+  }
+
+  const selectedActivity = activityForSession(selectedSession) ?? null;
 
   useEffect(() => {
     if (!plan) {
@@ -343,7 +353,7 @@ export default function WeekTab() {
         {week.sessions.map((session, i) => {
           const sessionDate = session?.date ?? '';
           const isToday = sessionDate === today;
-          const activity = session?.id ? activitiesBySessionId.get(session.id) : undefined;
+          const activity = activityForSession(session);
 
           return (
             <DayCard

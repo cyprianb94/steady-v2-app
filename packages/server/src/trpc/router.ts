@@ -30,7 +30,7 @@ export interface RouterDeps {
 
 export function createAppRouter(deps: RouterDeps) {
   return router({
-    activity: createActivityRouter(deps.activityRepo),
+    activity: createActivityRouter(deps.activityRepo, deps.planRepo),
     plan: createPlanRouter(deps.planRepo),
     coach: createCoachRouter(deps),
     crossTraining: createCrossTrainingRouter(deps.crossTrainingRepo, deps.planRepo),
