@@ -138,7 +138,7 @@ describe('activity router', () => {
   });
 
   it('saveRunDetail persists subjective input, niggles, notes, and shoeId in one call', async () => {
-    const activity = await activityRepo.save(makeActivity('user-1', { matchedSessionId: 'session-a' }));
+    const activity = await activityRepo.save(makeActivity('user-1', { matchedSessionId: 'w1d0' }));
     await planRepo.save(makePlan(activity.id));
     const shoe = await shoeRepo.save(makeShoe('user-1'));
 
@@ -157,7 +157,7 @@ describe('activity router', () => {
       subjectiveInput: { legs: 'normal', breathing: 'controlled', overall: 'done' },
       notes: 'Felt smooth after 5k',
       shoeId: shoe.id,
-      matchedSessionId: 'session-a',
+      matchedSessionId: 'w1d0',
     });
     expect(await niggleRepo.listByActivity(activity.id)).toMatchObject([
       { bodyPart: 'calf', side: 'left', severity: 'mild', when: 'during' },
@@ -199,33 +199,33 @@ describe('activity router', () => {
       activityId: activity.id,
       subjectiveInput: { legs: 'normal', breathing: 'controlled', overall: 'done' },
       niggles: [],
-      matchedSessionId: 'session-a',
+      matchedSessionId: 'w1d0',
     });
 
-    expect(await activityRepo.getById(activity.id)).toMatchObject({ matchedSessionId: 'session-a' });
+    expect(await activityRepo.getById(activity.id)).toMatchObject({ matchedSessionId: 'w1d0' });
     const plan = await planRepo.getActive('user-1');
-    expect(plan?.weeks[0].sessions[0]).toMatchObject({ id: 'session-a', actualActivityId: activity.id });
+    expect(plan?.weeks[0].sessions[0]).toMatchObject({ id: 'w1d0', actualActivityId: activity.id });
   });
 
   it('handles matched A to matched B transitions atomically', async () => {
-    const activity = await activityRepo.save(makeActivity('user-1', { matchedSessionId: 'session-a' }));
+    const activity = await activityRepo.save(makeActivity('user-1', { matchedSessionId: 'w1d0' }));
     await planRepo.save(makePlan(activity.id));
 
     await caller.activity.saveRunDetail({
       activityId: activity.id,
       subjectiveInput: { legs: 'heavy', breathing: 'labored', overall: 'done' },
       niggles: [],
-      matchedSessionId: 'session-b',
+      matchedSessionId: 'w1d1',
     });
 
-    expect(await activityRepo.getById(activity.id)).toMatchObject({ matchedSessionId: 'session-b' });
+    expect(await activityRepo.getById(activity.id)).toMatchObject({ matchedSessionId: 'w1d1' });
     const plan = await planRepo.getActive('user-1');
-    expect(plan?.weeks[0].sessions[0]).toMatchObject({ id: 'session-a', actualActivityId: undefined });
-    expect(plan?.weeks[0].sessions[1]).toMatchObject({ id: 'session-b', actualActivityId: activity.id });
+    expect(plan?.weeks[0].sessions[0]).toMatchObject({ id: 'w1d0', actualActivityId: undefined });
+    expect(plan?.weeks[0].sessions[1]).toMatchObject({ id: 'w1d1', actualActivityId: activity.id });
   });
 
   it('handles matched to bonus transitions atomically', async () => {
-    const activity = await activityRepo.save(makeActivity('user-1', { matchedSessionId: 'session-a' }));
+    const activity = await activityRepo.save(makeActivity('user-1', { matchedSessionId: 'w1d0' }));
     await planRepo.save(makePlan(activity.id));
 
     await caller.activity.saveRunDetail({
@@ -237,11 +237,11 @@ describe('activity router', () => {
 
     expect(await activityRepo.getById(activity.id)).toMatchObject({ matchedSessionId: undefined });
     const plan = await planRepo.getActive('user-1');
-    expect(plan?.weeks[0].sessions[0]).toMatchObject({ id: 'session-a', actualActivityId: undefined });
+    expect(plan?.weeks[0].sessions[0]).toMatchObject({ id: 'w1d0', actualActivityId: undefined });
   });
 
   it('does not change the current match when matchedSessionId is omitted', async () => {
-    const activity = await activityRepo.save(makeActivity('user-1', { matchedSessionId: 'session-a' }));
+    const activity = await activityRepo.save(makeActivity('user-1', { matchedSessionId: 'w1d0' }));
     await planRepo.save(makePlan(activity.id));
 
     await caller.activity.saveRunDetail({
@@ -251,9 +251,9 @@ describe('activity router', () => {
       notes: 'Still the same run',
     });
 
-    expect(await activityRepo.getById(activity.id)).toMatchObject({ matchedSessionId: 'session-a' });
+    expect(await activityRepo.getById(activity.id)).toMatchObject({ matchedSessionId: 'w1d0' });
     const plan = await planRepo.getActive('user-1');
-    expect(plan?.weeks[0].sessions[0]).toMatchObject({ id: 'session-a', actualActivityId: activity.id });
+    expect(plan?.weeks[0].sessions[0]).toMatchObject({ id: 'w1d0', actualActivityId: activity.id });
   });
 
   it('rolls back activity, niggles, and match changes if any sub-write fails', async () => {
@@ -272,7 +272,7 @@ describe('activity router', () => {
     const beforeShoe = await shoeRepo.save(makeShoe('user-1', { id: 'shoe-before' }));
     const afterShoe = await shoeRepo.save(makeShoe('user-1', { id: 'shoe-after', model: 'Alphafly' }));
     const activity = await activityRepo.save(makeActivity('user-1', {
-      matchedSessionId: 'session-a',
+      matchedSessionId: 'w1d0',
       subjectiveInput: { legs: 'fresh', breathing: 'easy', overall: 'could-go-again' },
       notes: 'before',
       shoeId: beforeShoe.id,
@@ -290,12 +290,12 @@ describe('activity router', () => {
         niggles: [{ bodyPart: 'ankle', side: null, severity: 'stop', when: 'after' }],
         notes: 'after',
         shoeId: afterShoe.id,
-        matchedSessionId: 'session-b',
+        matchedSessionId: 'w1d1',
       }),
     ).rejects.toThrow(/simulated niggle persistence failure/i);
 
     expect(await activityRepo.getById(activity.id)).toMatchObject({
-      matchedSessionId: 'session-a',
+      matchedSessionId: 'w1d0',
       subjectiveInput: { legs: 'fresh', breathing: 'easy', overall: 'could-go-again' },
       notes: 'before',
       shoeId: beforeShoe.id,
@@ -304,7 +304,7 @@ describe('activity router', () => {
       { bodyPart: 'calf', side: 'left', severity: 'mild', when: 'during' },
     ]);
     const plan = await planRepo.getActive('user-1');
-    expect(plan?.weeks[0].sessions[0]).toMatchObject({ id: 'session-a', actualActivityId: activity.id });
-    expect(plan?.weeks[0].sessions[1]).toMatchObject({ id: 'session-b', actualActivityId: undefined });
+    expect(plan?.weeks[0].sessions[0]).toMatchObject({ id: 'w1d0', actualActivityId: activity.id });
+    expect(plan?.weeks[0].sessions[1]).toMatchObject({ id: 'w1d1', actualActivityId: undefined });
   });
 });

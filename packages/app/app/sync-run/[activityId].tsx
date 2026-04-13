@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type DimensionValue } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { expectedDistance, type Activity, type PlannedSession, type SubjectiveBreathing, type SubjectiveInput, type SubjectiveLegs, type SubjectiveOverall } from '@steady/types';
+import { expectedDistance, BODY_PARTS, NIGGLE_SEVERITIES, NIGGLE_WHEN_OPTIONS, type Activity, type BodyPart, type Niggle, type NiggleSeverity, type NiggleSide, type NiggleWhen, type PlannedSession, type SubjectiveBreathing, type SubjectiveInput, type SubjectiveLegs, type SubjectiveOverall } from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { trpc } from '../../lib/trpc';
@@ -70,6 +70,24 @@ const OVERALL_OPTIONS: { value: SubjectiveOverall; label: string }[] = [
   { value: 'shattered', label: 'Shattered' },
 ];
 
+// ─── Niggle helpers ───────────────────────────────────────────────────────────
+
+type NiggleDraft = { bodyPart: BodyPart; severity: NiggleSeverity; when: NiggleWhen; side: NiggleSide };
+
+const BODY_PART_LABELS: Record<BodyPart, string> = {
+  calf: 'Calf', knee: 'Knee', hamstring: 'Hamstring', quad: 'Quad',
+  hip: 'Hip', glute: 'Glute', foot: 'Foot', shin: 'Shin',
+  ankle: 'Ankle', achilles: 'Achilles', back: 'Back', other: 'Other',
+};
+
+const SEVERITY_LABELS: Record<NiggleSeverity, string> = {
+  niggle: 'Niggle', mild: 'Mild', moderate: 'Moderate', stop: 'Stop',
+};
+
+const WHEN_LABELS: Record<NiggleWhen, string> = {
+  before: 'Before', during: 'During', after: 'After',
+};
+
 function FeelRow<T extends string>({
   label,
   options,
@@ -121,6 +139,11 @@ export default function SyncRunDetailScreen() {
   const [overall, setOverall] = useState<SubjectiveOverall | null>(null);
   const [notes, setNotes] = useState('');
 
+  // Niggle inputs
+  const [niggles, setNiggles] = useState<NiggleDraft[]>([]);
+  const [addingNiggle, setAddingNiggle] = useState(false);
+  const [niggleDraft, setNiggleDraft] = useState<Partial<NiggleDraft>>({});
+
   useEffect(() => {
     let cancelled = false;
 
@@ -149,9 +172,10 @@ export default function SyncRunDetailScreen() {
     [activities, activityId],
   );
 
+  // Only offer today's session — "I just finished this run" maps to today only
   const sessionOptions = useMemo(
-    () => (currentWeek?.sessions ?? []).filter(isRunnableSession),
-    [currentWeek?.sessions],
+    () => (todaySession && isRunnableSession(todaySession) ? [todaySession] : []),
+    [todaySession],
   );
 
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -190,21 +214,17 @@ export default function SyncRunDetailScreen() {
     : undefined;
 
   async function handleSave() {
-    if (!activity) return;
+    if (!activity || !subjectiveInput) return;
 
     try {
       setSaving(true);
-      await trpc.activity.matchSession.mutate({
+      await trpc.activity.saveRunDetail.mutate({
         activityId: activity.id,
-        sessionId: selectedSessionId,
+        subjectiveInput,
+        niggles,
+        notes: notes.trim() || undefined,
+        matchedSessionId: selectedSessionId,
       });
-
-      if (subjectiveInput && selectedSessionId) {
-        await trpc.plan.saveSubjectiveInput.mutate({
-          sessionId: selectedSessionId,
-          input: subjectiveInput,
-        });
-      }
 
       await refreshPlan();
       router.replace('/(tabs)/home');
@@ -348,6 +368,104 @@ export default function SyncRunDetailScreen() {
           />
         </View>
 
+        {/* Any niggles? */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Any niggles?</Text>
+          {niggles.map((n, i) => (
+            <View key={i} style={styles.niggleRow}>
+              <Text style={styles.niggleText}>
+                {BODY_PART_LABELS[n.bodyPart]}{n.side ? ` (${n.side})` : ''} · {SEVERITY_LABELS[n.severity]} · {WHEN_LABELS[n.when]}
+              </Text>
+              <Pressable onPress={() => setNiggles((prev) => prev.filter((_, j) => j !== i))}>
+                <Text style={styles.niggleRemove}>✕</Text>
+              </Pressable>
+            </View>
+          ))}
+
+          {addingNiggle ? (
+            <View style={styles.niggleForm}>
+              <Text style={styles.niggleFormLabel}>Body part</Text>
+              <View style={styles.feelChips}>
+                {BODY_PARTS.map((bp) => (
+                  <Pressable
+                    key={bp}
+                    onPress={() => setNiggleDraft((d) => ({ ...d, bodyPart: bp }))}
+                    style={[styles.feelChip, niggleDraft.bodyPart === bp && styles.feelChipSelected]}
+                  >
+                    <Text style={[styles.feelChipText, niggleDraft.bodyPart === bp && styles.feelChipTextSelected]}>
+                      {BODY_PART_LABELS[bp]}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.niggleFormLabel}>Severity</Text>
+              <View style={styles.feelChips}>
+                {NIGGLE_SEVERITIES.map((s) => (
+                  <Pressable
+                    key={s}
+                    onPress={() => setNiggleDraft((d) => ({ ...d, severity: s }))}
+                    style={[styles.feelChip, niggleDraft.severity === s && styles.feelChipSelected]}
+                  >
+                    <Text style={[styles.feelChipText, niggleDraft.severity === s && styles.feelChipTextSelected]}>
+                      {SEVERITY_LABELS[s]}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.niggleFormLabel}>When</Text>
+              <View style={styles.feelChips}>
+                {NIGGLE_WHEN_OPTIONS.map((w) => (
+                  <Pressable
+                    key={w}
+                    onPress={() => setNiggleDraft((d) => ({ ...d, when: w }))}
+                    style={[styles.feelChip, niggleDraft.when === w && styles.feelChipSelected]}
+                  >
+                    <Text style={[styles.feelChipText, niggleDraft.when === w && styles.feelChipTextSelected]}>
+                      {WHEN_LABELS[w]}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.niggleFormLabel}>Side</Text>
+              <View style={styles.feelChips}>
+                {(['left', 'right', null] as NiggleSide[]).map((side) => (
+                  <Pressable
+                    key={String(side)}
+                    onPress={() => setNiggleDraft((d) => ({ ...d, side }))}
+                    style={[styles.feelChip, niggleDraft.side === side && styles.feelChipSelected]}
+                  >
+                    <Text style={[styles.feelChipText, niggleDraft.side === side && styles.feelChipTextSelected]}>
+                      {side ?? 'Both/N/A'}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <View style={styles.niggleFormActions}>
+                <Pressable
+                  onPress={() => {
+                    const { bodyPart, severity, when } = niggleDraft;
+                    if (bodyPart && severity && when) {
+                      setNiggles((prev) => [...prev, { bodyPart, severity, when, side: niggleDraft.side ?? null }]);
+                      setNiggleDraft({});
+                      setAddingNiggle(false);
+                    }
+                  }}
+                  style={styles.niggleConfirm}
+                >
+                  <Text style={styles.niggleConfirmText}>Add niggle</Text>
+                </Pressable>
+                <Pressable onPress={() => { setAddingNiggle(false); setNiggleDraft({}); }}>
+                  <Text style={styles.niggleCancel}>Cancel</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <Pressable onPress={() => setAddingNiggle(true)} style={styles.niggleAdd}>
+              <Text style={styles.niggleAddText}>+ Add niggle</Text>
+            </Pressable>
+          )}
+        </View>
+
         {/* Match to session */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Match to session</Text>
@@ -364,7 +482,7 @@ export default function SyncRunDetailScreen() {
                   <Text style={styles.sessionOptionSub}>{s.date}</Text>
                 </View>
                 <Text style={[styles.sessionOptionTick, selected && styles.sessionOptionTickSelected]}>
-                  {selected ? 'Selected' : 'Choose'}
+                  {selected ? 'Matched to today' : 'Match to today'}
                 </Text>
               </Pressable>
             );
@@ -386,10 +504,12 @@ export default function SyncRunDetailScreen() {
 
         <Pressable
           onPress={() => { void handleSave(); }}
-          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-          disabled={saving}
+          style={[styles.saveButton, (!feelComplete || saving) && styles.saveButtonDisabled]}
+          disabled={!feelComplete || saving}
         >
-          <Text style={styles.saveButtonText}>{saving ? 'Saving…' : 'Save run'}</Text>
+          <Text style={styles.saveButtonText}>
+            {saving ? 'Saving…' : feelComplete ? 'Save run' : 'Fill in how it felt to save'}
+          </Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -706,5 +826,67 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.sansSemiBold,
     fontSize: 15,
     color: C.surface,
+  },
+  niggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+  },
+  niggleText: {
+    fontFamily: FONTS.sans,
+    fontSize: 13,
+    color: C.ink,
+    flex: 1,
+  },
+  niggleRemove: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 13,
+    color: C.clay,
+    paddingLeft: 12,
+  },
+  niggleAdd: {
+    paddingVertical: 8,
+  },
+  niggleAddText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 13,
+    color: C.forest,
+  },
+  niggleForm: {
+    marginTop: 8,
+    gap: 8,
+  },
+  niggleFormLabel: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 11,
+    color: C.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginTop: 4,
+  },
+  niggleFormActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginTop: 8,
+  },
+  niggleConfirm: {
+    backgroundColor: C.forest,
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  niggleConfirmText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 13,
+    color: C.surface,
+  },
+  niggleCancel: {
+    fontFamily: FONTS.sans,
+    fontSize: 13,
+    color: C.muted,
   },
 });
