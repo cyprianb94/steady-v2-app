@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type DimensionValue } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { expectedDistance, BODY_PARTS, NIGGLE_SEVERITIES, NIGGLE_WHEN_OPTIONS, type Activity, type BodyPart, type Niggle, type NiggleSeverity, type NiggleSide, type NiggleWhen, type PlannedSession, type SubjectiveBreathing, type SubjectiveInput, type SubjectiveLegs, type SubjectiveOverall } from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
@@ -126,6 +127,7 @@ function FeelRow<T extends string>({
 
 export default function SyncRunDetailScreen() {
   const { activityId } = useLocalSearchParams<{ activityId: string }>();
+  const insets = useSafeAreaInsets();
   const { currentWeek, refresh: refreshPlan } = usePlan();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -256,16 +258,21 @@ export default function SyncRunDetailScreen() {
   }
 
   const matchedToToday = selectedSession && todaySession && selectedSession.id === todaySession.id;
+  const canSave = feelComplete && !saving;
 
   return (
     <View style={styles.container}>
-      <View style={styles.navBar}>
-        <Pressable onPress={() => router.back()}>
+      <View style={[styles.navBar, { paddingTop: insets.top + 8 }]}>
+        <Pressable style={styles.navSide} onPress={() => router.back()}>
           <Text style={styles.navAction}>Close</Text>
         </Pressable>
         <Text style={styles.navTitle}>Run detail</Text>
-        <Pressable onPress={() => { void handleSave(); }} disabled={saving}>
-          <Text style={[styles.saveAction, saving && styles.saveActionDisabled]}>Save</Text>
+        <Pressable
+          style={[styles.saveActionButton, !canSave && styles.saveActionButtonDisabled]}
+          onPress={() => { void handleSave(); }}
+          disabled={!canSave}
+        >
+          <Text style={styles.saveAction}>Save</Text>
         </Pressable>
       </View>
 
@@ -504,8 +511,8 @@ export default function SyncRunDetailScreen() {
 
         <Pressable
           onPress={() => { void handleSave(); }}
-          style={[styles.saveButton, (!feelComplete || saving) && styles.saveButtonDisabled]}
-          disabled={!feelComplete || saving}
+          style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
+          disabled={!canSave}
         >
           <Text style={styles.saveButtonText}>
             {saving ? 'Saving…' : feelComplete ? 'Save run' : 'Fill in how it felt to save'}
@@ -540,9 +547,8 @@ const styles = StyleSheet.create({
     color: C.forest,
   },
   navBar: {
-    paddingTop: 18,
     paddingHorizontal: 20,
-    paddingBottom: 14,
+    paddingBottom: 12,
     backgroundColor: C.surface,
     borderBottomWidth: 1,
     borderBottomColor: C.border,
@@ -555,17 +561,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: C.muted,
   },
+  navSide: {
+    width: 74,
+  },
   navTitle: {
     fontFamily: FONTS.serifBold,
     fontSize: 15,
     color: C.ink,
+  },
+  saveActionButton: {
+    width: 74,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: C.forestBg,
+    borderWidth: 1,
+    borderColor: C.forest,
   },
   saveAction: {
     fontFamily: FONTS.sansSemiBold,
     fontSize: 14,
     color: C.forest,
   },
-  saveActionDisabled: {
+  saveActionButtonDisabled: {
     opacity: 0.5,
   },
   scrollContent: {

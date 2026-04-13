@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Activity, PlannedSession } from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
@@ -80,6 +81,7 @@ function pickCandidates(activities: Activity[], today: string, weekStart: string
 }
 
 export default function SyncRunPickerScreen() {
+  const insets = useSafeAreaInsets();
   const { session, isLoading: authLoading } = useAuth();
   const { currentWeek, refresh: refreshPlan } = usePlan();
   const { forceSync, syncing } = useStravaSync();
@@ -134,6 +136,7 @@ export default function SyncRunPickerScreen() {
     const sameDay = candidates.find((a) => a.startTime.slice(0, 10) === today);
     return sameDay?.id ?? candidates[0]?.id ?? null;
   }, [candidates, today, todaySession?.id]);
+  const hasCandidates = candidates.length > 0;
 
   function isRunnableSession(session: PlannedSession | null): session is PlannedSession {
     return session != null && session.type !== 'REST';
@@ -150,12 +153,12 @@ export default function SyncRunPickerScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.navBar}>
-        <Pressable onPress={() => router.back()}>
+      <View style={[styles.navBar, { paddingTop: insets.top + 8 }]}>
+        <Pressable style={styles.navSide} onPress={() => router.back()}>
           <Text style={styles.navAction}>Close</Text>
         </Pressable>
         <Text style={styles.navTitle}>Choose run</Text>
-        <View style={styles.navSpacer} />
+        <View style={styles.navSide} />
       </View>
 
       <ScrollView
@@ -213,11 +216,8 @@ export default function SyncRunPickerScreen() {
           );
         })}
 
-        <Pressable
-          style={styles.noneButton}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.noneButtonText}>None of these</Text>
+        <Pressable style={styles.noneButton} onPress={() => router.back()}>
+          <Text style={styles.noneButtonText}>{hasCandidates ? 'None of these' : 'Back'}</Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -243,9 +243,8 @@ const styles = StyleSheet.create({
     color: C.muted,
   },
   navBar: {
-    paddingTop: 18,
     paddingHorizontal: 20,
-    paddingBottom: 14,
+    paddingBottom: 12,
     backgroundColor: C.surface,
     borderBottomWidth: 1,
     borderBottomColor: C.border,
@@ -258,13 +257,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: C.muted,
   },
+  navSide: {
+    width: 74,
+  },
   navTitle: {
     fontFamily: FONTS.serifBold,
     fontSize: 15,
     color: C.ink,
-  },
-  navSpacer: {
-    width: 36,
   },
   scroll: {
     flex: 1,
