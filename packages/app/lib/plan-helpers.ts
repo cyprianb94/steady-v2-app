@@ -35,6 +35,7 @@ export const RACE_TARGETS: Record<string, string[]> = {
   '10K': ['sub-38', 'sub-40', 'sub-45', 'sub-50', 'sub-55', 'sub-60'],
   'Half Marathon': ['sub-1:25', 'sub-1:30', 'sub-1:40', 'sub-1:45', 'sub-1:50', 'sub-2:00'],
   'Marathon': ['sub-2:45', 'sub-3:00', 'sub-3:15', 'sub-3:30', 'sub-3:45', 'sub-4:00'],
+  Ultra: ['sub-10h', 'sub-12h', 'sub-15h', 'sub-20h'],
 };
 
 export function sessionLabel(s: Partial<PlannedSession> | null): string {

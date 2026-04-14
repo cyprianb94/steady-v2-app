@@ -44,9 +44,12 @@ function toTemplateSessions(sessions: (PlannedSession | null)[]): (Partial<Plann
 
 export default function StepTemplate() {
   const params = useLocalSearchParams<{
-    race: string;
+    raceDistance: string;
+    raceLabel: string;
+    raceName: string;
+    raceDate: string;
     weeks: string;
-    target: string;
+    targetTime: string;
     phases: string;
     hasPerWeekTweaks?: string;
   }>();

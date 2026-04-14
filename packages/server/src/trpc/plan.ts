@@ -104,7 +104,7 @@ export function createPlanRouter(planRepo: PlanRepo) {
         z.object({
           raceName: z.string().min(1).max(200),
           raceDate: z.string(),
-          raceDistance: z.enum(['5K', '10K', 'Half Marathon', 'Marathon']),
+          raceDistance: z.enum(['5K', '10K', 'Half Marathon', 'Marathon', 'Ultra']),
           targetTime: z.string(),
           phases: PhaseConfigSchema,
           progressionPct: z.number().min(0).max(30),
@@ -143,7 +143,7 @@ export function createPlanRouter(planRepo: PlanRepo) {
           createdAt: existing?.createdAt ?? new Date().toISOString(),
           raceName: input.raceName,
           raceDate: input.raceDate,
-          raceDistance: input.raceDistance,
+          raceDistance: input.raceDistance as TrainingPlan['raceDistance'],
           targetTime: input.targetTime,
           phases,
           progressionPct: input.progressionPct,
