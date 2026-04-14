@@ -16,7 +16,7 @@ Steady is a plan manager for runners with their own plans, consolidating multipl
 - **App:** React Native + Expo (iOS)
 - **Backend:** Node.js + Fastify + Supabase
 - **AI:** Anthropic Claude API
-- **Built with:** Claude Code, Cursor
+- **Built with:** Claude Code, Codex and Google Antigravity
 
 ## Status
 
