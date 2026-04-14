@@ -93,7 +93,7 @@ function mapLap(lap: NonNullable<StravaActivity['laps']>[number]): ActivitySplit
   };
 }
 
-function mapActivity(userId: string, activity: StravaActivity): Activity {
+function mapActivity(userId: string, activity: StravaActivity, existing?: Activity): Activity {
   const distanceKm = activity.distance / 1000;
   const duration = activity.moving_time ?? activity.elapsed_time;
   const avgPace = distanceKm > 0
@@ -107,7 +107,7 @@ function mapActivity(userId: string, activity: StravaActivity): Activity {
     : (activity.splits_metric ?? []).map(mapMetricSplit);
 
   return {
-    id: crypto.randomUUID(),
+    id: existing?.id ?? crypto.randomUUID(),
     userId,
     source: 'strava',
     externalId: String(activity.id),
@@ -120,6 +120,10 @@ function mapActivity(userId: string, activity: StravaActivity): Activity {
     avgHR: activity.average_heartrate,
     maxHR: activity.max_heartrate,
     splits: splits.filter((split) => split.km > 0 && split.pace > 0),
+    subjectiveInput: existing?.subjectiveInput,
+    matchedSessionId: existing?.matchedSessionId,
+    shoeId: existing?.shoeId,
+    notes: existing?.notes,
   };
 }
 
@@ -264,4 +268,38 @@ export async function syncStravaActivities(
   await deps.integrationTokenRepo.updateLastSyncedAt(userId, 'strava', nowDate.toISOString());
 
   return result;
+}
+
+export async function refreshStravaActivity(
+  userId: string,
+  activityId: string,
+  deps: SyncStravaActivitiesDeps,
+): Promise<Activity> {
+  const existing = await deps.activityRepo.getById(activityId);
+  if (!existing || existing.userId !== userId) {
+    throw new Error('Activity not found');
+  }
+
+  if (existing.source !== 'strava') {
+    throw new Error('Only Strava activities can be refreshed');
+  }
+
+  const externalId = Number(existing.externalId);
+  if (!Number.isFinite(externalId)) {
+    throw new Error('Activity does not have a valid Strava external id');
+  }
+
+  const accessToken = await deps.tokenService.getValidToken(userId);
+  const externalActivity = await deps.stravaClient.getActivity(accessToken, externalId);
+  const refreshed = mapActivity(userId, externalActivity, existing);
+
+  if (!refreshed.shoeId) {
+    const gearCache = new Map<string, Shoe | null>();
+    const shoe = await resolveShoeForActivity(userId, accessToken, externalActivity, deps, gearCache);
+    if (shoe) {
+      refreshed.shoeId = shoe.id;
+    }
+  }
+
+  return deps.activityRepo.save(refreshed);
 }

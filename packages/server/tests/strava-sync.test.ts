@@ -57,6 +57,9 @@ describe('syncStravaActivities', () => {
         expiresAt: '2026-04-10T15:00:00Z',
       }),
       getActivities: async () => [],
+      getActivity: async () => {
+        throw new Error('not used');
+      },
       getGear: async () => null,
     };
   });

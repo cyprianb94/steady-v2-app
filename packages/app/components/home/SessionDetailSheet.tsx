@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.sans,
     fontSize: 13,
     color: C.muted,
-    width: 40,
+    width: 60,
   },
   splitPace: {
     fontFamily: FONTS.sansSemiBold,

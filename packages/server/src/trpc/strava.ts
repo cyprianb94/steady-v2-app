@@ -7,7 +7,7 @@ import {
   StravaAuthRevokedError,
   StravaTokensMissingError,
 } from '../lib/strava-token-service';
-import { syncStravaActivities } from '../lib/strava-sync';
+import { refreshStravaActivity, syncStravaActivities } from '../lib/strava-sync';
 import type { StravaClient } from '../lib/strava-client';
 import type { ActivityRepo } from '../repos/activity-repo';
 import type { IntegrationTokenRepo } from '../repos/integration-token-repo';
@@ -184,6 +184,52 @@ export function createStravaRouter(deps: StravaRouterDeps) {
               code: 'PRECONDITION_FAILED',
               message: 'Strava is not connected',
             });
+          }
+          throw error;
+        }
+      }),
+
+    refreshActivity: authedProcedure
+      .input(z.object({ activityId: z.string().uuid() }))
+      .mutation(async ({ ctx, input }) => {
+        const { integrationTokenRepo, stravaClient, encryptionKey, planRepo, activityRepo, shoeRepo } = requireSyncDeps(deps);
+        const tokenService = createStravaTokenService({
+          integrationTokenRepo,
+          profileRepo: deps.profileRepo,
+          stravaClient,
+          encryptionKey,
+        });
+
+        try {
+          return await refreshStravaActivity(ctx.userId, input.activityId, {
+            activityRepo,
+            integrationTokenRepo,
+            planRepo,
+            shoeRepo,
+            stravaClient,
+            tokenService,
+          });
+        } catch (error) {
+          if (error instanceof StravaAuthRevokedError) {
+            throw new TRPCError({
+              code: 'PRECONDITION_FAILED',
+              message: 'Strava access has been revoked',
+            });
+          }
+          if (error instanceof StravaTokensMissingError) {
+            throw new TRPCError({
+              code: 'PRECONDITION_FAILED',
+              message: 'Strava is not connected',
+            });
+          }
+          if (error instanceof Error && error.message === 'Activity not found') {
+            throw new TRPCError({ code: 'NOT_FOUND', message: error.message });
+          }
+          if (error instanceof Error && (
+            error.message === 'Only Strava activities can be refreshed'
+            || error.message === 'Activity does not have a valid Strava external id'
+          )) {
+            throw new TRPCError({ code: 'BAD_REQUEST', message: error.message });
           }
           throw error;
         }
