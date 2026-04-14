@@ -10,6 +10,8 @@ interface ActivitySplit {
   pace: number;
   hr?: number;
   elevation?: number;
+  label?: string;
+  distance?: number;
 }
 
 interface ActivityData {
@@ -96,7 +98,7 @@ export function SessionDetailSheet({ visible, session, activity, onClose }: Sess
               <ScrollView style={styles.splitsList}>
                 {activity.splits.map((split) => (
                   <View key={split.km} style={styles.splitRow}>
-                    <Text style={styles.splitKm}>km {split.km}</Text>
+                    <Text style={styles.splitKm}>{split.label ?? `km ${split.km}`}</Text>
                     <Text style={styles.splitPace}>{formatPace(split.pace)}</Text>
                     {split.hr != null && (
                       <Text style={styles.splitHr}>{split.hr} bpm</Text>

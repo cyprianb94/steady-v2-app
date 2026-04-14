@@ -115,6 +115,26 @@ describe('StravaClient', () => {
             elevation_difference: 4,
           },
         ],
+        laps: [
+          {
+            lap_index: 0,
+            distance: 2000,
+            elapsed_time: 720,
+            average_speed: 2.78,
+            average_heartrate: 135,
+            total_elevation_gain: 12,
+            name: 'Warm up',
+          },
+          {
+            lap_index: 1,
+            distance: 400,
+            elapsed_time: 88,
+            average_speed: 4.54,
+            average_heartrate: 174,
+            total_elevation_gain: 1,
+            name: 'Lap 2',
+          },
+        ],
       }), { status: 200, headers: { 'content-type': 'application/json' } }))
       .mockResolvedValueOnce(new Response(JSON.stringify([]), {
         status: 200,
@@ -137,6 +157,20 @@ describe('StravaClient', () => {
       id: 101,
       sport_type: 'Run',
       distance: 10000,
+      laps: [
+        expect.objectContaining({
+          lap_index: 0,
+          distance: 2000,
+          elapsed_time: 720,
+          average_heartrate: 135,
+        }),
+        expect.objectContaining({
+          lap_index: 1,
+          distance: 400,
+          elapsed_time: 88,
+          average_heartrate: 174,
+        }),
+      ],
     });
   });
 

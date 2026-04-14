@@ -28,6 +28,17 @@ export interface StravaActivitySplit {
   elevation_difference?: number;
 }
 
+export interface StravaActivityLap {
+  lap_index: number;
+  distance: number;
+  elapsed_time: number;
+  moving_time?: number;
+  average_speed?: number;
+  average_heartrate?: number;
+  total_elevation_gain?: number;
+  name?: string;
+}
+
 export interface StravaActivity {
   id: number;
   name?: string;
@@ -43,6 +54,7 @@ export interface StravaActivity {
   max_heartrate?: number;
   average_speed?: number;
   splits_metric?: StravaActivitySplit[];
+  laps?: StravaActivityLap[];
 }
 
 export interface StravaGear {
@@ -243,6 +255,22 @@ export function createStravaClient(options: CreateStravaClientOptions = {}): Str
                   typeof split.average_heartrate === 'number' ? split.average_heartrate : undefined,
                 elevation_difference:
                   typeof split.elevation_difference === 'number' ? split.elevation_difference : undefined,
+              }))
+            : [],
+          laps: Array.isArray(detail.laps)
+            ? detail.laps
+              .filter((lap): lap is Record<string, unknown> => Boolean(lap) && typeof lap === 'object')
+              .map((lap) => ({
+                lap_index: typeof lap.lap_index === 'number' ? lap.lap_index : 0,
+                distance: typeof lap.distance === 'number' ? lap.distance : 0,
+                elapsed_time: typeof lap.elapsed_time === 'number' ? lap.elapsed_time : 0,
+                moving_time: typeof lap.moving_time === 'number' ? lap.moving_time : undefined,
+                average_speed: typeof lap.average_speed === 'number' ? lap.average_speed : undefined,
+                average_heartrate:
+                  typeof lap.average_heartrate === 'number' ? lap.average_heartrate : undefined,
+                total_elevation_gain:
+                  typeof lap.total_elevation_gain === 'number' ? lap.total_elevation_gain : undefined,
+                name: typeof lap.name === 'string' ? lap.name : undefined,
               }))
             : [],
         });

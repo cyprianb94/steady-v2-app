@@ -5,6 +5,8 @@ export interface ActivitySplit {
   pace: number; // seconds per km
   hr?: number; // bpm at end of split
   elevation?: number; // m gain in this km
+  label?: string; // display label (e.g. "KM 1", "400m")
+  distance?: number; // km in this split/lap
 }
 
 export interface Activity {

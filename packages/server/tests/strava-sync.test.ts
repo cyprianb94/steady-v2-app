@@ -125,6 +125,32 @@ describe('syncStravaActivities', () => {
                 elevation_difference: 5,
               },
             ],
+            laps: [
+              {
+                lap_index: 0,
+                distance: 2000,
+                elapsed_time: 720,
+                average_speed: 2.78,
+                average_heartrate: 135,
+                total_elevation_gain: 8,
+              },
+              {
+                lap_index: 1,
+                distance: 400,
+                elapsed_time: 88,
+                average_speed: 4.54,
+                average_heartrate: 174,
+                total_elevation_gain: 1,
+              },
+              {
+                lap_index: 2,
+                distance: 200,
+                elapsed_time: 90,
+                average_speed: 2.22,
+                average_heartrate: 152,
+                total_elevation_gain: 0,
+              },
+            ],
           },
           {
             id: 102,
@@ -180,9 +206,19 @@ describe('syncStravaActivities', () => {
     });
     expect(activities[0].splits[0]).toMatchObject({
       km: 1,
-      pace: 300,
-      hr: 148,
-      elevation: 5,
+      pace: 360,
+      hr: 135,
+      elevation: 8,
+      label: '2.0 km',
+      distance: 2,
+    });
+    expect(activities[0].splits[1]).toMatchObject({
+      km: 2,
+      pace: 220,
+      hr: 174,
+      elevation: 1,
+      label: '400m',
+      distance: 0.4,
     });
 
     const plan = await planRepo.getActive('user-1');

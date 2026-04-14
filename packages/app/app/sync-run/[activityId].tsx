@@ -342,7 +342,7 @@ export default function SyncRunDetailScreen() {
             <Text style={styles.sectionTitle}>Splits</Text>
             {activity.splits.map((split) => (
               <View key={split.km} style={styles.splitRow}>
-                <Text style={styles.splitKm}>KM {split.km}</Text>
+                <Text style={styles.splitKm}>{split.label ?? `KM ${split.km}`}</Text>
                 <Text style={styles.splitPace}>{formatPace(split.pace)}</Text>
                 <View style={styles.splitBar}>
                   <View style={[styles.splitFill, { width: paceBarWidth(split.pace, fastestPace, slowestPace) }]} />
