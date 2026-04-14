@@ -2,7 +2,7 @@
 
 ## What this is
 
-Steady is a plan manager for runners with their own plans replacing multiple tools in one app. It recognises that training isn't always going to plan, niggles and injuries happen and lets runners easily adapt to that. Whether you manage your plan on your own, or with a real coach or AI - it supports all these scenarios as well as helps your physio visits be more efficient through customised injury timeline reports. It sits in the gap between Strava (tracking only, no planning) and Runna (AI-generated plans, no flexibility). The core premise: the user already has a plan they trust — from a book, a coach, or an LLM — and Steady helps them execute it, track it against reality, and adapt it with an AI coach named Steady.
+Steady is an iOS plan manager for runners with their own plans replacing multiple tools in one app. It recognises that training isn't always going to plan, niggles and injuries happen and lets runners easily adapt to that. Whether you manage your plan on your own, or with a real coach or AI - it supports all these scenarios as well as helps your physio visits be more efficient through customised injury timeline reports. It sits in the gap between Strava (tracking only, no planning) and Runna (AI-generated plans, no flexibility). The core premise: the user already has a plan they trust — from a book, a coach, or an LLM — and Steady helps them execute it, track it against reality, and adapt it with an AI coach named Steady.
 
 This is v2. A previous attempt exists. This is a clean rebuild with a clearer product vision, a fully designed UI system, and a working React prototype of the two most complex flows already built.
 
