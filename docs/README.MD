@@ -1,6 +1,6 @@
 # Steady
 
-Steady is a plan manager for runners with their own plans, consolidating multiple tools into one app. It acknowledges that training never goes perfectly – niggles and injuries happen – and lets you easily adapt. Manage your plan solo, with a real coach, or with AI. Plus, generate injury timeline reports that actually help your physio visits.
+Steady is a plan manager for runners with their own plans, consolidating multiple tools into one app. It acknowledges that training rarely goes perfectly – niggles and injuries happen – and lets you easily adapt. Manage your plan solo, with a real coach, or with AI. Plus, generate injury timeline reports that actually help your physio visits.
 
 **Key features**
 - Bring your own plan in any format (manual, CSV, screenshot)
