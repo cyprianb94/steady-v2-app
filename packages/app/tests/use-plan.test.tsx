@@ -8,7 +8,7 @@ const mockAuth = vi.hoisted(() => ({
 }));
 
 const mockUseIsFocused = vi.hoisted(() => vi.fn(() => false));
-const mockPlanGetQuery = vi.hoisted(() => vi.fn());
+const mockGetActivePlan = vi.hoisted(() => vi.fn());
 
 vi.mock('../lib/auth', () => ({
   useAuth: () => mockAuth,
@@ -18,14 +18,8 @@ vi.mock('@react-navigation/native', () => ({
   useIsFocused: () => mockUseIsFocused(),
 }));
 
-vi.mock('../lib/trpc', () => ({
-  trpc: {
-    plan: {
-      get: {
-        query: mockPlanGetQuery,
-      },
-    },
-  },
+vi.mock('../lib/plan-api', () => ({
+  getActivePlan: mockGetActivePlan,
 }));
 
 vi.mock('../hooks/useTodayIso', () => ({
@@ -71,26 +65,27 @@ describe('usePlan', () => {
     mockAuth.isLoading = false;
     mockUseIsFocused.mockReset();
     mockUseIsFocused.mockReturnValue(false);
-    mockPlanGetQuery.mockReset();
+    mockGetActivePlan.mockReset();
     vi.mocked(AsyncStorage.getItem).mockReset();
     vi.mocked(AsyncStorage.getItem).mockResolvedValue(null);
   });
 
   it('loads the plan once on initial focused mount', async () => {
     mockUseIsFocused.mockReturnValue(true);
-    mockPlanGetQuery.mockResolvedValue(makePlan('plan-a', 1));
+    mockGetActivePlan.mockResolvedValue(makePlan('plan-a', 1));
     const { usePlan } = await import('../hooks/usePlan');
 
     const { result } = renderHook(() => usePlan());
 
     await waitFor(() => expect(result.current.plan?.id).toBe('plan-a'));
 
-    expect(mockPlanGetQuery).toHaveBeenCalledTimes(1);
+    expect(mockGetActivePlan).toHaveBeenCalledTimes(1);
+    expect(mockGetActivePlan).toHaveBeenCalledWith('user-1');
     expect(result.current.currentWeek?.weekNumber).toBe(1);
   });
 
   it('refreshes the plan when the screen gains focus after the initial load', async () => {
-    mockPlanGetQuery
+    mockGetActivePlan
       .mockResolvedValueOnce(makePlan('plan-a', 1))
       .mockResolvedValueOnce(makePlan('plan-b', 2));
     const { usePlan } = await import('../hooks/usePlan');
@@ -98,13 +93,13 @@ describe('usePlan', () => {
     const { result, rerender } = renderHook(() => usePlan());
 
     await waitFor(() => expect(result.current.plan?.id).toBe('plan-a'));
-    expect(mockPlanGetQuery).toHaveBeenCalledTimes(1);
+    expect(mockGetActivePlan).toHaveBeenCalledTimes(1);
 
     mockUseIsFocused.mockReturnValue(true);
     rerender();
 
     await waitFor(() => expect(result.current.plan?.id).toBe('plan-b'));
-    expect(mockPlanGetQuery).toHaveBeenCalledTimes(2);
+    expect(mockGetActivePlan).toHaveBeenCalledTimes(2);
     expect(result.current.currentWeek?.weekNumber).toBe(2);
   });
 });

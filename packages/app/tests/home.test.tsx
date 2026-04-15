@@ -24,14 +24,23 @@ vi.mock('../hooks/usePlan', () => ({
   usePlan: () => mockPlan,
 }));
 
-const mockActivityList = vi.hoisted(() => vi.fn());
+const mockListActivities = vi.hoisted(() => vi.fn());
+
+vi.mock('../lib/activity-api', () => ({
+  listActivities: mockListActivities,
+}));
 
 vi.mock('../lib/trpc', () => ({
   trpc: {
-    activity: {
-      list: {
-        query: mockActivityList,
-      },
+    crossTraining: {
+      getForWeek: { query: vi.fn().mockResolvedValue([]) },
+      log: { mutate: vi.fn() },
+      delete: { mutate: vi.fn() },
+    },
+    plan: {
+      updateInjury: { mutate: vi.fn() },
+      markInjury: { mutate: vi.fn() },
+      clearInjury: { mutate: vi.fn() },
     },
   },
 }));
@@ -43,6 +52,11 @@ function slotIndexForIsoDate(date: string): number {
   return day === 0 ? 6 : day - 1;
 }
 
+function todayIsoLocalForTest(now: Date = new Date()): string {
+  const timezoneOffsetMs = now.getTimezoneOffset() * 60_000;
+  return new Date(now.getTime() - timezoneOffsetMs).toISOString().slice(0, 10);
+}
+
 describe('HomeScreen', () => {
   beforeEach(() => {
     vi.useRealTimers();
@@ -52,8 +66,8 @@ describe('HomeScreen', () => {
     mockPlan.loading = true;
     mockPlan.currentWeek = null;
     mockPlan.refresh = vi.fn();
-    mockActivityList.mockReset();
-    mockActivityList.mockReturnValue(new Promise(() => {}));
+    mockListActivities.mockReset();
+    mockListActivities.mockReturnValue(new Promise(() => {}));
   });
 
   afterEach(() => {
@@ -287,7 +301,7 @@ describe('HomeScreen', () => {
       coachAnnotation: 'Keep the first half controlled.',
     };
     mockPlan.currentWeek = week;
-    mockActivityList.mockResolvedValue([
+    mockListActivities.mockResolvedValue([
       {
         id: 'act-1',
         userId: '1',
@@ -444,7 +458,7 @@ describe('HomeScreen', () => {
   });
 
   it('renders saved feel for today’s matched activity from activity data', async () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayIsoLocalForTest();
     const sessions = [null, null, null, null, null, null, null] as any[];
     sessions[slotIndexForIsoDate(today)] = {
       id: 'session-1',
@@ -471,7 +485,7 @@ describe('HomeScreen', () => {
       coachAnnotation: 'Nice work.',
     };
     mockPlan.currentWeek = week;
-    mockActivityList.mockResolvedValue([
+    mockListActivities.mockResolvedValue([
       {
         id: 'activity-1',
         matchedSessionId: 'session-1',
@@ -497,7 +511,7 @@ describe('HomeScreen', () => {
   });
 
   it('does not show a subjective prompt for a matched run without saved feel', () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayIsoLocalForTest();
     const sessions = [null, null, null, null, null, null, null] as any[];
     sessions[slotIndexForIsoDate(today)] = {
       id: 'session-1',

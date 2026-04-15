@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useIsFocused } from '@react-navigation/native';
 import { getDisplayWeekIndex, type TrainingPlanWithAnnotation, type PlanWeek } from '@steady/types';
-import { trpc } from '../lib/trpc';
 import { useAuth } from '../lib/auth';
+import { getActivePlan } from '../lib/plan-api';
 import { isLikelyNetworkError } from '../lib/network-errors';
 import { getResumeWeekOverride } from '../lib/resume-week';
 import { useTodayIso } from './useTodayIso';
@@ -34,7 +34,7 @@ export function usePlan(): UsePlanResult {
 
     try {
       setLoading(true);
-      const result = await trpc.plan.get.query();
+      const result = await getActivePlan(session.user.id);
       setPlan(result);
       setResumeWeekNumber(result ? await getResumeWeekOverride(result.id) : null);
     } catch (err) {

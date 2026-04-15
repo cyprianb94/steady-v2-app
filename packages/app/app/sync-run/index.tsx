@@ -5,8 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Activity, PlannedSession } from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
+import { listActivities } from '../../lib/activity-api';
 import { useAuth } from '../../lib/auth';
-import { trpc } from '../../lib/trpc';
 import { usePlan } from '../../hooks/usePlan';
 import { useStravaSync } from '../../hooks/useStravaSync';
 import { addDaysIso, findSessionForDateOrWeekday, startOfWeekIso, todayIsoLocal } from '../../lib/plan-helpers';
@@ -101,7 +101,7 @@ export default function SyncRunPickerScreen() {
         await forceSync();
         await refreshPlan();
       }
-      const next = await trpc.activity.list.query();
+      const next = await listActivities(session.user.id);
       setAllActivities(next);
     } catch (error) {
       console.error('Failed to load sync-run activities:', error);

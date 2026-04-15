@@ -9,13 +9,15 @@ import { Btn } from '../../../components/ui/Btn';
 import { SessionDot } from '../../../components/ui/SessionDot';
 import { SessionRow } from '../../../components/plan-builder/SessionRow';
 import { generatePlan, propagateChange, assignDates } from '@steady/types';
-import { trpc } from '../../../lib/trpc';
 import type { PlannedSession, PhaseConfig, PlanWeek } from '@steady/types';
+import { useAuth } from '../../../lib/auth';
+import { savePlan } from '../../../lib/plan-api';
 import { usePreferences } from '../../../providers/preferences-context';
 import { formatDistance } from '../../../lib/units';
 
 export default function StepPlan() {
   const { units } = usePreferences();
+  const { session } = useAuth();
   const params = useLocalSearchParams<{
     raceDistance: string;
     raceLabel: string;
@@ -68,9 +70,14 @@ export default function StepPlan() {
   const handleDone = async () => {
     setSaving(true);
     try {
+      if (!session?.user.id) {
+        throw new Error('Please sign in to save your plan.');
+      }
+
       const raceDate = params.raceDate || new Date().toISOString().slice(0, 10);
       const datedWeeks = assignDates(plan, raceDate);
-      await trpc.plan.save.mutate({
+      await savePlan({
+        userId: session.user.id,
         raceName: params.raceName || params.raceLabel || params.raceDistance || 'Race',
         raceDate,
         raceDistance: (params.raceDistance as any) || 'Marathon',
@@ -87,7 +94,7 @@ export default function StepPlan() {
         'Could not save plan',
         err instanceof Error
           ? err.message
-          : 'Please make sure you are signed in and the server is running.',
+          : 'Please check your connection and confirm you are signed in.',
       );
     } finally {
       setSaving(false);

@@ -23,9 +23,12 @@ vi.mock('../hooks/usePlan', () => ({
   }),
 }));
 
+vi.mock('../lib/activity-api', () => ({
+  listActivities: vi.fn(() => new Promise(() => {})),
+}));
+
 vi.mock('../lib/trpc', () => ({
   trpc: {
-    activity: { list: { query: vi.fn(() => new Promise(() => {})) } },
     crossTraining: { getForDateRange: { query: vi.fn().mockResolvedValue([]) } },
     plan: { updateWeeks: { mutate: mockUpdateWeeks } },
   },

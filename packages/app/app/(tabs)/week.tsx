@@ -9,6 +9,7 @@ import { usePlan } from '../../hooks/usePlan';
 import { useStravaSync } from '../../hooks/useStravaSync';
 import { useTodayIso } from '../../hooks/useTodayIso';
 import { useAuth } from '../../lib/auth';
+import { listActivities } from '../../lib/activity-api';
 import { WeekHeader } from '../../components/week/WeekHeader';
 import { LoadBar } from '../../components/week/LoadBar';
 import { DayCard } from '../../components/week/DayCard';
@@ -64,16 +65,17 @@ export default function WeekTab() {
   const selectedActivity = activityForSession(selectedSession) ?? null;
 
   useEffect(() => {
-    if (!plan) {
+    if (!plan || !session) {
       setActivities([]);
       return;
     }
 
     let cancelled = false;
+    const userId = session.user.id;
 
     async function fetchActivities() {
       try {
-        const nextActivities = await trpc.activity.list.query();
+        const nextActivities = await listActivities(userId);
         if (!cancelled) {
           setActivities(nextActivities);
         }
@@ -90,7 +92,7 @@ export default function WeekTab() {
     return () => {
       cancelled = true;
     };
-  }, [plan?.id, syncRevision]);
+  }, [plan?.id, session, syncRevision]);
 
   useEffect(() => {
     if (!session || !plan || !week || !activeInjury) {

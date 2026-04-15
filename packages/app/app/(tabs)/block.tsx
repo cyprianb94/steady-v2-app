@@ -23,6 +23,7 @@ import { PHASE_COLOR } from '../../constants/phase-meta';
 import { SESSION_TYPE } from '../../constants/session-types';
 import { createId } from '../../lib/id';
 import { addDaysIso, DAYS, inferWeekStartDate, sessionLabel, todayIsoLocal, weekKm } from '../../lib/plan-helpers';
+import { listActivities } from '../../lib/activity-api';
 import { trpc } from '../../lib/trpc';
 import { usePreferences } from '../../providers/preferences-context';
 import { formatDistance, type DistanceUnits } from '../../lib/units';
@@ -309,10 +310,11 @@ export default function BlockTab() {
     }
 
     let cancelled = false;
+    const userId = plan.userId;
 
     async function fetchActivities() {
       try {
-        const nextActivities = await trpc.activity.list.query();
+        const nextActivities = await listActivities(userId);
         if (!cancelled) {
           setActivities(nextActivities);
         }

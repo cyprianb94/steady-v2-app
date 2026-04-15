@@ -5,6 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { expectedDistance, BODY_PARTS, NIGGLE_SEVERITIES, NIGGLE_WHEN_OPTIONS, type Activity, type BodyPart, type Niggle, type NiggleSeverity, type NiggleSide, type NiggleWhen, type PlannedSession, type SubjectiveBreathing, type SubjectiveInput, type SubjectiveLegs, type SubjectiveOverall } from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
+import { useAuth } from '../../lib/auth';
+import { listActivities } from '../../lib/activity-api';
 import { trpc } from '../../lib/trpc';
 import { usePlan } from '../../hooks/usePlan';
 import { findSessionForDateOrWeekday, todayIsoLocal } from '../../lib/plan-helpers';
@@ -117,6 +119,7 @@ function FeelRow<T extends string>({
 export default function SyncRunDetailScreen() {
   const { activityId } = useLocalSearchParams<{ activityId: string }>();
   const insets = useSafeAreaInsets();
+  const { session } = useAuth();
   const { units } = usePreferences();
   const { currentWeek, refresh: refreshPlan } = usePlan();
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -138,12 +141,19 @@ export default function SyncRunDetailScreen() {
   const [niggleDraft, setNiggleDraft] = useState<Partial<NiggleDraft>>({});
 
   useEffect(() => {
+    if (!session) {
+      setActivities([]);
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
+    const userId = session.user.id;
 
     async function loadActivity() {
       try {
         setLoading(true);
-        const next = await trpc.activity.list.query();
+        const next = await listActivities(userId);
         if (!cancelled) setActivities(next);
       } catch (error) {
         console.error('Failed to load sync-run detail activity:', error);
@@ -158,7 +168,7 @@ export default function SyncRunDetailScreen() {
     });
 
     return () => { cancelled = true; };
-  }, [activityId]);
+  }, [activityId, session]);
 
   const activity = useMemo(
     () => activities.find((item) => item.id === activityId) ?? null,

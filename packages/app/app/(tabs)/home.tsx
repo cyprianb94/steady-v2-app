@@ -16,6 +16,7 @@ import type { Activity, CrossTrainingEntry } from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { useAuth } from '../../lib/auth';
+import { listActivities } from '../../lib/activity-api';
 import { usePlan } from '../../hooks/usePlan';
 import { useStravaSync } from '../../hooks/useStravaSync';
 import { useTodayIso } from '../../hooks/useTodayIso';
@@ -137,16 +138,17 @@ export default function HomeScreen() {
   }, [activitiesById, activitiesByMatchedSessionId, weekSessions]);
 
   useEffect(() => {
-    if (!plan || !isFocused) {
+    if (!plan || !session || !isFocused) {
       setActivities([]);
       return;
     }
 
     let cancelled = false;
+    const userId = session.user.id;
 
     async function fetchActivities() {
       try {
-        const nextActivities = await trpc.activity.list.query();
+        const nextActivities = await listActivities(userId);
         if (!cancelled) {
           setActivities(nextActivities);
         }
@@ -163,7 +165,7 @@ export default function HomeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [isFocused, plan?.id, syncRevision]);
+  }, [isFocused, plan?.id, session, syncRevision]);
 
   useEffect(() => {
     if (syncRevision === 0) return;
