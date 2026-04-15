@@ -53,7 +53,7 @@ describe('HomeScreen', () => {
     mockPlan.currentWeek = null;
     mockPlan.refresh = vi.fn();
     mockActivityList.mockReset();
-    mockActivityList.mockResolvedValue([]);
+    mockActivityList.mockReturnValue(new Promise(() => {}));
   });
 
   afterEach(() => {

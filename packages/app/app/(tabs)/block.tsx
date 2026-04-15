@@ -562,7 +562,6 @@ export default function BlockTab() {
             return (
               <View
                 key={i}
-                accessibilityLabel={`${p.name} phase, ${p.weeks} ${p.weeks === 1 ? 'week' : 'weeks'}`}
                 style={[
                   styles.phaseSegment,
                   {
