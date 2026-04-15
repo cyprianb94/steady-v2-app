@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>04 · Run Detail — unmatched (bonus run)</title>
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  .screen { padding: 0; }
+  .scroll { padding: 10px 20px 120px; height: 100%; overflow-y: auto; }
+
+  .nav-bar {
+    background: var(--surface);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-bar .close, .nav-bar .save {
+    font-family: var(--sans); font-size: 14px; font-weight: 600; color: var(--muted);
+  }
+  .nav-bar .save { color: var(--slate); }
+  .nav-bar .title {
+    font-family: var(--serif); font-size: 15px; font-weight: 700; color: var(--ink);
+  }
+
+  .header { padding: 26px 4px 20px; }
+
+  .unmatched-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--slate-bg);
+    color: var(--slate);
+    border: 1px dashed var(--slate);
+    border-radius: var(--radius-pill);
+    padding: 6px 12px;
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  .run-title {
+    font-family: var(--serif); font-weight: 700; font-size: 32px; color: var(--ink);
+    line-height: 1.1; margin-bottom: 6px;
+  }
+  .run-meta {
+    font-family: var(--sans); font-size: 13px; color: var(--muted);
+  }
+
+  .metric-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;
+  }
+  .metric-cell {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-inner); padding: 16px 16px 14px;
+  }
+  .metric-cell .v {
+    font-family: var(--mono); font-weight: 700; font-size: 24px;
+    color: var(--ink); letter-spacing: -0.5px; line-height: 1; margin-bottom: 6px;
+  }
+  .metric-cell .v .unit {
+    font-size: 13px; font-weight: 400; color: var(--muted); margin-left: 3px;
+  }
+  .metric-cell .l {
+    font-family: var(--sans); font-size: 10px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1.3px;
+  }
+
+  .sub-metrics {
+    padding: 0 4px 22px;
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+    display: flex; gap: 14px;
+  }
+  .sub-metrics b { color: var(--ink); font-weight: 700; }
+
+  .section {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-card); padding: 18px 18px 16px; margin-bottom: 14px;
+  }
+  .section-head {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;
+  }
+  .section-title {
+    font-family: var(--serif); font-size: 17px; font-weight: 700; color: var(--ink);
+  }
+  .section-action {
+    font-family: var(--sans); font-size: 12px; font-weight: 600; color: var(--muted);
+  }
+
+  /* Match prompt banner */
+  .match-banner {
+    background: var(--amber-bg);
+    border: 1px solid rgba(212, 136, 42, 0.4);
+    border-radius: var(--radius-inner);
+    padding: 14px 16px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .match-banner .glyph {
+    width: 26px; height: 26px; border-radius: 999px;
+    background: var(--amber); color: var(--surface);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--serif); font-weight: 700; font-size: 13px;
+    flex-shrink: 0;
+  }
+  .match-banner .body { flex: 1; }
+  .match-banner .ttl {
+    font-family: var(--serif); font-weight: 700; font-size: 14px;
+    color: var(--ink); margin-bottom: 3px;
+  }
+  .match-banner .sub {
+    font-family: var(--sans); font-size: 12px; line-height: 17px; color: var(--ink2);
+    margin-bottom: 10px;
+  }
+  .match-banner .btn {
+    display: inline-block;
+    padding: 7px 14px;
+    border-radius: var(--radius-pill);
+    background: var(--ink);
+    color: var(--surface);
+    font-family: var(--sans); font-size: 11px; font-weight: 600;
+    letter-spacing: 0.4px;
+  }
+
+  /* Shoe */
+  .shoe { display: flex; align-items: center; gap: 14px; }
+  .shoe-icon {
+    width: 42px; height: 42px; border-radius: 10px; background: var(--card);
+    display: flex; align-items: center; justify-content: center; font-size: 22px;
+  }
+  .shoe-body { flex: 1; }
+  .shoe-name {
+    font-family: var(--serif); font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 2px;
+  }
+  .shoe-km { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .shoe-change {
+    font-family: var(--sans); font-size: 12px; font-weight: 600; color: var(--slate);
+  }
+
+  /* Splits (abbreviated) */
+  .split-row {
+    display: grid; grid-template-columns: 36px 56px 1fr 56px;
+    align-items: center; gap: 10px; padding: 10px 0;
+    border-top: 1px dashed var(--border);
+  }
+  .split-row:first-of-type { border-top: none; }
+  .split-km {
+    font-family: var(--sans); font-size: 10px; font-weight: 600;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 1px;
+  }
+  .split-pace { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--ink); }
+  .split-bar { height: 8px; border-radius: 999px; background: var(--card); overflow: hidden; }
+  .split-bar .fill { height: 100%; background: var(--slate); border-radius: 999px; }
+  .split-hr { font-family: var(--mono); font-size: 11px; color: var(--ink2); text-align: right; }
+  .split-hr .u { color: var(--muted); font-size: 9px; }
+
+  /* Subjective */
+  .option-row { margin-bottom: 14px; }
+  .option-label {
+    font-family: var(--sans); font-size: 10px; font-weight: 600;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 8px;
+  }
+  .option-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .save-cta { margin: 4px 0 30px; }
+</style>
+</head>
+<body>
+
+<div class="phone-wrap">
+  <span class="frame-label">04 · RUN DETAIL — UNMATCHED</span>
+  <div class="phone">
+
+    <div class="status-bar">
+      <span>9:42</span>
+      <span class="icons">◉ ▪ ▯</span>
+    </div>
+
+    <div class="nav-bar">
+      <span class="close">✕ Close</span>
+      <span class="title">Run detail</span>
+      <span class="save">Save ✓</span>
+    </div>
+
+    <div class="screen">
+      <div class="scroll">
+
+        <div class="header">
+          <span class="unmatched-chip">UNMATCHED · BONUS RUN</span>
+          <div class="run-title">Afternoon shakeout</div>
+          <div class="run-meta">Fri Apr 10 · 14:22 · Clapham Common</div>
+        </div>
+
+        <div class="metric-grid">
+          <div class="metric-cell">
+            <div class="v">3.04<span class="unit">km</span></div>
+            <div class="l">Distance</div>
+          </div>
+          <div class="metric-cell">
+            <div class="v">17:08</div>
+            <div class="l">Duration</div>
+          </div>
+          <div class="metric-cell">
+            <div class="v">5:38<span class="unit">/km</span></div>
+            <div class="l">Avg pace</div>
+          </div>
+          <div class="metric-cell">
+            <div class="v">131<span class="unit">bpm</span></div>
+            <div class="l">Avg heart rate</div>
+          </div>
+        </div>
+        <div class="sub-metrics">
+          <span><b>148</b> max bpm</span>
+          <span>·</span>
+          <span><b>12</b> m elevation</span>
+        </div>
+
+        <!-- Match prompt -->
+        <div class="section">
+          <div class="match-banner">
+            <div class="glyph">?</div>
+            <div class="body">
+              <div class="ttl">Didn't match a planned session</div>
+              <div class="sub">We'll log this as a bonus run. Was it meant for a planned session instead?</div>
+              <span class="btn">Match to a session ›</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Shoe -->
+        <div class="section">
+          <div class="shoe">
+            <div class="shoe-icon">👟</div>
+            <div class="shoe-body">
+              <div class="shoe-name">Hoka Mach 5</div>
+              <div class="shoe-km">lifetime 580 km</div>
+            </div>
+            <div class="shoe-change">Change ›</div>
+          </div>
+        </div>
+
+        <!-- Splits -->
+        <div class="section">
+          <div class="section-head">
+            <div class="section-title">Splits</div>
+            <div class="section-action">per km</div>
+          </div>
+          <div class="split-row">
+            <div class="split-km">KM 1</div>
+            <div class="split-pace">5:44</div>
+            <div class="split-bar"><div class="fill" style="width:62%"></div></div>
+            <div class="split-hr">128<span class="u"> bpm</span></div>
+          </div>
+          <div class="split-row">
+            <div class="split-km">KM 2</div>
+            <div class="split-pace">5:36</div>
+            <div class="split-bar"><div class="fill" style="width:76%"></div></div>
+            <div class="split-hr">132<span class="u"> bpm</span></div>
+          </div>
+          <div class="split-row">
+            <div class="split-km">KM 3</div>
+            <div class="split-pace">5:34</div>
+            <div class="split-bar"><div class="fill" style="width:80%"></div></div>
+            <div class="split-hr">134<span class="u"> bpm</span></div>
+          </div>
+        </div>
+
+        <!-- Subjective -->
+        <div class="section">
+          <div class="section-head">
+            <div class="section-title">How did that feel?</div>
+          </div>
+
+          <div class="option-row">
+            <div class="option-label">Legs</div>
+            <div class="option-buttons">
+              <span class="pill selected">Fresh</span>
+              <span class="pill">Normal</span>
+              <span class="pill">Heavy</span>
+              <span class="pill">Dead</span>
+            </div>
+          </div>
+
+          <div class="option-row">
+            <div class="option-label">Breathing</div>
+            <div class="option-buttons">
+              <span class="pill selected">Easy</span>
+              <span class="pill">Controlled</span>
+              <span class="pill">Labored</span>
+            </div>
+          </div>
+
+          <div class="option-row">
+            <div class="option-label">Overall</div>
+            <div class="option-buttons">
+              <span class="pill selected">Could go again</span>
+              <span class="pill">Done</span>
+              <span class="pill">Shattered</span>
+            </div>
+          </div>
+        </div>
+
+        <button class="cta save-cta">Save as bonus run</button>
+
+      </div>
+    </div>
+
+  </div>
+  <div class="comp-map">RunDetail · MatchPromptBanner · SplitsList · SubjectiveInputPrompt · ShoeRow</div>
+</div>
+
+<aside class="annotations">
+  <h3>04 · Run Detail — unmatched</h3>
+  <ul>
+    <li><b>When shown:</b> Strava returned an activity but <code>matchActivity()</code> found no planned session for today with a high-enough score. Also shown for deliberately off-plan runs.</li>
+    <li><b>Unmatched chip</b> uses <code>--slate</code> with a dashed border — visually softer than the filled session chips. Communicates "neutral / unclassified," not an error.</li>
+    <li><b>Match prompt banner</b> — one-tap shortcut to screen 05. Amber background/ring because it's an <em>invitation</em>, not a problem. If the user ignores it, the run is saved as a bonus run untouched.</li>
+    <li><b>No Planned-vs-Actual section</b> — there's no plan to compare to. The block is simply omitted (not shown as empty).</li>
+    <li><b>Save CTA</b> is the neutral <code>--ink</code> pill here (no session accent), labelled <em>Save as bonus run</em>.</li>
+    <li><b>Splits bars</b> use <code>--slate</code> instead of an accent — reinforces the neutral/unclassified treatment.</li>
+    <li><b>Niggles + notes</b> sections exist here too (not drawn to save space) — same component as screen 03.</li>
+  </ul>
+</aside>
+
+</body>
+</html>

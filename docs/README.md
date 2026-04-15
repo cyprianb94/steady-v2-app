@@ -1,143 +1,181 @@
-# Steady v2 — Claude Code Brief
+# Steady v2 - Skill Index
 
-## What this is
+This `README.md` is the canonical guide for the project skills.
 
-Steady is a iOS running app for self-coached runners who bring their own training plan. It sits in the gap between Strava (tracking only, no planning) and Runna (AI-generated plans, no flexibility). The core premise: the user already has a plan they trust — from a book, a coach, or an LLM — and Steady helps them execute it, track it against reality, and adapt it with an AI coach named Steady.
+The skills are mirrored in two project-local locations:
 
-This is v2. A previous attempt exists. This is a clean rebuild with a clearer product vision, a fully designed UI system, and a working React prototype of the two most complex flows already built.
+- Claude Code: [`.claude/skills/`](/Users/cyprianbrytan/Projects/steady-v2-app/.claude/skills)
+- Codex: [`.codex/skills/`](/Users/cyprianbrytan/Projects/steady-v2-app/.codex/skills)
 
----
+Each skill lives in its own folder as `SKILL.md`, which makes it discoverable as a project-local skill by both tools.
 
-## How to use these documents
+This file is not a skill itself. It explains:
 
-Read them in this order before writing a single line of code:
+- what each skill is for
+- when to reach for it
+- the recommended order to load them in
 
-1. `PRODUCT.md` — why this exists, who it's for, what problem it solves
-2. `DESIGN_SYSTEM.md` — colours, typography, component patterns. Do not deviate.
-3. `SCREENS.md` — information architecture, navigation, all screens
-4. `PLAN_BUILDER.md` — the 3-step plan creation flow (most complex UI in the app)
-5. `AI_COACH.md` — the Steady coach, conversation design, plan edit proposals
-6. `DATA_MODEL.md` — data structures, session types, plan schema
-7. `TECH_STACK.md` — stack, folder structure, build order, integrations
-8. `BRANCHING_WORKFLOW.md` — how to work safely with feature branches, PRs, and merge cleanup
+## Default Order
 
----
+For most product and implementation work, use this order:
 
-## Skills — read before starting
+1. `/product`
+2. `/frontend-design` and `/design-system`
+3. One or more domain skills: `/screens`, `/plan-builder`, `/ai-coach`, `/data-model`, `/tech-stack`
+4. `/engineering`
+5. `/branching-workflow`
+6. Planning skills if the work is still being shaped: `/grill-me`, `/write-a-prd`, `/prd-to-issues`
+7. Implementation and quality skills while building: `/tdd`, `/tests`, `/mocking`, `/interface-design`, `/deep-modules`, `/refactoring`, `/reference`, `/improve-codebase-architecture`
+8. `/testflight` when preparing a release build or distribution
 
-This project folder contains 8 skills. **Read all of them before writing any code.** They define both the engineering philosophy and the workflow.
+## Quick Rules
 
-Skills are located at: `/Users/cyprianbrytan/Projects/steady-v2-app/`
+- Do not load every skill by default. Start with the smallest relevant set.
+- For UI work, always start with `/frontend-design` and `/design-system`.
+- For onboarding and training-plan creation flows, add `/plan-builder`.
+- For anything involving Steady AI tone or proactive coaching behavior, add `/ai-coach`.
+- For feature planning, use `/grill-me` before `/write-a-prd`, then `/prd-to-issues`.
+- For implementation, `/tdd` is the primary execution skill and the test-related skills support it.
+- For repo workflow, `/branching-workflow` applies before making changes.
 
-### Workflow skills — these govern HOW you work
+## Skills
 
-**`grill-me/GRILLME.md`**
-Use this when stress-testing a design or plan. Interview relentlessly down every branch of the decision tree, resolving dependencies one by one. Use it before committing to any module interface or data model decision.
+### Foundation
 
-**`write-a-prd/WRITEPRD.md`**
-Use this when planning any significant new feature. Interview → explore codebase → design modules → write PRD → submit to Notion. Do not start implementing until a PRD exists for features larger than a single component.
+`/product`
+- Use for product context, user needs, feature boundaries, prioritization, and the overall point of Steady.
 
-**`prd-to-issues/PRDTOISSUE.md`**
-Use this after a PRD is written. Break it into independently-grabbable GitHub issues using vertical tracer-bullet slices. Each issue must cut through ALL layers end-to-end. Never create horizontal-slice issues (all schema, then all API, then all UI).
+`/frontend-design`
+- Use for high-quality UI direction, visual hierarchy, bold aesthetic choices, and polished frontend implementation.
 
-**`tdd/TDD.md`**
-Use this for all feature implementation. Red-green-refactor, one test at a time, vertical slices only. Read it before writing a single line of implementation code.
+`/design-system`
+- Use for Steady colours, typography, spacing, component patterns, and visual consistency.
 
-**`improve-codebase-architecture/IMPROVECODEBASEARCHITECTURE.md`**
-Use this when a part of the codebase feels hard to navigate or test. Explore organically for friction, surface deepening candidates, spawn parallel sub-agents to design interfaces, create GitHub RFC issues.
+`/screens`
+- Use for navigation, screen structure, information architecture, and what each screen should contain.
 
-### Reference skills — these govern HOW you design
+`/plan-builder`
+- Use for onboarding Step 1-3, phase editing, template week design, generated plan review, and plan-builder logic.
 
-**`deep-modules.md`** — The core design principle. Every module should have a small interface and deep implementation. If the interface is as complex as the implementation, the module is too shallow. Ask on every module: can I reduce the methods? Simplify the params? Hide more complexity inside?
+`/ai-coach`
+- Use for Steady AI behavior, proactive messaging, conversation tone, and AI-led training guidance.
 
-**`interface-design.md`** — Accept dependencies, don't create them. Return results, don't produce side effects. Small surface area. Apply this to every function signature.
+`/data-model`
+- Use for plan schema, session types, domain entities, data structures, and persistence-shape decisions.
 
-**`mocking.md`** — Mock ONLY at true system boundaries: Strava API, Anthropic API, Apple Health, Supabase. Never mock your own modules or internal collaborators. Use dependency injection so boundaries are mockable. Design SDK-style interfaces (one function per operation) not generic fetchers.
+`/tech-stack`
+- Use for architecture, integrations, build order, package responsibilities, and stack-level tradeoffs.
 
-**`tests.md`** + **`refactoring.md`** + **`REFERENCE.md`** — Good vs bad test examples, post-green refactor checklist, dependency category classification for architecture decisions.
+`/engineering`
+- Use for repo-wide engineering discipline, implementation standards, and workflow expectations.
 
-### Recommended workflow order for any new Steady feature
+`/branching-workflow`
+- Use when creating a branch, scoping work, planning commits, and managing PR flow safely.
 
-```
-1. grill-me     → stress-test the design
-2. write-a-prd  → document it properly
-3. prd-to-issues → break into tracer bullet issues
-4. tdd          → implement one vertical slice at a time
-5. update Linear → move issue/project status and leave a warm trace for the next human or agent
-```
+### Planning
 
-### Branch workflow for humans and agents
+`/grill-me`
+- Use to stress-test a plan or design before committing to it.
 
-Unless there is a very good reason not to, work like this:
+`/write-a-prd`
+- Use to turn a feature idea into a written PRD after exploring the codebase and clarifying the shape of the work.
 
-1. Start from `main`.
-2. Create a fresh short-lived branch for the feature or fix.
-3. Keep the branch scoped to one logical piece of work.
-4. Commit on that branch only.
-5. Open a PR back into `main`.
-6. Merge to `main` when verified.
-7. Delete the feature branch after merge.
+`/prd-to-issues`
+- Use to break a PRD into implementation issues using vertical slices rather than horizontal layers.
 
-See `BRANCHING_WORKFLOW.md` for the default branching rules.
+### Implementation And Quality
 
-### Linear update and warm-trace rule
+`/tdd`
+- Use as the primary implementation workflow when building or fixing features with test-first vertical slices.
 
-When a feature or fix is worked on, Linear must be updated before stopping.
+`/tests`
+- Use to evaluate whether tests are meaningful, integration-style, and behavior-focused.
 
-Minimum expectation:
+`/mocking`
+- Use when deciding what to mock and where the real system boundaries are.
 
-1. Move the issue to the correct status.
-2. Update the related Linear project status if the feature changes project progress.
-3. Leave a warm trace in the Linear issue or project update so the next human, LLM, or agent can pick up quickly.
+`/interface-design`
+- Use when designing functions, modules, APIs, and dependency injection boundaries for testability.
 
-A good warm trace should include:
+`/deep-modules`
+- Use when evaluating whether a module hides enough complexity behind a small surface area.
 
-- what was completed
-- what is still pending
-- branch or PR link
-- tests run
-- known risks, caveats, or follow-up tasks
+`/refactoring`
+- Use after code is green to identify cleanup and simplification opportunities.
 
-Do not finish a work session with code changes only. Leave the project-management trace as well.
+`/reference`
+- Use for architecture heuristics and dependency-category guidance that supports deeper module and testability decisions.
 
----
+`/improve-codebase-architecture`
+- Use when the codebase feels hard to navigate or test and you want a focused architecture-improvement pass.
 
-## Prototype files — read these too
+### Delivery
 
-Two working React prototypes exist in this project. Read them before building anything.
+`/testflight`
+- Use when preparing a production mobile build, release configuration, or TestFlight handoff.
 
-**`steady-app.jsx`** — The main app shell with 4 tabs:
-- `WeekTab` — current week view with session grid, load bar, AI nudge
-- `BlockTab` — full training block with phase strip and all weeks
-- `CoachTab` — AI coach conversation with plan edit proposal cards
-- `SettingsTab` — integrations, plan management, subscription
-- `SessionSheet` — bottom sheet detail for any session (planned + actual + pace trace)
-- `PaceTrace` — SVG component overlaying planned vs actual pace splits
+## Recommended Sequences
 
-**`steady-plan-builder.jsx`** — The 3-step plan creation flow:
-- `StepGoal` — race distance, time target, weeks, phase customisation
-- `StepTemplate` — 7-day template week builder with full session editor
-- `StepPlan` — 16-week plan review with per-week inline editing
-- `ScrollPicker` — iOS-style scroll drum for pace and distance selection
-- `SessionEditor` — full bottom sheet session editor with all fields
-- `PhaseEditor` — visual phase bar with per-phase steppers
-- `PropagateModal` — scope selection for applying changes across weeks
-- `SessionRow` — inline session editor within expanded week rows
-- `generatePlan()` — plan generation logic with progression and phase support
+### UI Feature
 
-These prototypes are the design source of truth. The actual React Native implementation must faithfully reproduce what they show.
+1. `/product`
+2. `/frontend-design`
+3. `/design-system`
+4. `/screens` or `/plan-builder`
+5. `/branching-workflow`
+6. `/tdd`
+7. `/tests`, `/interface-design`, `/refactoring` as needed
 
----
+### AI Feature
 
-## Tech target
+1. `/product`
+2. `/ai-coach`
+3. `/data-model`
+4. `/tech-stack`
+5. `/branching-workflow`
+6. `/tdd`
+7. `/tests`, `/mocking`, `/reference`
 
-- **Platform:** iOS first (React Native + Expo)
-- **Backend:** Node.js + Supabase
-- **AI:** Anthropic Claude API
-- **See `TECH_STACK.md` for full detail**
+### New Feature Definition
 
----
+1. `/product`
+2. `/grill-me`
+3. Any relevant domain skill, such as `/screens`, `/plan-builder`, `/ai-coach`, or `/data-model`
+4. `/write-a-prd`
+5. `/prd-to-issues`
 
-## The one thing that must never be compromised
+### Refactor Or Architecture Pass
 
-The app name is Steady. The AI coach is also called Steady. The coach initiates conversations — it does not wait to be asked. After every run it sends a debrief. Every Monday it sends a week preview. This proactive behaviour is the entire emotional differentiator of the product. If the coach feels passive or generic, the product fails.
+1. `/engineering`
+2. `/deep-modules`
+3. `/interface-design`
+4. `/reference`
+5. `/improve-codebase-architecture`
+6. `/refactoring`
+
+## Source Docs To Skill Mapping
+
+Every doc except this `README.md` is mirrored as a skill:
+
+- `AI_COACH.md` -> `/ai-coach`
+- `BRANCHING_WORKFLOW.md` -> `/branching-workflow`
+- `DATA_MODEL.md` -> `/data-model`
+- `DESIGN_SYSTEM.md` -> `/design-system`
+- `ENGINEERING.md` -> `/engineering`
+- `FRONTEND-DESIGN.md` -> `/frontend-design`
+- `GRILLME.md` -> `/grill-me`
+- `IMPROVECODEBASEARCHITECTURE.md` -> `/improve-codebase-architecture`
+- `PLAN_BUILDER.md` -> `/plan-builder`
+- `PRDTOISSUES.md` -> `/prd-to-issues`
+- `PRODUCT.md` -> `/product`
+- `REFERENCE.md` -> `/reference`
+- `SCREENS.md` -> `/screens`
+- `TDD.md` -> `/tdd`
+- `TECH_STACK.md` -> `/tech-stack`
+- `TESTFLIGHT.md` -> `/testflight`
+- `WRITEPRD.md` -> `/write-a-prd`
+- `deep-modules.md` -> `/deep-modules`
+- `interface-design.md` -> `/interface-design`
+- `mocking.md` -> `/mocking`
+- `refactoring.md` -> `/refactoring`
+- `tests.md` -> `/tests`

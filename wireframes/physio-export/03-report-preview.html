@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>03 · PDF Report Preview — What the physio receives</title>
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  /* Override body layout for document view */
+  body {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 40px;
+    padding: 48px 32px 96px;
+  }
+
+  /* PDF document frame */
+  .pdf-wrap {
+    position: relative;
+  }
+  .pdf-frame-label {
+    position: absolute;
+    top: -28px;
+    left: 0;
+    font-family: var(--serif);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink2);
+    letter-spacing: 0.3px;
+  }
+
+  .pdf-page {
+    width: 520px;
+    background: #FFFFFF;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    box-shadow:
+      0 1px 0 rgba(28,21,16,0.04),
+      0 24px 60px -24px rgba(28,21,16,0.18);
+    padding: 40px 36px;
+    font-family: var(--sans);
+    color: var(--ink);
+  }
+
+  /* Report header */
+  .report-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-bottom: 20px;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 24px;
+  }
+  .report-brand {
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.3px;
+  }
+  .report-brand-sub {
+    font-family: var(--sans);
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+    letter-spacing: 0.5px;
+  }
+  .report-meta {
+    text-align: right;
+  }
+  .report-athlete {
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .report-range {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .report-generated {
+    font-family: var(--sans);
+    font-size: 9px;
+    color: var(--muted);
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+  }
+
+  /* Section styling */
+  .report-section {
+    margin-bottom: 22px;
+  }
+  .report-section-title {
+    font-family: var(--serif);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+
+  /* Summary grid */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+  .summary-stat {
+    background: var(--cream);
+    border-radius: 8px;
+    padding: 12px 10px;
+    text-align: center;
+  }
+  .summary-stat .value {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .summary-stat .stat-label {
+    font-family: var(--sans);
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-top: 6px;
+  }
+  .summary-stat.alert .value {
+    color: var(--clay);
+  }
+
+  /* Niggle timeline in report */
+  .niggle-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .niggle-entry {
+    display: flex;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(229, 221, 208, 0.5);
+    align-items: flex-start;
+  }
+  .niggle-entry:last-child {
+    border-bottom: none;
+  }
+  .niggle-entry .ne-date {
+    width: 56px;
+    flex-shrink: 0;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    font-weight: 400;
+    padding-top: 2px;
+  }
+  .niggle-entry .ne-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 4px;
+  }
+  .niggle-entry .ne-body {
+    flex: 1;
+  }
+  .niggle-entry .ne-title {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .niggle-entry .ne-detail {
+    font-family: var(--sans);
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 1px;
+    line-height: 1.5;
+  }
+  .ne-severity {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    padding: 1px 6px;
+    border-radius: 999px;
+  }
+  .ne-severity.mild { background: var(--amber-bg); color: var(--amber); }
+  .ne-severity.moderate { background: var(--clay-bg); color: var(--clay); }
+  .ne-severity.niggle-lvl { background: rgba(212, 136, 42, 0.1); color: var(--amber); }
+
+  /* Run log table */
+  .run-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10px;
+  }
+  .run-table thead th {
+    font-family: var(--sans);
+    font-size: 8px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-align: left;
+    padding: 6px 6px 6px 0;
+    border-bottom: 1.5px solid var(--border);
+  }
+  .run-table tbody td {
+    padding: 7px 6px 7px 0;
+    border-bottom: 1px solid rgba(229, 221, 208, 0.4);
+    vertical-align: middle;
+  }
+  .run-table .date-col {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    font-weight: 400;
+    width: 58px;
+  }
+  .run-table .type-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: middle;
+  }
+  .run-table .type-col {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .run-table .data-col {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--ink2);
+  }
+  .run-table .effort-col {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .effort-high { color: var(--clay); }
+  .effort-mid { color: var(--amber); }
+  .effort-low { color: var(--forest); }
+  .run-table .shoe-col {
+    font-family: var(--sans);
+    font-size: 9px;
+    color: var(--muted);
+    max-width: 68px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .run-table .niggle-col {
+    text-align: center;
+    font-size: 11px;
+  }
+  .niggle-flag { color: var(--clay); font-weight: 700; }
+  .niggle-clear { color: var(--border); }
+
+  /* Shoe rotation */
+  .shoe-grid {
+    display: flex;
+    gap: 12px;
+  }
+  .shoe-card {
+    flex: 1;
+    background: var(--cream);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .shoe-card .shoe-name {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+  .shoe-card .shoe-stat {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink2);
+  }
+  .shoe-card .shoe-stat-label {
+    font-family: var(--sans);
+    font-size: 9px;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+  .shoe-card .shoe-bar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 999px;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+  .shoe-card .shoe-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+  }
+
+  /* Trend flags */
+  .trend-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .trend-flag {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 10px 12px;
+    border-radius: 8px;
+  }
+  .trend-flag.warning {
+    background: var(--amber-bg);
+    border: 1px solid rgba(212, 136, 42, 0.25);
+  }
+  .trend-flag.concern {
+    background: var(--clay-bg);
+    border: 1px solid rgba(196, 82, 42, 0.2);
+  }
+  .trend-flag.info {
+    background: var(--forest-bg);
+    border: 1px solid rgba(42, 92, 69, 0.15);
+  }
+  .trend-flag .tf-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    flex-shrink: 0;
+    font-family: var(--sans);
+    color: white;
+  }
+  .trend-flag.warning .tf-icon { background: var(--amber); }
+  .trend-flag.concern .tf-icon { background: var(--clay); }
+  .trend-flag.info .tf-icon { background: var(--forest); }
+  .trend-flag .tf-text {
+    font-family: var(--sans);
+    font-size: 11px;
+    color: var(--ink);
+    line-height: 1.55;
+  }
+  .trend-flag .tf-text strong {
+    font-weight: 600;
+  }
+
+  /* Footer */
+  .report-footer {
+    margin-top: 24px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .report-footer .footer-text {
+    font-family: var(--sans);
+    font-size: 9px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .report-footer .footer-brand {
+    font-family: var(--serif);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<div class="pdf-wrap">
+  <span class="pdf-frame-label">03 · PDF REPORT PREVIEW</span>
+
+  <div class="pdf-page">
+
+    <!-- Report header -->
+    <div class="report-header">
+      <div>
+        <div class="report-brand">Steady</div>
+        <div class="report-brand-sub">PHYSIO REPORT</div>
+      </div>
+      <div class="report-meta">
+        <div class="report-athlete">Alex Morgan</div>
+        <div class="report-range">17 Feb – 12 Apr 2026</div>
+        <div class="report-generated">Generated 12 Apr 2026 · 8 week window</div>
+      </div>
+    </div>
+
+    <!-- Section 1: Summary -->
+    <div class="report-section">
+      <div class="report-section-title">Summary</div>
+      <div class="summary-grid">
+        <div class="summary-stat">
+          <div class="value">38</div>
+          <div class="stat-label">Runs</div>
+        </div>
+        <div class="summary-stat">
+          <div class="value">312km</div>
+          <div class="stat-label">Total</div>
+        </div>
+        <div class="summary-stat">
+          <div class="value">39km</div>
+          <div class="stat-label">Avg / Week</div>
+        </div>
+        <div class="summary-stat alert">
+          <div class="value">7</div>
+          <div class="stat-label">Niggles</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: Niggle Timeline -->
+    <div class="report-section">
+      <div class="report-section-title">Niggle Timeline</div>
+      <div class="niggle-timeline">
+        <div class="niggle-entry">
+          <div class="ne-date">Apr 10</div>
+          <div class="ne-dot" style="background: var(--clay);"></div>
+          <div class="ne-body">
+            <div class="ne-title">Left Hamstring <span class="ne-severity moderate">Moderate</span></div>
+            <div class="ne-detail">During 5×800m Intervals · 9.1km · Eased off after rep 4</div>
+          </div>
+        </div>
+        <div class="niggle-entry">
+          <div class="ne-date">Apr 05</div>
+          <div class="ne-dot" style="background: var(--amber);"></div>
+          <div class="ne-body">
+            <div class="ne-title">Left Hamstring <span class="ne-severity mild">Mild</span></div>
+            <div class="ne-detail">During 16km Long Run · 16.4km · Ran through it</div>
+          </div>
+        </div>
+        <div class="niggle-entry">
+          <div class="ne-date">Apr 01</div>
+          <div class="ne-dot" style="background: var(--amber);"></div>
+          <div class="ne-body">
+            <div class="ne-title">Left Hamstring <span class="ne-severity mild">Mild</span></div>
+            <div class="ne-detail">After Easy 8km · 8.2km · Felt during cooldown</div>
+          </div>
+        </div>
+        <div class="niggle-entry">
+          <div class="ne-date">Mar 24</div>
+          <div class="ne-dot" style="background: var(--amber);"></div>
+          <div class="ne-body">
+            <div class="ne-title">Right Calf <span class="ne-severity niggle-lvl">Niggle</span></div>
+            <div class="ne-detail">During 8km Tempo · 8.1km · Gone by evening</div>
+          </div>
+        </div>
+        <div class="niggle-entry">
+          <div class="ne-date">Mar 18</div>
+          <div class="ne-dot" style="background: var(--amber);"></div>
+          <div class="ne-body">
+            <div class="ne-title">Left Hamstring <span class="ne-severity niggle-lvl">Niggle</span></div>
+            <div class="ne-detail">After 10km Easy · 10.1km · Noticed post-run</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 3: Run Log -->
+    <div class="report-section">
+      <div class="report-section-title">Run Log (recent 12 sessions)</div>
+      <table class="run-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Session</th>
+            <th>Dist</th>
+            <th>Pace</th>
+            <th>Effort</th>
+            <th>Shoe</th>
+            <th>Niggle</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="date-col">Apr 10</td>
+            <td class="type-col"><span class="type-dot" style="background: var(--clay);"></span>5×800m</td>
+            <td class="data-col">9.1km</td>
+            <td class="data-col">4:02</td>
+            <td class="effort-col effort-high">8/10</td>
+            <td class="shoe-col">Vomero 18</td>
+            <td class="niggle-col"><span class="niggle-flag">●</span></td>
+          </tr>
+          <tr>
+            <td class="date-col">Apr 08</td>
+            <td class="type-col"><span class="type-dot" style="background: var(--forest);"></span>Easy 8km</td>
+            <td class="data-col">8.0km</td>
+            <td class="data-col">5:32</td>
+            <td class="effort-col effort-low">4/10</td>
+            <td class="shoe-col">Novablast 4</td>
+            <td class="niggle-col"><span class="niggle-clear">○</span></td>
+          </tr>
+          <tr>
+            <td class="date-col">Apr 06</td>
+            <td class="type-col"><span class="type-dot" style="background: var(--forest);"></span>Easy 6km</td>
+            <td class="data-col">6.2km</td>
+            <td class="data-col">5:28</td>
+            <td class="effort-col effort-low">3/10</td>
+            <td class="shoe-col">Novablast 4</td>
+            <td class="niggle-col"><span class="niggle-clear">○</span></td>
+          </tr>
+          <tr>
+            <td class="date-col">Apr 05</td>
+            <td class="type-col"><span class="type-dot" style="background: var(--navy);"></span>Long 16km</td>
+            <td class="data-col">16.4km</td>
+            <td class="data-col">5:18</td>
+            <td class="effort-col effort-mid">6/10</td>
+            <td class="shoe-col">Novablast 4</td>
+            <td class="niggle-col"><span class="niggle-flag">●</span></td>
+          </tr>
+          <tr>
+            <td class="date-col">Apr 03</td>
+            <td class="type-col"><span class="type-dot" style="background: var(--amber);"></span>Tempo 8km</td>
+            <td class="data-col">8.1km</td>
+            <td class="data-col">4:22</td>
+            <td class="effort-col effort-high">7/10</td>
+            <td class="shoe-col">Vomero 18</td>
+            <td class="niggle-col"><span class="niggle-clear">○</span></td>
+          </tr>
+          <tr>
+            <td class="date-col">Apr 01</td>
+            <td class="type-col"><span class="type-dot" style="background: var(--forest);"></span>Easy 8km</td>
+            <td class="data-col">8.2km</td>
+            <td class="data-col">5:35</td>
+            <td class="effort-col effort-low">4/10</td>
+            <td class="shoe-col">Vomero 18</td>
+            <td class="niggle-col"><span class="niggle-flag">●</span></td>
+          </tr>
+          <tr>
+            <td class="date-col">Mar 29</td>
+            <td class="type-col"><span class="type-dot" style="background: var(--navy);"></span>Long 14km</td>
+            <td class="data-col">14.2km</td>
+            <td class="data-col">5:25</td>
+            <td class="effort-col effort-mid">6/10</td>
+            <td class="shoe-col">Novablast 4</td>
+            <td class="niggle-col"><span class="niggle-clear">○</span></td>
+          </tr>
+          <tr>
+            <td class="date-col">Mar 27</td>
+            <td class="type-col"><span class="type-dot" style="background: var(--clay);"></span>6×400m</td>
+            <td class="data-col">7.8km</td>
+            <td class="data-col">3:52</td>
+            <td class="effort-col effort-high">8/10</td>
+            <td class="shoe-col">Vomero 18</td>
+            <td class="niggle-col"><span class="niggle-clear">○</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Section 4: Shoe Rotation -->
+    <div class="report-section">
+      <div class="report-section-title">Shoe Rotation</div>
+      <div class="shoe-grid">
+        <div class="shoe-card">
+          <div class="shoe-name">Nike Vomero 18</div>
+          <div class="shoe-stat">342km</div>
+          <div class="shoe-stat-label">total mileage</div>
+          <div class="shoe-bar">
+            <div class="shoe-bar-fill" style="width: 68%; background: var(--amber);"></div>
+          </div>
+          <div style="font-family: var(--sans); font-size: 9px; color: var(--muted); margin-top: 4px;">68% of 500km lifespan · used for speed work</div>
+        </div>
+        <div class="shoe-card">
+          <div class="shoe-name">ASICS Novablast 4</div>
+          <div class="shoe-stat">218km</div>
+          <div class="shoe-stat-label">total mileage</div>
+          <div class="shoe-bar">
+            <div class="shoe-bar-fill" style="width: 36%; background: var(--forest);"></div>
+          </div>
+          <div style="font-family: var(--sans); font-size: 9px; color: var(--muted); margin-top: 4px;">36% of 600km lifespan · used for easy & long</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 5: Trend Flags (Steady's notes) -->
+    <div class="report-section">
+      <div class="report-section-title">Trend Flags — Steady's Analysis</div>
+      <div class="trend-list">
+        <div class="trend-flag concern">
+          <div class="tf-icon">!</div>
+          <div class="tf-text"><strong>Left hamstring severity escalating.</strong> Progressed from niggle → mild → mild → moderate over 3 weeks. All instances on the left side. Appeared across easy, long, and interval sessions — not intensity-specific.</div>
+        </div>
+        <div class="trend-flag warning">
+          <div class="tf-icon">↑</div>
+          <div class="tf-text"><strong>Weekly load increased 18% in week 6.</strong> Jumped from 36km to 42.5km. This coincides with the first hamstring mild flag on Apr 1. Consider whether the load spike contributed.</div>
+        </div>
+        <div class="trend-flag warning">
+          <div class="tf-icon">👟</div>
+          <div class="tf-text"><strong>Nike Vomero 18 at 342km (68% lifespan).</strong> 3 of 4 hamstring niggles occurred in this shoe. The Novablast 4 sessions showed no hamstring issues. Correlation noted — not necessarily causal.</div>
+        </div>
+        <div class="trend-flag info">
+          <div class="tf-icon">✓</div>
+          <div class="tf-text"><strong>Effort ratings consistent with plan.</strong> Easy runs rated 3–4/10, long runs 6/10, speed work 7–8/10. No signs of overreaching beyond the niggle pattern. Recovery between sessions appears adequate.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="report-footer">
+      <div class="footer-text">
+        This report was generated from data logged by the athlete in the Steady app.<br/>
+        Steady's trend flags are automated observations, not medical advice.
+      </div>
+      <div class="footer-brand">Steady</div>
+    </div>
+
+  </div>
+</div>
+
+<aside class="annotations">
+  <h3>03 · The Physio Report</h3>
+  <ul>
+    <li><b>This is the feature.</b> Everything else — the niggle tracking, the shoe logging, the effort ratings — was groundwork. This report is where all that quiet data collection pays off. It's the moment the runner thinks: "I'm glad I logged all that."</li>
+    <li><b>The physio's first 30 seconds:</b> Summary stats → niggle timeline → trend flags. That's the diagnostic flow. Total load context, injury pattern, and what's notable. A physio can scan this in under a minute and already have more information than 15 minutes of questioning would provide.</li>
+    <li><b>Niggle timeline is chronological, not grouped.</b> Physios think in time — "when did this start, how did it progress?" Grouping by body part would hide temporal relationships. The timeline lets them see: hamstring first appeared Mar 18, escalated through three runs, and hit moderate by Apr 10.</li>
+    <li><b>The run log table</b> gives biomechanical context the physio can cross-reference. "The moderate hamstring flag was during intervals at 4:02/km, effort 8/10, in a shoe with 342km" — that's three data points a physio would normally have to extract through conversation.</li>
+    <li><b>Session-type colour dots</b> in the run log aren't decoration. They let the physio quickly scan for patterns: "Are niggles clustering around a specific session type?" In this example, niggles appear across easy, long, and interval sessions — telling the physio this isn't purely an intensity issue.</li>
+    <li><b>Shoe rotation section</b> serves two purposes. First: mileage correlation with injury ("342km shoe, 3 of 4 hamstring issues"). Second: rotation pattern analysis ("speed work always in the worn shoe, easy in the fresh one" — is that contributing?).</li>
+    <li><b>Trend flags are the killer feature.</b> These are the patterns that are nearly impossible to spot in conversation. A human can't easily track that weekly load jumped 18% in the same week the first niggle appeared, or that 3/4 hamstring issues were in the same shoe. Steady sees these because it has the structured data. The physio couldn't ask the right questions without knowing the answers first.</li>
+    <li><b>"Correlation noted — not necessarily causal"</b> is deliberate language. The report positions Steady as an informed observer, not a diagnostic tool. It raises the questions; the physio answers them. This builds trust with both runners and physio professionals.</li>
+    <li><b>For the landing page:</b> This is the hero image. Show the report, not the app. The message: "Every run you log builds towards a moment like this. When you walk into your physio appointment, you don't have to remember anything — Steady already did."</li>
+  </ul>
+</aside>
+
+</body>
+</html>
