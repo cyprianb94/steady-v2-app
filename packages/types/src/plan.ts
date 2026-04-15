@@ -32,7 +32,7 @@ export interface TrainingPlan {
   // Goal
   raceName: string;
   raceDate: string; // ISO date
-  raceDistance: '5K' | '10K' | 'Half Marathon' | 'Marathon';
+  raceDistance: '5K' | '10K' | 'Half Marathon' | 'Marathon' | 'Ultra';
   targetTime: string; // e.g. 'sub-3:30'
 
   // Phase structure
