@@ -48,11 +48,30 @@ function formatPhaseHeading(weekNumber: number, phase: string): string {
   return `Week ${weekNumber} · ${phase.slice(0, 1)}${phase.slice(1).toLowerCase()} Phase`;
 }
 
+function hasCohesiveScheduledWeek(
+  week: NonNullable<ReturnType<typeof usePlan>['currentWeek']>,
+  inferredWeekStartDate: string,
+): boolean {
+  const datedSessions = week.sessions.flatMap((session, index) => (
+    session?.date ? [{ index, date: session.date }] : []
+  ));
+
+  if (datedSessions.length < 4) {
+    return false;
+  }
+
+  return datedSessions.every(({ index, date }) => date === addDaysIso(inferredWeekStartDate, index));
+}
+
 function resolveCurrentWeekStartDate(
   week: NonNullable<ReturnType<typeof usePlan>['currentWeek']>,
   today: string,
 ): string {
   const inferred = inferWeekStartDate(week, today);
+  if (hasCohesiveScheduledWeek(week, inferred)) {
+    return inferred;
+  }
+
   const slotResolvedTodaySession = findSessionForDateOrWeekday(week.sessions, today);
   const exactTodaySession = week.sessions.find((session) => session?.date === today) ?? null;
 

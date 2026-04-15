@@ -32,7 +32,7 @@ function resolveActivity(
   byMatchedId: Map<string, Activity>,
 ): Activity | undefined {
   if (!session) return undefined;
-  if (session.actualActivityId) return byId.get(session.actualActivityId);
+  if (session.actualActivityId) return byId.get(session.actualActivityId) ?? byMatchedId.get(session.id);
   return byMatchedId.get(session.id);
 }
 
