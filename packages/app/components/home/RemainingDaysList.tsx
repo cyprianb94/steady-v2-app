@@ -4,6 +4,8 @@ import { expectedDistance, type Activity, type PlannedSession } from '@steady/ty
 import { CompactDayRow } from './CompactDayRow';
 import { SectionLabel } from '../ui/SectionLabel';
 import { addDaysIso, dayIndexForIsoDate, startOfWeekIso } from '../../lib/plan-helpers';
+import { usePreferences } from '../../providers/preferences-context';
+import { formatDistance } from '../../lib/units';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
@@ -55,14 +57,17 @@ function statusForDay(
   return 'upcoming';
 }
 
-function formatActualDistance(distance: number | undefined): string | null {
+function formatActualDistance(distance: number | undefined, units: 'metric' | 'imperial'): string | null {
   if (typeof distance !== 'number') return null;
-  return `${Number(distance.toFixed(1)).toString()}k`;
+  return formatDistance(distance, units, { compactMetric: true });
 }
 
-function formatPlannedDistance(session: PlannedSession | null): string | null {
+function formatPlannedDistance(
+  session: PlannedSession | null,
+  units: 'metric' | 'imperial',
+): string | null {
   if (!session || session.type === 'REST') return null;
-  return `${Number(expectedDistance(session).toFixed(1)).toString()}k`;
+  return formatDistance(expectedDistance(session), units, { compactMetric: true });
 }
 
 export function RemainingDaysList({
@@ -72,6 +77,7 @@ export function RemainingDaysList({
   activitiesByMatchedSessionId,
   activitiesBySessionId,
 }: RemainingDaysListProps) {
+  const { units } = usePreferences();
   const todayIndex = dayIndexForIsoDate(today);
   const weekStart = startOfWeekIso(today);
 
@@ -92,7 +98,7 @@ export function RemainingDaysList({
             dateLabel={formatShortDate(addDaysIso(weekStart, index))}
             session={session}
             status={statusForDay(session, index, todayIndex, activity)}
-            metricLabel={formatActualDistance(activity?.distance) ?? formatPlannedDistance(session)}
+            metricLabel={formatActualDistance(activity?.distance, units) ?? formatPlannedDistance(session, units)}
           />
         );
       })}

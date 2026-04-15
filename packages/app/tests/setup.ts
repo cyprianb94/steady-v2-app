@@ -29,6 +29,10 @@ vi.mock('expo-linear-gradient', () => ({
     React.createElement(React.Fragment, null, children),
 }));
 
+vi.mock('@react-navigation/native', () => ({
+  useIsFocused: () => true,
+}));
+
 vi.mock('react-native-safe-area-context', () => ({
   SafeAreaProvider: ({ children }: { children: React.ReactNode }) =>
     React.createElement(React.Fragment, null, children),

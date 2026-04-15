@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import type { Injury, TrainingPlan } from '@steady/types';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { Btn } from '../ui/Btn';
@@ -38,6 +41,7 @@ export function RecoveryFlowModal({
   onMarkInjury,
   onEndRecovery,
 }: RecoveryFlowModalProps) {
+  const insets = useSafeAreaInsets();
   const [injuryName, setInjuryName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [resumeMode, setResumeMode] = useState<'current' | 'choose'>('current');
@@ -82,96 +86,110 @@ export function RecoveryFlowModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
-          <View style={styles.handleRow}>
-            <View style={styles.handle} />
-          </View>
+      <KeyboardAvoidingView
+        testID="recovery-keyboard-frame"
+        style={styles.keyboardFrame}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <Pressable style={styles.overlay} onPress={onClose}>
+          <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
+            <View style={styles.handleRow}>
+              <View style={styles.handle} />
+            </View>
 
-          <View style={styles.header}>
-            <Text style={styles.title}>
-              {mode === 'mark' ? 'Mark Injury' : 'End Recovery'}
-            </Text>
-            <Text style={styles.subtitle}>
-              {mode === 'mark'
-                ? 'Give the injury a name so the recovery state is clear across the app.'
-                : 'Choose how the plan should pick back up once recovery ends.'}
-            </Text>
-          </View>
+            <View style={styles.header}>
+              <Text style={styles.title}>
+                {mode === 'mark' ? 'Mark Injury' : 'End Recovery'}
+              </Text>
+              <Text style={styles.subtitle}>
+                {mode === 'mark'
+                  ? 'Give the injury a name so the recovery state is clear across the app.'
+                  : 'Choose how the plan should pick back up once recovery ends.'}
+              </Text>
+            </View>
 
-          {mode === 'mark' ? (
-            <View style={styles.body}>
-              <Text style={styles.label}>Injury name</Text>
-              <TextInput
-                value={injuryName}
-                onChangeText={(value) => {
-                  setInjuryName(value);
-                  if (error) setError(null);
-                }}
-                placeholder="e.g. Calf strain"
-                placeholderTextColor={C.muted}
-                style={styles.input}
-                editable={!busy}
+            {mode === 'mark' ? (
+              <View style={styles.body}>
+                <Text style={styles.label}>Injury name</Text>
+                <TextInput
+                  value={injuryName}
+                  onChangeText={(value) => {
+                    setInjuryName(value);
+                    if (error) setError(null);
+                  }}
+                  placeholder="e.g. Calf strain"
+                  placeholderTextColor={C.muted}
+                  style={styles.input}
+                  editable={!busy}
+                  returnKeyType="done"
+                  onSubmitEditing={() => {
+                    void handleConfirm();
+                  }}
+                />
+                {error ? <Text style={styles.error}>{error}</Text> : null}
+              </View>
+            ) : (
+              <View style={styles.body}>
+                <Pressable
+                  onPress={() => setResumeMode('current')}
+                  style={[styles.option, resumeMode === 'current' && styles.optionActive]}
+                >
+                  <View style={styles.optionText}>
+                    <Text style={styles.optionTitle}>Resume from current week</Text>
+                    <Text style={styles.optionSub}>Use the week that matches today’s dates.</Text>
+                  </View>
+                  <Radio active={resumeMode === 'current'} />
+                </Pressable>
+
+                <Pressable
+                  onPress={() => setResumeMode('choose')}
+                  style={[styles.option, resumeMode === 'choose' && styles.optionActive]}
+                >
+                  <View style={styles.optionText}>
+                    <Text style={styles.optionTitle}>Choose a week</Text>
+                    <Text style={styles.optionSub}>Pick a specific block week to resume from.</Text>
+                  </View>
+                  <Radio active={resumeMode === 'choose'} />
+                </Pressable>
+
+                {resumeMode === 'choose' ? (
+                  <ScrollView
+                    style={styles.weekList}
+                    contentContainerStyle={styles.weekListContent}
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    {weekOptions.map((option) => {
+                      const active = selectedWeekNumber === option.weekNumber;
+                      return (
+                        <Pressable
+                          key={option.weekNumber}
+                          onPress={() => setSelectedWeekNumber(option.weekNumber)}
+                          style={[styles.weekOption, active && styles.weekOptionActive]}
+                        >
+                          <View>
+                            <Text style={styles.weekOptionTitle}>{option.label}</Text>
+                            <Text style={styles.weekOptionSub}>{option.sublabel}</Text>
+                          </View>
+                          <Radio active={active} />
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                ) : null}
+              </View>
+            )}
+
+            <View style={[styles.footer, { paddingBottom: 18 + Math.max(insets.bottom, 10) }]}>
+              <Btn title="Cancel" variant="secondary" onPress={onClose} disabled={busy} />
+              <Btn
+                title={busy ? 'Working...' : mode === 'mark' ? 'Start recovery' : 'Resume plan'}
+                onPress={handleConfirm}
+                disabled={busy}
               />
-              {error ? <Text style={styles.error}>{error}</Text> : null}
             </View>
-          ) : (
-            <View style={styles.body}>
-              <Pressable
-                onPress={() => setResumeMode('current')}
-                style={[styles.option, resumeMode === 'current' && styles.optionActive]}
-              >
-                <View style={styles.optionText}>
-                  <Text style={styles.optionTitle}>Resume from current week</Text>
-                  <Text style={styles.optionSub}>Use the week that matches today’s dates.</Text>
-                </View>
-                <Radio active={resumeMode === 'current'} />
-              </Pressable>
-
-              <Pressable
-                onPress={() => setResumeMode('choose')}
-                style={[styles.option, resumeMode === 'choose' && styles.optionActive]}
-              >
-                <View style={styles.optionText}>
-                  <Text style={styles.optionTitle}>Choose a week</Text>
-                  <Text style={styles.optionSub}>Pick a specific block week to resume from.</Text>
-                </View>
-                <Radio active={resumeMode === 'choose'} />
-              </Pressable>
-
-              {resumeMode === 'choose' ? (
-                <ScrollView style={styles.weekList} contentContainerStyle={styles.weekListContent}>
-                  {weekOptions.map((option) => {
-                    const active = selectedWeekNumber === option.weekNumber;
-                    return (
-                      <Pressable
-                        key={option.weekNumber}
-                        onPress={() => setSelectedWeekNumber(option.weekNumber)}
-                        style={[styles.weekOption, active && styles.weekOptionActive]}
-                      >
-                        <View>
-                          <Text style={styles.weekOptionTitle}>{option.label}</Text>
-                          <Text style={styles.weekOptionSub}>{option.sublabel}</Text>
-                        </View>
-                        <Radio active={active} />
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              ) : null}
-            </View>
-          )}
-
-          <View style={styles.footer}>
-            <Btn title="Cancel" variant="secondary" onPress={onClose} disabled={busy} />
-            <Btn
-              title={busy ? 'Working...' : mode === 'mark' ? 'Start recovery' : 'Resume plan'}
-              onPress={handleConfirm}
-              disabled={busy}
-            />
-          </View>
+          </Pressable>
         </Pressable>
-      </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -193,6 +211,9 @@ function Radio({ active }: { active: boolean }) {
 }
 
 const styles = StyleSheet.create({
+  keyboardFrame: {
+    flex: 1,
+  },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(28,21,16,0.65)',
@@ -202,6 +223,7 @@ const styles = StyleSheet.create({
     backgroundColor: C.surface,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
+    flexShrink: 1,
     maxHeight: '82%',
   },
   handleRow: {
@@ -339,7 +361,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     paddingHorizontal: 20,
-    paddingBottom: 28,
     paddingTop: 6,
   },
 });

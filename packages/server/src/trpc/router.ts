@@ -3,6 +3,7 @@ import { createActivityRouter } from './activity';
 import { createPlanRouter } from './plan';
 import { createCoachRouter } from './coach';
 import { createCrossTrainingRouter } from './cross-training';
+import { createProfileRouter } from './profile';
 import { createShoeRouter } from './shoe';
 import { createStravaRouter } from './strava';
 import type { StravaClient } from '../lib/strava-client';
@@ -39,6 +40,7 @@ export function createAppRouter(deps: RouterDeps) {
   const shoeRepo = deps.shoeRepo ?? new InMemoryShoeRepo(deps.activityRepo);
   const niggleRepo = deps.niggleRepo ?? new InMemoryNiggleRepo(deps.activityRepo);
   return router({
+    profile: createProfileRouter(deps.profileRepo),
     activity: createActivityRouter(deps.activityRepo, deps.planRepo, niggleRepo, shoeRepo),
     shoe: createShoeRouter(shoeRepo),
     plan: createPlanRouter(deps.planRepo),

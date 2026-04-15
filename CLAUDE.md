@@ -14,7 +14,8 @@ Monorepo with three packages: `packages/types`, `packages/server`, `packages/app
 ## Project Skills
 
 Project-local skills live in `.claude/skills/`.
-Use [docs/README.md](/Users/cyprianbrytan/Projects/steady-v2-app/docs/README.md) as the canonical guide for when to use them and in what order.
+Use [docs/SKILLS.md](/Users/cyprianbrytan/Projects/steady-v2-app/docs/SKILLS.md) as the canonical guide for when to use them and in what order.
+The public-facing project overview lives in [docs/README.MD](/Users/cyprianbrytan/Projects/steady-v2-app/docs/README.MD).
 
 ## <verification_workflow>
 

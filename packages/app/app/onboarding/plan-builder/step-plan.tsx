@@ -11,8 +11,11 @@ import { SessionRow } from '../../../components/plan-builder/SessionRow';
 import { generatePlan, propagateChange, assignDates } from '@steady/types';
 import { trpc } from '../../../lib/trpc';
 import type { PlannedSession, PhaseConfig, PlanWeek } from '@steady/types';
+import { usePreferences } from '../../../providers/preferences-context';
+import { formatDistance } from '../../../lib/units';
 
 export default function StepPlan() {
+  const { units } = usePreferences();
   const params = useLocalSearchParams<{
     raceDistance: string;
     raceLabel: string;
@@ -202,7 +205,7 @@ export default function StepPlan() {
                       <SessionDot key={di} type={d?.type || 'REST'} size={8} />
                     ))}
                   </View>
-                  <Text style={styles.weekKm}>{w.plannedKm}km</Text>
+                  <Text style={styles.weekKm}>{formatDistance(w.plannedKm, units)}</Text>
                   <View style={[styles.phaseBadge, { backgroundColor: `${pc}18` }]}>
                     <Text style={[styles.phaseBadgeText, { color: pc }]}>{w.phase}</Text>
                   </View>

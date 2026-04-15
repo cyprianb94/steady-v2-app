@@ -1,4 +1,5 @@
 import type { PlannedSession, SessionType, PlanWeek } from '@steady/types';
+import { formatDistance, formatStoredPace, type DistanceUnits } from './units';
 
 // Re-export shared functions from types so existing app imports keep working
 export { sessionKm, weekKm } from '@steady/types';
@@ -38,12 +39,16 @@ export const RACE_TARGETS: Record<string, string[]> = {
   Ultra: ['sub-10h', 'sub-12h', 'sub-15h', 'sub-20h'],
 };
 
-export function sessionLabel(s: Partial<PlannedSession> | null): string {
+export function sessionLabel(
+  s: Partial<PlannedSession> | null,
+  units: DistanceUnits = 'metric',
+): string {
   if (!s || s.type === 'REST') return 'Rest';
   if (s.type === 'INTERVAL') {
-    return `${s.reps ?? 6}×${s.repDist ?? 800}m @ ${s.pace ?? '—'}`;
+    return `${s.reps ?? 6}×${s.repDist ?? 800}m @ ${formatStoredPace(s.pace, units)}`;
   }
-  return `${s.distance ?? '?'}km @ ${s.pace ?? '—'}`;
+  const distanceLabel = s.distance != null ? formatDistance(s.distance, units) : '?';
+  return `${distanceLabel} @ ${formatStoredPace(s.pace, units)}`;
 }
 
 export function addDaysIso(date: string, days: number): string {

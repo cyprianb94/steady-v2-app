@@ -2,17 +2,16 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
+import { usePreferences } from '../../providers/preferences-context';
+import { formatDistance } from '../../lib/units';
 
 interface WeeklyLoadCardProps {
   actualKm: number;
   plannedKm: number;
 }
 
-function formatKm(value: number): string {
-  return `${Number(value.toFixed(1)).toString()}km`;
-}
-
 export function WeeklyLoadCard({ actualKm, plannedKm }: WeeklyLoadCardProps) {
+  const { units } = usePreferences();
   const pct = plannedKm > 0 ? Math.max(0, Math.min(1, actualKm / plannedKm)) : 0;
 
   return (
@@ -20,8 +19,8 @@ export function WeeklyLoadCard({ actualKm, plannedKm }: WeeklyLoadCardProps) {
       <View style={styles.labelRow}>
         <Text style={styles.label}>WEEKLY LOAD</Text>
         <View style={styles.valueRow}>
-          <Text style={styles.actual}>{formatKm(actualKm)}</Text>
-          <Text style={styles.planned}>/ {plannedKm}km</Text>
+          <Text style={styles.actual}>{formatDistance(actualKm, units)}</Text>
+          <Text style={styles.planned}>/ {formatDistance(plannedKm, units)}</Text>
         </View>
       </View>
       <View style={styles.track}>

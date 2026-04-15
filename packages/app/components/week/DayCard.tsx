@@ -6,6 +6,7 @@ import { FONTS } from '../../constants/typography';
 import { SessionDot } from '../ui/SessionDot';
 import { sessionLabel } from '../../lib/plan-helpers';
 import type { PlannedSession } from '@steady/types';
+import { usePreferences } from '../../providers/preferences-context';
 
 interface DayCardProps {
   session: PlannedSession | null;
@@ -16,6 +17,7 @@ interface DayCardProps {
 }
 
 export function DayCard({ session, dayName, isToday, onPress, muted = false }: DayCardProps) {
+  const { units } = usePreferences();
   const isRest = !session || session.type === 'REST';
   const isOpenable = !isRest && typeof onPress === 'function';
   const tc = session ? SESSION_TYPE[session.type] : null;
@@ -59,7 +61,7 @@ export function DayCard({ session, dayName, isToday, onPress, muted = false }: D
         ) : (
           <>
             <Text style={[styles.sessionMain, muted && styles.mutedText]} numberOfLines={1}>
-              {sessionLabel(session)}
+              {sessionLabel(session, units)}
             </Text>
             <Text style={styles.sessionType}>{muted ? 'Planned session' : tc?.label}</Text>
           </>

@@ -24,6 +24,8 @@ import { SESSION_TYPE } from '../../constants/session-types';
 import { createId } from '../../lib/id';
 import { addDaysIso, DAYS, inferWeekStartDate, sessionLabel, todayIsoLocal, weekKm } from '../../lib/plan-helpers';
 import { trpc } from '../../lib/trpc';
+import { usePreferences } from '../../providers/preferences-context';
+import { formatDistance, type DistanceUnits } from '../../lib/units';
 import {
   buildBlockPhaseSegments,
   buildBlockWeekDayDetails,
@@ -210,8 +212,12 @@ interface PendingEdit {
   desc: string;
 }
 
-function buildEditDescription(dayIndex: number, updated: Partial<PlannedSession> | null): string {
-  return updated ? `${DAYS[dayIndex]} → ${sessionLabel(updated)}` : `${DAYS[dayIndex]} → Rest`;
+function buildEditDescription(
+  dayIndex: number,
+  updated: Partial<PlannedSession> | null,
+  units: DistanceUnits,
+): string {
+  return updated ? `${DAYS[dayIndex]} → ${sessionLabel(updated, units)}` : `${DAYS[dayIndex]} → Rest`;
 }
 
 function materializeSessionForWeek(
@@ -264,6 +270,7 @@ function normalizeEditedDayIdentity(
 }
 
 export default function BlockTab() {
+  const { units } = usePreferences();
   const { plan, loading, currentWeekIndex, refresh } = usePlan();
   const isFocused = useIsFocused();
   const { requestAutoSync, forceSync, syncRevision, syncing } = useStravaSync();
@@ -466,7 +473,7 @@ export default function BlockTab() {
       weekIndex,
       dayIndex,
       updated,
-      desc: buildEditDescription(dayIndex, updated),
+      desc: buildEditDescription(dayIndex, updated, units),
     });
   }
 
@@ -691,13 +698,13 @@ export default function BlockTab() {
                     </Text>
                   ) : volumeSummary.showActual && volumeSummary.actualKm != null ? (
                     <Text style={styles.weekKmComposite}>
-                      <Text style={styles.weekKmActual}>{volumeSummary.actualKm}km</Text>
+                      <Text style={styles.weekKmActual}>{formatDistance(volumeSummary.actualKm, units)}</Text>
                       <Text style={styles.weekKmDivider}> / </Text>
-                      <Text style={styles.weekKmPlanned}>{volumeSummary.plannedKm}km</Text>
+                      <Text style={styles.weekKmPlanned}>{formatDistance(volumeSummary.plannedKm, units)}</Text>
                     </Text>
                   ) : (
                     <Text style={[styles.weekKm, isCurrent && { color: C.clay }]}>
-                      {volumeSummary.plannedKm}km
+                      {formatDistance(volumeSummary.plannedKm, units)}
                     </Text>
                   )}
                 </View>
@@ -734,6 +741,12 @@ export default function BlockTab() {
                 {blockDayDetails.map((detail, dayIndex) => {
                   const badge = getStatusBadge(detail.status);
                   const canEditDay = !injuryWeek && !week.sessions[dayIndex]?.actualActivityId;
+                  const session = week.sessions[dayIndex] ?? null;
+                  const distanceLabel = session?.type === 'INTERVAL'
+                    ? detail.distanceLabel
+                    : session?.distance != null
+                      ? formatDistance(session.distance, units)
+                      : detail.distanceLabel;
                   return (
                     <Pressable
                       key={`${week.weekNumber}-${detail.dayLabel}`}
@@ -766,8 +779,8 @@ export default function BlockTab() {
                       </View>
 
                       <View style={styles.dayRight}>
-                        {detail.distanceLabel ? (
-                          <Text style={styles.dayDistance}>{detail.distanceLabel}</Text>
+                        {distanceLabel ? (
+                          <Text style={styles.dayDistance}>{distanceLabel}</Text>
                         ) : null}
                         {canEditDay ? <Text style={styles.dayEdit}>Edit</Text> : null}
                         {badge ? (

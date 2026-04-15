@@ -4,6 +4,8 @@ import type { PlannedSession } from '@steady/types';
 import { SESSION_TYPE } from '../../constants/session-types';
 import { FONTS } from '../../constants/typography';
 import { C } from '../../constants/colours';
+import { usePreferences } from '../../providers/preferences-context';
+import { formatCompactSessionLabel } from '../../lib/units';
 
 interface CompactDayRowProps {
   dayName: string;
@@ -30,25 +32,8 @@ function StatusIcon({ status }: { status: 'completed' | 'off-target' | 'missed' 
   );
 }
 
-function compactSessionLabel(session: PlannedSession | null): string {
-  if (!session || session.type === 'REST') return 'Rest';
-
-  switch (session.type) {
-    case 'INTERVAL':
-      return session.reps && session.repDist
-        ? `${session.reps}×${session.repDist}m Intervals`
-        : 'Intervals';
-    case 'TEMPO':
-      return `Tempo ${session.distance ?? 0}k`;
-    case 'LONG':
-      return `Long ${session.distance ?? 0}k`;
-    case 'EASY':
-    default:
-      return `Easy ${session.distance ?? 0}k`;
-  }
-}
-
 export function CompactDayRow({ dayName, dateLabel, session, status, metricLabel }: CompactDayRowProps) {
+  const { units } = usePreferences();
   const isRest = !session || session.type === 'REST';
   const meta = session && !isRest ? SESSION_TYPE[session.type] : null;
   const rowStatus = status ?? (session?.actualActivityId ? 'completed' : isRest ? 'rest' : 'upcoming');
@@ -70,7 +55,7 @@ export function CompactDayRow({ dayName, dateLabel, session, status, metricLabel
       )}
 
       <Text style={[styles.label, isRest && styles.muted]} numberOfLines={1}>
-        {compactSessionLabel(session)}
+        {formatCompactSessionLabel(session, units)}
       </Text>
 
       <View style={styles.statusBlock}>

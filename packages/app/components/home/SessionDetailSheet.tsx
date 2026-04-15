@@ -4,6 +4,8 @@ import type { PlannedSession } from '@steady/types';
 import { SESSION_TYPE } from '../../constants/session-types';
 import { FONTS } from '../../constants/typography';
 import { C } from '../../constants/colours';
+import { usePreferences } from '../../providers/preferences-context';
+import { formatDistance, formatPace, formatSplitLabel, formatStoredPace } from '../../lib/units';
 
 interface ActivitySplit {
   km: number;
@@ -32,12 +34,6 @@ interface SessionDetailSheetProps {
   onClose: () => void;
 }
 
-function formatPace(secPerKm: number): string {
-  const mins = Math.floor(secPerKm / 60);
-  const secs = Math.floor(secPerKm % 60);
-  return `${mins}:${String(secs).padStart(2, '0')}`;
-}
-
 function formatDuration(seconds: number): string {
   const hrs = Math.floor(seconds / 3600);
   const mins = Math.floor((seconds % 3600) / 60);
@@ -47,6 +43,7 @@ function formatDuration(seconds: number): string {
 }
 
 export function SessionDetailSheet({ visible, session, activity, onClose }: SessionDetailSheetProps) {
+  const { units } = usePreferences();
   if (!visible) return null;
 
   const meta = SESSION_TYPE[session.type];
@@ -63,13 +60,13 @@ export function SessionDetailSheet({ visible, session, activity, onClose }: Sess
           <View style={styles.comparison}>
             <View style={styles.compCol}>
               <Text style={styles.compLabel}>Planned</Text>
-              <Text style={styles.compValue}>{session.distance}km</Text>
-              <Text style={styles.compSub}>@ {session.pace}</Text>
+              <Text style={styles.compValue}>{formatDistance(session.distance ?? 0, units)}</Text>
+              <Text style={styles.compSub}>@ {formatStoredPace(session.pace, units)}</Text>
             </View>
             <View style={styles.compCol}>
               <Text style={styles.compLabel}>Actual</Text>
-              <Text style={styles.compValue}>{activity.distance.toFixed(1)}km</Text>
-              <Text style={styles.compSub}>@ {formatPace(activity.avgPace)}</Text>
+              <Text style={styles.compValue}>{formatDistance(activity.distance, units)}</Text>
+              <Text style={styles.compSub}>@ {formatPace(activity.avgPace, units)}</Text>
             </View>
           </View>
 
@@ -98,8 +95,8 @@ export function SessionDetailSheet({ visible, session, activity, onClose }: Sess
               <ScrollView style={styles.splitsList}>
                 {activity.splits.map((split) => (
                   <View key={split.km} style={styles.splitRow}>
-                    <Text style={styles.splitKm}>{split.label ?? `km ${split.km}`}</Text>
-                    <Text style={styles.splitPace}>{formatPace(split.pace)}</Text>
+                    <Text style={styles.splitKm}>{formatSplitLabel(split, units)}</Text>
+                    <Text style={styles.splitPace}>{formatPace(split.pace, units)}</Text>
                     {split.hr != null && (
                       <Text style={styles.splitHr}>{split.hr} bpm</Text>
                     )}

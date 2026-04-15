@@ -8,7 +8,10 @@
   <meta property="og:title" content="Steady - Your running plan deserves better than a spreadsheet">
   <meta property="og:description" content="A free training plan manager for runners who already have a plan. Import it, sync your runs, and handle injuries without starting from scratch.">
   <meta property="og:type" content="website">
+  <meta property="og:image" content="assets/brand/steady-wordmark.png">
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="assets/brand/steady-wordmark.png">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -50,8 +53,11 @@
       height: 56px;
     }
     .wordmark {
-      font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700;
+      display: inline-flex; align-items: center;
       color: var(--ink); text-decoration: none;
+    }
+    .wordmark img {
+      display: block; width: auto; height: 28px;
     }
     .header-cta {
       background: var(--clay); color: white; border: none; border-radius: 22px;
@@ -174,6 +180,7 @@
       .feature-row, .feature-row.reverse {
         flex-direction: column; gap: 24px; text-align: center;
       }
+      .wordmark img { height: 24px; }
       .feature-text { max-width: 100%; }
       .feature-text p { max-width: 100%; }
       .hero h1 { font-size: 32px; }
@@ -282,7 +289,9 @@
   <!-- Header -->
   <header class="site-header">
     <div class="container">
-      <a href="#" class="wordmark">Steady</a>
+      <a href="#" class="wordmark" aria-label="Steady">
+        <img src="assets/brand/steady-wordmark.svg" alt="Steady">
+      </a>
       <a href="#waitlist" class="header-cta">Join the waitlist</a>
     </div>
   </header>

@@ -4,6 +4,8 @@ import { C } from '../../constants/colours';
 import { PHASE_COLOR } from '../../constants/phase-meta';
 import { FONTS } from '../../constants/typography';
 import type { PlanWeek } from '@steady/types';
+import { usePreferences } from '../../providers/preferences-context';
+import { formatDistance } from '../../lib/units';
 
 interface LoadBarProps {
   week: PlanWeek;
@@ -11,13 +13,14 @@ interface LoadBarProps {
 }
 
 export function LoadBar({ week, maxKm }: LoadBarProps) {
+  const { units } = usePreferences();
   const pct = maxKm > 0 ? Math.round((week.plannedKm / maxKm) * 100) : 0;
   const color = PHASE_COLOR[week.phase] || C.clay;
 
   return (
     <View style={styles.container}>
       <View style={styles.labelRow}>
-        <Text style={styles.kmValue}>{week.plannedKm}km</Text>
+        <Text style={styles.kmValue}>{formatDistance(week.plannedKm, units)}</Text>
         <View style={[styles.phaseBadge, { backgroundColor: `${color}18` }]}>
           <Text style={[styles.phaseText, { color }]}>{week.phase}</Text>
         </View>

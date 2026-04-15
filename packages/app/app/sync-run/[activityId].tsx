@@ -8,14 +8,10 @@ import { FONTS } from '../../constants/typography';
 import { trpc } from '../../lib/trpc';
 import { usePlan } from '../../hooks/usePlan';
 import { findSessionForDateOrWeekday, todayIsoLocal } from '../../lib/plan-helpers';
+import { usePreferences } from '../../providers/preferences-context';
+import { formatDistance, formatPace, formatSessionTitle, formatSplitLabel, formatStoredPace } from '../../lib/units';
 
 // ─── Formatting helpers ───────────────────────────────────────────────────────
-
-function formatPace(secPerKm: number): string {
-  const mins = Math.floor(secPerKm / 60);
-  const secs = Math.floor(secPerKm % 60);
-  return `${mins}:${String(secs).padStart(2, '0')}`;
-}
 
 function formatDuration(seconds: number): string {
   const hrs = Math.floor(seconds / 3600);
@@ -31,13 +27,6 @@ function formatRunMeta(startTime: string): string {
   const day = value.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
   const time = value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
   return `${day} · ${time}`;
-}
-
-function formatSessionLabel(session: PlannedSession): string {
-  if (session.type === 'INTERVAL') {
-    return `${session.reps}×${session.repDist}m Intervals`;
-  }
-  return `${expectedDistance(session).toFixed(1).replace(/\.0$/, '')} km ${session.type.toLowerCase()}`;
 }
 
 function paceBarWidth(splitPace: number, fastestPace: number, slowestPace: number): DimensionValue {
@@ -128,6 +117,7 @@ function FeelRow<T extends string>({
 export default function SyncRunDetailScreen() {
   const { activityId } = useLocalSearchParams<{ activityId: string }>();
   const insets = useSafeAreaInsets();
+  const { units } = usePreferences();
   const { currentWeek, refresh: refreshPlan } = usePlan();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -306,7 +296,7 @@ export default function SyncRunDetailScreen() {
             </Text>
           </Pressable>
           <Text style={styles.runTitle}>
-            {selectedSession ? formatSessionLabel(selectedSession) : 'Bonus run'}
+            {selectedSession ? formatSessionTitle(selectedSession, units) : 'Bonus run'}
           </Text>
           <Text style={styles.runMeta}>{formatRunMeta(activity.startTime)}</Text>
         </View>
@@ -314,7 +304,7 @@ export default function SyncRunDetailScreen() {
         {/* Metric grid */}
         <View style={styles.metricGrid}>
           <View style={styles.metricCell}>
-            <Text style={styles.metricValue}>{activity.distance.toFixed(1)} km</Text>
+            <Text style={styles.metricValue}>{formatDistance(activity.distance, units, { spaced: true })}</Text>
             <Text style={styles.metricLabel}>Distance</Text>
           </View>
           <View style={styles.metricCell}>
@@ -322,7 +312,7 @@ export default function SyncRunDetailScreen() {
             <Text style={styles.metricLabel}>Duration</Text>
           </View>
           <View style={styles.metricCell}>
-            <Text style={styles.metricValue}>{formatPace(activity.avgPace)} /km</Text>
+            <Text style={styles.metricValue}>{formatPace(activity.avgPace, units, { withUnit: true })}</Text>
             <Text style={styles.metricLabel}>Avg pace</Text>
           </View>
           <View style={styles.metricCell}>
@@ -341,13 +331,13 @@ export default function SyncRunDetailScreen() {
             <Text style={styles.sectionTitle}>Planned vs actual</Text>
             <View style={styles.pvaRow}>
               <Text style={styles.pvaLabel}>Planned</Text>
-              <Text style={styles.pvaValue}>{expectedDistance(selectedSession).toFixed(1)} km</Text>
-              <Text style={styles.pvaValue}>{selectedSession.pace}</Text>
+              <Text style={styles.pvaValue}>{formatDistance(expectedDistance(selectedSession), units, { spaced: true })}</Text>
+              <Text style={styles.pvaValue}>{formatStoredPace(selectedSession.pace, units, { withUnit: true })}</Text>
             </View>
             <View style={styles.pvaRow}>
               <Text style={styles.pvaLabel}>Actual</Text>
-              <Text style={styles.pvaValue}>{activity.distance.toFixed(1)} km</Text>
-              <Text style={styles.pvaValue}>{formatPace(activity.avgPace)} /km</Text>
+              <Text style={styles.pvaValue}>{formatDistance(activity.distance, units, { spaced: true })}</Text>
+              <Text style={styles.pvaValue}>{formatPace(activity.avgPace, units, { withUnit: true })}</Text>
             </View>
           </View>
         ) : null}
@@ -372,8 +362,8 @@ export default function SyncRunDetailScreen() {
             <Text style={styles.sectionTitle}>Splits</Text>
             {activity.splits.map((split) => (
               <View key={split.km} style={styles.splitRow}>
-                <Text style={styles.splitKm}>{split.label ?? `KM ${split.km}`}</Text>
-                <Text style={styles.splitPace}>{formatPace(split.pace)}</Text>
+                <Text style={styles.splitKm}>{formatSplitLabel(split, units)}</Text>
+                <Text style={styles.splitPace}>{formatPace(split.pace, units)}</Text>
                 <View style={styles.splitBar}>
                   <View style={[styles.splitFill, { width: paceBarWidth(split.pace, fastestPace, slowestPace) }]} />
                 </View>
@@ -515,7 +505,7 @@ export default function SyncRunDetailScreen() {
                 style={[styles.sessionOption, selected && styles.sessionOptionSelected]}
               >
                 <View style={styles.sessionOptionBody}>
-                  <Text style={styles.sessionOptionTitle}>{formatSessionLabel(s)}</Text>
+                  <Text style={styles.sessionOptionTitle}>{formatSessionTitle(s, units)}</Text>
                   <Text style={styles.sessionOptionSub}>{s.date}</Text>
                 </View>
                 <Text style={[styles.sessionOptionTick, selected && styles.sessionOptionTickSelected]}>

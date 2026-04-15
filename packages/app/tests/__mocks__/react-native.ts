@@ -26,7 +26,9 @@ function createMockComponent(tag: string) {
   return function MockComponent({ testID, children, style, ...props }: any) {
     const resolved = style ? resolveStyle(style) : undefined;
     const {
+      accessibilityRole: _accessibilityRole,
       delayLongPress: _delayLongPress,
+      numberOfLines: _numberOfLines,
       onPress,
       onLongPress,
       onTouchStart,
@@ -73,9 +75,54 @@ export const RefreshControl = createMockComponent('RefreshControl');
 export const TouchableOpacity = createMockComponent('TouchableOpacity');
 export const Pressable = createMockComponent('Pressable');
 export const FlatList = createMockComponent('FlatList');
+export const KeyboardAvoidingView = createMockComponent('KeyboardAvoidingView');
+
+export const TextInput = React.forwardRef(function MockTextInput(
+  {
+    testID,
+    style,
+    value,
+    defaultValue,
+    placeholder,
+    editable = true,
+    multiline,
+    onChangeText,
+    onSubmitEditing,
+    onFocus,
+    onBlur,
+    placeholderTextColor: _placeholderTextColor,
+    returnKeyType: _returnKeyType,
+    blurOnSubmit: _blurOnSubmit,
+    ...props
+  }: any,
+  ref: any,
+) {
+  const resolved = style ? resolveStyle(style) : undefined;
+  const tag = multiline ? 'textarea' : 'input';
+
+  return React.createElement(tag, {
+    ref,
+    'data-testid': testID,
+    'data-rn': 'TextInput',
+    style: resolved,
+    value,
+    defaultValue,
+    placeholder,
+    disabled: editable === false,
+    onFocus,
+    onBlur,
+    onChange: (event: any) => onChangeText?.(event.target.value),
+    onKeyDown: (event: any) => {
+      if (event.key === 'Enter') {
+        onSubmitEditing?.({ nativeEvent: { text: event.currentTarget.value } });
+      }
+    },
+    ...props,
+  });
+});
 
 export const ScrollView = React.forwardRef(function MockScrollView(
-  { testID, children, style, contentContainerStyle: _contentContainerStyle, showsVerticalScrollIndicator: _showsVerticalScrollIndicator, snapToInterval: _snapToInterval, decelerationRate: _decelerationRate, nestedScrollEnabled: _nestedScrollEnabled, onMomentumScrollEnd: _onMomentumScrollEnd, ...props }: any,
+  { testID, children, style, contentContainerStyle: _contentContainerStyle, showsVerticalScrollIndicator: _showsVerticalScrollIndicator, snapToInterval: _snapToInterval, decelerationRate: _decelerationRate, nestedScrollEnabled: _nestedScrollEnabled, onMomentumScrollEnd: _onMomentumScrollEnd, refreshControl: _refreshControl, ...props }: any,
   ref: any,
 ) {
   const resolved = style ? resolveStyle(style) : undefined;
@@ -99,7 +146,14 @@ export const Animated = {
   View: createMockComponent('Animated.View'),
 };
 
-export function Modal({ visible, children, animationType: _animationType, transparent: _transparent, ...props }: any) {
+export function Modal({
+  visible,
+  children,
+  animationType: _animationType,
+  transparent: _transparent,
+  onRequestClose: _onRequestClose,
+  ...props
+}: any) {
   if (!visible) return null;
   return React.createElement('div', { 'data-rn': 'Modal', ...props }, children);
 }

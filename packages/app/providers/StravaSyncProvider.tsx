@@ -3,6 +3,7 @@ import { AppState } from 'react-native';
 import type { StravaSyncResult } from '@steady/types';
 import { trpc } from '../lib/trpc';
 import { useAuth } from '../lib/auth';
+import { isLikelyNetworkError } from '../lib/network-errors';
 import { StravaSyncContext, type StravaStatus } from '../hooks/useStravaSync';
 import { useToast } from './ToastProvider';
 
@@ -54,9 +55,17 @@ export function StravaSyncProvider({ children }: React.PropsWithChildren) {
       return null;
     }
 
-    const nextStatus = await trpc.strava.status.query();
-    setStatus(nextStatus);
-    return nextStatus;
+    try {
+      const nextStatus = await trpc.strava.status.query();
+      setStatus(nextStatus);
+      return nextStatus;
+    } catch (error) {
+      if (!isLikelyNetworkError(error)) {
+        console.log('Strava status bootstrap failed:', error);
+      }
+      setStatus(null);
+      return null;
+    }
   }
 
   async function runSync(force: boolean): Promise<StravaSyncResult | null> {
@@ -115,16 +124,16 @@ export function StravaSyncProvider({ children }: React.PropsWithChildren) {
       return;
     }
 
-    refreshStatus().catch((error) => {
-      console.error('Failed to fetch Strava status:', error);
-    });
+    refreshStatus().catch(() => {});
   }, [session]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active') {
         runSync(false).catch((error) => {
-          console.error('Failed to auto-sync Strava on foreground:', error);
+          if (!isLikelyNetworkError(error)) {
+            console.log('Strava foreground sync failed:', error);
+          }
         });
       }
     });

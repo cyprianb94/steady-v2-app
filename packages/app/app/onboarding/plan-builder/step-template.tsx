@@ -11,6 +11,8 @@ import { SessionEditor } from '../../../components/plan-builder/SessionEditor';
 import { DAYS, sessionLabel, TYPE_DEFAULTS } from '../../../lib/plan-helpers';
 import { sessionKm } from '@steady/types';
 import type { PlannedSession } from '@steady/types';
+import { usePreferences } from '../../../providers/preferences-context';
+import { formatDistance } from '../../../lib/units';
 
 const DEFAULT_TEMPLATE: (Partial<PlannedSession> | null)[] = [
   { type: 'EASY', distance: 8, pace: '5:20' },
@@ -43,6 +45,7 @@ function toTemplateSessions(sessions: (PlannedSession | null)[]): (Partial<Plann
 }
 
 export default function StepTemplate() {
+  const { units } = usePreferences();
   const params = useLocalSearchParams<{
     raceDistance: string;
     raceLabel: string;
@@ -158,7 +161,7 @@ export default function StepTemplate() {
                 <>
                   <View style={styles.sessionInfo}>
                     <Text style={styles.sessionMain} numberOfLines={1}>
-                      {sessionLabel(s)}
+                      {sessionLabel(s, units)}
                     </Text>
                     <Text style={styles.sessionType}>{tc?.label}</Text>
                   </View>
@@ -172,7 +175,7 @@ export default function StepTemplate() {
         {/* Volume summary */}
         <View style={styles.volumeCard}>
           <Text style={styles.volumeLabel}>Template volume</Text>
-          <Text style={styles.volumeValue}>~{Math.round(totalKm)}km / week</Text>
+          <Text style={styles.volumeValue}>~{formatDistance(totalKm, units, { spaced: true })} / week</Text>
         </View>
         <Text style={styles.volumeNote}>
           Includes warm-up, cool-down and recovery jogs between reps

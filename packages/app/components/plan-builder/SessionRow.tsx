@@ -8,6 +8,8 @@ import { PropagateModal } from './PropagateModal';
 import { SessionDot } from '../ui/SessionDot';
 import { DAYS, REP_DISTS, TYPE_DEFAULTS } from '../../lib/plan-helpers';
 import type { PhaseName, PlannedSession, SessionType } from '@steady/types';
+import { usePreferences } from '../../providers/preferences-context';
+import { formatDistance } from '../../lib/units';
 
 interface SessionRowProps {
   sess: Partial<PlannedSession> | null;
@@ -20,6 +22,7 @@ interface SessionRowProps {
 }
 
 export function SessionRow({ sess, dayIndex, weekIndex, totalWeeks, phaseName, phaseWeekCount, onChanged }: SessionRowProps) {
+  const { units } = usePreferences();
   const [pending, setPending] = useState<{ updated: Partial<PlannedSession> | null; desc: string } | null>(null);
 
   const currentType: SessionType = (sess?.type as SessionType) || 'REST';
@@ -120,7 +123,7 @@ export function SessionRow({ sess, dayIndex, weekIndex, totalWeeks, phaseName, p
                     onPress={() =>
                       fire(
                         { ...sess, distance: Math.max(2, (sess?.distance ?? 8) + delta) },
-                        `${Math.max(2, (sess?.distance ?? 8) + delta)}km on ${DAYS[dayIndex]}`,
+                        `${formatDistance(Math.max(2, (sess?.distance ?? 8) + delta), units)} on ${DAYS[dayIndex]}`,
                       )
                     }
                     style={styles.distBtn}
@@ -128,14 +131,16 @@ export function SessionRow({ sess, dayIndex, weekIndex, totalWeeks, phaseName, p
                     <Text style={styles.distBtnText}>−{Math.abs(delta)}</Text>
                   </Pressable>
                 ))}
-                <Text style={styles.distValue}>{sess?.distance ?? '?'}km</Text>
+                <Text style={styles.distValue}>
+                  {sess?.distance != null ? formatDistance(sess.distance, units) : '?'}
+                </Text>
                 {[1, 2].map((delta) => (
                   <Pressable
                     key={delta}
                     onPress={() =>
                       fire(
                         { ...sess, distance: Math.min(40, (sess?.distance ?? 8) + delta) },
-                        `${Math.min(40, (sess?.distance ?? 8) + delta)}km on ${DAYS[dayIndex]}`,
+                        `${formatDistance(Math.min(40, (sess?.distance ?? 8) + delta), units)} on ${DAYS[dayIndex]}`,
                       )
                     }
                     style={styles.distBtn}

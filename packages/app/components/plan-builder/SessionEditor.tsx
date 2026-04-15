@@ -11,6 +11,8 @@ import { ScrollPicker } from './ScrollPicker';
 import { TypeStrip } from './TypeStrip';
 import { DAYS, REP_DISTS, RECOVERY_OPTS, WU_LIST, KM_LIST, ALL_PACES, sessionLabel } from '../../lib/plan-helpers';
 import type { PlannedSession, SessionType } from '@steady/types';
+import { usePreferences } from '../../providers/preferences-context';
+import { formatDistance, formatStoredPace } from '../../lib/units';
 
 interface SessionEditorProps {
   dayIndex: number;
@@ -27,6 +29,7 @@ const DEFAULT_PACE: Record<string, string> = {
 };
 
 export function SessionEditor({ dayIndex, existing, onSave, onClose }: SessionEditorProps) {
+  const { units } = usePreferences();
   const init = existing?.type || 'EASY';
   const [type, setType] = useState<SessionType>(init);
   const [dist, setDist] = useState(String(existing?.distance || 8));
@@ -77,7 +80,7 @@ export function SessionEditor({ dayIndex, existing, onSave, onClose }: SessionEd
           <View style={styles.header}>
             <Text style={styles.headerDay}>{DAYS[dayIndex]}</Text>
             <Text style={[styles.headerTitle, { color: tc.color }]}>
-              {isRest ? 'Rest day' : sessionLabel({ type, distance: Number(dist), reps, repDist, pace })}
+              {isRest ? 'Rest day' : sessionLabel({ type, distance: Number(dist), reps, repDist, pace }, units)}
             </Text>
           </View>
 
@@ -115,7 +118,7 @@ export function SessionEditor({ dayIndex, existing, onSave, onClose }: SessionEd
                           {reps}×{repDist}m
                         </Text>
                         <Text style={styles.repSummaryNote}>
-                          ≈{Math.round((reps * repDist) / 1000 * 10) / 10}km reps
+                          ≈{formatDistance((reps * repDist) / 1000, units)} reps
                         </Text>
                       </View>
                     </>
@@ -123,7 +126,7 @@ export function SessionEditor({ dayIndex, existing, onSave, onClose }: SessionEd
                     <>
                       <SectionLabel>Distance</SectionLabel>
                       <ScrollPicker
-                        items={KM_LIST.map((k) => `${k} km`)}
+                        items={KM_LIST.map((k) => formatDistance(Number(k), units, { spaced: true }))}
                         selectedIndex={distIndex >= 0 ? distIndex : 5}
                         onSelect={(i) => setDist(KM_LIST[i])}
                         activeColor={tc.color}
@@ -136,7 +139,7 @@ export function SessionEditor({ dayIndex, existing, onSave, onClose }: SessionEd
                 <View style={styles.section}>
                   <SectionLabel>Target pace</SectionLabel>
                   <ScrollPicker
-                    items={ALL_PACES.map((p) => `${p} /km`)}
+                    items={ALL_PACES.map((p) => formatStoredPace(p, units, { withUnit: true }))}
                     selectedIndex={paceIndex >= 0 ? paceIndex : 20}
                     onSelect={(i) => setPace(ALL_PACES[i])}
                     activeColor={tc.color}
@@ -172,7 +175,7 @@ export function SessionEditor({ dayIndex, existing, onSave, onClose }: SessionEd
                       <View style={styles.wuCdCol}>
                         <Text style={styles.wuCdLabel}>Warm-up</Text>
                         <ScrollPicker
-                          items={WU_LIST.map((w) => `${w} km`)}
+                          items={WU_LIST.map((w) => formatDistance(Number(w), units, { spaced: true }))}
                           selectedIndex={WU_LIST.indexOf(warmup as typeof WU_LIST[number]) ?? 3}
                           onSelect={(i) => setWarmup(WU_LIST[i])}
                           activeColor={tc.color}
@@ -181,7 +184,7 @@ export function SessionEditor({ dayIndex, existing, onSave, onClose }: SessionEd
                       <View style={styles.wuCdCol}>
                         <Text style={styles.wuCdLabel}>Cool-down</Text>
                         <ScrollPicker
-                          items={WU_LIST.map((w) => `${w} km`)}
+                          items={WU_LIST.map((w) => formatDistance(Number(w), units, { spaced: true }))}
                           selectedIndex={WU_LIST.indexOf(cooldown as typeof WU_LIST[number]) ?? 2}
                           onSelect={(i) => setCooldown(WU_LIST[i])}
                           activeColor={tc.color}

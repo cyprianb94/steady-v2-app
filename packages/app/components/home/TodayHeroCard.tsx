@@ -4,6 +4,15 @@ import type { PlannedSession, SubjectiveInput, SubjectiveBreathing, SubjectiveLe
 import { SESSION_TYPE } from '../../constants/session-types';
 import { FONTS } from '../../constants/typography';
 import { C } from '../../constants/colours';
+import { usePreferences } from '../../providers/preferences-context';
+import {
+  formatDistance,
+  formatPace,
+  formatSessionLabel,
+  formatSessionTitle,
+  formatStoredPace,
+  formatWarmupCooldown,
+} from '../../lib/units';
 
 interface ActivitySummary {
   id: string;
@@ -31,34 +40,12 @@ const PLANNED_CARD_BG: Record<Exclude<PlannedSession['type'], 'REST'>, string> =
   LONG: '#E5ECF7',
 };
 
-function formatPace(secPerKm: number): string {
-  const mins = Math.floor(secPerKm / 60);
-  const secs = Math.floor(secPerKm % 60);
-  return `${mins}:${String(secs).padStart(2, '0')}`;
-}
-
-function plannedSummary(session: PlannedSession): string {
-  if (session.type === 'INTERVAL') {
-    return `${session.reps}×${session.repDist}m @ ${session.pace}`;
-  }
-  return `${session.distance}km @ ${session.pace}`;
-}
-
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 
 function formatSessionDate(date: string): string {
   const value = new Date(`${date}T00:00:00Z`);
   return `${WEEKDAYS[value.getUTCDay()]}, ${MONTHS[value.getUTCMonth()]} ${value.getUTCDate()}`;
-}
-
-function plannedTitle(session: PlannedSession): string {
-  if (session.type === 'INTERVAL') {
-    return `${session.reps}×${session.repDist}m Intervals`;
-  }
-
-  const typeTitle = session.type === 'TEMPO' ? 'Tempo' : SESSION_TYPE[session.type].label;
-  return `${session.distance}km ${typeTitle}`;
 }
 
 function plannedHeartRateZone(session: PlannedSession): string {
@@ -109,6 +96,7 @@ export function TodayHeroCard({
   onSaveSubjectiveInput,
   onDismissSubjectiveInput,
 }: TodayHeroCardProps) {
+  const { units } = usePreferences();
   if (!session || session.type === 'REST') {
     return (
       <View style={[styles.card, { backgroundColor: '#F7F5F1' }]} testID="hero-card">
@@ -134,8 +122,8 @@ export function TodayHeroCard({
         <Text style={styles.completedBadge}>Completed</Text>
         <Text style={[styles.mainStat, { color: meta.color }]}>
           {activity
-            ? `${activity.distance.toFixed(1)}km @ ${formatPace(activity.avgPace)}`
-            : plannedSummary(session)}
+            ? `${formatDistance(activity.distance, units)} @ ${formatPace(activity.avgPace, units)}`
+            : formatSessionLabel(session, units)}
         </Text>
         {activity?.avgHR ? (
           <Text style={styles.extraText}>{activity.avgHR} bpm avg</Text>
@@ -176,18 +164,18 @@ export function TodayHeroCard({
         <Text style={styles.todayBadge}>TODAY</Text>
       </View>
 
-      <Text style={[styles.mainTitle, { color: meta.color }]}>{plannedTitle(session)}</Text>
+      <Text style={[styles.mainTitle, { color: meta.color }]}>{formatSessionTitle(session, units)}</Text>
       <Text style={styles.dateText}>{formatSessionDate(session.date)}</Text>
 
       <View style={styles.metricGrid}>
         <View style={styles.metricCard}>
           <Text style={styles.metricValue}>
-            {isInterval ? `${session.reps}×${session.repDist}m` : `${session.distance}km`}
+            {isInterval ? `${session.reps}×${session.repDist}m` : formatDistance(session.distance ?? 0, units)}
           </Text>
           <Text style={styles.metricLabel}>{isInterval ? 'session' : 'distance'}</Text>
         </View>
         <View style={styles.metricCard}>
-          <Text style={styles.metricValue}>{session.pace}</Text>
+          <Text style={styles.metricValue}>{formatStoredPace(session.pace, units)}</Text>
           <Text style={styles.metricLabel}>target pace</Text>
         </View>
         <View style={styles.metricCard}>
@@ -199,10 +187,10 @@ export function TodayHeroCard({
       {(session.warmup || session.cooldown) && (
         <View style={styles.extras}>
           {session.warmup ? (
-            <Text style={styles.extraText}>{session.warmup}km warmup</Text>
+            <Text style={styles.extraText}>{formatWarmupCooldown(session.warmup, units, 'warmup')}</Text>
           ) : null}
           {session.cooldown ? (
-            <Text style={styles.extraText}>{session.cooldown}km cooldown</Text>
+            <Text style={styles.extraText}>{formatWarmupCooldown(session.cooldown, units, 'cooldown')}</Text>
           ) : null}
         </View>
       )}

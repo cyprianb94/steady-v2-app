@@ -10,12 +10,8 @@ import { trpc } from '../../lib/trpc';
 import { usePlan } from '../../hooks/usePlan';
 import { useStravaSync } from '../../hooks/useStravaSync';
 import { addDaysIso, findSessionForDateOrWeekday, startOfWeekIso, todayIsoLocal } from '../../lib/plan-helpers';
-
-function formatPace(secPerKm: number): string {
-  const mins = Math.floor(secPerKm / 60);
-  const secs = Math.floor(secPerKm % 60);
-  return `${mins}:${String(secs).padStart(2, '0')}`;
-}
+import { usePreferences } from '../../providers/preferences-context';
+import { formatDistance, formatPace } from '../../lib/units';
 
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -83,6 +79,7 @@ function pickCandidates(activities: Activity[], today: string, weekStart: string
 export default function SyncRunPickerScreen() {
   const insets = useSafeAreaInsets();
   const { session, isLoading: authLoading } = useAuth();
+  const { units } = usePreferences();
   const { currentWeek, refresh: refreshPlan } = usePlan();
   const { forceSync, syncing } = useStravaSync();
   const [allActivities, setAllActivities] = useState<Activity[]>([]);
@@ -203,7 +200,7 @@ export default function SyncRunPickerScreen() {
                   <Text style={styles.runTime}>{formatActivityTime(activity.startTime, today)}</Text>
                 </View>
                 <Text style={styles.runMetrics}>
-                  {activity.distance.toFixed(1)} km · {formatDuration(activity.duration)} · {formatPace(activity.avgPace)} /km
+                  {formatDistance(activity.distance, units, { spaced: true })} · {formatDuration(activity.duration)} · {formatPace(activity.avgPace, units, { withUnit: true })}
                 </Text>
                 <View style={styles.runSubRow}>
                   <Text style={[styles.runTag, matchesToday ? styles.runTagMatch : styles.runTagNoMatch]}>
