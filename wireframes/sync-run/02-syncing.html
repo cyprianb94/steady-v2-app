@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>02 · Syncing overlay</title>
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  .sync-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(244, 239, 230, 0.92);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    padding: 40px;
+    z-index: 20;
+  }
+
+  .sync-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    padding: 40px 28px 32px;
+    width: 100%;
+    text-align: center;
+  }
+
+  .spinner {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    border: 3px solid var(--border);
+    border-top-color: var(--forest);
+    margin: 0 auto 22px;
+    animation: spin 1.1s linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .sync-title {
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 10px;
+  }
+  .sync-sub {
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 20px;
+    color: var(--muted);
+    max-width: 260px;
+    margin: 0 auto 24px;
+  }
+  .sync-steps {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .sync-steps .step.done { color: var(--forest); }
+  .sync-steps .step.active { color: var(--ink); font-weight: 700; }
+  .sync-steps .sep { opacity: 0.4; }
+
+  /* Faint silhouette of the Home screen showing through the backdrop.
+     Mirrors 01 so the user sees the shell they came from. */
+  .bg-home {
+    padding: 10px 14px 28px;
+    opacity: 0.5;
+    filter: saturate(0.6);
+    height: 100%;
+  }
+  .bg-home .hero {
+    background: var(--forest-bg);
+    border: 1.5px solid var(--forest);
+    border-radius: var(--radius-card);
+    padding: 16px;
+    min-height: 190px;
+    margin-bottom: 10px;
+  }
+</style>
+</head>
+<body>
+
+<div class="phone-wrap">
+  <span class="frame-label">02 · SYNCING</span>
+  <div class="phone">
+
+    <div class="status-bar">
+      <span>9:41</span>
+      <span class="icons">◉ ▪ ▯</span>
+    </div>
+
+    <div class="screen">
+      <div class="bg-home">
+        <div class="week-header">
+          <div class="week-meta">APR 6 – 12 · 2026</div>
+          <h1 class="week-title">Week 2 · Base Phase</h1>
+        </div>
+        <div class="load-bar-card">
+          <div class="load-header">
+            <span class="label">WEEKLY LOAD</span>
+            <div class="values">
+              <span class="actual">32.1km</span>
+              <span class="planned">/ 48km</span>
+            </div>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" style="width: 67%;"></div>
+          </div>
+        </div>
+        <div class="hero"></div>
+        <div class="list-divider">THIS WEEK</div>
+        <div class="day-list">
+          <div class="day-row"><div class="day-left"><div class="day-name">Mon</div></div><div class="day-center"><div class="day-dot easy"></div><span class="day-session-name">Easy 6km</span></div></div>
+          <div class="day-row rest"><div class="day-left"><div class="day-name">Tue</div></div><div class="day-center"><div class="day-dot rest"></div><span class="day-session-name">Rest</span></div></div>
+          <div class="day-row"><div class="day-left"><div class="day-name">Wed</div></div><div class="day-center"><div class="day-dot interval"></div><span class="day-session-name">5×800m Intervals</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sync-backdrop">
+      <div class="sync-card">
+        <div class="spinner"></div>
+        <div class="sync-title">Finding your run…</div>
+        <div class="sync-sub">Pulling your latest activity from Strava. This usually takes about 5 seconds.</div>
+        <div class="sync-steps">
+          <span class="step done">● CONNECTED</span>
+          <span class="sep">·</span>
+          <span class="step active">● FETCHING</span>
+          <span class="sep">·</span>
+          <span class="step">○ MATCHING</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="comp-map">SyncingOverlay · useStravaSync (forceSync)</div>
+</div>
+
+<aside class="annotations">
+  <h3>02 · Syncing overlay</h3>
+  <ul>
+    <li><b>Trigger:</b> user tapped <code>FinishedRunCta</code>. Overlay fades in above Home, Home blurs and desaturates behind.</li>
+    <li><b>Spinner:</b> 56px, 3px ring, animated with top-colour <code>--forest</code> (accent of the matched/current session).</li>
+    <li><b>Copy:</b> terse and honest — tells the user where data is coming from and the rough duration.</li>
+    <li><b>Three-step tracker</b> maps to the real sync stages:
+      <ol>
+        <li><code>CONNECTED</code> — token exchange ok (usually already true).</li>
+        <li><code>FETCHING</code> — <code>strava.sync</code> mutation in flight (<code>strava-client.getActivities</code>).</li>
+        <li><code>MATCHING</code> — <code>matchActivity()</code> running against planned sessions.</li>
+      </ol>
+    </li>
+    <li><b>Error states (not drawn):</b> Strava 401 → "Reconnect Strava"; 0 new runs → empty-state card ("No new run found"); matcher finds &gt;1 activity → screen 06.</li>
+    <li><b>Duration:</b> min 800ms visible even if sync is instant, to avoid a jank.</li>
+  </ul>
+</aside>
+
+</body>
+</html>

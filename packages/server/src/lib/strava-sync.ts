@@ -43,23 +43,57 @@ function getInitialSyncAfter(plan: TrainingPlan | null, now: Date): string {
   return new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000)).toISOString();
 }
 
-function mapSplit(split: NonNullable<StravaActivity['splits_metric']>[number]): ActivitySplit {
-  const distanceKm = split.distance > 0 ? split.distance / 1000 : 1;
-  const derivedPace = split.elapsed_time > 0
-    ? Math.round(split.elapsed_time / distanceKm)
-    : split.average_speed && split.average_speed > 0
-      ? Math.round(1000 / split.average_speed)
-      : 0;
+function formatSplitDistanceLabel(distanceKm: number): string {
+  if (distanceKm >= 1) {
+    return `${distanceKm.toFixed(1)} km`;
+  }
+
+  return `${Math.round(distanceKm * 1000)}m`;
+}
+
+function derivePaceSeconds(distanceMeters: number, elapsedTime: number, averageSpeed?: number): number {
+  const distanceKm = distanceMeters > 0 ? distanceMeters / 1000 : 0;
+
+  if (distanceKm > 0 && elapsedTime > 0) {
+    return Math.round(elapsedTime / distanceKm);
+  }
+
+  if (averageSpeed && averageSpeed > 0) {
+    return Math.round(1000 / averageSpeed);
+  }
+
+  return 0;
+}
+
+function mapMetricSplit(split: NonNullable<StravaActivity['splits_metric']>[number]): ActivitySplit {
+  const distanceKm = split.distance > 0 ? split.distance / 1000 : 0;
+  const derivedPace = derivePaceSeconds(split.distance, split.elapsed_time, split.average_speed);
 
   return {
     km: split.split,
     pace: derivedPace,
     hr: split.average_heartrate,
     elevation: split.elevation_difference,
+    distance: distanceKm > 0 ? Number(distanceKm.toFixed(3)) : undefined,
   };
 }
 
-function mapActivity(userId: string, activity: StravaActivity): Activity {
+function mapLap(lap: NonNullable<StravaActivity['laps']>[number]): ActivitySplit {
+  const distanceKm = lap.distance > 0 ? lap.distance / 1000 : 0;
+  const elapsedTime = lap.elapsed_time > 0 ? lap.elapsed_time : lap.moving_time ?? 0;
+  const derivedPace = derivePaceSeconds(lap.distance, elapsedTime, lap.average_speed);
+
+  return {
+    km: lap.lap_index + 1,
+    pace: derivedPace,
+    hr: lap.average_heartrate,
+    elevation: lap.total_elevation_gain,
+    label: distanceKm > 0 ? formatSplitDistanceLabel(distanceKm) : lap.name,
+    distance: distanceKm > 0 ? Number(distanceKm.toFixed(3)) : undefined,
+  };
+}
+
+function mapActivity(userId: string, activity: StravaActivity, existing?: Activity): Activity {
   const distanceKm = activity.distance / 1000;
   const duration = activity.moving_time ?? activity.elapsed_time;
   const avgPace = distanceKm > 0
@@ -68,8 +102,12 @@ function mapActivity(userId: string, activity: StravaActivity): Activity {
       ? Math.round(1000 / activity.average_speed)
       : 0;
 
+  const splits = (activity.laps != null && activity.laps.length > 0)
+    ? activity.laps.map(mapLap)
+    : (activity.splits_metric ?? []).map(mapMetricSplit);
+
   return {
-    id: crypto.randomUUID(),
+    id: existing?.id ?? crypto.randomUUID(),
     userId,
     source: 'strava',
     externalId: String(activity.id),
@@ -81,7 +119,11 @@ function mapActivity(userId: string, activity: StravaActivity): Activity {
     avgPace,
     avgHR: activity.average_heartrate,
     maxHR: activity.max_heartrate,
-    splits: (activity.splits_metric ?? []).map(mapSplit).filter((split) => split.km > 0 && split.pace > 0),
+    splits: splits.filter((split) => split.km > 0 && split.pace > 0),
+    subjectiveInput: existing?.subjectiveInput,
+    matchedSessionId: existing?.matchedSessionId,
+    shoeId: existing?.shoeId,
+    notes: existing?.notes,
   };
 }
 
@@ -226,4 +268,38 @@ export async function syncStravaActivities(
   await deps.integrationTokenRepo.updateLastSyncedAt(userId, 'strava', nowDate.toISOString());
 
   return result;
+}
+
+export async function refreshStravaActivity(
+  userId: string,
+  activityId: string,
+  deps: SyncStravaActivitiesDeps,
+): Promise<Activity> {
+  const existing = await deps.activityRepo.getById(activityId);
+  if (!existing || existing.userId !== userId) {
+    throw new Error('Activity not found');
+  }
+
+  if (existing.source !== 'strava') {
+    throw new Error('Only Strava activities can be refreshed');
+  }
+
+  const externalId = Number(existing.externalId);
+  if (!Number.isFinite(externalId)) {
+    throw new Error('Activity does not have a valid Strava external id');
+  }
+
+  const accessToken = await deps.tokenService.getValidToken(userId);
+  const externalActivity = await deps.stravaClient.getActivity(accessToken, externalId);
+  const refreshed = mapActivity(userId, externalActivity, existing);
+
+  if (!refreshed.shoeId) {
+    const gearCache = new Map<string, Shoe | null>();
+    const shoe = await resolveShoeForActivity(userId, accessToken, externalActivity, deps, gearCache);
+    if (shoe) {
+      refreshed.shoeId = shoe.id;
+    }
+  }
+
+  return deps.activityRepo.save(refreshed);
 }

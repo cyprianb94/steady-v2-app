@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>07 · Shoe picker</title>
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  .screen { padding: 0; }
+  .scroll { padding: 10px 20px 40px; }
+
+  .nav-bar {
+    background: var(--surface);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-bar .back {
+    font-family: var(--sans); font-size: 14px; font-weight: 600; color: var(--muted);
+  }
+  .nav-bar .title {
+    font-family: var(--serif); font-size: 15px; font-weight: 700; color: var(--ink);
+  }
+  .nav-bar .done {
+    font-family: var(--sans); font-size: 14px; font-weight: 600; color: var(--forest);
+  }
+
+  .screen-title {
+    font-family: var(--serif); font-size: 28px; font-weight: 700; color: var(--ink);
+    padding: 22px 4px 4px;
+  }
+  .screen-sub {
+    font-family: var(--sans); font-size: 13px; color: var(--muted);
+    padding: 0 4px 22px; line-height: 19px;
+  }
+
+  .group-label {
+    font-family: var(--sans); font-size: 10px; font-weight: 600;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px;
+    padding: 0 4px 10px;
+    margin-top: 8px;
+  }
+
+  .shoe-row {
+    display: flex; gap: 14px; align-items: center;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-inner);
+    margin-bottom: 10px;
+  }
+  .shoe-row.selected {
+    border: 1.5px solid var(--forest);
+    background: var(--forest-bg);
+  }
+  .shoe-row.retired {
+    opacity: 0.55;
+  }
+
+  .shoe-ico {
+    width: 46px; height: 46px; border-radius: 12px;
+    background: var(--card);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+  .shoe-row.selected .shoe-ico {
+    background: var(--surface);
+  }
+
+  .shoe-body { flex: 1; min-width: 0; }
+  .shoe-name-row {
+    display: flex; gap: 8px; align-items: center;
+    margin-bottom: 3px;
+  }
+  .shoe-name {
+    font-family: var(--serif); font-size: 15px; font-weight: 700; color: var(--ink);
+  }
+  .shoe-tag {
+    font-family: var(--sans); font-size: 9px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.8px;
+    background: var(--card); color: var(--muted);
+    padding: 2px 7px; border-radius: 999px;
+  }
+  .shoe-tag.strava { background: var(--clay-bg); color: var(--clay); }
+  .shoe-meta {
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+  .shoe-meta b { color: var(--ink); font-weight: 700; }
+
+  .shoe-km-bar {
+    height: 4px; border-radius: 999px; background: var(--card);
+    overflow: hidden; margin-top: 6px;
+  }
+  .shoe-km-bar .fill {
+    height: 100%; background: var(--forest); border-radius: 999px;
+  }
+  .shoe-km-bar .fill.warn { background: var(--amber); }
+  .shoe-km-bar .fill.critical { background: var(--clay); }
+
+  .radio {
+    width: 22px; height: 22px; border-radius: 999px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .shoe-row.selected .radio { border-color: var(--forest); }
+  .radio .dot {
+    width: 11px; height: 11px; border-radius: 999px; background: transparent;
+  }
+  .shoe-row.selected .radio .dot { background: var(--forest); }
+
+  .other-btn {
+    margin-top: 16px;
+    padding: 14px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-inner);
+    text-align: center;
+    font-family: var(--sans); font-size: 13px; font-weight: 600;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<div class="phone-wrap">
+  <span class="frame-label">07 · SHOE PICKER</span>
+  <div class="phone">
+
+    <div class="status-bar">
+      <span>9:43</span>
+      <span class="icons">◉ ▪ ▯</span>
+    </div>
+
+    <div class="nav-bar">
+      <span class="back">‹ Back</span>
+      <span class="title">Which shoe?</span>
+      <span class="done">Done</span>
+    </div>
+
+    <div class="screen">
+      <div class="scroll">
+
+        <div class="screen-title">Change shoe</div>
+        <div class="screen-sub">Auto-detected from Strava. Override for this run only if it's wrong.</div>
+
+        <div class="group-label">Active shoes</div>
+
+        <div class="shoe-row selected">
+          <div class="shoe-ico">👟</div>
+          <div class="shoe-body">
+            <div class="shoe-name-row">
+              <span class="shoe-name">Nike Pegasus 40</span>
+              <span class="shoe-tag strava">FROM STRAVA</span>
+            </div>
+            <div class="shoe-meta">lifetime <b>312 km</b> · retire at 800</div>
+            <div class="shoe-km-bar"><div class="fill" style="width: 39%"></div></div>
+          </div>
+          <div class="radio"><div class="dot"></div></div>
+        </div>
+
+        <div class="shoe-row">
+          <div class="shoe-ico">👟</div>
+          <div class="shoe-body">
+            <div class="shoe-name-row">
+              <span class="shoe-name">Hoka Mach 5</span>
+              <span class="shoe-tag strava">FROM STRAVA</span>
+            </div>
+            <div class="shoe-meta">lifetime <b>580 km</b> · retire at 800</div>
+            <div class="shoe-km-bar"><div class="fill warn" style="width: 73%"></div></div>
+          </div>
+          <div class="radio"><div class="dot"></div></div>
+        </div>
+
+        <div class="shoe-row">
+          <div class="shoe-ico">👟</div>
+          <div class="shoe-body">
+            <div class="shoe-name-row">
+              <span class="shoe-name">Saucony Endorphin Speed 4</span>
+              <span class="shoe-tag strava">FROM STRAVA</span>
+            </div>
+            <div class="shoe-meta">lifetime <b>42 km</b> · retire at 800</div>
+            <div class="shoe-km-bar"><div class="fill" style="width: 5%"></div></div>
+          </div>
+          <div class="radio"><div class="dot"></div></div>
+        </div>
+
+        <div class="group-label">Retired</div>
+
+        <div class="shoe-row retired">
+          <div class="shoe-ico">👟</div>
+          <div class="shoe-body">
+            <div class="shoe-name-row">
+              <span class="shoe-name">Asics Nimbus 24</span>
+              <span class="shoe-tag">RETIRED</span>
+            </div>
+            <div class="shoe-meta">lifetime <b>812 km</b></div>
+            <div class="shoe-km-bar"><div class="fill critical" style="width: 100%"></div></div>
+          </div>
+          <div class="radio"><div class="dot"></div></div>
+        </div>
+
+        <div class="other-btn">＋ Not tracked / add new shoe</div>
+
+      </div>
+    </div>
+
+  </div>
+  <div class="comp-map">ShoePicker · shoe.list · activity.setShoe</div>
+</div>
+
+<aside class="annotations">
+  <h3>07 · Shoe picker</h3>
+  <ul>
+    <li><b>Auto-populated list</b> from <code>shoe.list</code> — shoes upserted during Strava sync via <code>/api/v3/gear/{id}</code>.</li>
+    <li><b>Lifetime km bar</b> is a free side-effect of tracking gear. Colour shifts with wear:
+      <ul>
+        <li><code>--forest</code> under 60% of retirement distance</li>
+        <li><code>--amber</code> 60–85% (warning band)</li>
+        <li><code>--clay</code> 85%+ (replace soon)</li>
+      </ul>
+      This becomes a natural hook for the recovery/injury USP — shoe wear + niggles correlate.
+    </li>
+    <li><b>"FROM STRAVA" tag</b> on clay-bg makes the source clear so users know to update it in Strava if wrong.</li>
+    <li><b>Retired group</b> — grey-out. Tapping a retired shoe is allowed (for back-dating), just visually de-emphasised.</li>
+    <li><b>＋ Not tracked / add new shoe</b> — dashed-border button. v1 just sets <code>shoeId = null</code> on the activity. Adding a new shoe manually is a v2 enhancement.</li>
+    <li><b>Backend:</b> Done → <code>activity.setShoe(activityId, shoeId | null)</code>. Future: we can also decrement/increment lifetime km server-side as the single source of truth.</li>
+  </ul>
+</aside>
+
+</body>
+</html>

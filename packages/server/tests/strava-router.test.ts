@@ -37,6 +37,9 @@ describe('strava router', () => {
         athleteId: 'athlete-99',
       }),
       getActivities: async () => [],
+      getActivity: async () => {
+        throw new Error('not used');
+      },
       getGear: async () => null,
     };
 
@@ -188,6 +191,75 @@ describe('strava router', () => {
       new: 1,
       matched: 1,
     });
+  });
+
+  it('refreshActivity updates an existing Strava activity in place and preserves manual fields', async () => {
+    await integrationTokenRepo.save({
+      id: 'token-1',
+      userId: 'user-1',
+      provider: 'strava',
+      encryptedAccessToken: encrypt('access-token', 'test-encryption-key'),
+      encryptedRefreshToken: encrypt('refresh-token', 'test-encryption-key'),
+      expiresAt: '2026-04-10T12:00:00Z',
+      externalAthleteId: 'athlete-99',
+      createdAt: '2026-04-10T08:00:00Z',
+    });
+
+    await activityRepo.save({
+      id: '7fc54a78-ceb1-433a-8189-958e545060a2',
+      userId: 'user-1',
+      source: 'strava',
+      externalId: '201',
+      startTime: '2026-04-08T07:00:00Z',
+      distance: 8,
+      duration: 2420,
+      avgPace: 303,
+      splits: [{ km: 1, pace: 303 }],
+      matchedSessionId: 'w1d0',
+      notes: 'keep this note',
+    });
+
+    stravaClient = {
+      ...stravaClient,
+      getActivity: async () => ({
+        id: 201,
+        sport_type: 'Run',
+        start_date: '2026-04-08T07:00:00Z',
+        distance: 7605,
+        moving_time: 2549,
+        elapsed_time: 2549,
+        average_heartrate: 162,
+        max_heartrate: 200,
+        laps: [
+          { lap_index: 0, distance: 2000, elapsed_time: 720, average_heartrate: 135, total_elevation_gain: 8 },
+          { lap_index: 1, distance: 400, elapsed_time: 88, average_heartrate: 174, total_elevation_gain: 1 },
+        ],
+      }),
+    };
+
+    const appRouter = createAppRouter({
+      profileRepo,
+      planRepo,
+      activityRepo,
+      integrationTokenRepo,
+      stravaClient,
+      encryptionKey: 'test-encryption-key',
+      conversationRepo: new InMemoryConversationRepo(),
+      crossTrainingRepo: new InMemoryCrossTrainingRepo(),
+    });
+
+    const refreshed = await appRouter.createCaller({ userId: 'user-1' }).strava.refreshActivity({
+      activityId: '7fc54a78-ceb1-433a-8189-958e545060a2',
+    });
+
+    expect(refreshed).toMatchObject({
+      id: '7fc54a78-ceb1-433a-8189-958e545060a2',
+      distance: 7.605,
+      matchedSessionId: 'w1d0',
+      notes: 'keep this note',
+    });
+    expect(refreshed.splits[0]).toMatchObject({ label: '2.0 km', pace: 360 });
+    expect(refreshed.splits[1]).toMatchObject({ label: '400m', pace: 220 });
   });
 
   it('rejects unauthenticated requests', async () => {

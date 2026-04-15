@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>05 · Match picker</title>
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  .screen { padding: 0; }
+  .scroll { padding: 10px 20px 40px; }
+
+  .nav-bar {
+    background: var(--surface);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-bar .back, .nav-bar .confirm {
+    font-family: var(--sans); font-size: 14px; font-weight: 600; color: var(--muted);
+  }
+  .nav-bar .confirm { color: var(--forest); }
+  .nav-bar .title {
+    font-family: var(--serif); font-size: 15px; font-weight: 700; color: var(--ink);
+  }
+
+  .screen-title {
+    font-family: var(--serif); font-size: 28px; font-weight: 700; color: var(--ink);
+    padding: 22px 4px 4px;
+  }
+  .screen-sub {
+    font-family: var(--sans); font-size: 13px; color: var(--muted);
+    padding: 0 4px 20px;
+    line-height: 19px;
+  }
+
+  .run-summary {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius-inner);
+    padding: 14px 16px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 22px;
+  }
+  .run-summary .ico {
+    width: 36px; height: 36px; border-radius: 999px;
+    background: var(--surface);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--serif); font-weight: 700; color: var(--ink);
+  }
+  .run-summary .txt { flex: 1; }
+  .run-summary .ttl {
+    font-family: var(--serif); font-size: 14px; font-weight: 700; color: var(--ink);
+  }
+  .run-summary .met {
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+
+  .group-label {
+    font-family: var(--sans); font-size: 10px; font-weight: 600;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px;
+    padding: 0 4px 10px;
+  }
+
+  .option {
+    display: flex; gap: 14px; align-items: center;
+    padding: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-inner);
+    margin-bottom: 10px;
+  }
+  .option.selected {
+    border: 1.5px solid var(--forest);
+    background: var(--forest-bg);
+  }
+  .radio {
+    width: 22px; height: 22px; border-radius: 999px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .option.selected .radio {
+    border-color: var(--forest);
+  }
+  .radio .dot {
+    width: 11px; height: 11px; border-radius: 999px;
+    background: transparent;
+  }
+  .option.selected .radio .dot {
+    background: var(--forest);
+  }
+
+  .opt-body { flex: 1; }
+  .opt-ttl {
+    font-family: var(--serif); font-size: 15px; font-weight: 700; color: var(--ink);
+    margin-bottom: 3px;
+  }
+  .opt-sub {
+    font-family: var(--sans); font-size: 12px; color: var(--ink2);
+  }
+  .opt-sub .sep { color: var(--muted); margin: 0 6px; }
+
+  .opt-tag {
+    font-family: var(--sans);
+    font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--forest);
+    color: var(--surface);
+  }
+  .opt-tag.missed { background: var(--clay); }
+  .opt-tag.neutral {
+    background: var(--slate-bg); color: var(--slate);
+  }
+
+  .divider {
+    height: 1px; background: var(--border);
+    margin: 18px 4px 14px;
+  }
+</style>
+</head>
+<body>
+
+<div class="phone-wrap">
+  <span class="frame-label">05 · MATCH PICKER</span>
+  <div class="phone">
+
+    <div class="status-bar">
+      <span>9:43</span>
+      <span class="icons">◉ ▪ ▯</span>
+    </div>
+
+    <div class="nav-bar">
+      <span class="back">‹ Back</span>
+      <span class="title">Match run</span>
+      <span class="confirm">Confirm</span>
+    </div>
+
+    <div class="screen">
+      <div class="scroll">
+
+        <div class="screen-title">Which session was this?</div>
+        <div class="screen-sub">Pick the planned session this run belonged to, or mark it as a bonus run.</div>
+
+        <div class="run-summary">
+          <div class="ico">►</div>
+          <div class="txt">
+            <div class="ttl">Morning Run · 8.12 km</div>
+            <div class="met">44:12 · 5:26 /km · 142 bpm</div>
+          </div>
+        </div>
+
+        <div class="group-label">This week</div>
+
+        <div class="option selected">
+          <div class="radio"><div class="dot"></div></div>
+          <div class="opt-body">
+            <div class="opt-ttl">Today · 8 km Easy</div>
+            <div class="opt-sub">Fri Apr 10 <span class="sep">·</span> target 5:30 /km <span class="sep">·</span> Zone 2</div>
+          </div>
+          <span class="opt-tag">AUTO</span>
+        </div>
+
+        <div class="option">
+          <div class="radio"><div class="dot"></div></div>
+          <div class="opt-body">
+            <div class="opt-ttl">Wed · 6 km Easy</div>
+            <div class="opt-sub">Apr 8 <span class="sep">·</span> missed</div>
+          </div>
+          <span class="opt-tag missed">MISSED</span>
+        </div>
+
+        <div class="option">
+          <div class="radio"><div class="dot"></div></div>
+          <div class="opt-body">
+            <div class="opt-ttl">Thu · 5×1 km Intervals</div>
+            <div class="opt-sub">Apr 9 <span class="sep">·</span> target 4:05 /km</div>
+          </div>
+          <span class="opt-tag missed">MISSED</span>
+        </div>
+
+        <div class="divider"></div>
+        <div class="group-label">No session</div>
+
+        <div class="option">
+          <div class="radio"><div class="dot"></div></div>
+          <div class="opt-body">
+            <div class="opt-ttl">Bonus run</div>
+            <div class="opt-sub">Log as extra mileage, no plan attached</div>
+          </div>
+          <span class="opt-tag neutral">NEUTRAL</span>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+  <div class="comp-map">MatchPicker · activity.setMatchedSession</div>
+</div>
+
+<aside class="annotations">
+  <h3>05 · Match picker</h3>
+  <ul>
+    <li><b>Reached from:</b> tapping the "matched to today" chip on screen 03 OR the "Match to a session ›" CTA on screen 04.</li>
+    <li><b>Run summary card at top</b> — keeps the user anchored on <em>which</em> run they're matching while scrolling through candidates.</li>
+    <li><b>Grouped options:</b> "This week" lists planned sessions (prioritised by proximity + match score from <code>matchActivity()</code>). The top candidate is pre-selected and tagged <code>AUTO</code>.</li>
+    <li><b>Tag colours:</b>
+      <ul>
+        <li><code>AUTO</code> — forest, the system's suggestion</li>
+        <li><code>MISSED</code> — clay, sessions without an activity yet</li>
+        <li><code>NEUTRAL</code> — slate, "bonus run"</li>
+      </ul>
+    </li>
+    <li><b>Selected card</b> gets a 1.5px forest border and forest-bg fill; radio dot fills in forest.</li>
+    <li><b>Confirm</b> in the nav bar (not a full-width CTA) because the user has already committed psychologically by tapping a radio.</li>
+    <li><b>Backend:</b> tapping Confirm calls <code>activity.setMatchedSession(activityId, sessionId | null)</code>. Server re-runs plan state.</li>
+  </ul>
+</aside>
+
+</body>
+</html>

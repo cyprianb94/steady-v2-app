@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Steady – Onboarding</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Space+Mono:wght@400;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
+
+    :root {
+      --cream: #F4EFE6; --surface: #FDFAF5; --card: #F0EAE0;
+      --ink: #1C1510; --ink2: #3D3028; --muted: #9A8E7E; --border: #E5DDD0;
+      --clay: #C4522A; --clayBg: #FDF0EB;
+      --amber: #D4882A; --amberBg: #FDF6EB;
+      --forest: #2A5C45; --forestBg: #EEF4F1;
+      --navy: #1B3A6B; --navyBg: #EDF1F8;
+      --purple: #7C5CBF; --purpleBg: #F2EEF9;
+      --slate: #8A8E9A;
+    }
+
+    * { box-sizing: border-box; -webkit-font-smoothing: antialiased; margin: 0; padding: 0; }
+
+    body {
+      background: var(--cream);
+      min-height: 100vh;
+      font-family: 'DM Sans', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 64px 48px 80px;
+    }
+
+    /* ─── Page header ─── */
+    .page-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 52px;
+    }
+    .page-eyebrow {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 3.5px;
+      text-transform: uppercase;
+      color: var(--clay);
+      margin-bottom: 10px;
+    }
+    .page-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 28px;
+      font-weight: 600;
+      color: var(--ink);
+      text-align: center;
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+    .page-subtitle {
+      font-size: 14px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.5;
+      max-width: 560px;
+    }
+
+    /* ─── Frames row ─── */
+    .frames-row {
+      display: flex;
+      gap: 40px;
+      align-items: flex-start;
+      justify-content: center;
+    }
+
+    .frame-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .frame-caption {
+      font-family: 'Space Mono', monospace;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* ─── Phone frame ─── */
+    .phone-frame {
+      width: 375px;
+      height: 812px;
+      background: var(--cream);
+      border-radius: 44px;
+      border: 11px solid var(--ink);
+      box-shadow:
+        0 40px 90px rgba(28,21,16,0.22),
+        0 0 0 1px rgba(28,21,16,0.08),
+        inset 0 1px 0 rgba(255,255,255,0.55);
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ─── Status bar ─── */
+    .status-bar {
+      height: 44px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 26px;
+      background: var(--cream);
+      flex-shrink: 0;
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--ink);
+    }
+    .status-bar .right { display: flex; gap: 6px; align-items: center; }
+
+    /* ─── Content area ─── */
+    .content-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px 20px 24px;
+    }
+    .content-area::-webkit-scrollbar { display: none; }
+
+    /* ─── Step indicator ─── */
+    .step-indicator {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      color: var(--clay);
+      margin-bottom: 6px;
+    }
+
+    /* ─── Screen title ─── */
+    .screen-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--ink);
+      line-height: 1.2;
+      margin-bottom: 22px;
+    }
+
+    /* ─── Section label ─── */
+    .section-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 9px;
+    }
+
+    /* ─── Chips ─── */
+    .chips-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-bottom: 18px;
+    }
+
+    .chip {
+      padding: 8px 15px;
+      border-radius: 22px;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--ink2);
+    }
+    .chip.sel-clay  { border-color: var(--clay);  background: var(--clayBg);  color: var(--clay);  font-weight: 600; }
+    .chip.sel-amber { border-color: var(--amber); background: var(--amberBg); color: var(--amber); font-weight: 600; }
+
+    /* ─── Ultra sub-panel ─── */
+    .ultra-panel {
+      background: var(--clayBg);
+      border: 1.5px solid rgba(196,82,42,0.22);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-top: -10px;
+      margin-bottom: 18px;
+    }
+    .ultra-panel-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      color: var(--clay);
+      margin-bottom: 9px;
+    }
+    .ultra-chips { display: flex; gap: 7px; flex-wrap: wrap; }
+    .uchip {
+      padding: 6px 13px;
+      border-radius: 20px;
+      border: 1.5px solid rgba(196,82,42,0.28);
+      background: white;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--ink2);
+    }
+    .uchip.selected {
+      border-color: var(--clay);
+      background: var(--clay);
+      color: white;
+      font-weight: 600;
+    }
+    .custom-dist-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 9px;
+    }
+    .custom-dist-input {
+      flex: 1;
+      background: white;
+      border: 1.5px solid rgba(196,82,42,0.3);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 14px;
+      font-family: 'Space Mono', monospace;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .custom-dist-unit {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--clay);
+      letter-spacing: 0.5px;
+    }
+    .input-cursor {
+      display: inline-block;
+      width: 2px;
+      height: 15px;
+      background: var(--clay);
+      margin-left: 2px;
+      vertical-align: middle;
+      border-radius: 1px;
+    }
+
+    /* ─── Text input box ─── */
+    .input-box {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .input-box.focused { border-color: var(--clay); }
+    .input-value {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--ink);
+      flex: 1;
+    }
+    .input-placeholder {
+      font-size: 14px;
+      color: var(--muted);
+      flex: 1;
+    }
+    .search-icon { flex-shrink: 0; }
+
+    /* ─── Date picker row ─── */
+    .date-row {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 11px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+    .date-row-left {}
+    .date-value {
+      font-family: 'Space Mono', monospace;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 2px;
+    }
+    .date-hint {
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .date-row-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .weeks-pill {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--clay);
+      background: var(--clayBg);
+      border-radius: 20px;
+      padding: 4px 11px;
+      border: 1px solid rgba(196,82,42,0.2);
+    }
+
+    /* ─── Time drum picker (HH:MM:SS) ─── */
+    /*
+      Layout maths (all fixed px so band aligns exactly):
+        wrap height = 106px
+        3 items × 28px = 84px  →  label takes remaining 22px
+        active item (index 1) occupies rows 28px–56px → centre = 42px
+        band: top 28px, height 28px → sits exactly on active row
+        colon: align-items flex-start + padding-top 34px → text centre at 42px
+    */
+    .time-drum-wrap {
+      margin-top: -10px;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: stretch;
+      background: var(--surface);
+      border: 1.5px solid rgba(212,136,42,0.38);
+      border-radius: 12px;
+      overflow: hidden;
+      height: 106px;
+      position: relative;
+    }
+    .time-drum-wrap .drum-center-band {
+      position: absolute;
+      left: 0; right: 0;
+      top: 28px;
+      height: 28px;
+      background: rgba(212,136,42,0.09);
+      border-top: 1.5px solid rgba(212,136,42,0.32);
+      border-bottom: 1.5px solid rgba(212,136,42,0.32);
+      pointer-events: none;
+      z-index: 1;
+    }
+    .drum-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    /* items sit directly in drum-col, no wrapper needed */
+    .drum-item {
+      height: 28px;
+      width: 100%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .drum-item span {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--ink2);
+      opacity: 0.5;
+    }
+    .drum-item.active span {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--amber);
+      opacity: 1;
+    }
+    .drum-item.adj span {
+      font-size: 11px;
+      color: var(--ink2);
+      opacity: 0.45;
+    }
+    .drum-col-label {
+      flex: 1; /* fills exactly the remaining 22px */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding-bottom: 4px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .drum-sep-col {
+      width: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      align-items: flex-start;
+      padding-top: 34px; /* places colon centre at 34+8=42px, matching active row */
+      font-family: 'Space Mono', monospace;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--amber);
+      position: relative;
+      z-index: 2;
+    }
+
+    /* ─── Phase breakdown ─── */
+    .phase-section { margin-bottom: 18px; }
+
+    .phase-bar {
+      display: flex;
+      height: 7px;
+      border-radius: 4px;
+      overflow: hidden;
+      gap: 3px;
+      margin-bottom: 16px;
+    }
+    .phase-seg { border-radius: 4px; }
+
+    .phase-rows { display: flex; flex-direction: column; gap: 9px; }
+
+    .phase-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .phase-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .phase-name {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--ink2);
+      flex: 1;
+    }
+    .phase-stepper {
+      display: flex;
+      align-items: center;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--surface);
+    }
+    .stp-btn {
+      width: 27px;
+      height: 27px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      color: var(--ink2);
+      font-weight: 300;
+      line-height: 1;
+    }
+    .stp-val {
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink);
+      width: 20px;
+      text-align: center;
+    }
+    .phase-wk-label {
+      font-size: 10px;
+      color: var(--muted);
+      min-width: 34px;
+    }
+
+    /* ─── CTA button ─── */
+    .cta-btn {
+      background: var(--clay);
+      color: white;
+      border-radius: 22px;
+      padding: 15px 24px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    /* ─── Divider ─── */
+    .section-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 0 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Page header -->
+  <div class="page-header">
+    <div class="page-eyebrow">ONBOARDING</div>
+    <div class="page-title">Step 1 of 3 — Your race goal</div>
+    <div class="page-subtitle">First step - what are you training for? Steady will helpfully pre-fill editable block phases for you.</div>
+  </div>
+
+  <!-- Two phone frames -->
+  <div class="frames-row">
+
+    <!-- ═══════════════════════════════════ FRAME 1 — Marathon default ═══════════ -->
+    <div class="frame-group">
+      <div class="frame-caption">DEFAULT STATE · MARATHON</div>
+      <div class="phone-frame">
+
+        <!-- Status bar -->
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="right">
+            <!-- Signal -->
+            <svg width="15" height="11" viewBox="0 0 15 11" fill="none">
+              <rect x="0"   y="7"  width="2.5" height="4" rx="1" fill="#1C1510"/>
+              <rect x="3.5" y="5"  width="2.5" height="6" rx="1" fill="#1C1510"/>
+              <rect x="7"   y="2.5" width="2.5" height="8.5" rx="1" fill="#1C1510"/>
+              <rect x="10.5" y="0" width="2.5" height="11" rx="1" fill="#1C1510" opacity="0.25"/>
+            </svg>
+            <!-- Wifi -->
+            <svg width="17" height="13" viewBox="0 0 17 13" fill="none">
+              <path d="M1 5C3.5 2.2 5.9 1 8.5 1S13.5 2.2 16 5" stroke="#1C1510" stroke-width="1.5" stroke-linecap="round" opacity="0.25"/>
+              <path d="M3.2 7.3C5 5.5 6.6 4.6 8.5 4.6S12 5.5 13.8 7.3" stroke="#1C1510" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+              <path d="M5.8 9.8C6.8 8.9 7.6 8.5 8.5 8.5S10.2 8.9 11.2 9.8" stroke="#1C1510" stroke-width="1.5" stroke-linecap="round"/>
+              <circle cx="8.5" cy="12" r="1" fill="#1C1510"/>
+            </svg>
+            <!-- Battery -->
+            <svg width="26" height="12" viewBox="0 0 26 12" fill="none">
+              <rect x="0.75" y="0.75" width="21" height="10.5" rx="2" stroke="#1C1510" stroke-width="1.5"/>
+              <rect x="22.5" y="3.75" width="2.5" height="4.5" rx="1.25" fill="#1C1510" opacity="0.4"/>
+              <rect x="2.25" y="2.25" width="14" height="7.5" rx="1" fill="#1C1510"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Content -->
+        <div class="content-area">
+          <div class="step-indicator">STEP 1 OF 3</div>
+          <div class="screen-title">What are you<br>training for?</div>
+
+          <!-- Race distance -->
+          <div class="section-label">RACE DISTANCE</div>
+          <div class="chips-group">
+            <div class="chip">5K</div>
+            <div class="chip">10K</div>
+            <div class="chip">Half Marathon</div>
+            <div class="chip sel-clay">Marathon</div>
+            <div class="chip">Ultra</div>
+          </div>
+
+          <!-- Race name -->
+          <div class="section-label">RACE NAME</div>
+          <div class="input-box focused">
+            <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="7" cy="7" r="4.5" stroke="#9A8E7E" stroke-width="1.5"/>
+              <path d="M10.5 10.5L14 14" stroke="#9A8E7E" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            <span class="input-value">London Marathon 2026<span class="input-cursor"></span></span>
+          </div>
+
+          <!-- Race date -->
+          <div class="section-label">RACE DATE</div>
+          <div class="date-row">
+            <div class="date-row-left">
+              <div class="date-value">26 Apr 2026</div>
+              <div class="date-hint">Sets weeks to race automatically</div>
+            </div>
+            <div class="date-row-right">
+              <div class="weeks-pill">13 wks</div>
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <rect x="1.5" y="3" width="15" height="13.5" rx="2" stroke="#9A8E7E" stroke-width="1.5"/>
+                <path d="M1.5 7h15" stroke="#9A8E7E" stroke-width="1.5"/>
+                <path d="M5.5 1.5v3M12.5 1.5v3" stroke="#9A8E7E" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Target time -->
+          <div class="section-label">TARGET TIME</div>
+          <div class="chips-group" style="margin-bottom: 18px;">
+            <div class="chip">sub-2:45</div>
+            <div class="chip">sub-3:00</div>
+            <div class="chip sel-amber">sub-3:15</div>
+            <div class="chip">sub-3:30</div>
+            <div class="chip">sub-3:45</div>
+            <div class="chip">sub-4:00</div>
+            <div class="chip">Other</div>
+          </div>
+
+          <!-- Phase breakdown — always visible -->
+          <div class="section-label">PHASE BREAKDOWN</div>
+          <div class="phase-section">
+            <div class="phase-bar">
+              <div class="phase-seg" style="background: var(--navy);  flex: 3;"></div>
+              <div class="phase-seg" style="background: var(--clay);  flex: 6;"></div>
+              <div class="phase-seg" style="background: var(--purple); flex: 0.5; min-width: 4px;"></div>
+              <div class="phase-seg" style="background: var(--amber); flex: 2;"></div>
+              <div class="phase-seg" style="background: var(--forest); flex: 2;"></div>
+            </div>
+            <div class="phase-rows">
+              <div class="phase-row">
+                <div class="phase-dot" style="background: var(--navy);"></div>
+                <div class="phase-name">BASE</div>
+                <div class="phase-stepper">
+                  <div class="stp-btn">−</div><div class="stp-val">3</div><div class="stp-btn">+</div>
+                </div>
+                <div class="phase-wk-label">weeks</div>
+              </div>
+              <div class="phase-row">
+                <div class="phase-dot" style="background: var(--clay);"></div>
+                <div class="phase-name">BUILD</div>
+                <div class="phase-stepper">
+                  <div class="stp-btn">−</div><div class="stp-val">6</div><div class="stp-btn">+</div>
+                </div>
+                <div class="phase-wk-label">weeks</div>
+              </div>
+              <div class="phase-row">
+                <div class="phase-dot" style="background: var(--purple);"></div>
+                <div class="phase-name">RECOVERY</div>
+                <div class="phase-stepper">
+                  <div class="stp-btn">−</div><div class="stp-val">0</div><div class="stp-btn">+</div>
+                </div>
+                <div class="phase-wk-label">weeks</div>
+              </div>
+              <div class="phase-row">
+                <div class="phase-dot" style="background: var(--amber);"></div>
+                <div class="phase-name">PEAK</div>
+                <div class="phase-stepper">
+                  <div class="stp-btn">−</div><div class="stp-val">2</div><div class="stp-btn">+</div>
+                </div>
+                <div class="phase-wk-label">weeks</div>
+              </div>
+              <div class="phase-row">
+                <div class="phase-dot" style="background: var(--forest);"></div>
+                <div class="phase-name">TAPER</div>
+                <div class="phase-stepper">
+                  <div class="stp-btn">−</div><div class="stp-val">2</div><div class="stp-btn">+</div>
+                </div>
+                <div class="phase-wk-label">weeks</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CTA -->
+          <div class="cta-btn">Build my template week →</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════ FRAME 2 — Ultra + Other time ═════════ -->
+    <div class="frame-group">
+      <div class="frame-caption">ULTRA SELECTED · CUSTOM TIME</div>
+      <div class="phone-frame">
+
+        <!-- Status bar -->
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="right">
+            <svg width="15" height="11" viewBox="0 0 15 11" fill="none">
+              <rect x="0"   y="7"  width="2.5" height="4" rx="1" fill="#1C1510"/>
+              <rect x="3.5" y="5"  width="2.5" height="6" rx="1" fill="#1C1510"/>
+              <rect x="7"   y="2.5" width="2.5" height="8.5" rx="1" fill="#1C1510"/>
+              <rect x="10.5" y="0" width="2.5" height="11" rx="1" fill="#1C1510" opacity="0.25"/>
+            </svg>
+            <svg width="17" height="13" viewBox="0 0 17 13" fill="none">
+              <path d="M3.2 7.3C5 5.5 6.6 4.6 8.5 4.6S12 5.5 13.8 7.3" stroke="#1C1510" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+              <path d="M5.8 9.8C6.8 8.9 7.6 8.5 8.5 8.5S10.2 8.9 11.2 9.8" stroke="#1C1510" stroke-width="1.5" stroke-linecap="round"/>
+              <circle cx="8.5" cy="12" r="1" fill="#1C1510"/>
+            </svg>
+            <svg width="26" height="12" viewBox="0 0 26 12" fill="none">
+              <rect x="0.75" y="0.75" width="21" height="10.5" rx="2" stroke="#1C1510" stroke-width="1.5"/>
+              <rect x="22.5" y="3.75" width="2.5" height="4.5" rx="1.25" fill="#1C1510" opacity="0.4"/>
+              <rect x="2.25" y="2.25" width="9" height="7.5" rx="1" fill="#1C1510"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Content -->
+        <div class="content-area">
+          <div class="step-indicator">STEP 1 OF 3</div>
+          <div class="screen-title">What are you<br>training for?</div>
+
+          <!-- Race distance — Ultra selected -->
+          <div class="section-label">RACE DISTANCE</div>
+          <div class="chips-group">
+            <div class="chip">5K</div>
+            <div class="chip">10K</div>
+            <div class="chip">Half Marathon</div>
+            <div class="chip">Marathon</div>
+            <div class="chip sel-clay">Ultra</div>
+          </div>
+
+          <!-- Ultra sub-panel (expands inline) -->
+          <div class="ultra-panel">
+            <div class="ultra-panel-label">ULTRA DISTANCE</div>
+            <div class="ultra-chips">
+              <div class="uchip">50K</div>
+              <div class="uchip selected">100K</div>
+              <div class="uchip">100M</div>
+              <div class="uchip">Custom</div>
+            </div>
+          </div>
+
+          <!-- Race name -->
+          <div class="section-label">RACE NAME</div>
+          <div class="input-box">
+            <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="7" cy="7" r="4.5" stroke="#9A8E7E" stroke-width="1.5"/>
+              <path d="M10.5 10.5L14 14" stroke="#9A8E7E" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            <span class="input-placeholder">e.g. UTMB 2026, Leadville 100</span>
+          </div>
+
+          <!-- Race date -->
+          <div class="section-label">RACE DATE</div>
+          <div class="date-row">
+            <div class="date-row-left">
+              <div class="date-value">29 Aug 2026</div>
+              <div class="date-hint">Sets weeks to race automatically</div>
+            </div>
+            <div class="date-row-right">
+              <div class="weeks-pill">20 wks</div>
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <rect x="1.5" y="3" width="15" height="13.5" rx="2" stroke="#9A8E7E" stroke-width="1.5"/>
+                <path d="M1.5 7h15" stroke="#9A8E7E" stroke-width="1.5"/>
+                <path d="M5.5 1.5v3M12.5 1.5v3" stroke="#9A8E7E" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Target time — Other selected -->
+          <div class="section-label">TARGET TIME</div>
+          <div class="chips-group" style="margin-bottom: 18px;">
+            <div class="chip">sub-10h</div>
+            <div class="chip">sub-12h</div>
+            <div class="chip">sub-15h</div>
+            <div class="chip">sub-20h</div>
+            <div class="chip sel-amber">Other</div>
+          </div>
+
+          <!-- Custom time drum picker HH:MM:SS (expands when Other is selected) -->
+          <div class="time-drum-wrap">
+            <div class="drum-center-band"></div>
+
+            <!-- Hours -->
+            <div class="drum-col">
+              <div class="drum-item adj"><span>12</span></div>
+              <div class="drum-item active"><span>13</span></div>
+              <div class="drum-item adj"><span>14</span></div>
+              <div class="drum-col-label">HRS</div>
+            </div>
+
+            <div class="drum-sep-col">:</div>
+
+            <!-- Minutes -->
+            <div class="drum-col">
+              <div class="drum-item adj"><span>20</span></div>
+              <div class="drum-item active"><span>25</span></div>
+              <div class="drum-item adj"><span>30</span></div>
+              <div class="drum-col-label">MIN</div>
+            </div>
+
+            <div class="drum-sep-col">:</div>
+
+            <!-- Seconds -->
+            <div class="drum-col">
+              <div class="drum-item adj"><span>45</span></div>
+              <div class="drum-item active"><span>00</span></div>
+              <div class="drum-item adj"><span>15</span></div>
+              <div class="drum-col-label">SEC</div>
+            </div>
+          </div>
+
+          <!-- Phase breakdown — always visible -->
+          <div class="section-label">PHASE BREAKDOWN</div>
+          <div class="phase-section">
+            <div class="phase-bar">
+              <div class="phase-seg" style="background: var(--navy);  flex: 4;"></div>
+              <div class="phase-seg" style="background: var(--clay);  flex: 8;"></div>
+              <div class="phase-seg" style="background: var(--purple); flex: 2;"></div>
+              <div class="phase-seg" style="background: var(--amber); flex: 4;"></div>
+              <div class="phase-seg" style="background: var(--forest); flex: 2;"></div>
+            </div>
+            <div class="phase-rows">
+              <div class="phase-row">
+                <div class="phase-dot" style="background: var(--navy);"></div>
+                <div class="phase-name">BASE</div>
+                <div class="phase-stepper">
+                  <div class="stp-btn">−</div><div class="stp-val">4</div><div class="stp-btn">+</div>
+                </div>
+                <div class="phase-wk-label">weeks</div>
+              </div>
+              <div class="phase-row">
+                <div class="phase-dot" style="background: var(--clay);"></div>
+                <div class="phase-name">BUILD</div>
+                <div class="phase-stepper">
+                  <div class="stp-btn">−</div><div class="stp-val">8</div><div class="stp-btn">+</div>
+                </div>
+                <div class="phase-wk-label">weeks</div>
+              </div>
+              <div class="phase-row">
+                <div class="phase-dot" style="background: var(--purple);"></div>
+                <div class="phase-name">RECOVERY</div>
+                <div class="phase-stepper">
+                  <div class="stp-btn">−</div><div class="stp-val">2</div><div class="stp-btn">+</div>
+                </div>
+                <div class="phase-wk-label">weeks</div>
+              </div>
+              <div class="phase-row">
+                <div class="phase-dot" style="background: var(--amber);"></div>
+                <div class="phase-name">PEAK</div>
+                <div class="phase-stepper">
+                  <div class="stp-btn">−</div><div class="stp-val">4</div><div class="stp-btn">+</div>
+                </div>
+                <div class="phase-wk-label">weeks</div>
+              </div>
+              <div class="phase-row">
+                <div class="phase-dot" style="background: var(--forest);"></div>
+                <div class="phase-name">TAPER</div>
+                <div class="phase-stepper">
+                  <div class="stp-btn">−</div><div class="stp-val">2</div><div class="stp-btn">+</div>
+                </div>
+                <div class="phase-wk-label">weeks</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CTA -->
+          <div class="cta-btn">Build my template week →</div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /frames-row -->
+</body>
+</html>

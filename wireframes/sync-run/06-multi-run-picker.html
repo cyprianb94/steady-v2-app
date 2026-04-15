@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>06 · Multiple new runs picker</title>
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  .screen { padding: 0; }
+  .scroll { padding: 10px 20px 40px; }
+
+  .nav-bar {
+    background: var(--surface);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-bar .back {
+    font-family: var(--sans); font-size: 14px; font-weight: 600; color: var(--muted);
+  }
+  .nav-bar .title {
+    font-family: var(--serif); font-size: 15px; font-weight: 700; color: var(--ink);
+  }
+  .nav-bar .spacer { width: 36px; }
+
+  .screen-title {
+    font-family: var(--serif); font-size: 28px; font-weight: 700; color: var(--ink);
+    padding: 22px 4px 4px;
+  }
+  .screen-sub {
+    font-family: var(--sans); font-size: 13px; color: var(--muted);
+    padding: 0 4px 22px;
+    line-height: 19px;
+  }
+
+  .run-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-inner);
+    padding: 18px 16px;
+    margin-bottom: 10px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .run-card.recommended {
+    border: 1.5px solid var(--forest);
+    background: var(--forest-bg);
+  }
+
+  .run-ico {
+    width: 42px; height: 42px; border-radius: 999px;
+    background: var(--surface); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--serif); font-weight: 700; font-size: 15px; color: var(--ink);
+    flex-shrink: 0;
+  }
+  .run-card.recommended .run-ico {
+    background: var(--forest); color: var(--surface); border-color: var(--forest);
+  }
+
+  .run-body { flex: 1; min-width: 0; }
+  .run-ttl-row {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 4px;
+  }
+  .run-ttl {
+    font-family: var(--serif); font-size: 16px; font-weight: 700; color: var(--ink);
+  }
+  .run-time {
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+  .run-metrics {
+    font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--ink2);
+    margin-bottom: 6px;
+  }
+  .run-metrics .sep { color: var(--muted); font-weight: 400; margin: 0 6px; }
+
+  .run-sub {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--sans); font-size: 11px; color: var(--muted);
+  }
+  .match-tag {
+    font-family: var(--sans); font-size: 9px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 1px;
+    background: var(--forest); color: var(--surface);
+    padding: 3px 8px; border-radius: 999px;
+  }
+  .no-match-tag {
+    font-family: var(--sans); font-size: 9px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 1px;
+    background: var(--slate-bg); color: var(--slate);
+    padding: 3px 8px; border-radius: 999px;
+  }
+
+  .run-arrow {
+    color: var(--muted); font-size: 18px; font-family: var(--serif);
+  }
+
+  .none-card {
+    margin-top: 20px;
+    padding: 14px 16px;
+    background: var(--card);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-inner);
+    font-family: var(--sans);
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--ink2);
+    text-align: center;
+  }
+  .none-card b { color: var(--ink); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="phone-wrap">
+  <span class="frame-label">06 · MULTIPLE NEW RUNS</span>
+  <div class="phone">
+
+    <div class="status-bar">
+      <span>9:43</span>
+      <span class="icons">◉ ▪ ▯</span>
+    </div>
+
+    <div class="nav-bar">
+      <span class="back">‹ Back</span>
+      <span class="title">Choose run</span>
+      <span class="spacer"></span>
+    </div>
+
+    <div class="screen">
+      <div class="scroll">
+
+        <div class="screen-title">Which one was it?</div>
+        <div class="screen-sub">Strava has 3 new activities since we last synced. Tap the one you just finished.</div>
+
+        <div class="run-card recommended">
+          <div class="run-ico">►</div>
+          <div class="run-body">
+            <div class="run-ttl-row">
+              <span class="run-ttl">Morning Run</span>
+              <span class="run-time">06:58</span>
+            </div>
+            <div class="run-metrics">8.12 km<span class="sep">·</span>44:12<span class="sep">·</span>5:26 /km</div>
+            <div class="run-sub">
+              <span class="match-tag">MATCHES TODAY</span>
+              <span>142 bpm avg</span>
+            </div>
+          </div>
+          <div class="run-arrow">›</div>
+        </div>
+
+        <div class="run-card">
+          <div class="run-ico">►</div>
+          <div class="run-body">
+            <div class="run-ttl-row">
+              <span class="run-ttl">Dog walk-jog</span>
+              <span class="run-time">07:45</span>
+            </div>
+            <div class="run-metrics">3.24 km<span class="sep">·</span>18:04<span class="sep">·</span>5:34 /km</div>
+            <div class="run-sub">
+              <span class="no-match-tag">NO MATCH</span>
+              <span>118 bpm avg</span>
+            </div>
+          </div>
+          <div class="run-arrow">›</div>
+        </div>
+
+        <div class="run-card">
+          <div class="run-ico">►</div>
+          <div class="run-body">
+            <div class="run-ttl-row">
+              <span class="run-ttl">Evening Run</span>
+              <span class="run-time">Apr 9 · 19:20</span>
+            </div>
+            <div class="run-metrics">6.01 km<span class="sep">·</span>33:48<span class="sep">·</span>5:37 /km</div>
+            <div class="run-sub">
+              <span class="no-match-tag">NO MATCH</span>
+              <span>136 bpm avg</span>
+            </div>
+          </div>
+          <div class="run-arrow">›</div>
+        </div>
+
+        <div class="none-card">
+          <b>None of these look right?</b><br>
+          Pull down to refresh or check Strava is processing your upload.
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+  <div class="comp-map">NewRunPicker · useStravaSync</div>
+</div>
+
+<aside class="annotations">
+  <h3>06 · Multiple new runs</h3>
+  <ul>
+    <li><b>When shown:</b> <code>strava.sync</code> returned more than one new activity not yet linked to a session. Common when users sync less frequently.</li>
+    <li><b>Recommended card:</b> the one that matches today's session gets the forest border, filled ► icon, and <code>MATCHES TODAY</code> tag. All other cards are calm/slate.</li>
+    <li><b>Metrics line</b> is one mono row so rows align visually — the eye can scan distance and pace down the column.</li>
+    <li><b>Timestamps</b> on the right side are relative ("06:58" = today, "Apr 9 · 19:20" = earlier). Uses <code>Space Mono</code> so they column-align across rows.</li>
+    <li><b>Empty-state hint</b> at the bottom handles the "Strava hasn't finished processing the upload yet" case — suggests pull-to-refresh.</li>
+    <li><b>Tap behaviour:</b> tapping any run → opens that activity in Run Detail (screen 03 or 04 depending on match).</li>
+  </ul>
+</aside>
+
+</body>
+</html>

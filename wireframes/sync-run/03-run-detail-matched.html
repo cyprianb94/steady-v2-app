@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>03 · Run Detail — matched</title>
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  .screen { padding: 0; }
+  .scroll {
+    padding: 10px 20px 120px;
+    height: 100%;
+    overflow-y: auto;
+  }
+  .nav-bar {
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-bar .close,
+  .nav-bar .save {
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .nav-bar .save { color: var(--forest); }
+  .nav-bar .title {
+    font-family: var(--serif);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  /* Header */
+  .header {
+    padding: 26px 4px 20px;
+  }
+  .matched-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--forest-bg);
+    color: var(--forest);
+    border: 1px solid var(--forest);
+    border-radius: var(--radius-pill);
+    padding: 6px 12px;
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .matched-chip .arrow { opacity: 0.5; font-size: 10px; }
+  .run-title {
+    font-family: var(--serif);
+    font-weight: 700;
+    font-size: 32px;
+    color: var(--ink);
+    line-height: 1.1;
+    margin-bottom: 6px;
+  }
+  .run-meta {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  /* Metric grid */
+  .metric-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .metric-cell {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-inner);
+    padding: 16px 16px 14px;
+  }
+  .metric-cell .v {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 24px;
+    color: var(--ink);
+    letter-spacing: -0.5px;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .metric-cell .v .unit {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--muted);
+    margin-left: 3px;
+  }
+  .metric-cell .l {
+    font-family: var(--sans);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.3px;
+  }
+
+  .sub-metrics {
+    padding: 0 4px 22px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    gap: 14px;
+  }
+  .sub-metrics b {
+    color: var(--ink);
+    font-weight: 700;
+  }
+
+  /* Section card */
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    padding: 18px 18px 16px;
+    margin-bottom: 14px;
+  }
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .section-title {
+    font-family: var(--serif);
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .section-action {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+
+  /* Shoe row */
+  .shoe {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .shoe-icon {
+    width: 42px; height: 42px;
+    border-radius: 10px;
+    background: var(--card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+  }
+  .shoe-body { flex: 1; }
+  .shoe-name {
+    font-family: var(--serif);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 2px;
+  }
+  .shoe-km {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .shoe-change {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--forest);
+  }
+
+  /* Splits */
+  .split-row {
+    display: grid;
+    grid-template-columns: 36px 56px 1fr 56px;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-top: 1px dashed var(--border);
+  }
+  .split-row:first-of-type { border-top: none; }
+  .split-km {
+    font-family: var(--sans);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .split-pace {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .split-bar {
+    height: 8px;
+    border-radius: 999px;
+    background: var(--card);
+    overflow: hidden;
+  }
+  .split-bar .fill {
+    height: 100%;
+    background: var(--forest);
+    border-radius: 999px;
+  }
+  .split-hr {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink2);
+    text-align: right;
+  }
+  .split-hr .u { color: var(--muted); font-size: 9px; }
+
+  /* Planned vs actual */
+  .pva-table {
+    display: grid;
+    grid-template-columns: 60px 1fr 1fr 1fr;
+    row-gap: 8px;
+    column-gap: 8px;
+    align-items: baseline;
+    margin-bottom: 14px;
+  }
+  .pva-table .h {
+    font-family: var(--sans);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+  }
+  .pva-table .v {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .pva-table .label-row {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+  }
+  .verdicts { margin-top: 4px; }
+  .verdict {
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 20px;
+    color: var(--ink2);
+    display: flex;
+    gap: 8px;
+  }
+  .verdict .g { color: var(--forest); font-weight: 700; width: 14px; }
+  .pva-footnote {
+    margin-top: 10px;
+    font-family: var(--sans);
+    font-size: 10px;
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  /* Subjective */
+  .option-row { margin-bottom: 14px; }
+  .option-label {
+    font-family: var(--sans);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 8px;
+  }
+  .option-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  /* Niggles */
+  .niggle-add {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 6px;
+    margin-bottom: 10px;
+  }
+  .niggle-add .title {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink2);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+  }
+  .niggle-add .add {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--clay);
+  }
+  .niggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: var(--clay-bg);
+    border: 1px solid rgba(196, 82, 42, 0.25);
+    border-radius: 10px;
+    margin-bottom: 8px;
+  }
+  .niggle-body {
+    font-family: var(--sans);
+    font-size: 12px;
+    color: var(--ink2);
+  }
+  .niggle-body b {
+    color: var(--clay);
+    font-weight: 600;
+  }
+  .niggle .x {
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  /* Notes */
+  .notes-box {
+    background: var(--card);
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 20px;
+    color: var(--ink2);
+    min-height: 62px;
+  }
+  .notes-box .placeholder { color: var(--muted); font-style: italic; }
+
+  /* Save */
+  .save-cta {
+    margin-top: 4px;
+    margin-bottom: 30px;
+  }
+</style>
+</head>
+<body>
+
+<div class="phone-wrap">
+  <span class="frame-label">03 · RUN DETAIL — MATCHED (core)</span>
+  <div class="phone">
+
+    <div class="status-bar">
+      <span>9:42</span>
+      <span class="icons">◉ ▪ ▯</span>
+    </div>
+
+    <div class="nav-bar">
+      <span class="close">✕ Close</span>
+      <span class="title">Run detail</span>
+      <span class="save">Save ✓</span>
+    </div>
+
+    <div class="screen">
+      <div class="scroll">
+
+        <!-- Header -->
+        <div class="header">
+          <span class="matched-chip">EASY · MATCHED TO TODAY <span class="arrow">▾</span></span>
+          <div class="run-title">Morning Run</div>
+          <div class="run-meta">Fri Apr 10 · 06:58 · Battersea Park</div>
+        </div>
+
+        <!-- Metrics -->
+        <div class="metric-grid">
+          <div class="metric-cell">
+            <div class="v">8.12<span class="unit">km</span></div>
+            <div class="l">Distance</div>
+          </div>
+          <div class="metric-cell">
+            <div class="v">44:12</div>
+            <div class="l">Duration</div>
+          </div>
+          <div class="metric-cell">
+            <div class="v">5:26<span class="unit">/km</span></div>
+            <div class="l">Avg pace</div>
+          </div>
+          <div class="metric-cell">
+            <div class="v">142<span class="unit">bpm</span></div>
+            <div class="l">Avg heart rate</div>
+          </div>
+        </div>
+        <div class="sub-metrics">
+          <span><b>163</b> max bpm</span>
+          <span>·</span>
+          <span><b>48</b> m elevation</span>
+        </div>
+
+        <!-- Shoe -->
+        <div class="section">
+          <div class="shoe">
+            <div class="shoe-icon">👟</div>
+            <div class="shoe-body">
+              <div class="shoe-name">Nike Pegasus 40</div>
+              <div class="shoe-km">lifetime 312 km</div>
+            </div>
+            <div class="shoe-change">Change ›</div>
+          </div>
+        </div>
+
+        <!-- Splits -->
+        <div class="section">
+          <div class="section-head">
+            <div class="section-title">Splits</div>
+            <div class="section-action">per km</div>
+          </div>
+
+          <div class="split-row">
+            <div class="split-km">KM 1</div>
+            <div class="split-pace">5:31</div>
+            <div class="split-bar"><div class="fill" style="width:70%"></div></div>
+            <div class="split-hr">138<span class="u"> bpm</span></div>
+          </div>
+          <div class="split-row">
+            <div class="split-km">KM 2</div>
+            <div class="split-pace">5:24</div>
+            <div class="split-bar"><div class="fill" style="width:82%"></div></div>
+            <div class="split-hr">141<span class="u"> bpm</span></div>
+          </div>
+          <div class="split-row">
+            <div class="split-km">KM 3</div>
+            <div class="split-pace">5:28</div>
+            <div class="split-bar"><div class="fill" style="width:76%"></div></div>
+            <div class="split-hr">143<span class="u"> bpm</span></div>
+          </div>
+          <div class="split-row">
+            <div class="split-km">KM 4</div>
+            <div class="split-pace">5:22</div>
+            <div class="split-bar"><div class="fill" style="width:88%"></div></div>
+            <div class="split-hr">145<span class="u"> bpm</span></div>
+          </div>
+          <div class="split-row">
+            <div class="split-km">KM 5</div>
+            <div class="split-pace">5:25</div>
+            <div class="split-bar"><div class="fill" style="width:84%"></div></div>
+            <div class="split-hr">144<span class="u"> bpm</span></div>
+          </div>
+          <div class="split-row">
+            <div class="split-km">KM 6</div>
+            <div class="split-pace">5:30</div>
+            <div class="split-bar"><div class="fill" style="width:74%"></div></div>
+            <div class="split-hr">142<span class="u"> bpm</span></div>
+          </div>
+          <div class="split-row">
+            <div class="split-km">KM 7</div>
+            <div class="split-pace">5:23</div>
+            <div class="split-bar"><div class="fill" style="width:86%"></div></div>
+            <div class="split-hr">146<span class="u"> bpm</span></div>
+          </div>
+          <div class="split-row">
+            <div class="split-km">KM 8</div>
+            <div class="split-pace">5:18</div>
+            <div class="split-bar"><div class="fill" style="width:95%"></div></div>
+            <div class="split-hr">149<span class="u"> bpm</span></div>
+          </div>
+        </div>
+
+        <!-- Planned vs actual -->
+        <div class="section">
+          <div class="section-head">
+            <div class="section-title">Planned vs actual</div>
+          </div>
+          <div class="pva-table">
+            <div></div>
+            <div class="h">Distance</div>
+            <div class="h">Pace</div>
+            <div class="h">Heart rate</div>
+
+            <div class="label-row">Plan</div>
+            <div class="v">8.0 km</div>
+            <div class="v">5:30</div>
+            <div class="v">Zone 2</div>
+
+            <div class="label-row">Actual</div>
+            <div class="v">8.1 km</div>
+            <div class="v">5:26</div>
+            <div class="v">142 avg</div>
+          </div>
+
+          <div class="verdicts">
+            <div class="verdict"><span class="g">✓</span>On target distance</div>
+            <div class="verdict"><span class="g">✓</span>Pace 4 sec/km faster than planned</div>
+            <div class="verdict"><span class="g">✓</span>HR sat in Zone 2 throughout</div>
+          </div>
+
+          <div class="pva-footnote">Static summary — no AI (yet).</div>
+        </div>
+
+        <!-- Subjective -->
+        <div class="section">
+          <div class="section-head">
+            <div class="section-title">How did that feel?</div>
+          </div>
+
+          <div class="option-row">
+            <div class="option-label">Legs</div>
+            <div class="option-buttons">
+              <span class="pill">Fresh</span>
+              <span class="pill selected">Normal</span>
+              <span class="pill">Heavy</span>
+              <span class="pill">Dead</span>
+            </div>
+          </div>
+
+          <div class="option-row">
+            <div class="option-label">Breathing</div>
+            <div class="option-buttons">
+              <span class="pill">Easy</span>
+              <span class="pill selected">Controlled</span>
+              <span class="pill">Labored</span>
+            </div>
+          </div>
+
+          <div class="option-row">
+            <div class="option-label">Overall</div>
+            <div class="option-buttons">
+              <span class="pill">Could go again</span>
+              <span class="pill selected">Done</span>
+              <span class="pill">Shattered</span>
+            </div>
+          </div>
+
+          <!-- Niggles -->
+          <div class="niggle-add">
+            <span class="title">Any niggles?</span>
+            <span class="add">＋ Add niggle</span>
+          </div>
+
+          <div class="niggle">
+            <div class="niggle-body">
+              <b>Left calf</b> · mild · during run
+            </div>
+            <span class="x">✕</span>
+          </div>
+          <div class="niggle">
+            <div class="niggle-body">
+              <b>Right knee</b> · niggle · after run
+            </div>
+            <span class="x">✕</span>
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="section">
+          <div class="section-head">
+            <div class="section-title">Notes</div>
+            <div class="section-action">optional</div>
+          </div>
+          <div class="notes-box">
+            <span class="placeholder">A line or two about how it went, where you ran, anything you'd want to remember…</span>
+          </div>
+        </div>
+
+        <button class="cta accent easy save-cta">Save run</button>
+
+      </div>
+    </div>
+
+  </div>
+  <div class="comp-map">RunDetail · SplitsList · PlannedVsActual · SubjectiveInputPrompt · NiggleList · ShoeRow</div>
+</div>
+
+<aside class="annotations">
+  <h3>03 · Run Detail — matched (core)</h3>
+  <ul>
+    <li><b>This is the core screen.</b> Reached after a successful sync when exactly one Strava activity matches today's planned session.</li>
+    <li><b>Narrative order</b> (top → bottom): identity → headline metrics → gear → splits → plan vs actual → feel → niggles → notes → save. This is the order a runner actually wants to review.</li>
+    <li><b>Matched chip</b> at the top uses <code>--forest</code> (EASY accent) and is tappable — opens screen 05 (re-assign match) if auto-match is wrong.</li>
+    <li><b>Metric cells</b> 2×2 grid. Values in <code>Space Mono 24/700</code>; units in sans at 13px muted. Labels uppercase sans 10px with <code>1.3px</code> tracking.</li>
+    <li><b>Shoe row</b> — auto-populated from Strava <code>gear_id</code> on sync. Shows lifetime km pulled from the <code>Shoe</code> entity. "Change ›" opens screen 07.</li>
+    <li><b>Splits list</b> — uses existing <code>Activity.splits</code>. Bar width = relative pace rank (fastest = 100%). Forest accent on fills. No new data needed.</li>
+    <li><b>Planned vs actual</b> — rendered from <code>summariseVsPlan(session, activity)</code> in <code>packages/types/src/plan-vs-actual.ts</code>. Deterministic, no LLM. Verdict lines are <code>Verdict[]</code>; 3-line max for visual calm.</li>
+    <li><b>Subjective</b> — extracted from <code>TodayHeroCard.tsx:254</code>. Same 3 options, bigger layout. Pills are <code>--ink</code> when selected, translucent white otherwise.</li>
+    <li><b>Niggles</b> — first-class. Tapping ＋ opens screen 08. Each niggle row is clay-bg to read as "caution," not alarm. X removes.</li>
+    <li><b>Notes</b> — dashed-border writing zone, hints at "a line or two." Persists as <code>Activity.notes</code>.</li>
+    <li><b>Save CTA</b> — session-coloured full-width pill. Same colour as the Home CTA on screen 01 to close the loop visually.</li>
+    <li><b>Re-entry:</b> after saving, home shows "Review run ›" which re-opens this screen in editable mode.</li>
+  </ul>
+</aside>
+
+</body>
+</html>

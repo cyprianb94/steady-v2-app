@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>01 · Home — "I just finished this run" entry point</title>
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  /* Screen-specific — hero card variant */
+  .hero {
+    background: var(--forest-bg);
+    border: 1.5px solid var(--forest);
+    border-radius: var(--radius-card);
+    padding: 16px;
+    margin-bottom: 10px;
+    box-shadow: 0 3px 14px rgba(42, 92, 69, 0.12);
+  }
+  .hero-top {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 10px;
+  }
+  .hero-today-chip {
+    font-family: var(--sans);
+    font-size: 9px; font-weight: 700;
+    letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--surface);
+    background: var(--forest);
+    border-radius: var(--radius-pill);
+    padding: 3px 10px;
+  }
+  .today-badge {
+    font-family: var(--sans);
+    font-size: 9px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase;
+    color: var(--amber);
+  }
+  .hero-title {
+    font-family: var(--serif);
+    font-weight: 700;
+    font-size: 22px;
+    color: var(--forest);
+    line-height: 1.2;
+    margin-bottom: 4px;
+  }
+  .hero-date {
+    font-family: var(--sans);
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .hero-metrics {
+    display: flex;
+    gap: 18px;
+  }
+  .hero-metric .value {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .hero-metric .label {
+    font-family: var(--sans);
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .hero-nudge {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(42, 92, 69, 0.2);
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .hero-nudge .dot {
+    width: 6px; height: 6px; border-radius: 999px;
+    background: var(--forest);
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+  .hero-nudge p {
+    font-family: var(--sans);
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--ink2);
+  }
+  .hero-nudge strong { font-weight: 600; color: var(--ink); }
+
+  /* CTA block sits tight under the hero */
+  .cta-block {
+    margin: 12px 0 4px;
+  }
+  .cta-block .cta {
+    padding: 14px 18px;
+    font-size: 14px;
+  }
+
+  /* Tabbar */
+  .tabbar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 70px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    padding-bottom: 6px;
+  }
+  .tab {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px;
+    font-family: var(--sans);
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: capitalize;
+    font-weight: 500;
+  }
+  .tab .glyph { font-size: 18px; line-height: 1; }
+  .tab.active { color: var(--forest); font-weight: 600; }
+
+  .scroll {
+    padding: 10px 14px 90px;
+    height: 100%;
+    overflow-y: auto;
+  }
+  .screen { padding: 0; }
+</style>
+</head>
+<body>
+
+<div class="phone-wrap">
+  <span class="frame-label">01 · HOME ENTRY</span>
+  <div class="phone">
+
+    <div class="status-bar">
+      <span>9:41</span>
+      <span class="icons">◉ ▪ ▯</span>
+    </div>
+
+    <div class="screen">
+      <div class="scroll">
+
+        <!-- WEEK HEADER -->
+        <div class="week-header">
+          <div class="week-meta">APR 6 – 12 · 2026</div>
+          <h1 class="week-title">Week 2 · Base Phase</h1>
+        </div>
+
+        <!-- WEEKLY LOAD -->
+        <div class="load-bar-card">
+          <div class="load-header">
+            <span class="label">WEEKLY LOAD</span>
+            <div class="values">
+              <span class="actual">32.1km</span>
+              <span class="planned">/ 48km</span>
+            </div>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" style="width: 67%;"></div>
+          </div>
+        </div>
+
+        <!-- TODAY HERO CARD -->
+        <div class="hero">
+          <div class="hero-top">
+            <span class="hero-today-chip">EASY</span>
+            <span class="today-badge">TODAY</span>
+          </div>
+          <div class="hero-title">8km Easy</div>
+          <div class="hero-date">Friday, Apr 10</div>
+
+          <div class="hero-metrics">
+            <div class="hero-metric">
+              <div class="value">8km</div>
+              <div class="label">distance</div>
+            </div>
+            <div class="hero-metric">
+              <div class="value">5:30</div>
+              <div class="label">target pace</div>
+            </div>
+            <div class="hero-metric">
+              <div class="value">Zone 2</div>
+              <div class="label">heart rate</div>
+            </div>
+          </div>
+
+          <div class="hero-nudge">
+            <div class="dot"></div>
+            <p><strong>Steady</strong>: Keep it conversational — this is recovery, not effort. Save the legs for Sunday's long run.</p>
+          </div>
+        </div>
+
+        <!-- NEW CTA -->
+        <div class="cta-block">
+          <button class="cta accent easy">✓ &nbsp; I just finished this run</button>
+          <span class="cta-sub">Syncs from Strava · takes a few seconds</span>
+        </div>
+
+        <!-- THIS WEEK list -->
+        <div class="list-divider">THIS WEEK</div>
+        <div class="day-list">
+
+          <div class="day-row">
+            <div class="day-left">
+              <div class="day-name">Mon</div>
+              <div class="day-date">Apr 6</div>
+            </div>
+            <div class="day-center">
+              <div class="day-dot easy"></div>
+              <span class="day-session-name">Easy 6km</span>
+            </div>
+            <div class="day-right">
+              <span class="day-status ok">✓</span>
+              <span class="day-km">6.2km</span>
+            </div>
+          </div>
+
+          <div class="day-row rest">
+            <div class="day-left">
+              <div class="day-name">Tue</div>
+              <div class="day-date">Apr 7</div>
+            </div>
+            <div class="day-center">
+              <div class="day-dot rest"></div>
+              <span class="day-session-name">Rest</span>
+            </div>
+            <div class="day-right"></div>
+          </div>
+
+          <div class="day-row">
+            <div class="day-left">
+              <div class="day-name">Wed</div>
+              <div class="day-date">Apr 8</div>
+            </div>
+            <div class="day-center">
+              <div class="day-dot interval"></div>
+              <span class="day-session-name">5×800m Intervals</span>
+            </div>
+            <div class="day-right">
+              <span class="day-status warn">⚠</span>
+              <span class="day-km">9.1km</span>
+            </div>
+          </div>
+
+          <div class="day-row">
+            <div class="day-left">
+              <div class="day-name">Thu</div>
+              <div class="day-date">Apr 9</div>
+            </div>
+            <div class="day-center">
+              <div class="day-dot easy"></div>
+              <span class="day-session-name">Easy 8km + Strides</span>
+            </div>
+            <div class="day-right">
+              <span class="day-status ok">✓</span>
+              <span class="day-km">8.0km</span>
+            </div>
+          </div>
+
+          <div class="day-row rest upcoming">
+            <div class="day-left">
+              <div class="day-name">Sat</div>
+              <div class="day-date">Apr 11</div>
+            </div>
+            <div class="day-center">
+              <div class="day-dot rest"></div>
+              <span class="day-session-name">Rest</span>
+            </div>
+            <div class="day-right"></div>
+          </div>
+
+          <div class="day-row upcoming">
+            <div class="day-left">
+              <div class="day-name">Sun</div>
+              <div class="day-date">Apr 12</div>
+            </div>
+            <div class="day-center">
+              <div class="day-dot long"></div>
+              <span class="day-session-name">16km Long Run</span>
+            </div>
+            <div class="day-right">
+              <span class="day-km">16km</span>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Tabbar -->
+    <div class="tabbar">
+      <div class="tab active"><span class="glyph">●</span>Home</div>
+      <div class="tab"><span class="glyph">◱</span>Block</div>
+      <div class="tab"><span class="glyph">⚙</span>Settings</div>
+    </div>
+
+  </div>
+  <div class="comp-map">HomeScreen · WeeklyLoadCard · TodayHeroCard · FinishedRunCta · RemainingDaysList</div>
+</div>
+
+<aside class="annotations">
+  <h3>01 · Home entry</h3>
+  <ul>
+    <li><b>Structure (locked across Home screens):</b> week header → <code>WeeklyLoadCard</code> → <code>TodayHeroCard</code> → contextual CTA → <code>RemainingDaysList</code>. This matches the landing-wireframe pattern already agreed for the real Home.</li>
+    <li><b>New element:</b> <code>FinishedRunCta</code> sits directly under the hero, taking the session accent (forest for EASY). Only renders when today's session is not yet marked completed.</li>
+    <li><b>WeeklyLoadCard</b> is already implemented in the app — reused as-is. Actual km in forest, target in muted mono, 5px track, forest fill. Value here: 32.1 / 48 km = 67%.</li>
+    <li><b>RemainingDaysList ("THIS WEEK")</b> — compact vertical list. Today is excluded (it's the hero). Each row has:
+      <ul>
+        <li>48px day label (DMSans 11px uppercase muted)</li>
+        <li>8px coloured dot keyed to session type + session name (13px ink)</li>
+        <li>Status glyph (✓ forest, ⚠ amber, ✗ clay) + actual km (Space Mono 10px muted)</li>
+      </ul>
+    </li>
+    <li><b>Upcoming rows</b> (Sat/Sun) show the planned km in border-grey so it visually fades — reinforces "not done yet."</li>
+    <li><b>Rest days</b> use border-grey dots + muted regular text. Visually calmer than session rows.</li>
+    <li><b>Typography:</b> week title <code>Playfair 24/700</code>; hero title <code>Playfair 22/700</code> in session accent; data values <code>Space Mono 15/700</code>. Same scale as landing wireframe — copy-paste compatible.</li>
+    <li><b>Sub-copy under CTA</b> reassures: "Syncs from Strava · takes a few seconds."</li>
+  </ul>
+</aside>
+
+</body>
+</html>

@@ -11,6 +11,11 @@ Monorepo with three packages: `packages/types`, `packages/server`, `packages/app
 - **Start Expo:** `npm run dev:app`
 - **Start Fastify:** `npm run dev:server`
 
+## Project Skills
+
+Project-local skills live in `.claude/skills/`.
+Use [docs/README.md](/Users/cyprianbrytan/Projects/steady-v2-app/docs/README.md) as the canonical guide for when to use them and in what order.
+
 ## <verification_workflow>
 
 When code has been edited while a preview server is running, verify changes are safe:

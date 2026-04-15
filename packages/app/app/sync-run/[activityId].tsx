@@ -132,6 +132,7 @@ export default function SyncRunDetailScreen() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [refreshingFromStrava, setRefreshingFromStrava] = useState(false);
   const today = todayIsoLocal();
   const todaySession = findSessionForDateOrWeekday(currentWeek?.sessions ?? [], today);
 
@@ -238,6 +239,21 @@ export default function SyncRunDetailScreen() {
     }
   }
 
+  async function handleRefreshFromStrava() {
+    if (!activity || activity.source !== 'strava') return;
+
+    try {
+      setRefreshingFromStrava(true);
+      const refreshed = await trpc.strava.refreshActivity.mutate({ activityId: activity.id });
+      setActivities((current) => current.map((item) => item.id === refreshed.id ? refreshed : item));
+    } catch (error) {
+      console.error('Failed to refresh Strava activity:', error);
+      Alert.alert('Could not re-sync run', 'Please try again in a moment.');
+    } finally {
+      setRefreshingFromStrava(false);
+    }
+  }
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -336,13 +352,27 @@ export default function SyncRunDetailScreen() {
           </View>
         ) : null}
 
+        {activity.source === 'strava' ? (
+          <View style={styles.section}>
+            <Pressable
+              style={[styles.secondaryButton, refreshingFromStrava && styles.secondaryButtonDisabled]}
+              onPress={() => { void handleRefreshFromStrava(); }}
+              disabled={refreshingFromStrava}
+            >
+              <Text style={styles.secondaryButtonText}>
+                {refreshingFromStrava ? 'Re-syncing…' : 'Re-sync from Strava'}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         {/* Splits */}
         {activity.splits.length > 0 ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Splits</Text>
             {activity.splits.map((split) => (
               <View key={split.km} style={styles.splitRow}>
-                <Text style={styles.splitKm}>KM {split.km}</Text>
+                <Text style={styles.splitKm}>{split.label ?? `KM ${split.km}`}</Text>
                 <Text style={styles.splitPace}>{formatPace(split.pace)}</Text>
                 <View style={styles.splitBar}>
                   <View style={[styles.splitFill, { width: paceBarWidth(split.pace, fastestPace, slowestPace) }]} />
@@ -717,7 +747,7 @@ const styles = StyleSheet.create({
     borderTopColor: C.border,
   },
   splitKm: {
-    width: 36,
+    width: 52,
     fontFamily: FONTS.sansSemiBold,
     fontSize: 10,
     color: C.muted,
@@ -747,6 +777,24 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.mono,
     fontSize: 11,
     color: C.ink2,
+  },
+  secondaryButton: {
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.surface,
+  },
+  secondaryButtonDisabled: {
+    opacity: 0.6,
+  },
+  secondaryButtonText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 13,
+    color: C.ink,
   },
   feelRow: {
     marginBottom: 14,

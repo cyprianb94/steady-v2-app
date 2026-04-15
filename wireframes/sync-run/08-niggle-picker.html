@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>08 · Niggle picker</title>
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  .screen { padding: 0; }
+  .scroll { padding: 10px 20px 140px; }
+
+  .nav-bar {
+    background: var(--surface);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-bar .back {
+    font-family: var(--sans); font-size: 14px; font-weight: 600; color: var(--muted);
+  }
+  .nav-bar .title {
+    font-family: var(--serif); font-size: 15px; font-weight: 700; color: var(--ink);
+  }
+  .nav-bar .spacer { width: 30px; }
+
+  .screen-title {
+    font-family: var(--serif); font-size: 26px; font-weight: 700; color: var(--ink);
+    padding: 22px 4px 4px;
+  }
+  .screen-sub {
+    font-family: var(--sans); font-size: 13px; color: var(--muted);
+    padding: 0 4px 22px; line-height: 19px;
+  }
+
+  .block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    padding: 18px;
+    margin-bottom: 12px;
+  }
+  .block-label {
+    font-family: var(--sans); font-size: 10px; font-weight: 600;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px;
+    margin-bottom: 12px;
+  }
+
+  .body-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .body-pill {
+    padding: 10px 8px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    font-family: var(--sans);
+    font-size: 12px; font-weight: 600;
+    color: var(--ink2);
+    text-align: center;
+  }
+  .body-pill.selected {
+    background: var(--clay);
+    color: var(--surface);
+    border-color: var(--clay);
+  }
+
+  .side-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .side-pill {
+    padding: 14px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    text-align: center;
+    font-family: var(--sans);
+    font-size: 14px; font-weight: 600;
+    color: var(--ink2);
+  }
+  .side-pill.selected {
+    background: var(--ink);
+    color: var(--surface);
+    border-color: var(--ink);
+  }
+
+  .severity-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  .sev-pill {
+    padding: 12px 4px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .sev-pill .lvl {
+    font-family: var(--sans); font-size: 12px; font-weight: 600; color: var(--ink);
+  }
+  .sev-pill .sub {
+    font-family: var(--sans); font-size: 9px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.6px;
+  }
+  .sev-pill.selected.niggle   { background: var(--amber-bg); border-color: var(--amber); }
+  .sev-pill.selected.mild     { background: var(--amber-bg); border-color: var(--amber); }
+  .sev-pill.selected.moderate { background: var(--clay-bg); border-color: var(--clay); }
+  .sev-pill.selected.stop     { background: var(--clay); }
+  .sev-pill.selected.stop .lvl { color: var(--surface); }
+  .sev-pill.selected.stop .sub { color: rgba(253, 240, 235, 0.75); }
+
+  .when-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .when-pill {
+    padding: 14px 6px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    text-align: center;
+    font-family: var(--sans);
+    font-size: 13px; font-weight: 600;
+    color: var(--ink2);
+  }
+  .when-pill.selected {
+    background: var(--ink); color: var(--surface); border-color: var(--ink);
+  }
+
+  .add-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 16px 20px 34px;
+  }
+  .add-bar .cta { width: 100%; }
+</style>
+</head>
+<body>
+
+<div class="phone-wrap">
+  <span class="frame-label">08 · NIGGLE PICKER</span>
+  <div class="phone">
+
+    <div class="status-bar">
+      <span>9:44</span>
+      <span class="icons">◉ ▪ ▯</span>
+    </div>
+
+    <div class="nav-bar">
+      <span class="back">‹ Back</span>
+      <span class="title">Flag a niggle</span>
+      <span class="spacer"></span>
+    </div>
+
+    <div class="screen">
+      <div class="scroll">
+
+        <div class="screen-title">Flag a niggle</div>
+        <div class="screen-sub">Small catches early. We'll use this to watch for patterns and protect your recovery.</div>
+
+        <div class="block">
+          <div class="block-label">Where</div>
+          <div class="body-grid">
+            <span class="body-pill">Calf</span>
+            <span class="body-pill">Knee</span>
+            <span class="body-pill selected">Hamstring</span>
+            <span class="body-pill">Quad</span>
+            <span class="body-pill">Hip</span>
+            <span class="body-pill">Glute</span>
+            <span class="body-pill">Foot</span>
+            <span class="body-pill">Shin</span>
+            <span class="body-pill">Ankle</span>
+            <span class="body-pill">Achilles</span>
+            <span class="body-pill">Back</span>
+            <span class="body-pill">Other</span>
+          </div>
+        </div>
+
+        <div class="block">
+          <div class="block-label">Which side</div>
+          <div class="side-row">
+            <span class="side-pill selected">Left</span>
+            <span class="side-pill">Right</span>
+          </div>
+        </div>
+
+        <div class="block">
+          <div class="block-label">How bad</div>
+          <div class="severity-row">
+            <span class="sev-pill">
+              <span class="lvl">Niggle</span>
+              <span class="sub">noticed</span>
+            </span>
+            <span class="sev-pill selected mild">
+              <span class="lvl">Mild</span>
+              <span class="sub">ran through</span>
+            </span>
+            <span class="sev-pill">
+              <span class="lvl">Moderate</span>
+              <span class="sub">eased off</span>
+            </span>
+            <span class="sev-pill">
+              <span class="lvl">Stop</span>
+              <span class="sub">had to stop</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="block">
+          <div class="block-label">When</div>
+          <div class="when-row">
+            <span class="when-pill">Before</span>
+            <span class="when-pill selected">During</span>
+            <span class="when-pill">After</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="add-bar">
+      <button class="cta">Add niggle</button>
+    </div>
+
+  </div>
+  <div class="comp-map">NigglePicker · SubjectiveInput.niggles[]</div>
+</div>
+
+<aside class="annotations">
+  <h3>08 · Niggle picker</h3>
+  <ul>
+    <li><b>Four-step wizard on one screen.</b> All four groups visible at once, no multi-page flow — each is a constrained choice set so it never overflows.</li>
+    <li><b>Body part grid</b> — 12 fixed options from a closed enum. Selected pill uses the clay accent (<code>--clay</code>) to hint "this is the injury/caution signal" without alarming.</li>
+    <li><b>Severity ramp:</b> Niggle → Mild → Moderate → Stop. Colours escalate across the row — first two on <code>--amber</code> (caution), third on <code>--clay-bg</code> (concern), fourth filled <code>--clay</code> (stop). This is the only spot in the app where a small red-ish accent is allowed.</li>
+    <li><b>Sub-labels</b> under each severity chip describe what it actually means — "noticed", "ran through", "eased off", "had to stop". Makes the scale self-explanatory without a tooltip.</li>
+    <li><b>"When" row</b> — before / during / after maps to the exact shape of the data model: <code>Niggle.when</code>.</li>
+    <li><b>Fixed bottom CTA</b> — ink pill because the accent is already carried by the severity tiles above. Avoids colour collision.</li>
+    <li><b>Data shape on save:</b> <code>{ bodyPart: 'hamstring', side: 'left', severity: 'mild', when: 'during' }</code> — appended to <code>subjectiveInput.niggles</code>.</li>
+    <li><b>Why this matters:</b> directly serves the recovery/injury USP. Structured niggle history becomes the input for future Steady AI warnings ("Left hamstring has flagged 3× this week — consider an easier block").</li>
+  </ul>
+</aside>
+
+</body>
+</html>

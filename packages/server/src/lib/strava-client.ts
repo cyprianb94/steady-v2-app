@@ -16,6 +16,7 @@ export interface StravaClient {
   exchangeCode(code: string): Promise<StravaTokenResponse>;
   refreshToken(refreshToken: string): Promise<StravaTokenResponse>;
   getActivities(accessToken: string, after: string): Promise<StravaActivity[]>;
+  getActivity(accessToken: string, activityId: number): Promise<StravaActivity>;
   getGear(accessToken: string, gearId: string): Promise<StravaGear | null>;
 }
 
@@ -26,6 +27,17 @@ export interface StravaActivitySplit {
   average_speed?: number;
   average_heartrate?: number;
   elevation_difference?: number;
+}
+
+export interface StravaActivityLap {
+  lap_index: number;
+  distance: number;
+  elapsed_time: number;
+  moving_time?: number;
+  average_speed?: number;
+  average_heartrate?: number;
+  total_elevation_gain?: number;
+  name?: string;
 }
 
 export interface StravaActivity {
@@ -43,6 +55,7 @@ export interface StravaActivity {
   max_heartrate?: number;
   average_speed?: number;
   splits_metric?: StravaActivitySplit[];
+  laps?: StravaActivityLap[];
 }
 
 export interface StravaGear {
@@ -57,6 +70,66 @@ interface CreateStravaClientOptions {
   clientId?: string;
   clientSecret?: string;
   fetchImpl?: typeof fetch;
+}
+
+function mapLap(lap: Record<string, unknown>): StravaActivityLap {
+  return {
+    lap_index: typeof lap.lap_index === 'number' ? lap.lap_index : 0,
+    distance: typeof lap.distance === 'number' ? lap.distance : 0,
+    elapsed_time: typeof lap.elapsed_time === 'number' ? lap.elapsed_time : 0,
+    moving_time: typeof lap.moving_time === 'number' ? lap.moving_time : undefined,
+    average_speed: typeof lap.average_speed === 'number' ? lap.average_speed : undefined,
+    average_heartrate:
+      typeof lap.average_heartrate === 'number' ? lap.average_heartrate : undefined,
+    total_elevation_gain:
+      typeof lap.total_elevation_gain === 'number' ? lap.total_elevation_gain : undefined,
+    name: typeof lap.name === 'string' ? lap.name : undefined,
+  };
+}
+
+function mapDetailedActivity(detail: Record<string, unknown>, lapsOverride?: StravaActivityLap[]): StravaActivity {
+  if (typeof detail.id !== 'number' || typeof detail.start_date !== 'string') {
+    throw new Error('Strava activity detail returned an unexpected payload');
+  }
+
+  return {
+    id: detail.id,
+    name: typeof detail.name === 'string' ? detail.name : undefined,
+    type: typeof detail.type === 'string' ? detail.type : undefined,
+    sport_type: typeof detail.sport_type === 'string' ? detail.sport_type : undefined,
+    gear_id: typeof detail.gear_id === 'string' ? detail.gear_id : undefined,
+    start_date: detail.start_date,
+    distance: typeof detail.distance === 'number' ? detail.distance : 0,
+    moving_time: typeof detail.moving_time === 'number' ? detail.moving_time : undefined,
+    elapsed_time: typeof detail.elapsed_time === 'number' ? detail.elapsed_time : 0,
+    total_elevation_gain:
+      typeof detail.total_elevation_gain === 'number' ? detail.total_elevation_gain : undefined,
+    average_heartrate:
+      typeof detail.average_heartrate === 'number' ? detail.average_heartrate : undefined,
+    max_heartrate: typeof detail.max_heartrate === 'number' ? detail.max_heartrate : undefined,
+    average_speed: typeof detail.average_speed === 'number' ? detail.average_speed : undefined,
+    splits_metric: Array.isArray(detail.splits_metric)
+      ? detail.splits_metric
+        .filter((split): split is Record<string, unknown> => Boolean(split) && typeof split === 'object')
+        .map((split) => ({
+          split: typeof split.split === 'number' ? split.split : 0,
+          distance: typeof split.distance === 'number' ? split.distance : 0,
+          elapsed_time: typeof split.elapsed_time === 'number' ? split.elapsed_time : 0,
+          average_speed: typeof split.average_speed === 'number' ? split.average_speed : undefined,
+          average_heartrate:
+            typeof split.average_heartrate === 'number' ? split.average_heartrate : undefined,
+          elevation_difference:
+            typeof split.elevation_difference === 'number' ? split.elevation_difference : undefined,
+        }))
+      : [],
+    laps: lapsOverride ?? (
+      Array.isArray(detail.laps)
+        ? detail.laps
+          .filter((lap): lap is Record<string, unknown> => Boolean(lap) && typeof lap === 'object')
+          .map(mapLap)
+        : []
+    ),
+  };
 }
 
 function requireEnv(name: 'STRAVA_CLIENT_ID' | 'STRAVA_CLIENT_SECRET'): string {
@@ -197,58 +270,58 @@ export function createStravaClient(options: CreateStravaClientOptions = {}): Str
           continue;
         }
 
-        const detailResponse = await fetchImpl(
-          `https://www.strava.com/api/v3/activities/${summary.id}`,
-          {
-            headers: {
-              authorization: `Bearer ${accessToken}`,
-            },
-          },
-        );
-
-        if (!detailResponse.ok) {
-          throw new Error(`Strava activity detail fetch failed with status ${detailResponse.status}`);
-        }
-
-        const detail = await detailResponse.json() as Record<string, unknown>;
-        if (typeof detail.id !== 'number' || typeof detail.start_date !== 'string') {
-          throw new Error('Strava activity detail returned an unexpected payload');
-        }
-
-        details.push({
-          id: detail.id,
-          name: typeof detail.name === 'string' ? detail.name : undefined,
-          type: typeof detail.type === 'string' ? detail.type : undefined,
-          sport_type: typeof detail.sport_type === 'string' ? detail.sport_type : undefined,
-          gear_id: typeof detail.gear_id === 'string' ? detail.gear_id : undefined,
-          start_date: detail.start_date,
-          distance: typeof detail.distance === 'number' ? detail.distance : 0,
-          moving_time: typeof detail.moving_time === 'number' ? detail.moving_time : undefined,
-          elapsed_time: typeof detail.elapsed_time === 'number' ? detail.elapsed_time : 0,
-          total_elevation_gain:
-            typeof detail.total_elevation_gain === 'number' ? detail.total_elevation_gain : undefined,
-          average_heartrate:
-            typeof detail.average_heartrate === 'number' ? detail.average_heartrate : undefined,
-          max_heartrate: typeof detail.max_heartrate === 'number' ? detail.max_heartrate : undefined,
-          average_speed: typeof detail.average_speed === 'number' ? detail.average_speed : undefined,
-          splits_metric: Array.isArray(detail.splits_metric)
-            ? detail.splits_metric
-              .filter((split): split is Record<string, unknown> => Boolean(split) && typeof split === 'object')
-              .map((split) => ({
-                split: typeof split.split === 'number' ? split.split : 0,
-                distance: typeof split.distance === 'number' ? split.distance : 0,
-                elapsed_time: typeof split.elapsed_time === 'number' ? split.elapsed_time : 0,
-                average_speed: typeof split.average_speed === 'number' ? split.average_speed : undefined,
-                average_heartrate:
-                  typeof split.average_heartrate === 'number' ? split.average_heartrate : undefined,
-                elevation_difference:
-                  typeof split.elevation_difference === 'number' ? split.elevation_difference : undefined,
-              }))
-            : [],
-        });
+        details.push(await this.getActivity(accessToken, summary.id));
       }
 
       return details;
+    },
+
+    async getActivity(accessToken: string, activityId: number): Promise<StravaActivity> {
+      const detailResponse = await fetchImpl(
+        `https://www.strava.com/api/v3/activities/${activityId}`,
+        {
+          headers: {
+            authorization: `Bearer ${accessToken}`,
+          },
+        },
+      );
+
+      if (!detailResponse.ok) {
+        throw new Error(`Strava activity detail fetch failed with status ${detailResponse.status}`);
+      }
+
+      const detail = await detailResponse.json() as Record<string, unknown>;
+      const detailLaps = Array.isArray(detail.laps)
+        ? detail.laps
+          .filter((lap): lap is Record<string, unknown> => Boolean(lap) && typeof lap === 'object')
+          .map(mapLap)
+        : [];
+
+      if (detailLaps.length > 0) {
+        return mapDetailedActivity(detail, detailLaps);
+      }
+
+      const lapsResponse = await fetchImpl(
+        `https://www.strava.com/api/v3/activities/${activityId}/laps`,
+        {
+          headers: {
+            authorization: `Bearer ${accessToken}`,
+          },
+        },
+      );
+
+      if (!lapsResponse.ok) {
+        throw new Error(`Strava activity laps fetch failed with status ${lapsResponse.status}`);
+      }
+
+      const lapsPayload = await lapsResponse.json() as unknown;
+      const laps = Array.isArray(lapsPayload)
+        ? lapsPayload
+          .filter((lap): lap is Record<string, unknown> => Boolean(lap) && typeof lap === 'object')
+          .map(mapLap)
+        : [];
+
+      return mapDetailedActivity(detail, laps);
     },
 
     async getGear(accessToken: string, gearId: string): Promise<StravaGear | null> {

@@ -24,7 +24,7 @@ describe('SessionDetailSheet', () => {
     avgHR: 145,
     elevationGain: 85,
     splits: [
-      { km: 1, pace: 325, hr: 140 },
+      { km: 1, pace: 325, hr: 140, label: '2.0 km', distance: 2 },
       { km: 2, pace: 320, hr: 143 },
       { km: 3, pace: 315, hr: 146 },
     ],
@@ -57,6 +57,19 @@ describe('SessionDetailSheet', () => {
 
     expect(screen.getByText(/145/)).toBeTruthy(); // avg HR
     expect(screen.getByText(/85/)).toBeTruthy();  // elevation
+  });
+
+  it('uses a lap label when one is available', () => {
+    render(
+      <SessionDetailSheet
+        visible={true}
+        session={session}
+        activity={activity}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('2.0 km')).toBeTruthy();
   });
 
   it('handles missing HR gracefully', () => {
