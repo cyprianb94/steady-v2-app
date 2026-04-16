@@ -5,6 +5,16 @@ import { router, useLocalSearchParams } from 'expo-router';
 
 import StepTemplate from '../app/onboarding/plan-builder/step-template';
 
+const baseParams = {
+  raceDistance: '10K',
+  raceLabel: '10K',
+  raceName: 'Club 10K',
+  raceDate: '2026-09-20',
+  weeks: '8',
+  targetTime: '00:45:00',
+  phases: JSON.stringify({ BASE: 2, BUILD: 4, RECOVERY: 0, PEAK: 1, TAPER: 1 }),
+};
+
 function dragHandle(testId: string, pageY: number) {
   const handle = screen.getByTestId(testId);
   fireEvent.mouseDown(handle, { clientY: 0 });
@@ -15,18 +25,13 @@ function dragHandle(testId: string, pageY: number) {
 describe('StepTemplate direct week reorder', () => {
   beforeEach(() => {
     vi.mocked(router.push).mockReset();
-    vi.mocked(useLocalSearchParams).mockReturnValue({
-      race: '10K',
-      weeks: '8',
-      target: 'sub-45',
-      phases: JSON.stringify({ BASE: 2, BUILD: 4, RECOVERY: 0, PEAK: 1, TAPER: 1 }),
-    });
+    vi.mocked(useLocalSearchParams).mockReturnValue(baseParams);
   });
 
   it('reorders the visible week directly and sends the updated template to Step 3', () => {
     render(<StepTemplate />);
 
-    expect(screen.queryByText('Rearrange')).toBeNull();
+    fireEvent.click(screen.getByTestId('starter-choice-template'));
 
     dragHandle('template-drag-handle-0', 360);
     fireEvent.click(screen.getByText('Generate 8-week plan →'));
@@ -42,15 +47,13 @@ describe('StepTemplate direct week reorder', () => {
 
   it('lets the user cancel the regeneration warning when per-week edits exist', () => {
     vi.mocked(useLocalSearchParams).mockReturnValue({
-      race: '10K',
-      weeks: '8',
-      target: 'sub-45',
-      phases: JSON.stringify({ BASE: 2, BUILD: 4, RECOVERY: 0, PEAK: 1, TAPER: 1 }),
+      ...baseParams,
       hasPerWeekTweaks: 'true',
     });
 
     render(<StepTemplate />);
 
+    fireEvent.click(screen.getByTestId('starter-choice-template'));
     dragHandle('template-drag-handle-0', 360);
 
     expect(screen.getByText('Regenerate plan preview?')).toBeTruthy();

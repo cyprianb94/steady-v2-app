@@ -9,7 +9,7 @@ Use this file when a feature touches an area that historically attracted debt.
 - `packages/app/app/(tabs)/settings.tsx` — `718` lines. Settings, auth, Strava actions, and recovery actions are easy to sprawl here.
 - `packages/app/app/onboarding/plan-builder/step-goal.tsx` — `699` lines. Plan-builder rules should land in shared plan-builder modules or shared domain helpers, not in the screen.
 - `packages/app/app/onboarding/plan-builder/step-plan.tsx` — `488` lines. Keep generated-plan editing rules out of the onboarding screen shell.
-- `packages/app/app/onboarding/plan-builder/step-template.tsx` — `608` lines. Template-week logic should prefer shared plan-builder modules over screen-local logic.
+- `packages/app/app/onboarding/plan-builder/step-template.tsx` — `914` lines. Template-week logic should prefer shared plan-builder modules over screen-local logic.
 - `packages/app/app/(tabs)/home.tsx` — `449` lines. Home should stay a composition surface, not a new business-logic sink.
 - `packages/server/src/services/strava-workflow-service.ts` — `570` lines. High-impact workflow boundary. Keep new behavior cohesive and avoid leaking orchestration back into routers or screens.
 - `packages/server/src/trpc/plan.ts` — `261` lines. Plan validation and annotation logic are starting to concentrate here. Keep workflow logic out of the router.
@@ -50,7 +50,7 @@ Keep recovery rules shared. Do not re-encode them separately in `Home` and `Sett
 
 Start by looking in:
 
-- `packages/app/features/plan-builder/*` for shared client-side reorder state, staged reschedule drafts, and other plan-builder interaction controllers
+- `packages/app/features/plan-builder/*` for Step 2 starter-mode rules, shared client-side reorder state, staged reschedule drafts, onboarding template orchestration, and other interaction controllers that should stay out of hotspot screens
 - `packages/app/components/plan-builder/*`
 - `packages/types/src/lib/*` for plan-generation or plan-shaping logic
 - `packages/app/features/*` if shared client-side onboarding orchestration emerges across steps

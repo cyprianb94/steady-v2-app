@@ -51,7 +51,7 @@ export function SessionEditor({ dayIndex, existing, onSave, onClose }: SessionEd
   }, [type]);
 
   const build = (): Partial<PlannedSession> | null => {
-    if (isRest) return null;
+    if (isRest) return { type: 'REST' };
     const s: Partial<PlannedSession> = { type, pace };
     if (isInterval) {
       Object.assign(s, { reps, repDist, recovery, warmup: Number(warmup), cooldown: Number(cooldown) });
