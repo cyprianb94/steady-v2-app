@@ -4,13 +4,15 @@ Use this file when a feature touches an area that historically attracted debt.
 
 ## Current hotspot files
 
-- `packages/app/app/(tabs)/block.tsx` — `1290` lines. High-risk controller screen. Avoid adding more orchestration here.
-- `packages/app/app/(tabs)/settings.tsx` — `746` lines. Settings and recovery actions are easy to sprawl here.
-- `packages/app/app/(tabs)/home.tsx` — `567` lines. Home should stay a composition surface, not a new business-logic sink.
-- `packages/app/app/onboarding/plan-builder/step-template.tsx` — `485` lines. Plan-builder changes should prefer shared plan-builder modules over screen-local logic.
-- `packages/app/app/(tabs)/week.tsx` — `429` lines. Avoid duplicating behavior that also exists in Home or Block.
-- `packages/server/src/trpc/activity.ts` — `262` lines. Keep workflow logic out of the router.
-- `packages/server/src/trpc/strava.ts` — `247` lines. Keep sync orchestration out of the router.
+- `packages/app/app/(tabs)/block.tsx` — `1261` lines. Highest-risk controller screen. Avoid adding more orchestration here.
+- `packages/app/app/sync-run/[activityId].tsx` — `1059` lines. Manual run resolution still mixes fetch, matching, form state, and save orchestration. Do not pile more workflow here.
+- `packages/app/app/(tabs)/settings.tsx` — `718` lines. Settings, auth, Strava actions, and recovery actions are easy to sprawl here.
+- `packages/app/app/onboarding/plan-builder/step-goal.tsx` — `699` lines. Plan-builder rules should land in shared plan-builder modules or shared domain helpers, not in the screen.
+- `packages/app/app/onboarding/plan-builder/step-plan.tsx` — `488` lines. Keep generated-plan editing rules out of the onboarding screen shell.
+- `packages/app/app/onboarding/plan-builder/step-template.tsx` — `485` lines. Template-week logic should prefer shared plan-builder modules over screen-local logic.
+- `packages/app/app/(tabs)/home.tsx` — `430` lines. Home should stay a composition surface, not a new business-logic sink.
+- `packages/server/src/services/strava-workflow-service.ts` — `570` lines. High-impact workflow boundary. Keep new behavior cohesive and avoid leaking orchestration back into routers or screens.
+- `packages/server/src/trpc/plan.ts` — `261` lines. Plan validation and annotation logic are starting to concentrate here. Keep workflow logic out of the router.
 
 ## Preferred landing zones
 
@@ -18,7 +20,8 @@ Use this file when a feature touches an area that historically attracted debt.
 
 If the same behavior appears in `Home`, `Week`, `Block`, `Settings`, or `sync-run`, prefer:
 
-- `packages/app/lib/*` for shared app-side orchestration and client helpers
+- `packages/app/features/*` for cross-screen orchestration, derived state, and shared hooks
+- `packages/app/lib/*` for app-side helpers, environment-sensitive setup, and client utilities
 - focused feature components under `packages/app/components/<feature>/` for UI-specific shared behavior
 
 Do not independently patch each screen unless the change is tiny and presentation-only.
@@ -27,6 +30,7 @@ Do not independently patch each screen unless the change is tiny and presentatio
 
 Start by looking in:
 
+- `packages/app/features/recovery/*`
 - `packages/app/components/recovery/*`
 - `packages/app/lib/resume-week.ts`
 
@@ -38,6 +42,7 @@ Start by looking in:
 
 - `packages/app/components/plan-builder/*`
 - `packages/types/src/lib/*` for plan-generation or plan-shaping logic
+- `packages/app/features/*` if shared client-side onboarding orchestration emerges across steps
 
 Do not let onboarding screens become the only place where plan rules live.
 
@@ -45,8 +50,9 @@ Do not let onboarding screens become the only place where plan rules live.
 
 Start by looking in:
 
-- `packages/app/lib/activity-api.ts`
-- `packages/server/src/lib/*`
+- `packages/app/features/run/*`
+- `packages/app/features/sync/*`
+- `packages/server/src/services/*`
 - `packages/server/src/repos/*`
 
 Keep transport, workflow, and persistence concerns separated.
@@ -55,14 +61,16 @@ Keep transport, workflow, and persistence concerns separated.
 
 Start by looking in:
 
-- `packages/server/src/lib/*` for services and workflow modules
+- `packages/server/src/services/*` for services and workflow modules
 - `packages/server/src/repos/*` for persistence boundaries
 - `packages/server/src/trpc/*` only for validation and delegation
 
 ## Anti-patterns to avoid
 
 - adding new business logic directly to `block.tsx` because it is already open
+- adding new business logic directly to `sync-run/[activityId].tsx` because it is already open
 - duplicating the same recovery or sync fix across multiple screens
+- extracting shared logic but leaving the old copy and old tests behind
 - importing `@steady/server/src/**` from the app
 - putting environment detection or native-module setup into screen files
 - shipping a shortcut without leaving a Linear follow-up

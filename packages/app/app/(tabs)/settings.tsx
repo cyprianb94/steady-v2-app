@@ -273,12 +273,6 @@ export default function SettingsTab() {
   const hasPlan = Boolean(plan);
   const planSummary = plan ? `${plan.raceName} · ${plan.targetTime}` : 'No active plan.';
   const weekSummary = plan ? `Week ${currentWeekIndex + 1} of ${plan.weeks.length}.` : 'No active block.';
-  const stravaSummary = stravaStatus?.connected
-    ? stravaStatus.lastSyncedAt
-      ? `Athlete ${stravaStatus.athleteId ?? 'unknown'} · ${formatLastSync(stravaStatus.lastSyncedAt)}`
-      : `Athlete ${stravaStatus.athleteId ?? 'unknown'} · Connected.`
-    : 'Connect when you want activity sync.';
-
   async function handleMarkInjury(name: string) {
     const didMarkInjury = await recoveryController.markInjury(name);
     if (didMarkInjury) {
@@ -333,12 +327,6 @@ export default function SettingsTab() {
             detail={weekSummary}
             value={hasPlan ? `Week ${currentWeekIndex + 1}` : '—'}
             tone={hasPlan ? 'warm' : 'neutral'}
-          />
-          <OverviewRow
-            label="Strava"
-            detail={stravaSummary}
-            value={stravaStatus?.connected ? 'Connected' : 'Offline'}
-            tone={stravaStatus?.connected ? 'success' : 'neutral'}
             showBorder={false}
           />
         </View>

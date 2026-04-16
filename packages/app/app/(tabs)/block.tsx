@@ -297,9 +297,8 @@ export default function BlockTab() {
     syncRevision,
     fetchErrorMessage: 'Failed to fetch activities for block view:',
   });
-  const rawActiveInjury =
-    plan?.activeInjury && plan.activeInjury.status !== 'resolved' ? plan.activeInjury : null;
-  const injuryRange = plan ? getInjuryWeekRange(plan.weeks, rawActiveInjury, today) : null;
+  const historicalInjury = plan?.activeInjury ?? null;
+  const injuryRange = plan ? getInjuryWeekRange(plan.weeks, historicalInjury, today) : null;
   const recoveryScope = useMemo(() => {
     if (!plan || !injuryRange) {
       return null;
@@ -322,6 +321,7 @@ export default function BlockTab() {
     plan,
     enabled: Boolean(session),
     isFocused,
+    injury: historicalInjury,
     scope: recoveryScope,
     fetchErrorMessage: 'Failed to fetch block cross-training entries:',
   });
@@ -389,7 +389,7 @@ export default function BlockTab() {
   }
 
   const safeCurrentWeekIndex = Math.min(currentWeekIndex, plan.weeks.length - 1);
-  const phases = buildBlockPhaseSegments(plan.weeks, safeCurrentWeekIndex, activeInjury, today);
+  const phases = buildBlockPhaseSegments(plan.weeks, safeCurrentWeekIndex, historicalInjury, today);
   const currentPhase = isInjuryWeek(safeCurrentWeekIndex, injuryRange)
     ? 'INJURY'
     : plan.weeks[safeCurrentWeekIndex]?.phase ?? 'BUILD';

@@ -14,6 +14,7 @@ Its job is simple:
 3. keep the change out of the architectural debt traps we already know about
 
 Read [references/hotspots.md](references/hotspots.md) before touching any hotspot file.
+If your change materially changes hotspot files or preferred landing zones, update that reference in the same change.
 
 ## Load these companion skills
 
@@ -90,13 +91,30 @@ Do not rely only on implementation-coupled tests.
 
 When a change crosses screens or layers, add or update the shared boundary test that proves the behavior still works.
 
-### 7. If you knowingly add debt, say so before finishing
+### 7. Do not leave legacy copies behind after extraction
+
+If you extract shared logic into `packages/app/features/*`, `packages/app/lib/*`, or `packages/server/src/services/*`:
+
+- remove or migrate the old helper/module in the same change
+- move tests to the surviving boundary
+- do not keep overlapping old and new copies unless there is a clear temporary migration reason
+
+### 8. If you knowingly add debt, say so before finishing
 
 If speed forces a shortcut:
 
 - call it out explicitly
 - explain why it was taken
 - create a follow-up Linear issue before you finish
+
+### 9. Keep the guardrail map current
+
+If a refactor changes hotspot size, risk, or landing zones:
+
+- update `references/hotspots.md`
+- remove stale line counts
+- remove dead file references
+- keep the map aligned with the codebase you just changed
 
 ## Quick decision check
 
@@ -106,6 +124,7 @@ Before coding, answer these:
 2. If shared behavior, where is the narrowest shared module boundary?
 3. Am I adding logic to a hotspot file that should live somewhere else?
 4. Am I crossing a package boundary the wrong way?
-5. What behavioural test will prove this change is safe?
+5. If I extracted shared logic, did I remove the old copy and move tests to the surviving boundary?
+6. What behavioural test will prove this change is safe?
 
 If those answers are fuzzy, stop and design the boundary first.

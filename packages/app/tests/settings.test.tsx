@@ -132,6 +132,7 @@ describe('SettingsTab', () => {
     expect(screen.getAllByText('runner@example.com')).toHaveLength(1);
     expect(screen.getByText('Valencia Marathon · 3:15')).toBeTruthy();
     expect(screen.getByText('Week 2 of 3.')).toBeTruthy();
+    expect(screen.getAllByText('Strava')).toHaveLength(1);
 
     const preferences = screen.getByText('Preferences');
     const training = screen.getByText('Training');

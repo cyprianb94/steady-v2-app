@@ -10,6 +10,7 @@ interface UseRecoveryDataOptions {
   plan: TrainingPlanWithAnnotation | null;
   enabled: boolean;
   isFocused: boolean;
+  injury?: Injury | null;
   scope: RecoveryDataScope | null;
   fetchErrorMessage: string;
 }
@@ -30,10 +31,12 @@ export function useRecoveryData({
   plan,
   enabled,
   isFocused,
+  injury = undefined,
   scope,
   fetchErrorMessage,
 }: UseRecoveryDataOptions): UseRecoveryDataResult {
   const activeInjury = getActiveInjury(plan);
+  const recoveryInjury = injury ?? activeInjury;
   const [entries, setEntries] = useState<CrossTrainingEntry[]>([]);
   const [isLoadingEntries, setIsLoadingEntries] = useState(false);
   const scopeType = scope?.type ?? null;
@@ -42,7 +45,7 @@ export function useRecoveryData({
   const endDate = scope?.type === 'range' ? scope.endDate : null;
 
   const refreshEntries = useCallback(async () => {
-    if (!enabled || !isFocused || !activeInjury || !scopeType) {
+    if (!enabled || !isFocused || !recoveryInjury || !scopeType) {
       setEntries([]);
       setIsLoadingEntries(false);
       return;
@@ -65,10 +68,10 @@ export function useRecoveryData({
     } finally {
       setIsLoadingEntries(false);
     }
-  }, [activeInjury, enabled, endDate, fetchErrorMessage, isFocused, scopeType, startDate, weekStartDate]);
+  }, [enabled, endDate, fetchErrorMessage, isFocused, recoveryInjury, scopeType, startDate, weekStartDate]);
 
   useEffect(() => {
-    if (!enabled || !isFocused || !activeInjury || !scopeType) {
+    if (!enabled || !isFocused || !recoveryInjury || !scopeType) {
       setEntries([]);
       setIsLoadingEntries(false);
       return;
@@ -109,7 +112,7 @@ export function useRecoveryData({
     return () => {
       cancelled = true;
     };
-  }, [activeInjury, enabled, endDate, fetchErrorMessage, isFocused, scopeType, startDate, weekStartDate]);
+  }, [enabled, endDate, fetchErrorMessage, isFocused, recoveryInjury, scopeType, startDate, weekStartDate]);
 
   return {
     activeInjury,
