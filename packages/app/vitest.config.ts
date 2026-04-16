@@ -4,7 +4,6 @@ import path from 'path';
 export default defineConfig({
   resolve: {
     alias: {
-      '@steady/server/contracts': path.resolve(__dirname, '../server/src/contracts.ts'),
       'react-native': path.resolve(__dirname, 'tests/__mocks__/react-native.ts'),
     },
   },

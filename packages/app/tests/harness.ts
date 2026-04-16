@@ -190,6 +190,10 @@ beforeEach(() => {
   appTestHarness.splashScreen.preventAutoHideAsync.mockReset();
   appTestHarness.splashScreen.hideAsync.mockReset();
 
+  appTestHarness.constants.expoConfig = {};
+  appTestHarness.constants.manifest = {};
+  appTestHarness.constants.manifest2 = {};
+
   appTestHarness.createSupabaseClient.mockReset();
   appTestHarness.createSupabaseClient.mockReturnValue(appTestHarness.supabaseClient);
   resetMockSupabaseClient(appTestHarness.supabaseClient);
