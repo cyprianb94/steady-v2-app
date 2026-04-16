@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Direct Reschedule — Onboarding Drag</title>
+  <link rel="stylesheet" href="./tokens.css">
+</head>
+<body>
+  <script>if (window.self !== window.top) document.body.classList.add('embedded');</script>
+  <div class="page">
+    <aside class="meta-rail">
+      <div class="meta-kicker">Direct Reschedule</div>
+      <h1 class="meta-title">The drag state is explicit, not theatrical.</h1>
+      <p class="meta-copy">
+        One row lifts, one destination opens, and the copy stays quiet. The point is confidence: users should immediately understand where the workout is going and why the row still feels like part of the same week.
+      </p>
+      <div class="meta-list">
+        <div class="meta-item">
+          <strong>Dragged row</strong>
+          <span>Lifted slightly with clay-shadow emphasis so the interaction feels physical without becoming glossy.</span>
+        </div>
+        <div class="meta-item">
+          <strong>Drop target</strong>
+          <span>Dashed clay frame and light fill shift. Enough signal to guide placement, no extra instructional chrome.</span>
+        </div>
+        <div class="meta-item">
+          <strong>Guidance</strong>
+          <span>A single inline note clarifies the gesture for first-time users.</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="phone-frame">
+      <div class="status-bar">
+        <span>9:41</span>
+        <div class="right">
+          <div class="signal">
+            <div style="height:3px"></div>
+            <div style="height:5px"></div>
+            <div style="height:7px"></div>
+            <div style="height:10px"></div>
+          </div>
+          <svg width="15" height="10" fill="none" viewBox="0 0 15 10" aria-hidden="true">
+            <rect x=".75" y=".75" width="12" height="8.5" rx="1.5" stroke="#1C1510" stroke-width="1.5"/>
+            <rect x="13.5" y="3" width="1.5" height="4" rx=".75" fill="#1C1510"/>
+            <rect x="2" y="2.25" width="8" height="5.5" rx=".75" fill="#1C1510"/>
+          </svg>
+        </div>
+      </div>
+
+      <section class="screen">
+        <div class="content-area">
+          <div class="eyebrow">Step 2 of 3</div>
+          <h2 class="screen-title">Design your week</h2>
+          <p class="screen-subtitle">
+            Tap any day to tune the workout. Drag the grip when you want to change its position in the week.
+          </p>
+
+          <div class="week-stack">
+            <div class="week-row easy">
+              <div class="day-col">
+                <div class="day-name">Mon</div>
+              </div>
+              <div class="session-col">
+                <div class="session-dot easy"></div>
+                <div class="session-copy">
+                  <div class="session-label">Easy Run</div>
+                  <div class="session-detail">8km @ 5:30 /km</div>
+                </div>
+              </div>
+              <div class="row-right">
+                <div class="drag-handle"><div></div><div></div><div></div></div>
+              </div>
+            </div>
+
+            <div class="week-row interval dragging">
+              <div class="day-col">
+                <div class="day-name">Tue</div>
+              </div>
+              <div class="session-col">
+                <div class="session-dot interval"></div>
+                <div class="session-copy">
+                  <div class="session-label">Intervals</div>
+                  <div class="session-detail">6×800m @ 3:50 + 90s jog</div>
+                </div>
+              </div>
+              <div class="row-right">
+                <div class="drag-handle"><div></div><div></div><div></div></div>
+              </div>
+            </div>
+
+            <div class="week-row easy">
+              <div class="day-col">
+                <div class="day-name">Wed</div>
+              </div>
+              <div class="session-col">
+                <div class="session-dot easy"></div>
+                <div class="session-copy">
+                  <div class="session-label">Easy Run</div>
+                  <div class="session-detail">8km @ 5:30 /km</div>
+                </div>
+              </div>
+              <div class="row-right">
+                <div class="drag-handle"><div></div><div></div><div></div></div>
+              </div>
+            </div>
+
+            <div class="week-row tempo">
+              <div class="day-col">
+                <div class="day-name">Thu</div>
+              </div>
+              <div class="session-col">
+                <div class="session-dot tempo"></div>
+                <div class="session-copy">
+                  <div class="session-label">Tempo</div>
+                  <div class="session-detail">10km @ 4:20 /km</div>
+                </div>
+              </div>
+              <div class="row-right">
+                <div class="drag-handle"><div></div><div></div><div></div></div>
+              </div>
+            </div>
+
+            <div class="week-row rest drop-target">
+              <div class="day-col">
+                <div class="day-name">Fri</div>
+              </div>
+              <div class="session-col">
+                <div class="session-dot rest"></div>
+                <div class="session-copy">
+                  <div class="session-label">Rest day</div>
+                  <div class="session-detail">Drop here to create a recovery gap before the weekend</div>
+                </div>
+              </div>
+              <div class="row-right">
+                <div class="drag-handle"><div></div><div></div><div></div></div>
+              </div>
+            </div>
+
+            <div class="week-row easy">
+              <div class="day-col">
+                <div class="day-name">Sat</div>
+              </div>
+              <div class="session-col">
+                <div class="session-dot easy"></div>
+                <div class="session-copy">
+                  <div class="session-label">Easy Run</div>
+                  <div class="session-detail">12km @ 5:20 /km</div>
+                </div>
+              </div>
+              <div class="row-right">
+                <div class="drag-handle"><div></div><div></div><div></div></div>
+              </div>
+            </div>
+
+            <div class="week-row long">
+              <div class="day-col">
+                <div class="day-name">Sun</div>
+              </div>
+              <div class="session-col">
+                <div class="session-dot long"></div>
+                <div class="session-copy">
+                  <div class="session-label">Long Run</div>
+                  <div class="session-detail">20km @ 5:10 /km</div>
+                </div>
+              </div>
+              <div class="row-right">
+                <div class="drag-handle"><div></div><div></div><div></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="summary-card">
+            <div class="summary-label">Current intent</div>
+            <div class="summary-value">Intervals moving to Friday</div>
+            <div class="summary-note">The rest slot opens into the same drag system, so the move feels direct rather than exceptional.</div>
+          </div>
+        </div>
+
+        <div class="footer-cta">
+          <div class="cta">Generate 12-week plan</div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

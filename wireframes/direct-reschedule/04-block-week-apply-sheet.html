@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Direct Reschedule — Block Apply Sheet</title>
+  <link rel="stylesheet" href="./tokens.css">
+</head>
+<body>
+  <script>if (window.self !== window.top) document.body.classList.add('embedded');</script>
+  <div class="page">
+    <aside class="meta-rail">
+      <div class="meta-kicker">Direct Reschedule</div>
+      <h1 class="meta-title">Stage the week, then apply the reschedule.</h1>
+      <p class="meta-copy">
+        The user sees the reordered week first. The propagation sheet is a second, deliberate step reached from an inline action bar, which makes the persistence model obvious instead of surprising.
+      </p>
+      <div class="meta-list">
+        <div class="meta-item">
+          <strong>Pending strip</strong>
+          <span>Purposeful, editorial, and local to the week. It behaves like a workbench, not a toast.</span>
+        </div>
+        <div class="meta-item">
+          <strong>Copy fix</strong>
+          <span>“Where should this reschedule apply?” replaces the abstract, awkward phrasing in the current sheet.</span>
+        </div>
+        <div class="meta-item">
+          <strong>Default</strong>
+          <span><em>This week + following weeks</em> stays preselected to match current behaviour, but the wording is clearer.</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="phone-frame">
+      <div class="status-bar">
+        <span>9:41</span>
+        <div class="right">
+          <div class="signal">
+            <div style="height:3px"></div>
+            <div style="height:5px"></div>
+            <div style="height:7px"></div>
+            <div style="height:10px"></div>
+          </div>
+          <svg width="15" height="10" fill="none" viewBox="0 0 15 10" aria-hidden="true">
+            <rect x=".75" y=".75" width="12" height="8.5" rx="1.5" stroke="#1C1510" stroke-width="1.5"/>
+            <rect x="13.5" y="3" width="1.5" height="4" rx=".75" fill="#1C1510"/>
+            <rect x="2" y="2.25" width="8" height="5.5" rx=".75" fill="#1C1510"/>
+          </svg>
+        </div>
+      </div>
+
+      <section class="screen" style="overflow:hidden;">
+        <div class="content-area" style="padding-bottom: 210px;">
+          <div class="block-header">
+            <div class="goal-label">Goal race</div>
+            <div class="goal-title">San Sebastián Marathon</div>
+            <div class="goal-meta">
+              <span style="color:var(--clay);">Nov 22, 2026</span>
+              <span style="color:var(--muted);">18 weeks out</span>
+              <span style="color:var(--navy);">sub-3:30</span>
+            </div>
+          </div>
+
+          <div class="phase-strip-wrap">
+            <div class="phase-strip">
+              <div class="phase-segment" style="flex:4;background:rgba(27,58,107,0.66);">Base</div>
+              <div class="phase-segment current" style="flex:8;background:var(--clay);">Build</div>
+              <div class="phase-segment" style="flex:2;background:rgba(124,92,191,0.66);">Rec</div>
+              <div class="phase-segment" style="flex:2;background:rgba(212,136,42,0.66);">Peak</div>
+              <div class="phase-segment" style="flex:2;background:rgba(42,92,69,0.66);">Taper</div>
+            </div>
+            <div class="phase-caption"><strong>Current phase:</strong> Build. Week 6 of 8. Peak volume approaching.</div>
+          </div>
+
+          <div class="block-week expanded">
+            <div class="block-week-head">
+              <div class="week-left">
+                <div class="week-code current">W16</div>
+                <div class="week-tag">Build</div>
+              </div>
+              <div class="week-dots">
+                <div class="dot" style="background:var(--forest)"></div>
+                <div class="dot" style="background:var(--amber)"></div>
+                <div class="dot" style="background:var(--forest)"></div>
+                <div class="dot" style="background:var(--clay)"></div>
+                <div class="dot" style="background:var(--slate)"></div>
+                <div class="dot" style="background:var(--forest)"></div>
+                <div class="dot" style="background:var(--navy)"></div>
+              </div>
+              <div class="week-km" style="color:var(--clay);">72km</div>
+            </div>
+            <div class="week-progress"><div class="week-progress-fill" style="width:88%;background:var(--clay)"></div></div>
+
+            <div class="micro-guide"><strong>Tap</strong> any unchanged row to edit it. The moved rows stay marked until you apply the reschedule.</div>
+
+            <div class="expanded-days">
+              <div class="day-row">
+                <div class="day-col">
+                  <div class="day-name">Mon</div>
+                  <div class="day-date">Apr 7</div>
+                </div>
+                <div class="session-col">
+                  <div class="session-dot easy"></div>
+                  <div class="session-copy">
+                    <div class="session-label">Easy Run</div>
+                    <div class="session-detail">10km @ 5:28 /km</div>
+                  </div>
+                </div>
+                <div class="row-right">
+                  <div class="drag-handle"><div></div><div></div><div></div></div>
+                </div>
+              </div>
+
+              <div class="day-row pending soft">
+                <div class="day-col">
+                  <div class="day-name">Tue</div>
+                  <div class="day-date">Apr 8</div>
+                </div>
+                <div class="session-col">
+                  <div class="session-dot long"></div>
+                  <div class="session-copy">
+                    <div class="session-label">Long Run</div>
+                    <div class="session-detail">28km @ 5:08 /km</div>
+                  </div>
+                </div>
+                <div class="row-right">
+                  <div class="row-affordance moved">Moved</div>
+                  <div class="drag-handle"><div></div><div></div><div></div></div>
+                </div>
+              </div>
+
+              <div class="day-row">
+                <div class="day-col">
+                  <div class="day-name">Wed</div>
+                  <div class="day-date">Apr 9</div>
+                </div>
+                <div class="session-col">
+                  <div class="session-dot easy"></div>
+                  <div class="session-copy">
+                    <div class="session-label">Easy Run</div>
+                    <div class="session-detail">12km @ 5:25 /km</div>
+                  </div>
+                </div>
+                <div class="row-right">
+                  <div class="drag-handle"><div></div><div></div><div></div></div>
+                </div>
+              </div>
+
+              <div class="day-row pending">
+                <div class="day-col">
+                  <div class="day-name">Thu</div>
+                  <div class="day-date">Apr 10</div>
+                </div>
+                <div class="session-col">
+                  <div class="session-dot interval"></div>
+                  <div class="session-copy">
+                    <div class="session-label">Intervals</div>
+                    <div class="session-detail">5×2km @ 4:00 + 2min jog</div>
+                  </div>
+                </div>
+                <div class="row-right">
+                  <div class="row-affordance moved">Moved</div>
+                  <div class="drag-handle"><div></div><div></div><div></div></div>
+                </div>
+              </div>
+
+              <div class="day-row">
+                <div class="day-col">
+                  <div class="day-name">Fri</div>
+                  <div class="day-date">Apr 11</div>
+                </div>
+                <div class="session-col">
+                  <div class="session-dot rest"></div>
+                  <div class="session-copy">
+                    <div class="session-label">Rest day</div>
+                    <div class="session-detail">Held in place as the recovery gap</div>
+                  </div>
+                </div>
+                <div class="row-right">
+                  <div class="drag-handle"><div></div><div></div><div></div></div>
+                </div>
+              </div>
+
+              <div class="day-row">
+                <div class="day-col">
+                  <div class="day-name">Sat</div>
+                  <div class="day-date">Apr 12</div>
+                </div>
+                <div class="session-col">
+                  <div class="session-dot easy"></div>
+                  <div class="session-copy">
+                    <div class="session-label">Easy Run</div>
+                    <div class="session-detail">8km @ 5:36 /km</div>
+                  </div>
+                </div>
+                <div class="row-right">
+                  <div class="drag-handle"><div></div><div></div><div></div></div>
+                </div>
+              </div>
+
+              <div class="day-row">
+                <div class="day-col">
+                  <div class="day-name">Sun</div>
+                  <div class="day-date">Apr 13</div>
+                </div>
+                <div class="session-col">
+                  <div class="session-dot tempo"></div>
+                  <div class="session-copy">
+                    <div class="session-label">Tempo</div>
+                    <div class="session-detail">14km @ 4:24 /km</div>
+                  </div>
+                </div>
+                <div class="row-right">
+                  <div class="drag-handle"><div></div><div></div><div></div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pending-strip">
+              <div class="pending-copy">
+                <div class="pending-label">1 reschedule pending</div>
+                <div class="pending-text">Intervals moved to Thursday. Long run moved to Tuesday.</div>
+              </div>
+              <div class="pending-actions">
+                <div class="secondary-btn">Reset</div>
+                <div class="primary-btn">Apply reschedule</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sheet-scrim"></div>
+        <div class="bottom-sheet">
+          <div class="sheet-handle-wrap">
+            <div class="sheet-handle"></div>
+          </div>
+          <div class="sheet-title">Where should this reschedule apply?</div>
+          <div class="sheet-copy">
+            You’ve rearranged this week. Choose whether the new layout stays local or carries into the rest of the Build phase.
+          </div>
+
+          <div class="scope-list">
+            <div class="scope-option">
+              <div class="radio"></div>
+              <div class="scope-copy">
+                <div class="scope-title">Just this week</div>
+                <div class="scope-sub">Week 16 only</div>
+              </div>
+            </div>
+
+            <div class="scope-option selected">
+              <div class="radio"></div>
+              <div class="scope-copy">
+                <div class="scope-title">This week + following weeks</div>
+                <div class="scope-sub">Weeks 16–22</div>
+              </div>
+            </div>
+
+            <div class="scope-option">
+              <div class="radio"></div>
+              <div class="scope-copy">
+                <div class="scope-title">Build weeks only</div>
+                <div class="scope-sub">4 Build weeks in this plan</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sheet-cta">Apply reschedule</div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Direct Reschedule — Block Week Idle</title>
+  <link rel="stylesheet" href="./tokens.css">
+</head>
+<body>
+  <script>if (window.self !== window.top) document.body.classList.add('embedded');</script>
+  <div class="page">
+    <aside class="meta-rail">
+      <div class="meta-kicker">Direct Reschedule</div>
+      <h1 class="meta-title">Block editing happens inside the expanded week.</h1>
+      <p class="meta-copy">
+        The old button is gone. Reordering is now a property of the week rows themselves, while the rest of the block screen stays intact so orientation never breaks.
+      </p>
+      <div class="meta-list">
+        <div class="meta-item">
+          <strong>Shell preserved</strong>
+          <span>The goal race header, phase strip, weekly rows, and expanded day list remain recognisably Steady.</span>
+        </div>
+        <div class="meta-item">
+          <strong>Drag vs edit</strong>
+          <span>The row itself stays tappable for editing. The handle is the only explicit reorder affordance.</span>
+        </div>
+        <div class="meta-item">
+          <strong>Locked days</strong>
+          <span>Completed sessions stay non-draggable and visually inert.</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="phone-frame">
+      <div class="status-bar">
+        <span>9:41</span>
+        <div class="right">
+          <div class="signal">
+            <div style="height:3px"></div>
+            <div style="height:5px"></div>
+            <div style="height:7px"></div>
+            <div style="height:10px"></div>
+          </div>
+          <svg width="15" height="10" fill="none" viewBox="0 0 15 10" aria-hidden="true">
+            <rect x=".75" y=".75" width="12" height="8.5" rx="1.5" stroke="#1C1510" stroke-width="1.5"/>
+            <rect x="13.5" y="3" width="1.5" height="4" rx=".75" fill="#1C1510"/>
+            <rect x="2" y="2.25" width="8" height="5.5" rx=".75" fill="#1C1510"/>
+          </svg>
+        </div>
+      </div>
+
+      <section class="screen">
+        <div class="content-area" style="padding-bottom: 86px;">
+          <div class="block-header">
+            <div class="goal-label">Goal race</div>
+            <div class="goal-title">San Sebastián Marathon</div>
+            <div class="goal-meta">
+              <span style="color:var(--clay);">Nov 22, 2026</span>
+              <span style="color:var(--muted);">18 weeks out</span>
+              <span style="color:var(--navy);">sub-3:30</span>
+            </div>
+          </div>
+
+          <div class="phase-strip-wrap">
+            <div class="phase-strip">
+              <div class="phase-segment" style="flex:4;background:rgba(27,58,107,0.66);">Base</div>
+              <div class="phase-segment current" style="flex:8;background:var(--clay);">Build</div>
+              <div class="phase-segment" style="flex:2;background:rgba(124,92,191,0.66);">Rec</div>
+              <div class="phase-segment" style="flex:2;background:rgba(212,136,42,0.66);">Peak</div>
+              <div class="phase-segment" style="flex:2;background:rgba(42,92,69,0.66);">Taper</div>
+            </div>
+            <div class="phase-caption"><strong>Current phase:</strong> Build. Week 5 of 8. Peak volume approaching.</div>
+          </div>
+
+          <div class="block-list">
+            <div class="block-week past">
+              <div class="block-week-head">
+                <div class="week-left">
+                  <div class="week-code">W11</div>
+                </div>
+                <div class="week-dots">
+                  <div class="dot" style="background:var(--forest)"></div>
+                  <div class="dot" style="background:var(--clay)"></div>
+                  <div class="dot" style="background:var(--forest)"></div>
+                  <div class="dot" style="background:var(--amber)"></div>
+                  <div class="dot" style="background:var(--slate)"></div>
+                  <div class="dot" style="background:var(--forest)"></div>
+                  <div class="dot" style="background:var(--navy)"></div>
+                </div>
+                <div class="week-km">60 / 60km</div>
+              </div>
+              <div class="week-progress"><div class="week-progress-fill" style="width:100%;background:var(--forest)"></div></div>
+            </div>
+
+            <div class="block-week current">
+              <div class="block-week-head">
+                <div class="week-left">
+                  <div class="week-code current">W14</div>
+                  <div class="week-tag">Build</div>
+                </div>
+                <div class="week-dots">
+                  <div class="dot" style="background:var(--forest)"></div>
+                  <div class="dot" style="background:var(--clay)"></div>
+                  <div class="dot" style="background:var(--forest)"></div>
+                  <div class="dot" style="background:var(--amber)"></div>
+                  <div class="dot" style="background:var(--slate)"></div>
+                  <div class="dot" style="background:var(--border)"></div>
+                  <div class="dot" style="background:var(--border)"></div>
+                </div>
+                <div class="week-km" style="color:var(--clay);">31 / 67km</div>
+              </div>
+              <div class="week-progress"><div class="week-progress-fill" style="width:46%;background:var(--clay)"></div></div>
+            </div>
+
+            <div class="block-week expanded">
+              <div class="block-week-head">
+                <div class="week-left">
+                  <div class="week-code">W15</div>
+                  <div class="week-tag">Build</div>
+                </div>
+                <div class="week-dots">
+                  <div class="dot" style="background:var(--forest)"></div>
+                  <div class="dot" style="background:var(--clay)"></div>
+                  <div class="dot" style="background:var(--forest)"></div>
+                  <div class="dot" style="background:var(--amber)"></div>
+                  <div class="dot" style="background:var(--slate)"></div>
+                  <div class="dot" style="background:var(--forest)"></div>
+                  <div class="dot" style="background:var(--navy)"></div>
+                </div>
+                <div class="week-km">70km</div>
+              </div>
+              <div class="week-progress"><div class="week-progress-fill" style="width:82%;background:rgba(196,82,42,0.7)"></div></div>
+
+              <div class="micro-guide"><strong>Tap</strong> a day to adjust the session. Use the grip to reschedule it.</div>
+
+              <div class="expanded-days">
+                <div class="day-row">
+                  <div class="day-col">
+                    <div class="day-name">Mon</div>
+                    <div class="day-date">Mar 31</div>
+                  </div>
+                  <div class="session-col">
+                    <div class="session-dot easy"></div>
+                    <div class="session-copy">
+                      <div class="session-label">Easy Run</div>
+                      <div class="session-detail">8km @ 5:30 /km</div>
+                    </div>
+                  </div>
+                  <div class="row-right">
+                    <div class="drag-handle"><div></div><div></div><div></div></div>
+                  </div>
+                </div>
+
+                <div class="day-row">
+                  <div class="day-col">
+                    <div class="day-name">Tue</div>
+                    <div class="day-date">Apr 1</div>
+                  </div>
+                  <div class="session-col">
+                    <div class="session-dot interval"></div>
+                    <div class="session-copy">
+                      <div class="session-label">Intervals</div>
+                      <div class="session-detail">6×1km @ 3:58 + 90s jog</div>
+                    </div>
+                  </div>
+                  <div class="row-right">
+                    <div class="drag-handle"><div></div><div></div><div></div></div>
+                  </div>
+                </div>
+
+                <div class="day-row">
+                  <div class="day-col">
+                    <div class="day-name">Wed</div>
+                    <div class="day-date">Apr 2</div>
+                  </div>
+                  <div class="session-col">
+                    <div class="session-dot easy"></div>
+                    <div class="session-copy">
+                      <div class="session-label">Easy Run</div>
+                      <div class="session-detail">10km @ 5:26 /km</div>
+                    </div>
+                  </div>
+                  <div class="row-right">
+                    <div class="drag-handle"><div></div><div></div><div></div></div>
+                  </div>
+                </div>
+
+                <div class="day-row">
+                  <div class="day-col">
+                    <div class="day-name">Thu</div>
+                    <div class="day-date">Apr 3</div>
+                  </div>
+                  <div class="session-col">
+                    <div class="session-dot tempo"></div>
+                    <div class="session-copy">
+                      <div class="session-label">Tempo</div>
+                      <div class="session-detail">12km @ 4:28 /km</div>
+                    </div>
+                  </div>
+                  <div class="row-right">
+                    <div class="drag-handle"><div></div><div></div><div></div></div>
+                  </div>
+                </div>
+
+                <div class="day-row">
+                  <div class="day-col">
+                    <div class="day-name">Fri</div>
+                    <div class="day-date">Apr 4</div>
+                  </div>
+                  <div class="session-col">
+                    <div class="session-dot rest"></div>
+                    <div class="session-copy">
+                      <div class="session-label">Rest day</div>
+                      <div class="session-detail">Open recovery slot</div>
+                    </div>
+                  </div>
+                  <div class="row-right">
+                    <div class="drag-handle"><div></div><div></div><div></div></div>
+                  </div>
+                </div>
+
+                <div class="day-row locked">
+                  <div class="day-col">
+                    <div class="day-name">Sat</div>
+                    <div class="day-date">Apr 5</div>
+                  </div>
+                  <div class="session-col">
+                    <div class="session-dot easy"></div>
+                    <div class="session-copy">
+                      <div class="session-label">Easy Run</div>
+                      <div class="session-detail">10km completed</div>
+                    </div>
+                  </div>
+                  <div class="row-right">
+                    <div class="status-chip">✓ Logged</div>
+                    <div class="drag-handle disabled"><div></div><div></div><div></div></div>
+                  </div>
+                </div>
+
+                <div class="day-row">
+                  <div class="day-col">
+                    <div class="day-name">Sun</div>
+                    <div class="day-date">Apr 6</div>
+                  </div>
+                  <div class="session-col">
+                    <div class="session-dot long"></div>
+                    <div class="session-copy">
+                      <div class="session-label">Long Run</div>
+                      <div class="session-detail">30km @ 5:05 /km</div>
+                    </div>
+                  </div>
+                  <div class="row-right">
+                    <div class="drag-handle"><div></div><div></div><div></div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-bar">
+          <div class="tab">
+            <div class="tab-icon week"></div>
+            <span>Week</span>
+          </div>
+          <div class="tab active">
+            <div class="tab-icon block"></div>
+            <span>Block</span>
+          </div>
+          <div class="tab">
+            <div class="tab-icon settings"></div>
+            <span>Settings</span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

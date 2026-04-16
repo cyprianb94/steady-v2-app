@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>01 · Plan Builder Step 2 — chooser</title>
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  .starter-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 18px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow-soft);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .starter-card.recommended {
+    border-color: rgba(196, 82, 42, 0.22);
+  }
+
+  .starter-card.recommended::before,
+  .starter-card.clean::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    border-radius: 20px 0 0 20px;
+  }
+
+  .starter-card.recommended::before { background: var(--clay); }
+  .starter-card.clean::before { background: rgba(154, 142, 126, 0.28); }
+
+  .starter-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    align-items: flex-start;
+    margin-bottom: 14px;
+  }
+
+  .starter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: var(--radius-pill);
+    padding: 5px 10px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+  }
+
+  .starter-chip.recommended {
+    background: var(--clay-bg);
+    color: var(--clay);
+  }
+
+  .starter-chip.clean {
+    background: rgba(154, 142, 126, 0.1);
+    color: var(--muted);
+  }
+
+  .starter-volume {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  .starter-title {
+    font-family: var(--serif);
+    font-size: 22px;
+    line-height: 1.08;
+    color: var(--ink);
+    margin-bottom: 6px;
+  }
+
+  .starter-copy {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink2);
+    margin-bottom: 14px;
+    max-width: 290px;
+  }
+
+  .mini-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .mini-cell {
+    background: rgba(244, 239, 230, 0.75);
+    border: 1px solid rgba(229, 221, 208, 0.95);
+    border-radius: 12px;
+    padding: 10px 11px;
+    min-height: 56px;
+  }
+
+  .mini-cell.template.easy { background: var(--forest-bg); border-color: rgba(42, 92, 69, 0.16); }
+  .mini-cell.template.interval { background: var(--clay-bg); border-color: rgba(196, 82, 42, 0.16); }
+  .mini-cell.template.tempo { background: var(--amber-bg); border-color: rgba(212, 136, 42, 0.18); }
+  .mini-cell.template.long { background: var(--navy-bg); border-color: rgba(27, 58, 107, 0.16); }
+  .mini-cell.template.rest { background: rgba(244, 239, 230, 0.7); }
+
+  .mini-day {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 7px;
+  }
+
+  .mini-main {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.2;
+  }
+
+  .mini-sub {
+    margin-top: 3px;
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .blank-preview {
+    min-height: 118px;
+    border-radius: 16px;
+    border: 1.5px dashed rgba(229, 221, 208, 0.95);
+    background:
+      linear-gradient(180deg, rgba(253, 250, 245, 0.92), rgba(244, 239, 230, 0.66));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+    padding: 18px;
+  }
+
+  .blank-preview-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    text-align: center;
+  }
+
+  .blank-mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    border: 1px solid rgba(154, 142, 126, 0.22);
+    background: rgba(253, 250, 245, 0.84);
+    box-shadow: 0 10px 20px -18px rgba(28, 21, 16, 0.34);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: var(--muted);
+  }
+
+  .blank-title {
+    font-family: var(--serif);
+    font-size: 18px;
+    line-height: 1;
+    color: var(--ink2);
+  }
+
+  .blank-copy {
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--muted);
+    max-width: 190px;
+  }
+
+  .starter-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .starter-foot.compact {
+    justify-content: flex-end;
+  }
+
+  .starter-note {
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--muted);
+    max-width: 170px;
+  }
+
+  .inline-btn {
+    min-width: 126px;
+    min-height: 46px;
+    border-radius: var(--radius-pill);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 18px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .inline-btn.primary {
+    background: var(--clay);
+    color: var(--surface);
+    border: 1.5px solid var(--clay);
+  }
+
+  .inline-btn.secondary {
+    background: var(--surface);
+    color: var(--ink);
+    border: 1.5px solid var(--border);
+  }
+</style>
+</head>
+<body>
+<script>
+if (window.self !== window.top) document.body.classList.add('embedded');
+
+window.addEventListener('load', () => {
+  const hash = window.location.hash;
+  if (!hash) return;
+  const target = document.querySelector(hash);
+  const scroll = document.querySelector('.scroll');
+  if (!target || !scroll) return;
+  scroll.scrollTop = Math.max(0, target.offsetTop - 18);
+});
+</script>
+
+<div class="phone-wrap">
+  <span class="frame-label">01 · STEP 2 — CHOOSER</span>
+  <div class="phone">
+    <div class="status-bar">
+      <span>00:06</span>
+      <div class="status-icons">
+        <div class="signal"><span></span><span></span><span></span><span></span></div>
+        <div class="wifi"></div>
+        <div class="battery"></div>
+      </div>
+    </div>
+
+    <div class="screen">
+      <div class="scroll">
+        <div class="step">STEP 2 OF 3</div>
+        <div class="screen-title">Design your week</div>
+        <div class="subtitle">Start from a recommended base or build your own week from scratch. Each day will be editable and movable in the next step.</div>
+
+        <section class="starter-card recommended" id="template-option">
+          <div class="starter-head">
+            <div></div>
+            <div class="starter-volume">~70.4 km / week</div>
+          </div>
+
+          <div class="starter-title">Steady template</div>
+          <div class="starter-copy">Balanced base week for most runners, with one workout, one tempo, one long run and enough easy volume to recover.</div>
+
+          <div class="mini-grid">
+            <div class="mini-cell template easy">
+              <div class="mini-day">Mon</div>
+              <div class="mini-main">8km @ 5:20</div>
+              <div class="mini-sub">Easy</div>
+            </div>
+            <div class="mini-cell template interval">
+              <div class="mini-day">Tue</div>
+              <div class="mini-main">6×800m</div>
+              <div class="mini-sub">Intervals</div>
+            </div>
+            <div class="mini-cell template easy">
+              <div class="mini-day">Wed</div>
+              <div class="mini-main">8km @ 5:30</div>
+              <div class="mini-sub">Easy</div>
+            </div>
+            <div class="mini-cell template tempo">
+              <div class="mini-day">Thu</div>
+              <div class="mini-main">10km @ 4:20</div>
+              <div class="mini-sub">Tempo</div>
+            </div>
+            <div class="mini-cell template rest">
+              <div class="mini-day">Fri</div>
+              <div class="mini-main">Rest day</div>
+              <div class="mini-sub">Reset</div>
+            </div>
+            <div class="mini-cell template easy">
+              <div class="mini-day">Sat</div>
+              <div class="mini-main">12km @ 5:20</div>
+              <div class="mini-sub">Easy</div>
+            </div>
+            <div class="mini-cell template long" style="grid-column: 1 / -1;">
+              <div class="mini-day">Sun</div>
+              <div class="mini-main">20km @ 5:10</div>
+              <div class="mini-sub">Long run</div>
+            </div>
+          </div>
+
+          <div class="starter-foot compact">
+            <div class="inline-btn primary">Use template</div>
+          </div>
+        </section>
+
+        <section class="starter-card clean" id="clean-option">
+          <div class="starter-head">
+            <div>
+              <div class="starter-chip clean">Blank week</div>
+            </div>
+            <div class="starter-volume" style="color: var(--muted);">~0 km / week</div>
+          </div>
+
+          <div class="starter-title">Start clean</div>
+          <div class="starter-copy">Empty week. Design it as you want.</div>
+
+          <div class="blank-preview">
+            <div class="blank-preview-inner">
+              <div class="blank-mark">+</div>
+              <div class="blank-title">Blank canvas</div>
+              <div class="blank-copy">No sessions prefilled. Build the week from zero.</div>
+            </div>
+          </div>
+
+          <div class="starter-foot">
+            <div class="starter-note">Best if your week changes often or you want total control from day one.</div>
+            <div class="inline-btn secondary">Start clean</div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

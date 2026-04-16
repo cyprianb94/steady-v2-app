@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>02 · Plan Builder Step 2 — template selected</title>
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  .layout-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    padding: 14px 14px 14px 16px;
+    margin-bottom: 12px;
+  }
+
+  .layout-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .layout-copy {
+    margin-top: 3px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .rearrange-btn {
+    min-width: 104px;
+    min-height: 42px;
+    border-radius: var(--radius-inner);
+    border: 1.5px solid rgba(196, 82, 42, 0.28);
+    background: var(--clay-bg);
+    color: var(--clay);
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .day-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 14px;
+    border-radius: 18px;
+    border: 1.5px solid var(--border);
+    margin-bottom: 10px;
+    box-shadow: var(--shadow-soft);
+  }
+
+  .day-card.easy { background: var(--forest-bg); border-color: rgba(42, 92, 69, 0.24); }
+  .day-card.interval { background: var(--clay-bg); border-color: rgba(196, 82, 42, 0.26); }
+  .day-card.tempo { background: var(--amber-bg); border-color: rgba(212, 136, 42, 0.26); }
+  .day-card.long { background: var(--navy-bg); border-color: rgba(27, 58, 107, 0.2); }
+  .day-card.rest { background: rgba(253, 250, 245, 0.76); }
+
+  .day-col {
+    width: 44px;
+    flex-shrink: 0;
+  }
+
+  .day-name {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+
+  .day-card.easy .day-name { color: var(--forest); }
+  .day-card.interval .day-name { color: var(--clay); }
+  .day-card.tempo .day-name { color: var(--amber); }
+  .day-card.long .day-name { color: var(--navy); }
+  .day-card.rest .day-name { color: var(--muted); }
+
+  .session-col {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .session-main {
+    font-size: 15px;
+    line-height: 1.15;
+    font-weight: 500;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .session-sub {
+    margin-top: 5px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .rest-main {
+    font-size: 15px;
+    color: var(--muted);
+  }
+
+  .row-icon {
+    flex-shrink: 0;
+    font-size: 18px;
+    color: rgba(154, 142, 126, 0.88);
+  }
+</style>
+</head>
+<body>
+<script>if (window.self !== window.top) document.body.classList.add('embedded');</script>
+
+<div class="phone-wrap">
+  <span class="frame-label">02 · STEP 2 — TEMPLATE SELECTED</span>
+  <div class="phone">
+    <div class="status-bar">
+      <span>00:06</span>
+      <div class="status-icons">
+        <div class="signal"><span></span><span></span><span></span><span></span></div>
+        <div class="wifi"></div>
+        <div class="battery"></div>
+      </div>
+    </div>
+
+    <div class="screen">
+      <div class="scroll">
+        <div class="step">STEP 2 OF 3</div>
+        <div class="screen-title">Design your week</div>
+        <div class="subtitle">This pattern repeats across all 32 weeks. Tap any day to adjust.</div>
+
+        <div class="summary-strip">
+          <div>
+            <div class="summary-eyebrow">Starting point</div>
+            <div class="summary-title">Steady template · balanced week</div>
+            <div class="summary-meta">Recommended base · ~70.4 km / week</div>
+          </div>
+          <div class="summary-link">Change</div>
+        </div>
+
+        <div class="layout-card">
+          <div>
+            <div class="layout-title">Weekly layout</div>
+            <div class="layout-copy">Move sessions between days before generating.</div>
+          </div>
+          <div class="rearrange-btn">Rearrange</div>
+        </div>
+
+        <div class="day-card easy">
+          <div class="day-col"><div class="day-name">Mon</div></div>
+          <div class="session-col">
+            <div class="session-main">8km @ 5:20</div>
+            <div class="session-sub">Easy Run</div>
+          </div>
+          <div class="row-icon">›</div>
+        </div>
+
+        <div class="day-card interval">
+          <div class="day-col"><div class="day-name">Tue</div></div>
+          <div class="session-col">
+            <div class="session-main">6×800m @ 3:50</div>
+            <div class="session-sub">Intervals</div>
+          </div>
+          <div class="row-icon">›</div>
+        </div>
+
+        <div class="day-card easy">
+          <div class="day-col"><div class="day-name">Wed</div></div>
+          <div class="session-col">
+            <div class="session-main">8km @ 5:30</div>
+            <div class="session-sub">Easy Run</div>
+          </div>
+          <div class="row-icon">›</div>
+        </div>
+
+        <div class="day-card tempo">
+          <div class="day-col"><div class="day-name">Thu</div></div>
+          <div class="session-col">
+            <div class="session-main">10km @ 4:20</div>
+            <div class="session-sub">Tempo</div>
+          </div>
+          <div class="row-icon">›</div>
+        </div>
+
+        <div class="day-card rest">
+          <div class="day-col"><div class="day-name">Fri</div></div>
+          <div class="session-col">
+            <div class="rest-main">Rest day</div>
+          </div>
+          <div class="row-icon">+</div>
+        </div>
+
+        <div class="day-card easy">
+          <div class="day-col"><div class="day-name">Sat</div></div>
+          <div class="session-col">
+            <div class="session-main">12km @ 5:20</div>
+            <div class="session-sub">Easy Run</div>
+          </div>
+          <div class="row-icon">›</div>
+        </div>
+
+        <div class="day-card long">
+          <div class="day-col"><div class="day-name">Sun</div></div>
+          <div class="session-col">
+            <div class="session-main">20km @ 5:10</div>
+            <div class="session-sub">Long Run</div>
+          </div>
+          <div class="row-icon">›</div>
+        </div>
+
+        <div class="volume-card">
+          <div class="volume-label">Template volume</div>
+          <div class="volume-value">~70.4 km / week</div>
+        </div>
+        <div class="volume-note">Includes warm-up, cool-down and recovery jogs between reps.</div>
+      </div>
+
+      <div class="footer">
+        <div class="cta">Generate 32-week plan →</div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

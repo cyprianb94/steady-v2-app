@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>03 · Plan Builder Step 2 — clean selected</title>
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  .empty-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 14px;
+    border-radius: 18px;
+    border: 1.5px solid var(--border);
+    background: rgba(253, 250, 245, 0.9);
+    margin-bottom: 10px;
+    box-shadow: var(--shadow-soft);
+  }
+
+  .empty-day {
+    width: 44px;
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.3px;
+  }
+
+  .empty-copy {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .empty-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink2);
+  }
+
+  .empty-sub {
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .add-action {
+    flex-shrink: 0;
+    min-width: 74px;
+    min-height: 34px;
+    padding: 0 12px;
+    border-radius: var(--radius-pill);
+    border: 1px solid rgba(229, 221, 208, 0.95);
+    background: rgba(244, 239, 230, 0.95);
+    color: var(--ink2);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .add-action .plus {
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(154, 142, 126, 0.34);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<script>if (window.self !== window.top) document.body.classList.add('embedded');</script>
+
+<div class="phone-wrap">
+  <span class="frame-label">03 · STEP 2 — CLEAN SLATE</span>
+  <div class="phone">
+    <div class="status-bar">
+      <span>00:06</span>
+      <div class="status-icons">
+        <div class="signal"><span></span><span></span><span></span><span></span></div>
+        <div class="wifi"></div>
+        <div class="battery"></div>
+      </div>
+    </div>
+
+    <div class="screen">
+      <div class="scroll">
+        <div class="step">STEP 2 OF 3</div>
+        <div class="screen-title">Design your week</div>
+        <div class="subtitle">Build a week from scratch and add only the sessions you know you can support.</div>
+
+        <div class="summary-strip">
+          <div>
+            <div class="summary-eyebrow">Starting point</div>
+            <div class="summary-title">Clean slate · empty week</div>
+            <div class="summary-meta">No assumptions · add your own structure</div>
+          </div>
+          <div class="summary-link">Change</div>
+        </div>
+
+        <div class="coach-card">
+          <div class="coach-dot"></div>
+          <div class="coach-copy"><strong>Steady</strong> — Start simple. Add the sessions you can recover from every week, then build from there. Rest day is always an option inside the editor.</div>
+        </div>
+
+        <div class="empty-row">
+          <div class="empty-day">Mon</div>
+          <div class="empty-copy">
+            <div class="empty-title">Empty day</div>
+            <div class="empty-sub">Add a run, workout or rest choice.</div>
+          </div>
+          <div class="add-action"><span class="plus">+</span> Add</div>
+        </div>
+
+        <div class="empty-row">
+          <div class="empty-day">Tue</div>
+          <div class="empty-copy">
+            <div class="empty-title">Empty day</div>
+            <div class="empty-sub">No session assigned yet.</div>
+          </div>
+          <div class="add-action"><span class="plus">+</span> Add</div>
+        </div>
+
+        <div class="empty-row">
+          <div class="empty-day">Wed</div>
+          <div class="empty-copy">
+            <div class="empty-title">Empty day</div>
+            <div class="empty-sub">No session assigned yet.</div>
+          </div>
+          <div class="add-action"><span class="plus">+</span> Add</div>
+        </div>
+
+        <div class="empty-row">
+          <div class="empty-day">Thu</div>
+          <div class="empty-copy">
+            <div class="empty-title">Empty day</div>
+            <div class="empty-sub">No session assigned yet.</div>
+          </div>
+          <div class="add-action"><span class="plus">+</span> Add</div>
+        </div>
+
+        <div class="empty-row">
+          <div class="empty-day">Fri</div>
+          <div class="empty-copy">
+            <div class="empty-title">Empty day</div>
+            <div class="empty-sub">No session assigned yet.</div>
+          </div>
+          <div class="add-action"><span class="plus">+</span> Add</div>
+        </div>
+
+        <div class="empty-row">
+          <div class="empty-day">Sat</div>
+          <div class="empty-copy">
+            <div class="empty-title">Empty day</div>
+            <div class="empty-sub">No session assigned yet.</div>
+          </div>
+          <div class="add-action"><span class="plus">+</span> Add</div>
+        </div>
+
+        <div class="empty-row">
+          <div class="empty-day">Sun</div>
+          <div class="empty-copy">
+            <div class="empty-title">Empty day</div>
+            <div class="empty-sub">No session assigned yet.</div>
+          </div>
+          <div class="add-action"><span class="plus">+</span> Add</div>
+        </div>
+
+        <div class="volume-card">
+          <div class="volume-label">Template volume</div>
+          <div class="volume-value">~0 km / week</div>
+        </div>
+        <div class="volume-note">Add your first session to continue. Rearranging becomes useful once the week has shape.</div>
+      </div>
+
+      <div class="footer">
+        <div class="cta disabled">Generate 32-week plan →</div>
+        <div class="helper">Add your first session to continue.</div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
