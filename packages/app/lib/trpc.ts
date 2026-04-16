@@ -63,20 +63,43 @@ const getBaseUrl = () => {
   return 'http://localhost:3000';
 };
 
-const trpcBaseUrl = `${getBaseUrl()}/trpc`;
+function createAppTrpcClient() {
+  const trpcBaseUrl = `${getBaseUrl()}/trpc`;
 
-export const trpc = createTRPCClient<AppRouter>({
-  links: [
-    httpBatchLink({
-      url: trpcBaseUrl,
-      headers: async () => {
-        const accessToken = getAccessToken();
-        if (!accessToken) return {};
+  return createTRPCClient<AppRouter>({
+    links: [
+      httpBatchLink({
+        url: trpcBaseUrl,
+        headers: async () => {
+          const accessToken = getAccessToken();
+          if (!accessToken) return {};
 
-        return {
-          authorization: `Bearer ${accessToken}`,
-        };
-      },
-    }),
-  ],
+          return {
+            authorization: `Bearer ${accessToken}`,
+          };
+        },
+      }),
+    ],
+  });
+}
+
+type AppTrpcClient = ReturnType<typeof createAppTrpcClient>;
+
+let client: AppTrpcClient | null = null;
+
+function getTrpcClient(): AppTrpcClient {
+  if (client) {
+    return client;
+  }
+
+  client = createAppTrpcClient();
+  return client;
+}
+
+// Keep the screen-facing import stable while deferring Expo/env setup
+// until the first real tRPC call.
+export const trpc = new Proxy({} as AppTrpcClient, {
+  get(_target, property) {
+    return Reflect.get(getTrpcClient(), property);
+  },
 });

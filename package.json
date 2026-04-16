@@ -8,7 +8,8 @@
     "packages/app"
   ],
   "scripts": {
-    "test": "npm run build:types && npm run test --workspaces --if-present",
+    "test": "npm run test:boundaries && npm run build:types && npm run test --workspaces --if-present",
+    "test:boundaries": "node ./scripts/check-package-boundaries.mjs",
     "test:server": "npm run build:types && npm run test -w packages/server",
     "dev:server": "npm run dev -w packages/server",
     "dev:app": "npm run start -w packages/app",
