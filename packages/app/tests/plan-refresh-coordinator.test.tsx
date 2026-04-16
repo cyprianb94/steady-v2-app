@@ -34,6 +34,7 @@ describe('usePlanRefreshCoordinator', () => {
     await waitFor(() => {
       expect(requestAutoSync).toHaveBeenCalledTimes(1);
     });
+    expect(refreshPlan).not.toHaveBeenCalled();
   });
 
   it('refreshes once for each new sync revision', async () => {

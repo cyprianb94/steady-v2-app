@@ -39,7 +39,86 @@ vi.mock('../lib/resume-week', () => ({
   setResumeWeekOverride: mockSetResumeWeekOverride,
 }));
 
-import { useRecoveryActionController } from '../features/recovery/use-recovery-action-controller';
+import {
+  advanceRecoveryStep,
+  endRecovery,
+  useRecoveryActionController,
+} from '../features/recovery/use-recovery-action-controller';
+
+const activeInjury = {
+  name: 'Calf strain',
+  markedDate: '2026-04-15',
+  rtrStep: 3,
+  rtrStepCompletedDates: ['2026-04-15', '2026-04-17', '2026-04-19'],
+  status: 'returning' as const,
+};
+
+describe('recovery action helpers', () => {
+  it('advances return-to-running and refreshes the plan', async () => {
+    const updateInjury = vi.fn().mockResolvedValue(null);
+    const refreshPlan = vi.fn().mockResolvedValue(undefined);
+
+    await advanceRecoveryStep({
+      activeInjury,
+      today: '2026-04-21',
+      updateInjury,
+      refreshPlan,
+    });
+
+    expect(updateInjury).toHaveBeenCalledWith({
+      rtrStep: 4,
+      rtrStepCompletedDates: ['2026-04-15', '2026-04-17', '2026-04-19', '2026-04-21'],
+      status: 'returning',
+    });
+    expect(refreshPlan).toHaveBeenCalledTimes(1);
+  });
+
+  it('persists the resume week, completes the final step, and clears injury when asked', async () => {
+    const updateInjury = vi.fn().mockResolvedValue(null);
+    const clearInjury = vi.fn().mockResolvedValue(null);
+    const refreshPlan = vi.fn().mockResolvedValue(undefined);
+
+    await endRecovery({
+      planId: 'plan-1',
+      option: { type: 'choose', weekNumber: 8 },
+      activeInjury,
+      completeCurrentStep: true,
+      today: '2026-04-21',
+      updateInjury,
+      clearInjury,
+      refreshPlan,
+    });
+
+    expect(mockSetResumeWeekOverride).toHaveBeenCalledWith('plan-1', 8);
+    expect(updateInjury).toHaveBeenCalledWith({
+      rtrStep: 4,
+      rtrStepCompletedDates: ['2026-04-15', '2026-04-17', '2026-04-19', '2026-04-21'],
+      status: 'returning',
+    });
+    expect(clearInjury).toHaveBeenCalledTimes(1);
+    expect(refreshPlan).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears recovery without mutating the RTR step for manual exits', async () => {
+    const updateInjury = vi.fn().mockResolvedValue(null);
+    const clearInjury = vi.fn().mockResolvedValue(null);
+    const refreshPlan = vi.fn().mockResolvedValue(undefined);
+
+    await endRecovery({
+      planId: 'plan-1',
+      option: { type: 'current' },
+      clearInjury,
+      refreshPlan,
+      activeInjury,
+      updateInjury,
+    });
+
+    expect(mockClearResumeWeekOverride).toHaveBeenCalledWith('plan-1');
+    expect(updateInjury).not.toHaveBeenCalled();
+    expect(clearInjury).toHaveBeenCalledTimes(1);
+    expect(refreshPlan).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe('useRecoveryActionController', () => {
   const refreshPlan = vi.fn();
@@ -71,13 +150,7 @@ describe('useRecoveryActionController', () => {
     const { result } = renderHook(() =>
       useRecoveryActionController({
         planId: 'plan-1',
-        activeInjury: {
-          name: 'Calf strain',
-          markedDate: '2026-04-15',
-          rtrStep: 3,
-          rtrStepCompletedDates: ['2026-04-15', '2026-04-17', '2026-04-19'],
-          status: 'returning',
-        },
+        activeInjury,
         today: '2026-04-21',
         refreshPlan,
       }),
@@ -95,11 +168,9 @@ describe('useRecoveryActionController', () => {
       useRecoveryActionController({
         planId: 'plan-1',
         activeInjury: {
-          name: 'Calf strain',
-          markedDate: '2026-04-15',
+          ...activeInjury,
           rtrStep: 1,
           rtrStepCompletedDates: [],
-          status: 'returning',
         },
         today: '2026-04-21',
         refreshPlan,
@@ -127,13 +198,7 @@ describe('useRecoveryActionController', () => {
     const { result } = renderHook(() =>
       useRecoveryActionController({
         planId: 'plan-1',
-        activeInjury: {
-          name: 'Calf strain',
-          markedDate: '2026-04-15',
-          rtrStep: 3,
-          rtrStepCompletedDates: ['2026-04-15', '2026-04-17', '2026-04-19'],
-          status: 'returning',
-        },
+        activeInjury,
         today: '2026-04-21',
         refreshPlan,
       }),
