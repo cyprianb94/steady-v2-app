@@ -24,9 +24,9 @@ describe('trpc boundary', () => {
     createTRPCClientMock.mockClear();
     httpBatchLinkMock.mockClear();
 
-    Constants.expoConfig = {};
-    Constants.manifest = {};
-    Constants.manifest2 = {};
+    Reflect.set(Constants, 'expoConfig', {});
+    Reflect.set(Constants, 'manifest', {});
+    Reflect.set(Constants, 'manifest2', {});
     vi.mocked(Linking.createURL).mockImplementation((path = '/') => {
       const normalizedPath = path.replace(/^\/+/, '');
       return normalizedPath ? `steady://${normalizedPath}` : 'steady://';
