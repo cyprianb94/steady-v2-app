@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, StyleSheet, Alert, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, StyleSheet, RefreshControl } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { router } from 'expo-router';
-import { type Activity, type CrossTrainingEntry, type PlannedSession } from '@steady/types';
+import { type PlannedSession } from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { usePlan } from '../../hooks/usePlan';
@@ -19,9 +19,10 @@ import { CrossTrainingLog } from '../../components/recovery/CrossTrainingLog';
 import { RecoveryFlowModal } from '../../components/recovery/RecoveryFlowModal';
 import { ReturnToRunning } from '../../components/recovery/ReturnToRunning';
 import { SessionDetailSheet } from '../../components/home/SessionDetailSheet';
-import { trpc } from '../../lib/trpc';
-import { usePlanScreenSync } from './plan-screen-sync';
-import { advanceRecoveryStep, endRecovery } from './recovery-actions';
+import { useActivityResolution } from '../../features/run/use-activity-resolution';
+import { useRecoveryData } from '../../features/recovery/use-recovery-data';
+import { useRecoveryActionController } from '../../features/recovery/use-recovery-action-controller';
+import { usePlanRefreshCoordinator } from '../../features/sync/use-plan-refresh-coordinator';
 
 export default function WeekTab() {
   const isFocused = useIsFocused();
@@ -29,103 +30,41 @@ export default function WeekTab() {
   const { plan, loading, currentWeekIndex, refresh } = usePlan();
   const { requestAutoSync, forceSync, syncRevision, syncing } = useStravaSync();
   const [weekOffset, setWeekOffset] = useState(0);
-  const [isSavingGoal, setIsSavingGoal] = useState(false);
-  const [crossTrainingEntries, setCrossTrainingEntries] = useState<CrossTrainingEntry[]>([]);
-  const [isLoadingCrossTraining, setIsLoadingCrossTraining] = useState(false);
-  const [isSavingCrossTraining, setIsSavingCrossTraining] = useState(false);
-  const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
-  const [isUpdatingRtr, setIsUpdatingRtr] = useState(false);
   const [showResumeModal, setShowResumeModal] = useState(false);
-  const [activities, setActivities] = useState<Activity[]>([]);
   const [selectedSession, setSelectedSession] = useState<PlannedSession | null>(null);
   const today = useTodayIso();
   const weekIdx = plan
     ? Math.min(Math.max(currentWeekIndex + weekOffset, 0), Math.max(plan.weeks.length - 1, 0))
     : 0;
   const week = plan?.weeks[weekIdx] ?? null;
-  const activeInjury =
-    plan?.activeInjury && plan.activeInjury.status !== 'resolved' ? plan.activeInjury : null;
-  const weekStartDate = week ? inferWeekStartDate(week, today) : today;
-  const activitiesById = useMemo(() => {
-    return new Map(activities.map((a) => [a.id, a]));
-  }, [activities]);
-
-  const activitiesByMatchedSessionId = useMemo(() => {
-    return new Map(
-      activities
-        .filter((a) => Boolean(a.matchedSessionId))
-        .map((a) => [a.matchedSessionId!, a]),
-    );
-  }, [activities]);
-
-  function activityForSession(s: { id: string; actualActivityId?: string } | null): Activity | undefined {
-    if (!s) return undefined;
-    if (s.actualActivityId) return activitiesById.get(s.actualActivityId);
-    return activitiesByMatchedSessionId.get(s.id);
-  }
-
-  const selectedActivity = activityForSession(selectedSession) ?? null;
-
-  useEffect(() => {
-    if (!plan || !session || !isFocused) {
-      setActivities([]);
-      return;
-    }
-
-    let cancelled = false;
-
-    async function fetchActivities() {
-      try {
-        const nextActivities = await trpc.activity.list.query();
-        if (!cancelled) {
-          setActivities(nextActivities);
-        }
-      } catch (error) {
-        console.error('Failed to fetch activities for week view:', error);
-        if (!cancelled) {
-          setActivities([]);
-        }
-      }
-    }
-
-    fetchActivities();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isFocused, plan?.id, session, syncRevision]);
-
-  useEffect(() => {
-    if (!session || !plan || !week || !activeInjury || !isFocused) {
-      setCrossTrainingEntries([]);
-      setIsLoadingCrossTraining(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    async function fetchCrossTraining() {
-      try {
-        setIsLoadingCrossTraining(true);
-        const entries = await trpc.crossTraining.getForWeek.query({ weekStartDate });
-        if (!cancelled) {
-          setCrossTrainingEntries(entries);
-        }
-      } catch (error) {
-        console.error('Failed to fetch cross-training entries:', error);
-      } finally {
-        if (!cancelled) {
-          setIsLoadingCrossTraining(false);
-        }
-      }
-    }
-
-    fetchCrossTraining();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeInjury, isFocused, plan, session, week, weekStartDate]);
+  const weekStartDate = week ? inferWeekStartDate(week, today) : null;
+  const activityResolution = useActivityResolution({
+    enabled: Boolean(session),
+    isFocused,
+    planId: plan?.id,
+    syncRevision,
+    fetchErrorMessage: 'Failed to fetch activities for week view:',
+  });
+  const recoveryScope = useMemo(
+    () => (weekStartDate ? { type: 'week' as const, weekStartDate } : null),
+    [weekStartDate],
+  );
+  const recoveryData = useRecoveryData({
+    plan,
+    enabled: Boolean(session),
+    isFocused,
+    scope: recoveryScope,
+    fetchErrorMessage: 'Failed to fetch cross-training entries:',
+  });
+  const { activeInjury } = recoveryData;
+  const recoveryController = useRecoveryActionController({
+    planId: plan?.id,
+    activeInjury,
+    today,
+    refreshPlan: refresh,
+    refreshCrossTraining: recoveryData.refreshEntries,
+  });
+  const selectedActivity = activityResolution.activityForSession(selectedSession) ?? null;
 
   useEffect(() => {
     if (!activeInjury) {
@@ -133,14 +72,16 @@ export default function WeekTab() {
     }
   }, [activeInjury, plan?.id]);
 
-  usePlanScreenSync({
+  const { refreshManually } = usePlanRefreshCoordinator({
     enabled: Boolean(session),
     isFocused,
     requestAutoSync,
-    refresh,
+    forceSync,
+    refreshPlan: refresh,
     syncRevision,
     autoSyncErrorMessage: 'Failed to auto-sync Strava on week focus:',
-    refreshErrorMessage: 'Failed to refresh week plan after Strava sync:',
+    syncRefreshErrorMessage: 'Failed to refresh week plan after Strava sync:',
+    manualRefreshErrorMessage: 'Failed to refresh week screen:',
   });
 
   if (authLoading || loading) {
@@ -199,106 +140,21 @@ export default function WeekTab() {
   }
 
   const maxKm = Math.max(...plan.weeks.map((w) => w.plannedKm), 1);
-
-  async function handleSaveReassessedTarget(value: string) {
-    try {
-      setIsSavingGoal(true);
-      await trpc.plan.updateInjury.mutate({ reassessedTarget: value });
-      await refresh();
-    } catch (error) {
-      console.error('Failed to update reassessed target:', error);
-      Alert.alert('Could not update goal', 'Please try again in a moment.');
-    } finally {
-      setIsSavingGoal(false);
-    }
-  }
-
-  async function refreshCrossTraining() {
-    const entries = await trpc.crossTraining.getForWeek.query({ weekStartDate });
-    setCrossTrainingEntries(entries);
-  }
-
-  async function handleAddCrossTraining(input: {
-    date: string;
-    type: CrossTrainingEntry['type'];
-    durationMinutes: number;
-  }) {
-    try {
-      setIsSavingCrossTraining(true);
-      await trpc.crossTraining.log.mutate(input);
-      await refreshCrossTraining();
-    } catch (error) {
-      console.error('Failed to save cross-training entry:', error);
-      Alert.alert('Could not save entry', 'Please try again in a moment.');
-    } finally {
-      setIsSavingCrossTraining(false);
-    }
-  }
-
-  async function handleDeleteCrossTraining(id: string) {
-    try {
-      setDeletingEntryId(id);
-      await trpc.crossTraining.delete.mutate({ id });
-      await refreshCrossTraining();
-    } catch (error) {
-      console.error('Failed to delete cross-training entry:', error);
-      Alert.alert('Could not delete entry', 'Please try again in a moment.');
-    } finally {
-      setDeletingEntryId(null);
-    }
-  }
-
   async function handleMarkRtrStepComplete() {
-    if (!activeInjury) return;
-
-    if (activeInjury.rtrStep >= 3) {
+    const result = await recoveryController.advanceReturnToRun();
+    if (result === 'needs-resume') {
       setShowResumeModal(true);
-      return;
-    }
-
-    try {
-      setIsUpdatingRtr(true);
-      await advanceRecoveryStep({
-        activeInjury,
-        today,
-        updateInjury: trpc.plan.updateInjury.mutate,
-        refresh,
-      });
-    } catch (error) {
-      console.error('Failed to update return-to-running progress:', error);
-      Alert.alert('Could not update progress', 'Please try again in a moment.');
-    } finally {
-      setIsUpdatingRtr(false);
     }
   }
 
   async function handleCompleteRecovery(option: { type: 'current' } | { type: 'choose'; weekNumber: number }) {
-    if (!plan || !activeInjury) return;
-
-    try {
-      setIsUpdatingRtr(true);
-      await endRecovery({
-        planId: plan.id,
+    const didCompleteRecovery = await recoveryController.endRecovery({
         option,
-        clearInjury: () => trpc.plan.clearInjury.mutate(),
-        refresh,
-        activeInjury,
         completeCurrentStep: true,
-        today,
-        updateInjury: trpc.plan.updateInjury.mutate,
       });
+    if (didCompleteRecovery) {
       setShowResumeModal(false);
-    } catch (error) {
-      console.error('Failed to complete recovery:', error);
-      Alert.alert('Could not finish recovery', 'Please try again in a moment.');
-    } finally {
-      setIsUpdatingRtr(false);
     }
-  }
-
-  async function handleRefresh() {
-    await forceSync();
-    await refresh();
   }
 
   return (
@@ -319,11 +175,7 @@ export default function WeekTab() {
         refreshControl={
           <RefreshControl
             refreshing={loading || syncing}
-            onRefresh={() => {
-              handleRefresh().catch((error) => {
-                console.error('Failed to refresh week screen:', error);
-              });
-            }}
+            onRefresh={refreshManually}
             tintColor={C.clay}
           />
         }
@@ -335,22 +187,28 @@ export default function WeekTab() {
               plan={plan}
               weekNumber={week.weekNumber}
               totalWeeks={plan.weeks.length}
-              onSaveReassessedTarget={handleSaveReassessedTarget}
-              isSavingGoal={isSavingGoal}
+              onSaveReassessedTarget={async (value) => {
+                await recoveryController.saveReassessedTarget(value);
+              }}
+              isSavingGoal={recoveryController.isSavingGoal}
             />
             <CrossTrainingLog
-              entries={crossTrainingEntries}
-              weekStartDate={weekStartDate}
-              onAdd={handleAddCrossTraining}
-              onDelete={handleDeleteCrossTraining}
-              isSaving={isSavingCrossTraining || isLoadingCrossTraining}
-              deletingId={deletingEntryId}
+              entries={recoveryData.entries}
+              weekStartDate={weekStartDate ?? today}
+              onAdd={async (input) => {
+                await recoveryController.addCrossTraining(input);
+              }}
+              onDelete={async (id) => {
+                await recoveryController.deleteCrossTraining(id);
+              }}
+              isSaving={recoveryController.isSavingCrossTraining || recoveryData.isLoadingEntries}
+              deletingId={recoveryController.deletingEntryId}
             />
             <ReturnToRunning
               injury={activeInjury}
               currentWeekNumber={week.weekNumber}
               onMarkComplete={handleMarkRtrStepComplete}
-              isUpdating={isUpdatingRtr}
+              isUpdating={recoveryController.isUpdatingRtr}
             />
           </>
         ) : (
@@ -360,7 +218,7 @@ export default function WeekTab() {
         {week.sessions.map((session, i) => {
           const sessionDate = session?.date ?? '';
           const isToday = sessionDate === today;
-          const activity = activityForSession(session);
+          const activity = activityResolution.activityForSession(session);
 
           return (
             <DayCard
@@ -382,7 +240,7 @@ export default function WeekTab() {
           plan={plan}
           currentWeekNumber={week.weekNumber}
           injury={activeInjury}
-          busy={isUpdatingRtr}
+          busy={recoveryController.isUpdatingRtr || recoveryController.isEndingRecovery}
           onClose={() => setShowResumeModal(false)}
           onMarkInjury={async () => {}}
           onEndRecovery={handleCompleteRecovery}

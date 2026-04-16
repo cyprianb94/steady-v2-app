@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -30,7 +30,9 @@ import { addDaysIso, DAYS, inferWeekStartDate, sessionLabel, todayIsoLocal, week
 import { trpc } from '../../lib/trpc';
 import { usePreferences } from '../../providers/preferences-context';
 import { formatDistance, type DistanceUnits } from '../../lib/units';
-import { usePlanScreenSync } from './plan-screen-sync';
+import { useActivityResolution } from '../../features/run/use-activity-resolution';
+import { useRecoveryData } from '../../features/recovery/use-recovery-data';
+import { usePlanRefreshCoordinator } from '../../features/sync/use-plan-refresh-coordinator';
 import {
   buildBlockPhaseSegments,
   buildBlockWeekDayDetails,
@@ -41,7 +43,6 @@ import {
   getWeekVolumeSummary,
   isInjuryWeek,
   propagateChange,
-  type Activity,
   type BlockPhaseSegment,
   type CrossTrainingEntry,
   type PlannedSession,
@@ -287,14 +288,44 @@ export default function BlockTab() {
   const [editingDay, setEditingDay] = useState<EditingDay | null>(null);
   const [pendingEdit, setPendingEdit] = useState<PendingEdit | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [crossTrainingEntries, setCrossTrainingEntries] = useState<CrossTrainingEntry[]>([]);
-  const [isLoadingCrossTraining, setIsLoadingCrossTraining] = useState(false);
   const today = useTodayIso();
 
-  const activeInjury =
+  const activityResolution = useActivityResolution({
+    enabled: Boolean(session),
+    isFocused,
+    planId: plan?.id,
+    syncRevision,
+    fetchErrorMessage: 'Failed to fetch activities for block view:',
+  });
+  const rawActiveInjury =
     plan?.activeInjury && plan.activeInjury.status !== 'resolved' ? plan.activeInjury : null;
-  const injuryRange = plan ? getInjuryWeekRange(plan.weeks, activeInjury, today) : null;
+  const injuryRange = plan ? getInjuryWeekRange(plan.weeks, rawActiveInjury, today) : null;
+  const recoveryScope = useMemo(() => {
+    if (!plan || !injuryRange) {
+      return null;
+    }
+
+    const startWeek = plan.weeks[injuryRange.startIndex];
+    const endWeek = plan.weeks[injuryRange.endIndex];
+
+    if (!startWeek || !endWeek) {
+      return null;
+    }
+
+    return {
+      type: 'range' as const,
+      startDate: getWeekStartDate(startWeek),
+      endDate: addDaysIso(getWeekStartDate(endWeek), 6),
+    };
+  }, [injuryRange, plan]);
+  const recoveryData = useRecoveryData({
+    plan,
+    enabled: Boolean(session),
+    isFocused,
+    scope: recoveryScope,
+    fetchErrorMessage: 'Failed to fetch block cross-training entries:',
+  });
+  const { activeInjury } = recoveryData;
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -308,88 +339,16 @@ export default function BlockTab() {
     }
   }, [isFocused]);
 
-  useEffect(() => {
-    if (!plan || !session || !isFocused) {
-      setActivities([]);
-      return;
-    }
-
-    let cancelled = false;
-
-    async function fetchActivities() {
-      try {
-        const nextActivities = await trpc.activity.list.query();
-        if (!cancelled) {
-          setActivities(nextActivities);
-        }
-      } catch (error) {
-        console.error('Failed to fetch activities for block view:', error);
-        if (!cancelled) {
-          setActivities([]);
-        }
-      }
-    }
-
-    fetchActivities();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isFocused, plan?.id, session, syncRevision]);
-
-  useEffect(() => {
-    if (!plan || !injuryRange || !session || !isFocused) {
-      setCrossTrainingEntries([]);
-      setIsLoadingCrossTraining(false);
-      return;
-    }
-
-    const startWeek = plan.weeks[injuryRange.startIndex];
-    const endWeek = plan.weeks[injuryRange.endIndex];
-    if (!startWeek || !endWeek) {
-      setCrossTrainingEntries([]);
-      setIsLoadingCrossTraining(false);
-      return;
-    }
-
-    const startDate = getWeekStartDate(startWeek);
-    const endDate = addDaysIso(getWeekStartDate(endWeek), 6);
-    let cancelled = false;
-
-    async function fetchCrossTraining() {
-      try {
-        setIsLoadingCrossTraining(true);
-        const entries = await trpc.crossTraining.getForDateRange.query({ startDate, endDate });
-        if (!cancelled) {
-          setCrossTrainingEntries(entries);
-        }
-      } catch (error) {
-        console.error('Failed to fetch block cross-training entries:', error);
-        if (!cancelled) {
-          setCrossTrainingEntries([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoadingCrossTraining(false);
-        }
-      }
-    }
-
-    fetchCrossTraining();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeInjury?.markedDate, activeInjury?.resolvedDate, activeInjury?.status, isFocused, plan, session]);
-
-  usePlanScreenSync({
+  const { refreshManually } = usePlanRefreshCoordinator({
     enabled: Boolean(session),
     isFocused,
     requestAutoSync,
-    refresh,
+    forceSync,
+    refreshPlan: refresh,
     syncRevision,
     autoSyncErrorMessage: 'Failed to auto-sync Strava on block focus:',
-    refreshErrorMessage: 'Failed to refresh block plan after Strava sync:',
+    syncRefreshErrorMessage: 'Failed to refresh block plan after Strava sync:',
+    manualRefreshErrorMessage: 'Failed to refresh block screen:',
   });
 
   if (authLoading || loading) {
@@ -435,7 +394,7 @@ export default function BlockTab() {
     ? 'INJURY'
     : plan.weeks[safeCurrentWeekIndex]?.phase ?? 'BUILD';
   const maxKm = Math.max(...plan.weeks.map(weekKm), 1);
-  const activitiesById = new Map(activities.map((activity) => [activity.id, activity] as const));
+  const activitiesById = activityResolution.activityById;
 
   function toggleWeek(weekNumber: number) {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -540,11 +499,6 @@ export default function BlockTab() {
 
   const rearrangeWeek = rearrangeWeekIndex == null ? null : plan.weeks[rearrangeWeekIndex] ?? null;
 
-  async function handleRefresh() {
-    await forceSync();
-    await refresh();
-  }
-
   return (
     <>
       <ScrollView
@@ -553,11 +507,7 @@ export default function BlockTab() {
         refreshControl={
           <RefreshControl
             refreshing={loading || syncing}
-            onRefresh={() => {
-              handleRefresh().catch((error) => {
-                console.error('Failed to refresh block screen:', error);
-              });
-            }}
+            onRefresh={refreshManually}
             tintColor={C.clay}
           />
         }
@@ -642,7 +592,7 @@ export default function BlockTab() {
         const isFuture = i > safeCurrentWeekIndex;
         const injuryWeek = isInjuryWeek(i, injuryRange);
         const isExpanded = expandedWeekNumber === week.weekNumber;
-        const weekEntries = injuryWeek ? getWeekEntries(crossTrainingEntries, week) : [];
+        const weekEntries = injuryWeek ? getWeekEntries(recoveryData.entries, week) : [];
         const volumeTone = getBlockVolumeTone(i, safeCurrentWeekIndex);
         const volumeSummary = getWeekVolumeSummary(week, activitiesById, volumeTone);
         const blockDayDetails = buildBlockWeekDayDetails(week);
@@ -678,7 +628,7 @@ export default function BlockTab() {
 
                 {injuryWeek ? (
                   <View style={styles.injuryEntries}>
-                    {isLoadingCrossTraining ? (
+                    {recoveryData.isLoadingEntries ? (
                       <Text style={styles.injuryHelper}>Loading cross-training…</Text>
                     ) : weekEntries.length > 0 ? (
                       weekEntries.map((entry) => (

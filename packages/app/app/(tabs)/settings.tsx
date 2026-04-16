@@ -13,7 +13,7 @@ import { FONTS } from '../../constants/typography';
 import { useAuth } from '../../lib/auth';
 import { trpc } from '../../lib/trpc';
 import { usePreferences } from '../../providers/preferences-context';
-import { endRecovery } from './recovery-actions';
+import { useRecoveryActionController } from '../../features/recovery/use-recovery-action-controller';
 
 const SETTINGS_TOP_SPACING = 14;
 const SETTINGS_BOTTOM_SPACING = 24;
@@ -171,6 +171,13 @@ export default function SettingsTab() {
   const { units, setUnits, loading: preferencesLoading, updatingUnits } = usePreferences();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [recoveryModalMode, setRecoveryModalMode] = useState<'mark' | 'resume' | null>(null);
+  const activeInjury =
+    plan?.activeInjury && plan.activeInjury.status !== 'resolved' ? plan.activeInjury : null;
+  const recoveryController = useRecoveryActionController({
+    planId: plan?.id,
+    activeInjury,
+    refreshPlan: refresh,
+  });
 
   async function handleGoogleSignIn() {
     try {
@@ -262,10 +269,8 @@ export default function SettingsTab() {
     }
   }
 
-  const busy = isLoading || isSubmitting || stravaSyncing;
+  const busy = isLoading || isSubmitting || stravaSyncing || recoveryController.isMutatingRecovery;
   const hasPlan = Boolean(plan);
-  const activeInjury =
-    plan?.activeInjury && plan.activeInjury.status !== 'resolved' ? plan.activeInjury : null;
   const planSummary = plan ? `${plan.raceName} · ${plan.targetTime}` : 'No active plan.';
   const weekSummary = plan ? `Week ${currentWeekIndex + 1} of ${plan.weeks.length}.` : 'No active block.';
   const stravaSummary = stravaStatus?.connected
@@ -275,36 +280,18 @@ export default function SettingsTab() {
     : 'Connect when you want activity sync.';
 
   async function handleMarkInjury(name: string) {
-    try {
-      setIsSubmitting(true);
-      await trpc.plan.markInjury.mutate({ name });
-      await refresh();
+    const didMarkInjury = await recoveryController.markInjury(name);
+    if (didMarkInjury) {
       setRecoveryModalMode(null);
       router.push('/(tabs)/home');
-    } catch (error) {
-      Alert.alert('Could not start recovery', error instanceof Error ? error.message : 'Unknown error');
-    } finally {
-      setIsSubmitting(false);
     }
   }
 
   async function handleEndRecovery(option: { type: 'current' } | { type: 'choose'; weekNumber: number }) {
-    if (!plan) return;
-
-    try {
-      setIsSubmitting(true);
-      await endRecovery({
-        planId: plan.id,
-        option,
-        clearInjury: () => trpc.plan.clearInjury.mutate(),
-        refresh,
-      });
+    const didEndRecovery = await recoveryController.endRecovery({ option });
+    if (didEndRecovery) {
       setRecoveryModalMode(null);
       router.push('/(tabs)/home');
-    } catch (error) {
-      Alert.alert('Could not end recovery', error instanceof Error ? error.message : 'Unknown error');
-    } finally {
-      setIsSubmitting(false);
     }
   }
 
