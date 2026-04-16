@@ -11,9 +11,9 @@ import { RecoveryFlowModal } from '../../components/recovery/RecoveryFlowModal';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { useAuth } from '../../lib/auth';
-import { clearResumeWeekOverride, setResumeWeekOverride } from '../../lib/resume-week';
 import { trpc } from '../../lib/trpc';
 import { usePreferences } from '../../providers/preferences-context';
+import { endRecovery } from './recovery-actions';
 
 const SETTINGS_TOP_SPACING = 14;
 const SETTINGS_BOTTOM_SPACING = 24;
@@ -293,15 +293,12 @@ export default function SettingsTab() {
 
     try {
       setIsSubmitting(true);
-
-      if (option.type === 'current') {
-        await clearResumeWeekOverride(plan.id);
-      } else {
-        await setResumeWeekOverride(plan.id, option.weekNumber);
-      }
-
-      await trpc.plan.clearInjury.mutate();
-      await refresh();
+      await endRecovery({
+        planId: plan.id,
+        option,
+        clearInjury: () => trpc.plan.clearInjury.mutate(),
+        refresh,
+      });
       setRecoveryModalMode(null);
       router.push('/(tabs)/home');
     } catch (error) {

@@ -123,6 +123,9 @@ export default function SyncRunDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [refreshingFromStrava, setRefreshingFromStrava] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
   const today = todayIsoLocal();
   const todaySession = findSessionForDateOrWeekday(currentWeek?.sessions ?? [], today);
 
@@ -137,17 +140,37 @@ export default function SyncRunDetailScreen() {
   const [addingNiggle, setAddingNiggle] = useState(false);
   const [niggleDraft, setNiggleDraft] = useState<Partial<NiggleDraft>>({});
 
+  async function loadActivityList() {
+    setLoadError(null);
+
+    try {
+      setLoading(true);
+      const next = await trpc.activity.list.query();
+      setActivities(next);
+    } catch (error) {
+      console.error('Failed to load sync-run detail activity:', error);
+      setActivities([]);
+      setLoadError('We could not refresh this run. Try again or go back to the picker.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
     let cancelled = false;
 
     async function loadActivity() {
       try {
+        setLoadError(null);
         setLoading(true);
         const next = await trpc.activity.list.query();
         if (!cancelled) setActivities(next);
       } catch (error) {
         console.error('Failed to load sync-run detail activity:', error);
-        if (!cancelled) setActivities([]);
+        if (!cancelled) {
+          setActivities([]);
+          setLoadError('We could not refresh this run. Try again or go back to the picker.');
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -181,12 +204,12 @@ export default function SyncRunDetailScreen() {
       return;
     }
     // Fall back to whatever the auto-matcher assigned
-    if (activity.matchedSessionId) {
+    if (activity.matchedSessionId && sessionOptions.some((session) => session.id === activity.matchedSessionId)) {
       setSelectedSessionId(activity.matchedSessionId);
       return;
     }
     setSelectedSessionId(null);
-  }, [activity, today, todaySession?.id, todaySession?.date]);
+  }, [activity, sessionOptions, today, todaySession?.id, todaySession?.date]);
 
   // Pre-fill feel if activity already has subjective data
   useEffect(() => {
@@ -197,6 +220,9 @@ export default function SyncRunDetailScreen() {
   }, [activity?.id]);
 
   const selectedSession = sessionOptions.find((s) => s.id === selectedSessionId) ?? null;
+  const hasStaleMatchedSession = Boolean(
+    activity?.matchedSessionId && !sessionOptions.some((session) => session.id === activity.matchedSessionId),
+  );
   const splitPaces = activity?.splits.map((s) => s.pace) ?? [];
   const fastestPace = splitPaces.length ? Math.min(...splitPaces) : 0;
   const slowestPace = splitPaces.length ? Math.max(...splitPaces) : 0;
@@ -209,6 +235,9 @@ export default function SyncRunDetailScreen() {
   async function handleSave() {
     if (!activity || !subjectiveInput) return;
 
+    setSaveError(null);
+    setRefreshError(null);
+
     try {
       setSaving(true);
       await trpc.activity.saveRunDetail.mutate({
@@ -219,20 +248,32 @@ export default function SyncRunDetailScreen() {
         matchedSessionId: selectedSessionId,
       });
 
-      await refreshPlan();
-      router.replace('/(tabs)/home');
     } catch (error) {
       console.error('Failed to save synced run:', error);
+      setSaveError('Could not save this run yet. Your notes and match are still here so you can retry.');
       Alert.alert('Could not save run', 'Please try again in a moment.');
+      setSaving(false);
+      return;
+    }
+
+    try {
+      await refreshPlan();
+    } catch (error) {
+      console.error('Saved run but failed to refresh the plan:', error);
+      setRefreshError('Run saved. We will refresh the plan when you return home.');
+      Alert.alert('Run saved', 'We could not refresh the plan yet, but your run was saved.');
     } finally {
       setSaving(false);
     }
+
+    router.replace('/(tabs)/home');
   }
 
   async function handleRefreshFromStrava() {
     if (!activity || activity.source !== 'strava') return;
 
     try {
+      setRefreshError(null);
       setRefreshingFromStrava(true);
       const refreshed = await trpc.strava.refreshActivity.mutate({ activityId: activity.id });
       setActivities((current) => current.map((item) => item.id === refreshed.id ? refreshed : item));
@@ -255,9 +296,15 @@ export default function SyncRunDetailScreen() {
   if (!activity) {
     return (
       <View style={styles.center}>
-        <Text style={styles.emptyTitle}>Run not found</Text>
-        <Pressable onPress={() => router.back()}>
-          <Text style={styles.emptyAction}>Go back</Text>
+        <Text style={styles.emptyTitle}>This run is no longer available</Text>
+        <Text style={styles.emptyCopy}>
+          {loadError ?? 'Go back to the picker and choose another run, or try refreshing this screen.'}
+        </Text>
+        <Pressable onPress={() => { void loadActivityList(); }}>
+          <Text style={styles.emptyAction}>Try again</Text>
+        </Pressable>
+        <Pressable onPress={() => router.replace('/sync-run')}>
+          <Text style={styles.emptyAction}>Back to picker</Text>
         </Pressable>
       </View>
     );
@@ -324,6 +371,38 @@ export default function SyncRunDetailScreen() {
           Max HR <Text style={styles.subMetricsBold}>{activity.maxHR ?? '—'}</Text>
           {' · '}Elevation <Text style={styles.subMetricsBold}>{activity.elevationGain ?? 0} m</Text>
         </Text>
+
+        {hasStaleMatchedSession ? (
+          <View style={styles.statusCard}>
+            <Text style={styles.statusTitle}>Previous match needs review</Text>
+            <Text style={styles.statusCopy}>
+              This run was matched to a session that is no longer available here. Re-match it before saving, or keep it as a bonus run.
+            </Text>
+          </View>
+        ) : null}
+
+        {!sessionOptions.length ? (
+          <View style={styles.statusCard}>
+            <Text style={styles.statusTitle}>No runnable session for today</Text>
+            <Text style={styles.statusCopy}>
+              Save this as a bonus run, or go back and choose a different activity if this run belongs to another day.
+            </Text>
+          </View>
+        ) : null}
+
+        {saveError ? (
+          <View style={styles.statusCard}>
+            <Text style={styles.statusTitle}>Save failed</Text>
+            <Text style={styles.statusCopy}>{saveError}</Text>
+          </View>
+        ) : null}
+
+        {refreshError ? (
+          <View style={styles.statusCard}>
+            <Text style={styles.statusTitle}>Plan refresh delayed</Text>
+            <Text style={styles.statusCopy}>{refreshError}</Text>
+          </View>
+        ) : null}
 
         {/* Planned vs actual */}
         {selectedSession ? (
@@ -561,10 +640,19 @@ const styles = StyleSheet.create({
     color: C.ink,
     marginBottom: 10,
   },
+  emptyCopy: {
+    fontFamily: FONTS.sans,
+    fontSize: 14,
+    lineHeight: 20,
+    color: C.muted,
+    textAlign: 'center',
+    marginBottom: 14,
+  },
   emptyAction: {
     fontFamily: FONTS.sansSemiBold,
     fontSize: 14,
     color: C.forest,
+    marginTop: 10,
   },
   navBar: {
     paddingHorizontal: 20,
@@ -694,6 +782,27 @@ const styles = StyleSheet.create({
   subMetricsBold: {
     color: C.ink,
     fontFamily: FONTS.monoBold,
+  },
+  statusCard: {
+    marginBottom: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: `${C.clay}24`,
+    backgroundColor: C.clayBg,
+  },
+  statusTitle: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 13,
+    color: C.ink,
+    marginBottom: 4,
+  },
+  statusCopy: {
+    fontFamily: FONTS.sans,
+    fontSize: 13,
+    lineHeight: 20,
+    color: C.muted,
   },
   section: {
     backgroundColor: C.surface,

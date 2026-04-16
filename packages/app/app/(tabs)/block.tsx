@@ -6,26 +6,31 @@ import {
   StyleSheet,
   Pressable,
   RefreshControl,
+  ActivityIndicator,
   LayoutAnimation,
   Platform,
   UIManager,
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
+import { router } from 'expo-router';
 import { usePlan } from '../../hooks/usePlan';
 import { useStravaSync } from '../../hooks/useStravaSync';
 import { useTodayIso } from '../../hooks/useTodayIso';
 import { RearrangeSheet } from '../../components/block/RearrangeSheet';
 import { PropagateModal } from '../../components/plan-builder/PropagateModal';
 import { SessionEditor } from '../../components/plan-builder/SessionEditor';
+import { Btn } from '../../components/ui/Btn';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { PHASE_COLOR } from '../../constants/phase-meta';
 import { SESSION_TYPE } from '../../constants/session-types';
+import { useAuth } from '../../lib/auth';
 import { createId } from '../../lib/id';
 import { addDaysIso, DAYS, inferWeekStartDate, sessionLabel, todayIsoLocal, weekKm } from '../../lib/plan-helpers';
 import { trpc } from '../../lib/trpc';
 import { usePreferences } from '../../providers/preferences-context';
 import { formatDistance, type DistanceUnits } from '../../lib/units';
+import { usePlanScreenSync } from './plan-screen-sync';
 import {
   buildBlockPhaseSegments,
   buildBlockWeekDayDetails,
@@ -271,6 +276,7 @@ function normalizeEditedDayIdentity(
 
 export default function BlockTab() {
   const { units } = usePreferences();
+  const { session, isLoading: authLoading } = useAuth();
   const { plan, loading, currentWeekIndex, refresh } = usePlan();
   const isFocused = useIsFocused();
   const { requestAutoSync, forceSync, syncRevision, syncing } = useStravaSync();
@@ -303,7 +309,7 @@ export default function BlockTab() {
   }, [isFocused]);
 
   useEffect(() => {
-    if (!plan) {
+    if (!plan || !session || !isFocused) {
       setActivities([]);
       return;
     }
@@ -329,10 +335,10 @@ export default function BlockTab() {
     return () => {
       cancelled = true;
     };
-  }, [plan?.id, syncRevision]);
+  }, [isFocused, plan?.id, session, syncRevision]);
 
   useEffect(() => {
-    if (!plan || !injuryRange) {
+    if (!plan || !injuryRange || !session || !isFocused) {
       setCrossTrainingEntries([]);
       setIsLoadingCrossTraining(false);
       return;
@@ -374,43 +380,60 @@ export default function BlockTab() {
     return () => {
       cancelled = true;
     };
-  }, [activeInjury?.markedDate, activeInjury?.resolvedDate, activeInjury?.status, plan]);
+  }, [activeInjury?.markedDate, activeInjury?.resolvedDate, activeInjury?.status, isFocused, plan, session]);
 
-  useEffect(() => {
-    if (!isFocused) return;
-    requestAutoSync().catch((error) => {
-      console.error('Failed to auto-sync Strava on block focus:', error);
-    });
-  }, [isFocused, requestAutoSync]);
+  usePlanScreenSync({
+    enabled: Boolean(session),
+    isFocused,
+    requestAutoSync,
+    refresh,
+    syncRevision,
+    autoSyncErrorMessage: 'Failed to auto-sync Strava on block focus:',
+    refreshErrorMessage: 'Failed to refresh block plan after Strava sync:',
+  });
 
-  useEffect(() => {
-    if (syncRevision === 0) return;
-    refresh().catch((error) => {
-      console.error('Failed to refresh block plan after Strava sync:', error);
-    });
-  }, [refresh, syncRevision]);
-
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.muted}>Loading…</Text>
+        <ActivityIndicator size="large" color={C.clay} />
       </View>
     );
   }
 
-  if (!plan) {
+  if (!session) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.emptyTitle}>Sign in to see your plan</Text>
+        <Text style={styles.muted}>
+          Use the Settings tab to continue with Google, then come back here.
+        </Text>
+        <View style={{ marginTop: 20 }}>
+          <Btn title="Go to settings" onPress={() => router.push('/(tabs)/settings')} />
+        </View>
+      </View>
+    );
+  }
+
+  if (!plan || plan.weeks.length === 0) {
     return (
       <View style={styles.centered}>
         <Text style={styles.emptyTitle}>No plan yet</Text>
-        <Text style={styles.muted}>Build a plan from the Week tab to see the block view.</Text>
+        <Text style={styles.muted}>Build your training plan to get started</Text>
+        <View style={{ marginTop: 20 }}>
+          <Btn
+            title="Build a plan"
+            onPress={() => router.push('/onboarding/plan-builder/step-goal')}
+          />
+        </View>
       </View>
     );
   }
 
-  const phases = buildBlockPhaseSegments(plan.weeks, currentWeekIndex, activeInjury, today);
-  const currentPhase = isInjuryWeek(currentWeekIndex, injuryRange)
+  const safeCurrentWeekIndex = Math.min(currentWeekIndex, plan.weeks.length - 1);
+  const phases = buildBlockPhaseSegments(plan.weeks, safeCurrentWeekIndex, activeInjury, today);
+  const currentPhase = isInjuryWeek(safeCurrentWeekIndex, injuryRange)
     ? 'INJURY'
-    : plan.weeks[currentWeekIndex]?.phase ?? 'BUILD';
+    : plan.weeks[safeCurrentWeekIndex]?.phase ?? 'BUILD';
   const maxKm = Math.max(...plan.weeks.map(weekKm), 1);
   const activitiesById = new Map(activities.map((activity) => [activity.id, activity] as const));
 
@@ -546,7 +569,7 @@ export default function BlockTab() {
           <View style={styles.metaRow}>
             <Text style={[styles.metaValue, { color: C.clay }]}>{formatRaceDate(plan.raceDate)}</Text>
             <Text style={[styles.metaValue, { color: C.muted }]}>
-              {plan.weeks.length - currentWeekIndex} weeks out
+              {plan.weeks.length - safeCurrentWeekIndex} weeks out
             </Text>
             <Text style={[styles.metaValue, { color: C.navy }]}>{plan.targetTime}</Text>
           </View>
@@ -608,19 +631,19 @@ export default function BlockTab() {
         </View>
         <Text style={styles.phaseCaption}>
           <Text style={styles.phaseCaptionLead}>Current phase:</Text>
-          <Text>{` ${getPhaseCaption(plan.weeks, currentWeekIndex, currentPhase, injuryRange)}`}</Text>
+          <Text>{` ${getPhaseCaption(plan.weeks, safeCurrentWeekIndex, currentPhase, injuryRange)}`}</Text>
         </Text>
       </View>
 
       {/* Week rows */}
       {plan.weeks.map((week, i) => {
-        const isCurrent = i === currentWeekIndex;
-        const isPast = i < currentWeekIndex;
-        const isFuture = i > currentWeekIndex;
+        const isCurrent = i === safeCurrentWeekIndex;
+        const isPast = i < safeCurrentWeekIndex;
+        const isFuture = i > safeCurrentWeekIndex;
         const injuryWeek = isInjuryWeek(i, injuryRange);
         const isExpanded = expandedWeekNumber === week.weekNumber;
         const weekEntries = injuryWeek ? getWeekEntries(crossTrainingEntries, week) : [];
-        const volumeTone = getBlockVolumeTone(i, currentWeekIndex);
+        const volumeTone = getBlockVolumeTone(i, safeCurrentWeekIndex);
         const volumeSummary = getWeekVolumeSummary(week, activitiesById, volumeTone);
         const blockDayDetails = buildBlockWeekDayDetails(week);
         const canRearrange = !injuryWeek && !isFullyCompletedWeek(week);

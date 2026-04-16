@@ -31,7 +31,8 @@ import { CrossTrainingLog } from '../../components/recovery/CrossTrainingLog';
 import { ReturnToRunning } from '../../components/recovery/ReturnToRunning';
 import { RecoveryFlowModal } from '../../components/recovery/RecoveryFlowModal';
 import { addDaysIso, findSessionForDateOrWeekday, inferWeekStartDate, startOfWeekIso } from '../../lib/plan-helpers';
-import { clearResumeWeekOverride, setResumeWeekOverride } from '../../lib/resume-week';
+import { usePlanScreenSync } from './plan-screen-sync';
+import { advanceRecoveryStep, endRecovery } from './recovery-actions';
 
 const HOME_SCROLL_TOP_PADDING = 14;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
@@ -91,7 +92,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { session, isLoading: authLoading } = useAuth();
   const { plan, loading, currentWeek, refresh } = usePlan();
-  const { forceSync, syncRevision, syncing } = useStravaSync();
+  const { forceSync, requestAutoSync, syncRevision, syncing } = useStravaSync();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isSavingGoal, setIsSavingGoal] = useState(false);
   const [crossTrainingEntries, setCrossTrainingEntries] = useState<CrossTrainingEntry[]>([]);
@@ -101,6 +102,7 @@ export default function HomeScreen() {
   const [isUpdatingRtr, setIsUpdatingRtr] = useState(false);
   const [isMutatingRecovery, setIsMutatingRecovery] = useState(false);
   const [recoveryModalMode, setRecoveryModalMode] = useState<'mark' | 'resume' | null>(null);
+  const [resumeFlowKind, setResumeFlowKind] = useState<'manual' | 'complete-step'>('manual');
   const today = useTodayIso();
   const weekSessions = currentWeek?.sessions ?? [];
   const activeInjury =
@@ -165,15 +167,18 @@ export default function HomeScreen() {
     };
   }, [isFocused, plan?.id, syncRevision]);
 
-  useEffect(() => {
-    if (syncRevision === 0) return;
-    refresh().catch((error) => {
-      console.error('Failed to refresh plan after Strava sync:', error);
-    });
-  }, [refresh, syncRevision]);
+  usePlanScreenSync({
+    enabled: Boolean(session),
+    isFocused,
+    requestAutoSync,
+    refresh,
+    syncRevision,
+    autoSyncErrorMessage: 'Failed to auto-sync Strava on home focus:',
+    refreshErrorMessage: 'Failed to refresh plan after Strava sync:',
+  });
 
   useEffect(() => {
-    if (!plan || !currentWeek || !activeInjury || !weekStartDate) {
+    if (!plan || !currentWeek || !activeInjury || !weekStartDate || !isFocused) {
       setCrossTrainingEntries([]);
       setIsLoadingCrossTraining(false);
       return;
@@ -206,7 +211,7 @@ export default function HomeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [activeInjury, currentWeek, plan, weekStartDate]);
+  }, [activeInjury, currentWeek, isFocused, plan, weekStartDate]);
 
   if (authLoading || loading) {
     return (
@@ -230,7 +235,7 @@ export default function HomeScreen() {
     );
   }
 
-  if (!plan || !currentWeek) {
+  if (!plan || plan.weeks.length === 0) {
     return (
       <View style={styles.center}>
         <Text style={styles.emptyTitle}>No plan yet</Text>
@@ -239,6 +244,25 @@ export default function HomeScreen() {
           <Btn
             title="Build a plan"
             onPress={() => router.push('/onboarding/plan-builder/step-goal')}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  if (!currentWeek) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.emptyTitle}>Could not load this week</Text>
+        <Text style={styles.emptySubtitle}>Pull to refresh or try again in a moment.</Text>
+        <View style={{ marginTop: 20 }}>
+          <Btn
+            title="Try again"
+            onPress={() => {
+              refresh().catch((error) => {
+                console.error('Failed to retry home bootstrap:', error);
+              });
+            }}
           />
         </View>
       </View>
@@ -306,21 +330,19 @@ export default function HomeScreen() {
     if (!activeInjury) return;
 
     if (activeInjury.rtrStep >= 3) {
+      setResumeFlowKind('complete-step');
       setRecoveryModalMode('resume');
       return;
     }
 
-    const completionDates = [...activeInjury.rtrStepCompletedDates];
-    completionDates[activeInjury.rtrStep] = today;
-
     try {
       setIsUpdatingRtr(true);
-      await trpc.plan.updateInjury.mutate({
-        rtrStep: activeInjury.rtrStep + 1,
-        rtrStepCompletedDates: completionDates,
-        status: activeInjury.rtrStep + 1 > 0 ? 'returning' : activeInjury.status,
+      await advanceRecoveryStep({
+        activeInjury,
+        today,
+        updateInjury: trpc.plan.updateInjury.mutate,
+        refresh,
       });
-      await refresh();
     } catch (error) {
       console.error('Failed to update return-to-running progress from home:', error);
       Alert.alert('Could not update progress', 'Please try again in a moment.');
@@ -335,6 +357,7 @@ export default function HomeScreen() {
       await trpc.plan.markInjury.mutate({ name });
       await refresh();
       setRecoveryModalMode(null);
+      setResumeFlowKind('manual');
     } catch (error) {
       console.error('Failed to start recovery from home:', error);
       Alert.alert('Could not start recovery', 'Please try again in a moment.');
@@ -348,16 +371,18 @@ export default function HomeScreen() {
 
     try {
       setIsMutatingRecovery(true);
-
-      if (option.type === 'current') {
-        await clearResumeWeekOverride(plan.id);
-      } else {
-        await setResumeWeekOverride(plan.id, option.weekNumber);
-      }
-
-      await trpc.plan.clearInjury.mutate();
-      await refresh();
+      await endRecovery({
+        planId: plan.id,
+        option,
+        clearInjury: () => trpc.plan.clearInjury.mutate(),
+        refresh,
+        activeInjury,
+        completeCurrentStep: resumeFlowKind === 'complete-step',
+        today,
+        updateInjury: trpc.plan.updateInjury.mutate,
+      });
       setRecoveryModalMode(null);
+      setResumeFlowKind('manual');
     } catch (error) {
       console.error('Failed to end recovery from home:', error);
       Alert.alert('Could not end recovery', 'Please try again in a moment.');
@@ -401,7 +426,10 @@ export default function HomeScreen() {
             <Pressable
               accessibilityRole="button"
               disabled={syncing || isUpdatingRtr || isMutatingRecovery}
-              onPress={() => setRecoveryModalMode(activeInjury ? 'resume' : 'mark')}
+              onPress={() => {
+                setResumeFlowKind('manual');
+                setRecoveryModalMode(activeInjury ? 'resume' : 'mark');
+              }}
               style={({ pressed }) => [
                 styles.headerAction,
                 activeInjury && styles.headerActionActive,
@@ -473,7 +501,10 @@ export default function HomeScreen() {
           currentWeekNumber={week.weekNumber}
           injury={activeInjury}
           busy={syncing || isUpdatingRtr || isMutatingRecovery}
-          onClose={() => setRecoveryModalMode(null)}
+          onClose={() => {
+            setRecoveryModalMode(null);
+            setResumeFlowKind('manual');
+          }}
           onMarkInjury={handleMarkInjury}
           onEndRecovery={handleEndRecovery}
         />

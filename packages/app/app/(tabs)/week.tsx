@@ -20,7 +20,8 @@ import { RecoveryFlowModal } from '../../components/recovery/RecoveryFlowModal';
 import { ReturnToRunning } from '../../components/recovery/ReturnToRunning';
 import { SessionDetailSheet } from '../../components/home/SessionDetailSheet';
 import { trpc } from '../../lib/trpc';
-import { clearResumeWeekOverride, setResumeWeekOverride } from '../../lib/resume-week';
+import { usePlanScreenSync } from './plan-screen-sync';
+import { advanceRecoveryStep, endRecovery } from './recovery-actions';
 
 export default function WeekTab() {
   const isFocused = useIsFocused();
@@ -38,7 +39,9 @@ export default function WeekTab() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [selectedSession, setSelectedSession] = useState<PlannedSession | null>(null);
   const today = useTodayIso();
-  const weekIdx = plan ? currentWeekIndex + weekOffset : 0;
+  const weekIdx = plan
+    ? Math.min(Math.max(currentWeekIndex + weekOffset, 0), Math.max(plan.weeks.length - 1, 0))
+    : 0;
   const week = plan?.weeks[weekIdx] ?? null;
   const activeInjury =
     plan?.activeInjury && plan.activeInjury.status !== 'resolved' ? plan.activeInjury : null;
@@ -64,7 +67,7 @@ export default function WeekTab() {
   const selectedActivity = activityForSession(selectedSession) ?? null;
 
   useEffect(() => {
-    if (!plan) {
+    if (!plan || !session || !isFocused) {
       setActivities([]);
       return;
     }
@@ -90,11 +93,12 @@ export default function WeekTab() {
     return () => {
       cancelled = true;
     };
-  }, [plan?.id, syncRevision]);
+  }, [isFocused, plan?.id, session, syncRevision]);
 
   useEffect(() => {
-    if (!session || !plan || !week || !activeInjury) {
+    if (!session || !plan || !week || !activeInjury || !isFocused) {
       setCrossTrainingEntries([]);
+      setIsLoadingCrossTraining(false);
       return;
     }
 
@@ -121,7 +125,7 @@ export default function WeekTab() {
     return () => {
       cancelled = true;
     };
-  }, [activeInjury, plan, session, week, weekStartDate]);
+  }, [activeInjury, isFocused, plan, session, week, weekStartDate]);
 
   useEffect(() => {
     if (!activeInjury) {
@@ -129,19 +133,15 @@ export default function WeekTab() {
     }
   }, [activeInjury, plan?.id]);
 
-  useEffect(() => {
-    if (!isFocused || !session) return;
-    requestAutoSync().catch((error) => {
-      console.error('Failed to auto-sync Strava on week focus:', error);
-    });
-  }, [isFocused, requestAutoSync, session]);
-
-  useEffect(() => {
-    if (syncRevision === 0) return;
-    refresh().catch((error) => {
-      console.error('Failed to refresh week plan after Strava sync:', error);
-    });
-  }, [refresh, syncRevision]);
+  usePlanScreenSync({
+    enabled: Boolean(session),
+    isFocused,
+    requestAutoSync,
+    refresh,
+    syncRevision,
+    autoSyncErrorMessage: 'Failed to auto-sync Strava on week focus:',
+    refreshErrorMessage: 'Failed to refresh week plan after Strava sync:',
+  });
 
   if (authLoading || loading) {
     return (
@@ -154,9 +154,9 @@ export default function WeekTab() {
   if (!session) {
     return (
       <View style={styles.center}>
-        <Text style={styles.emptyTitle}>Sign in to build your plan</Text>
+        <Text style={styles.emptyTitle}>Sign in to see your plan</Text>
         <Text style={styles.emptySubtitle}>
-          Use the Settings tab to continue with Google, then come back here to start onboarding.
+          Use the Settings tab to continue with Google, then come back here.
         </Text>
         <View style={{ marginTop: 20 }}>
           <Btn title="Go to settings" onPress={() => router.push('/(tabs)/settings')} />
@@ -165,7 +165,7 @@ export default function WeekTab() {
     );
   }
 
-  if (!plan) {
+  if (!plan || plan.weeks.length === 0) {
     return (
       <View style={styles.center}>
         <Text style={styles.emptyTitle}>No plan yet</Text>
@@ -179,7 +179,24 @@ export default function WeekTab() {
       </View>
     );
   }
-  if (!week) return null;
+  if (!week) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.emptyTitle}>Could not load this week</Text>
+        <Text style={styles.emptySubtitle}>Pull to refresh or try again in a moment.</Text>
+        <View style={{ marginTop: 20 }}>
+          <Btn
+            title="Try again"
+            onPress={() => {
+              refresh().catch((error) => {
+                console.error('Failed to retry week bootstrap:', error);
+              });
+            }}
+          />
+        </View>
+      </View>
+    );
+  }
 
   const maxKm = Math.max(...plan.weeks.map((w) => w.plannedKm), 1);
 
@@ -239,17 +256,14 @@ export default function WeekTab() {
       return;
     }
 
-    const completionDates = [...activeInjury.rtrStepCompletedDates];
-    completionDates[activeInjury.rtrStep] = today;
-
     try {
       setIsUpdatingRtr(true);
-      await trpc.plan.updateInjury.mutate({
-        rtrStep: activeInjury.rtrStep + 1,
-        rtrStepCompletedDates: completionDates,
-        status: activeInjury.rtrStep + 1 > 0 ? 'returning' : activeInjury.status,
+      await advanceRecoveryStep({
+        activeInjury,
+        today,
+        updateInjury: trpc.plan.updateInjury.mutate,
+        refresh,
       });
-      await refresh();
     } catch (error) {
       console.error('Failed to update return-to-running progress:', error);
       Alert.alert('Could not update progress', 'Please try again in a moment.');
@@ -261,25 +275,18 @@ export default function WeekTab() {
   async function handleCompleteRecovery(option: { type: 'current' } | { type: 'choose'; weekNumber: number }) {
     if (!plan || !activeInjury) return;
 
-    const completionDates = [...activeInjury.rtrStepCompletedDates];
-    completionDates[activeInjury.rtrStep] = today;
-
     try {
       setIsUpdatingRtr(true);
-
-      if (option.type === 'current') {
-        await clearResumeWeekOverride(plan.id);
-      } else {
-        await setResumeWeekOverride(plan.id, option.weekNumber);
-      }
-
-      await trpc.plan.updateInjury.mutate({
-        rtrStep: activeInjury.rtrStep + 1,
-        rtrStepCompletedDates: completionDates,
-        status: 'returning',
+      await endRecovery({
+        planId: plan.id,
+        option,
+        clearInjury: () => trpc.plan.clearInjury.mutate(),
+        refresh,
+        activeInjury,
+        completeCurrentStep: true,
+        today,
+        updateInjury: trpc.plan.updateInjury.mutate,
       });
-      await trpc.plan.clearInjury.mutate();
-      await refresh();
       setShowResumeModal(false);
     } catch (error) {
       console.error('Failed to complete recovery:', error);
