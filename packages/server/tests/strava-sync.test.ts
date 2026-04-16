@@ -1,15 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StravaClient } from '../src/lib/strava-client';
-import { createStravaTokenService } from '../src/lib/strava-token-service';
-import { syncStravaActivities } from '../src/lib/strava-sync';
 import { encrypt } from '../src/lib/encryption';
 import { InMemoryActivityRepo } from '../src/repos/activity-repo.memory';
 import { InMemoryIntegrationTokenRepo } from '../src/repos/integration-token-repo.memory';
 import { InMemoryPlanRepo } from '../src/repos/plan-repo.memory';
 import { InMemoryProfileRepo } from '../src/repos/profile-repo.memory';
 import { InMemoryShoeRepo } from '../src/repos/shoe-repo.memory';
+import { createStravaWorkflowService } from '../src/services/strava-workflow-service';
 
-describe('syncStravaActivities', () => {
+describe('strava workflow service — sync', () => {
   let activityRepo: InMemoryActivityRepo;
   let integrationTokenRepo: InMemoryIntegrationTokenRepo;
   let planRepo: InMemoryPlanRepo;
@@ -166,23 +165,18 @@ describe('syncStravaActivities', () => {
       },
     };
 
-    const tokenService = createStravaTokenService({
-      integrationTokenRepo,
+    const workflow = createStravaWorkflowService({
       profileRepo,
-      stravaClient,
-      encryptionKey,
-      now: () => new Date('2026-04-10T11:00:00Z').getTime(),
-    });
-
-    const result = await syncStravaActivities('user-1', {
+      planRepo,
       activityRepo,
       integrationTokenRepo,
-      planRepo,
       shoeRepo,
       stravaClient,
-      tokenService,
+      encryptionKey,
       now: () => new Date('2026-04-10T11:05:00Z'),
     });
+
+    const result = await workflow.sync('user-1');
 
     expect(afterArg).toBe('2026-04-08T00:00:00.000Z');
     expect(result).toEqual({
@@ -264,22 +258,18 @@ describe('syncStravaActivities', () => {
       },
     };
 
-    const tokenService = createStravaTokenService({
-      integrationTokenRepo,
+    const workflow = createStravaWorkflowService({
       profileRepo,
-      stravaClient,
-      encryptionKey,
-    });
-
-    const result = await syncStravaActivities('user-1', {
+      planRepo,
       activityRepo,
       integrationTokenRepo,
-      planRepo,
       shoeRepo,
       stravaClient,
-      tokenService,
+      encryptionKey,
       now: () => new Date('2026-04-10T12:05:00Z'),
     });
+
+    const result = await workflow.sync('user-1');
 
     expect(afterArg).toBe('2026-04-09T12:00:00Z');
     expect(result.new).toBe(0);
@@ -296,22 +286,18 @@ describe('syncStravaActivities', () => {
       },
     };
 
-    const tokenService = createStravaTokenService({
-      integrationTokenRepo,
+    const workflow = createStravaWorkflowService({
       profileRepo,
-      stravaClient,
-      encryptionKey,
-    });
-
-    await syncStravaActivities('user-1', {
+      planRepo,
       activityRepo,
       integrationTokenRepo,
-      planRepo,
       shoeRepo,
       stravaClient,
-      tokenService,
+      encryptionKey,
       now: () => new Date('2026-04-10T12:00:00Z'),
     });
+
+    await workflow.sync('user-1');
 
     expect(afterArg).toBe('2026-03-11T12:00:00.000Z');
   });
@@ -350,22 +336,18 @@ describe('syncStravaActivities', () => {
       getGear,
     };
 
-    const tokenService = createStravaTokenService({
-      integrationTokenRepo,
+    const workflow = createStravaWorkflowService({
       profileRepo,
-      stravaClient,
-      encryptionKey,
-    });
-
-    await syncStravaActivities('user-1', {
+      planRepo,
       activityRepo,
       integrationTokenRepo,
-      planRepo,
       shoeRepo,
       stravaClient,
-      tokenService,
+      encryptionKey,
       now: () => new Date('2026-04-10T12:05:00Z'),
     });
+
+    await workflow.sync('user-1');
 
     expect(getGear).toHaveBeenCalledTimes(1);
 
@@ -405,22 +387,18 @@ describe('syncStravaActivities', () => {
       },
     };
 
-    const tokenService = createStravaTokenService({
-      integrationTokenRepo,
+    const workflow = createStravaWorkflowService({
       profileRepo,
-      stravaClient,
-      encryptionKey,
-    });
-
-    await syncStravaActivities('user-1', {
+      planRepo,
       activityRepo,
       integrationTokenRepo,
-      planRepo,
       shoeRepo,
       stravaClient,
-      tokenService,
+      encryptionKey,
       now: () => new Date('2026-04-10T12:05:00Z'),
     });
+
+    await workflow.sync('user-1');
 
     const activities = await activityRepo.getByUserId('user-1');
     expect(activities[0]?.shoeId).toBeUndefined();
