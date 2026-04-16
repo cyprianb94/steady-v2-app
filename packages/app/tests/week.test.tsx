@@ -160,4 +160,39 @@ describe('WeekTab', () => {
       expect(mockActivityList).toHaveBeenCalledTimes(1);
     });
   });
+
+  it('keeps the standard week UI when persisted injury data exists', async () => {
+    mockAuth.session = { user: { id: 'runner-1' } };
+    mockPlan.plan = {
+      id: 'plan-1',
+      weeks: [
+        {
+          weekNumber: 1,
+          phase: 'BUILD' as const,
+          plannedKm: 42,
+          sessions: [null, null, null, null, null, null, null],
+        },
+      ],
+      activeInjury: {
+        name: 'Calf strain',
+        markedDate: '2026-04-15',
+        rtrStep: 1,
+        rtrStepCompletedDates: ['2026-04-15'],
+        status: 'returning' as const,
+      },
+    };
+
+    render(<WeekTab />);
+
+    expect(screen.getByText('Week 1 of 1')).toBeTruthy();
+    expect(screen.getByText('Load bar')).toBeTruthy();
+    expect(screen.queryByText('Injury banner')).toBeNull();
+    expect(screen.queryByText('Cross training')).toBeNull();
+    expect(screen.queryByText('RTR')).toBeNull();
+
+    await waitFor(() => {
+      expect(mockActivityList).toHaveBeenCalledTimes(1);
+    });
+    expect(mockCrossTrainingGetForWeek).not.toHaveBeenCalled();
+  });
 });

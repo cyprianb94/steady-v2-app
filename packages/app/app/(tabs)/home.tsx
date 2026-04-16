@@ -35,6 +35,7 @@ import { useHomeSessionDetail } from '../../features/home/use-home-session-detai
 import { useActivityResolution } from '../../features/run/use-activity-resolution';
 import { useRecoveryData } from '../../features/recovery/use-recovery-data';
 import { useRecoveryActionController } from '../../features/recovery/use-recovery-action-controller';
+import { getVisibleActiveInjury, MVP_RECOVERY_UI_ENABLED } from '../../features/recovery/recovery-ui-gate';
 import { usePlanRefreshCoordinator } from '../../features/sync/use-plan-refresh-coordinator';
 
 const HOME_SCROLL_TOP_PADDING = 14;
@@ -101,6 +102,7 @@ export default function HomeScreen() {
   const today = useTodayIso();
   const weekSessions = currentWeek?.sessions ?? [];
   const weekStartDate = currentWeek ? resolveCurrentWeekStartDate(currentWeek, today) : null;
+  const activeInjury = getVisibleActiveInjury(plan);
   const activityResolution = useActivityResolution({
     enabled: Boolean(session),
     isFocused,
@@ -109,17 +111,17 @@ export default function HomeScreen() {
     fetchErrorMessage: 'Failed to fetch activities for home view:',
   });
   const recoveryScope = useMemo(
-    () => (weekStartDate ? { type: 'week' as const, weekStartDate } : null),
+    () => (MVP_RECOVERY_UI_ENABLED && weekStartDate ? { type: 'week' as const, weekStartDate } : null),
     [weekStartDate],
   );
   const recoveryData = useRecoveryData({
     plan,
-    enabled: Boolean(session),
+    enabled: Boolean(session) && MVP_RECOVERY_UI_ENABLED,
     isFocused,
+    injury: activeInjury,
     scope: recoveryScope,
     fetchErrorMessage: 'Failed to fetch cross-training entries for home view:',
   });
-  const { activeInjury } = recoveryData;
   const recoveryController = useRecoveryActionController({
     planId: plan?.id,
     activeInjury,
@@ -264,24 +266,26 @@ export default function HomeScreen() {
             <Text style={styles.headerKicker}>
               {activeInjury ? 'Recovery Mode' : formatPhaseHeading(week.weekNumber, week.phase)}
             </Text>
-            <Pressable
-              accessibilityRole="button"
-              disabled={syncing || recoveryController.isUpdatingRtr || recoveryController.isMutatingRecovery}
-              onPress={() => {
-                setResumeFlowKind('manual');
-                setRecoveryModalMode(activeInjury ? 'resume' : 'mark');
-              }}
-              style={({ pressed }) => [
-                styles.headerAction,
-                activeInjury && styles.headerActionActive,
-                pressed && styles.headerActionPressed,
-                (syncing || recoveryController.isUpdatingRtr || recoveryController.isMutatingRecovery) && styles.headerActionDisabled,
-              ]}
-            >
-              <Text style={[styles.headerActionText, activeInjury && styles.headerActionTextActive]}>
-                {activeInjury ? 'End recovery' : 'Mark injury'}
-              </Text>
-            </Pressable>
+            {MVP_RECOVERY_UI_ENABLED ? (
+              <Pressable
+                accessibilityRole="button"
+                disabled={syncing || recoveryController.isUpdatingRtr || recoveryController.isMutatingRecovery}
+                onPress={() => {
+                  setResumeFlowKind('manual');
+                  setRecoveryModalMode(activeInjury ? 'resume' : 'mark');
+                }}
+                style={({ pressed }) => [
+                  styles.headerAction,
+                  activeInjury && styles.headerActionActive,
+                  pressed && styles.headerActionPressed,
+                  (syncing || recoveryController.isUpdatingRtr || recoveryController.isMutatingRecovery) && styles.headerActionDisabled,
+                ]}
+              >
+                <Text style={[styles.headerActionText, activeInjury && styles.headerActionTextActive]}>
+                  {activeInjury ? 'End recovery' : 'Mark injury'}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
           {activeInjury ? (
             <>
@@ -342,20 +346,22 @@ export default function HomeScreen() {
             </>
           )}
         </ScrollView>
-        <RecoveryFlowModal
-          visible={recoveryModalMode !== null}
-          mode={recoveryModalMode ?? 'mark'}
-          plan={plan}
-          currentWeekNumber={week.weekNumber}
-          injury={activeInjury}
-          busy={syncing || recoveryController.isUpdatingRtr || recoveryController.isMutatingRecovery}
-          onClose={() => {
-            setRecoveryModalMode(null);
-            setResumeFlowKind('manual');
-          }}
-          onMarkInjury={handleMarkInjury}
-          onEndRecovery={handleEndRecovery}
-        />
+        {MVP_RECOVERY_UI_ENABLED ? (
+          <RecoveryFlowModal
+            visible={recoveryModalMode !== null}
+            mode={recoveryModalMode ?? 'mark'}
+            plan={plan}
+            currentWeekNumber={week.weekNumber}
+            injury={activeInjury}
+            busy={syncing || recoveryController.isUpdatingRtr || recoveryController.isMutatingRecovery}
+            onClose={() => {
+              setRecoveryModalMode(null);
+              setResumeFlowKind('manual');
+            }}
+            onMarkInjury={handleMarkInjury}
+            onEndRecovery={handleEndRecovery}
+          />
+        ) : null}
         {sessionDetail.selectedSession && sessionDetail.selectedActivity ? (
           <SessionDetailSheet
             visible

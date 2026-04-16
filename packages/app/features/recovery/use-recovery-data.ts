@@ -36,7 +36,9 @@ export function useRecoveryData({
   fetchErrorMessage,
 }: UseRecoveryDataOptions): UseRecoveryDataResult {
   const activeInjury = getActiveInjury(plan);
-  const recoveryInjury = injury ?? activeInjury;
+  const recoveryInjury = injury === undefined ? activeInjury : injury;
+  const visibleActiveInjury =
+    recoveryInjury && recoveryInjury.status !== 'resolved' ? recoveryInjury : null;
   const [entries, setEntries] = useState<CrossTrainingEntry[]>([]);
   const [isLoadingEntries, setIsLoadingEntries] = useState(false);
   const scopeType = scope?.type ?? null;
@@ -115,8 +117,8 @@ export function useRecoveryData({
   }, [enabled, endDate, fetchErrorMessage, isFocused, recoveryInjury, scopeType, startDate, weekStartDate]);
 
   return {
-    activeInjury,
-    isRecoveryActive: Boolean(activeInjury),
+    activeInjury: visibleActiveInjury,
+    isRecoveryActive: Boolean(visibleActiveInjury),
     entries,
     isLoadingEntries,
     refreshEntries,

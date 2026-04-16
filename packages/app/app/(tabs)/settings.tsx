@@ -14,6 +14,7 @@ import { useAuth } from '../../lib/auth';
 import { trpc } from '../../lib/trpc';
 import { usePreferences } from '../../providers/preferences-context';
 import { useRecoveryActionController } from '../../features/recovery/use-recovery-action-controller';
+import { getVisibleActiveInjury, MVP_RECOVERY_UI_ENABLED } from '../../features/recovery/recovery-ui-gate';
 
 const SETTINGS_TOP_SPACING = 14;
 const SETTINGS_BOTTOM_SPACING = 24;
@@ -171,8 +172,7 @@ export default function SettingsTab() {
   const { units, setUnits, loading: preferencesLoading, updatingUnits } = usePreferences();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [recoveryModalMode, setRecoveryModalMode] = useState<'mark' | 'resume' | null>(null);
-  const activeInjury =
-    plan?.activeInjury && plan.activeInjury.status !== 'resolved' ? plan.activeInjury : null;
+  const activeInjury = getVisibleActiveInjury(plan);
   const recoveryController = useRecoveryActionController({
     planId: plan?.id,
     activeInjury,
@@ -379,7 +379,7 @@ export default function SettingsTab() {
       <View style={styles.section}>
         <SectionHeading
           title="Training"
-          copy={hasPlan ? 'Keep plan actions close to hand.' : 'Build a test plan to unlock week and recovery flows.'}
+          copy={hasPlan ? 'Keep plan actions close to hand.' : 'Build a test plan to unlock your training views.'}
         />
 
         <View style={styles.rowCard}>
@@ -388,24 +388,27 @@ export default function SettingsTab() {
             subtitle={hasPlan ? 'Build a fresh test plan.' : 'Build your first test plan.'}
             value="Open"
             onPress={() => router.push('/onboarding/plan-builder/step-goal')}
+            showBorder={MVP_RECOVERY_UI_ENABLED}
           />
-          <ActionRow
-            title="Recovery mode"
-            subtitle={
-              activeInjury
-                ? `${activeInjury.name} active. Choose where to resume when ready.`
-                : hasPlan
-                  ? 'Pause the current block and start recovery.'
-                  : 'Available after you build a plan.'
-            }
-            value={
-              !hasPlan ? 'Locked' : activeInjury ? 'Active' : planLoading || busy ? 'Working…' : 'Off'
-            }
-            tone={activeInjury ? 'warm' : 'neutral'}
-            onPress={hasPlan ? () => setRecoveryModalMode(activeInjury ? 'resume' : 'mark') : undefined}
-            disabled={!hasPlan || busy || planLoading}
-            showBorder={false}
-          />
+          {MVP_RECOVERY_UI_ENABLED ? (
+            <ActionRow
+              title="Recovery mode"
+              subtitle={
+                activeInjury
+                  ? `${activeInjury.name} active. Choose where to resume when ready.`
+                  : hasPlan
+                    ? 'Pause the current block and start recovery.'
+                    : 'Available after you build a plan.'
+              }
+              value={
+                !hasPlan ? 'Locked' : activeInjury ? 'Active' : planLoading || busy ? 'Working…' : 'Off'
+              }
+              tone={activeInjury ? 'warm' : 'neutral'}
+              onPress={hasPlan ? () => setRecoveryModalMode(activeInjury ? 'resume' : 'mark') : undefined}
+              disabled={!hasPlan || busy || planLoading}
+              showBorder={false}
+            />
+          ) : null}
         </View>
       </View>
 
@@ -485,7 +488,7 @@ export default function SettingsTab() {
         )}
       </View>
 
-      {plan ? (
+      {plan && MVP_RECOVERY_UI_ENABLED ? (
         <RecoveryFlowModal
           visible={recoveryModalMode !== null}
           mode={recoveryModalMode ?? 'mark'}

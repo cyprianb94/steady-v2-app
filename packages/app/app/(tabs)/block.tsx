@@ -34,6 +34,7 @@ import { usePreferences } from '../../providers/preferences-context';
 import { formatDistance, type DistanceUnits } from '../../lib/units';
 import { useActivityResolution } from '../../features/run/use-activity-resolution';
 import { useRecoveryData } from '../../features/recovery/use-recovery-data';
+import { getVisibleHistoricalInjury, MVP_RECOVERY_UI_ENABLED } from '../../features/recovery/recovery-ui-gate';
 import { usePlanRefreshCoordinator } from '../../features/sync/use-plan-refresh-coordinator';
 import {
   buildBlockPhaseSegments,
@@ -338,7 +339,7 @@ export default function BlockTab() {
     syncRevision,
     fetchErrorMessage: 'Failed to fetch activities for block view:',
   });
-  const historicalInjury = plan?.activeInjury ?? null;
+  const historicalInjury = getVisibleHistoricalInjury(plan);
   const injuryRange = plan ? getInjuryWeekRange(plan.weeks, historicalInjury, today) : null;
   const recoveryScope = useMemo(() => {
     if (!plan || !injuryRange) {
@@ -360,13 +361,12 @@ export default function BlockTab() {
   }, [injuryRange, plan]);
   const recoveryData = useRecoveryData({
     plan,
-    enabled: Boolean(session),
+    enabled: Boolean(session) && MVP_RECOVERY_UI_ENABLED,
     isFocused,
     injury: historicalInjury,
     scope: recoveryScope,
     fetchErrorMessage: 'Failed to fetch block cross-training entries:',
   });
-  const { activeInjury } = recoveryData;
   const rescheduleBaseWeek = rescheduleWeekIndex == null
     ? null
     : plan?.weeks[rescheduleWeekIndex] ?? null;

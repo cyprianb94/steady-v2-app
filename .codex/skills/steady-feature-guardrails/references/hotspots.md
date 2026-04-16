@@ -41,6 +41,7 @@ Keep `packages/app/app/(tabs)/home.tsx` focused on composition. Do not move row-
 
 Start by looking in:
 
+- `packages/app/features/recovery/recovery-ui-gate.ts` for the shared MVP suppression switch that parks or re-enables injury UI across Home, Week, Block, and Settings
 - `packages/app/features/recovery/*`
 - `packages/app/components/recovery/*`
 - `packages/app/lib/resume-week.ts`

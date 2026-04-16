@@ -105,6 +105,11 @@ function makeWeek(
   };
 }
 
+function withNormalizedText(expected: string) {
+  return (_content: string, node: Element | null) =>
+    node?.textContent?.replace(/\s+/g, ' ').trim() === expected;
+}
+
 describe('BlockTab injury history', () => {
   beforeEach(() => {
     mockGetForDateRange.mockReset();
@@ -156,35 +161,32 @@ describe('BlockTab injury history', () => {
     };
   });
 
-  it('keeps resolved injury weeks visible in block view and loads their cross-training', async () => {
+  it('keeps the normal block rendering when injury history is persisted', async () => {
     render(<BlockTab />);
 
     await waitFor(() => {
-      expect(mockGetForDateRange).toHaveBeenCalledWith({
-        startDate: '2026-04-13',
-        endDate: '2026-04-26',
-      });
+      expect(
+        screen.getByText(withNormalizedText('Current phase: Peak. Week 1 of 1. Race-specific sharpness is coming together.')),
+      ).toBeTruthy();
     });
 
-    expect(screen.getAllByText('INJURY').length).toBeGreaterThan(0);
-    expect(screen.getByText('Cycling 45m')).toBeTruthy();
+    expect(screen.queryByText('INJURY')).toBeNull();
+    expect(screen.queryByText('Cycling 45m')).toBeNull();
+    expect(mockGetForDateRange).not.toHaveBeenCalled();
   });
 
-  it('describes a resolved current injury week as history rather than active recovery', async () => {
+  it('describes the underlying training phase instead of injury history when the UI is hidden', async () => {
     planState.currentWeekIndex = 1;
 
     render(<BlockTab />);
 
     await waitFor(() => {
-      expect(mockGetForDateRange).toHaveBeenCalledWith({
-        startDate: '2026-04-13',
-        endDate: '2026-04-26',
-      });
+      expect(
+        screen.getByText(withNormalizedText('Current phase: Build. Week 1 of 2. Peak volume approaching.')),
+      ).toBeTruthy();
     });
 
-    expect(
-      screen.getByText('Injury history. Week 1 of 2. Recovery is complete and this period stays visible in the block.'),
-    ).toBeTruthy();
-    expect(screen.queryByText('Modified training is in progress.')).toBeNull();
+    expect(screen.queryByText('Injury history. Week 1 of 2. Recovery is complete and this period stays visible in the block.')).toBeNull();
+    expect(mockGetForDateRange).not.toHaveBeenCalled();
   });
 });

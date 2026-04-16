@@ -183,7 +183,7 @@ describe('HomeScreen recovery behavior', () => {
     });
   });
 
-  it('switches into recovery mode and fetches cross-training for the displayed week', async () => {
+  it('keeps the normal MVP home UI when persisted injury data exists', async () => {
     const week = {
       weekNumber: 4,
       phase: 'BUILD' as const,
@@ -219,14 +219,17 @@ describe('HomeScreen recovery behavior', () => {
 
     render(<HomeScreen />);
 
-    expect(screen.getByText('Recovery Mode')).toBeTruthy();
-    expect(screen.getByText('Calf strain')).toBeTruthy();
-    expect(screen.getByText('Cross-Training This Week')).toBeTruthy();
-    expect(screen.getByText('Return To Running')).toBeTruthy();
-    expect(screen.queryByText('WEEKLY LOAD')).toBeNull();
+    expect(screen.getByText('Week 4 · Build Phase')).toBeTruthy();
+    expect(screen.getByText('WEEKLY LOAD')).toBeTruthy();
+    expect(screen.queryByText('Recovery Mode')).toBeNull();
+    expect(screen.queryByText('Calf strain')).toBeNull();
+    expect(screen.queryByText('Cross-Training This Week')).toBeNull();
+    expect(screen.queryByText('Return To Running')).toBeNull();
+    expect(screen.queryByText('Mark injury')).toBeNull();
 
     await waitFor(() => {
-      expect(mockCrossTrainingGetForWeek).toHaveBeenCalledWith({ weekStartDate: '2026-05-04' });
+      expect(mockActivityList).toHaveBeenCalled();
     });
+    expect(mockCrossTrainingGetForWeek).not.toHaveBeenCalled();
   });
 });

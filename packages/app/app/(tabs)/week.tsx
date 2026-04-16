@@ -22,6 +22,7 @@ import { SessionDetailSheet } from '../../components/home/SessionDetailSheet';
 import { useActivityResolution } from '../../features/run/use-activity-resolution';
 import { useRecoveryData } from '../../features/recovery/use-recovery-data';
 import { useRecoveryActionController } from '../../features/recovery/use-recovery-action-controller';
+import { getVisibleActiveInjury, MVP_RECOVERY_UI_ENABLED } from '../../features/recovery/recovery-ui-gate';
 import { usePlanRefreshCoordinator } from '../../features/sync/use-plan-refresh-coordinator';
 
 export default function WeekTab() {
@@ -38,6 +39,7 @@ export default function WeekTab() {
     : 0;
   const week = plan?.weeks[weekIdx] ?? null;
   const weekStartDate = week ? inferWeekStartDate(week, today) : null;
+  const activeInjury = getVisibleActiveInjury(plan);
   const activityResolution = useActivityResolution({
     enabled: Boolean(session),
     isFocused,
@@ -46,17 +48,17 @@ export default function WeekTab() {
     fetchErrorMessage: 'Failed to fetch activities for week view:',
   });
   const recoveryScope = useMemo(
-    () => (weekStartDate ? { type: 'week' as const, weekStartDate } : null),
+    () => (MVP_RECOVERY_UI_ENABLED && weekStartDate ? { type: 'week' as const, weekStartDate } : null),
     [weekStartDate],
   );
   const recoveryData = useRecoveryData({
     plan,
-    enabled: Boolean(session),
+    enabled: Boolean(session) && MVP_RECOVERY_UI_ENABLED,
     isFocused,
+    injury: activeInjury,
     scope: recoveryScope,
     fetchErrorMessage: 'Failed to fetch cross-training entries:',
   });
-  const { activeInjury } = recoveryData;
   const recoveryController = useRecoveryActionController({
     planId: plan?.id,
     activeInjury,
