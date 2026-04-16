@@ -60,7 +60,7 @@ export function createAppRouter(deps: RouterDeps) {
     profile: createProfileRouter(deps.profileRepo),
     activity: createActivityRouter(activityWorkflow),
     shoe: createShoeRouter(shoeRepo),
-    plan: createPlanRouter(deps.planRepo),
+    plan: createPlanRouter(deps.planRepo, deps.profileRepo),
     coach: createCoachRouter(deps),
     crossTraining: createCrossTrainingRouter(deps.crossTrainingRepo, deps.planRepo),
     strava: createStravaRouter(stravaWorkflow),

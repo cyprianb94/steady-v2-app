@@ -4,6 +4,7 @@ import { router, authedProcedure } from './trpc';
 import { generatePlan, getDisplayWeekIndex, propagateChange } from '@steady/types';
 import type { TrainingPlan, TrainingPlanWithAnnotation, PlanWeek, PhaseConfig, PlannedSession } from '@steady/types';
 import type { PlanRepo } from '../repos/plan-repo';
+import type { ProfileRepo } from '../repos/profile-repo';
 import { generateAnnotation } from '../lib/annotation-engine';
 
 const PhaseConfigSchema = z.object({
@@ -34,6 +35,28 @@ function dayIndexForDate(date: string): number {
   return day === 0 ? 6 : day - 1;
 }
 
+function currentIsoDateInTimezone(timezone: string, now: Date = new Date()): string {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(now);
+    const year = parts.find((part) => part.type === 'year')?.value;
+    const month = parts.find((part) => part.type === 'month')?.value;
+    const day = parts.find((part) => part.type === 'day')?.value;
+
+    if (year && month && day) {
+      return `${year}-${month}-${day}`;
+    }
+  } catch {
+    // Fall back to UTC ISO date if the stored timezone is invalid.
+  }
+
+  return now.toISOString().slice(0, 10);
+}
+
 function findSessionForDateOrWeekday(
   sessions: (PlannedSession | null)[],
   date: string,
@@ -41,10 +64,9 @@ function findSessionForDateOrWeekday(
   return sessions[dayIndexForDate(date)] ?? null;
 }
 
-function withCoachAnnotation(plan: TrainingPlan | null): TrainingPlanWithAnnotation | null {
+function withCoachAnnotation(plan: TrainingPlan | null, today: string): TrainingPlanWithAnnotation | null {
   if (!plan) return null;
 
-  const today = new Date().toISOString().slice(0, 10);
   const currentWeek = plan.weeks[getDisplayWeekIndex(plan.weeks, today)];
 
   if (!currentWeek) {
@@ -71,11 +93,16 @@ function withCoachAnnotation(plan: TrainingPlan | null): TrainingPlanWithAnnotat
   };
 }
 
-export function createPlanRouter(planRepo: PlanRepo) {
+export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo) {
   return router({
     /** Get the user's active training plan. */
     get: authedProcedure.query(async ({ ctx }) => {
-      return withCoachAnnotation(await planRepo.getActive(ctx.userId));
+      const [plan, profile] = await Promise.all([
+        planRepo.getActive(ctx.userId),
+        profileRepo.getById(ctx.userId),
+      ]);
+
+      return withCoachAnnotation(plan, currentIsoDateInTimezone(profile?.timezone ?? 'UTC'));
     }),
 
     /** Generate a plan server-side from a template. */
