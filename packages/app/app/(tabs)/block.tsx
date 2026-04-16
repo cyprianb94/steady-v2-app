@@ -45,6 +45,7 @@ import {
   propagateChange,
   type BlockPhaseSegment,
   type CrossTrainingEntry,
+  type Injury,
   type PlannedSession,
   type PlanWeek,
   type PropagateScope,
@@ -152,6 +153,7 @@ function getPhaseCaption(
   currentWeekIndex: number,
   currentPhase: PlanWeek['phase'] | 'INJURY',
   injuryRange: ReturnType<typeof getInjuryWeekRange>,
+  injury: Injury | null | undefined,
 ): string {
   const { weekInPhase, totalWeeksInPhase } = getPhaseProgress(
     weeks,
@@ -159,6 +161,10 @@ function getPhaseCaption(
     currentPhase,
     injuryRange,
   );
+
+  if (currentPhase === 'INJURY' && injury?.status === 'resolved') {
+    return `Injury history. Week ${weekInPhase} of ${totalWeeksInPhase}. Recovery is complete and this period stays visible in the block.`;
+  }
 
   return `${formatPhaseName(currentPhase)}. Week ${weekInPhase} of ${totalWeeksInPhase}. ${getPhaseOutlook(currentPhase)}`;
 }
@@ -393,6 +399,7 @@ export default function BlockTab() {
   const currentPhase = isInjuryWeek(safeCurrentWeekIndex, injuryRange)
     ? 'INJURY'
     : plan.weeks[safeCurrentWeekIndex]?.phase ?? 'BUILD';
+  const isHistoricalCurrentInjury = currentPhase === 'INJURY' && historicalInjury?.status === 'resolved';
   const maxKm = Math.max(...plan.weeks.map(weekKm), 1);
   const activitiesById = activityResolution.activityById;
 
@@ -531,6 +538,9 @@ export default function BlockTab() {
           {phases.map((p, i) => {
             const label = getPhaseStripLabel(p, plan.weeks.length);
             const isCompactLabel = label !== p.name;
+            const isHistoricalCurrentSegment =
+              p.name === 'INJURY' && p.isCurrent && isHistoricalCurrentInjury;
+            const showCurrentPhaseEmphasis = p.isCurrent && !isHistoricalCurrentSegment;
 
             return (
               <View
@@ -541,17 +551,19 @@ export default function BlockTab() {
                     flex: p.weeks,
                     backgroundColor:
                       p.name === 'INJURY'
-                        ? p.isCurrent
+                        ? isHistoricalCurrentSegment
+                          ? C.clayBg
+                          : p.isCurrent
                           ? C.clay
                           : C.clayBg
                         : p.isCurrent
                           ? PHASE_COLOR[p.name]
                           : INACTIVE_PHASE_BACKGROUND[p.name],
-                    borderWidth: p.name === 'INJURY' && !p.isCurrent ? 1 : 0,
+                    borderWidth: p.name === 'INJURY' && (!p.isCurrent || isHistoricalCurrentSegment) ? 1 : 0,
                     borderColor: p.name === 'INJURY' ? `${C.clay}35` : 'transparent',
                   },
-                  p.isCurrent && styles.phaseSegmentCurrent,
-                  p.isCurrent && {
+                  showCurrentPhaseEmphasis && styles.phaseSegmentCurrent,
+                  showCurrentPhaseEmphasis && {
                     shadowColor: p.name === 'INJURY' ? C.clay : PHASE_COLOR[p.name],
                   },
                 ]}
@@ -564,7 +576,9 @@ export default function BlockTab() {
                     {
                       color:
                         p.name === 'INJURY'
-                          ? p.isCurrent
+                          ? isHistoricalCurrentSegment
+                            ? C.clay
+                            : p.isCurrent
                             ? 'white'
                             : C.clay
                           : p.isCurrent
@@ -580,8 +594,10 @@ export default function BlockTab() {
           })}
         </View>
         <Text style={styles.phaseCaption}>
-          <Text style={styles.phaseCaptionLead}>Current phase:</Text>
-          <Text>{` ${getPhaseCaption(plan.weeks, safeCurrentWeekIndex, currentPhase, injuryRange)}`}</Text>
+          <Text style={styles.phaseCaptionLead}>
+            {isHistoricalCurrentInjury ? 'Current week:' : 'Current phase:'}
+          </Text>
+          <Text>{` ${getPhaseCaption(plan.weeks, safeCurrentWeekIndex, currentPhase, injuryRange, historicalInjury)}`}</Text>
         </Text>
       </View>
 

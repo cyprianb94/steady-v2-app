@@ -168,4 +168,22 @@ describe('BlockTab injury history', () => {
     expect(screen.getAllByText('INJURY').length).toBeGreaterThan(0);
     expect(screen.getByText('Cycling 45m')).toBeTruthy();
   });
+
+  it('describes a resolved current injury week as history rather than active recovery', async () => {
+    planState.currentWeekIndex = 1;
+
+    render(<BlockTab />);
+
+    await waitFor(() => {
+      expect(mockGetForDateRange).toHaveBeenCalledWith({
+        startDate: '2026-04-13',
+        endDate: '2026-04-26',
+      });
+    });
+
+    expect(
+      screen.getByText('Injury history. Week 1 of 2. Recovery is complete and this period stays visible in the block.'),
+    ).toBeTruthy();
+    expect(screen.queryByText('Modified training is in progress.')).toBeNull();
+  });
 });
