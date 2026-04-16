@@ -193,9 +193,7 @@ describe('TodayHeroCard', () => {
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
-  it('still supports a dedicated inline Steady note action when provided', () => {
-    const onSteadyNotePress = vi.fn();
-
+  it('renders the inline Steady note as non-interactive copy', () => {
     render(
       <TodayHeroCard
         session={{
@@ -206,12 +204,10 @@ describe('TodayHeroCard', () => {
           pace: '5:20',
         }}
         steadyNote="Keep this one relaxed so tomorrow still has teeth."
-        onSteadyNotePress={onSteadyNotePress}
       />,
     );
 
-    fireEvent.click(screen.getByTestId('hero-steady-note'));
-    expect(onSteadyNotePress).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('hero-steady-note').getAttribute('role')).toBeNull();
   });
 
   it('does not render an inline Steady note when no note is available', () => {

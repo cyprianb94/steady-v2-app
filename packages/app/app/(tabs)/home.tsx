@@ -205,10 +205,9 @@ export default function HomeScreen() {
   );
   const steadyNote = todaySession ? (plan.todayAnnotation ?? plan.coachAnnotation ?? null) : null;
   const coachNote = plan.coachAnnotation && plan.coachAnnotation === steadyNote ? null : plan.coachAnnotation;
-  const handleSteadyNotePress = steadyNote ? () => router.push('/(tabs)/coach') : undefined;
   const handleTodayHeroPress = sessionDetail.canOpenSessionDetail(todaySession)
     ? () => sessionDetail.openSessionDetail(todaySession)
-    : handleSteadyNotePress;
+    : undefined;
 
   async function handleMarkRtrStepComplete() {
     const result = await recoveryController.advanceReturnToRun();
@@ -318,7 +317,6 @@ export default function HomeScreen() {
                 activity={activityResolution.activityForSession(todaySession)}
                 steadyNote={steadyNote}
                 onPress={handleTodayHeroPress}
-                onSteadyNotePress={handleTodayHeroPress === handleSteadyNotePress ? undefined : handleSteadyNotePress}
               />
               {showFinishedRunCta ? (
                 <View style={styles.ctaWrap}>

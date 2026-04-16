@@ -10,7 +10,7 @@ Use this file when a feature touches an area that historically attracted debt.
 - `packages/app/app/onboarding/plan-builder/step-goal.tsx` — `699` lines. Plan-builder rules should land in shared plan-builder modules or shared domain helpers, not in the screen.
 - `packages/app/app/onboarding/plan-builder/step-plan.tsx` — `488` lines. Keep generated-plan editing rules out of the onboarding screen shell.
 - `packages/app/app/onboarding/plan-builder/step-template.tsx` — `485` lines. Template-week logic should prefer shared plan-builder modules over screen-local logic.
-- `packages/app/app/(tabs)/home.tsx` — `451` lines. Home should stay a composition surface, not a new business-logic sink.
+- `packages/app/app/(tabs)/home.tsx` — `449` lines. Home should stay a composition surface, not a new business-logic sink.
 - `packages/server/src/services/strava-workflow-service.ts` — `570` lines. High-impact workflow boundary. Keep new behavior cohesive and avoid leaking orchestration back into routers or screens.
 - `packages/server/src/trpc/plan.ts` — `261` lines. Plan validation and annotation logic are starting to concentrate here. Keep workflow logic out of the router.
 

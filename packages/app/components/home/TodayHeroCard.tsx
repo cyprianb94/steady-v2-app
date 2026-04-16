@@ -29,7 +29,6 @@ interface TodayHeroCardProps {
   activity?: ActivitySummary;
   steadyNote?: string | null;
   onPress?: () => void;
-  onSteadyNotePress?: () => void;
   onSaveSubjectiveInput?: (input: SubjectiveInput) => void | Promise<void>;
   onDismissSubjectiveInput?: () => void | Promise<void>;
 }
@@ -94,7 +93,6 @@ export function TodayHeroCard({
   activity,
   steadyNote,
   onPress,
-  onSteadyNotePress,
   onSaveSubjectiveInput,
   onDismissSubjectiveInput,
 }: TodayHeroCardProps) {
@@ -225,20 +223,9 @@ export function TodayHeroCard({
         </View>
       )}
       {steadyNote ? (
-        onSteadyNotePress ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={onSteadyNotePress}
-            style={({ pressed }) => [styles.steadyNote, pressed && styles.steadyNotePressed]}
-            testID="hero-steady-note"
-          >
-            {steadyNoteContent}
-          </Pressable>
-        ) : (
-          <View style={styles.steadyNote} testID="hero-steady-note">
-            {steadyNoteContent}
-          </View>
-        )
+        <View style={styles.steadyNote} testID="hero-steady-note">
+          {steadyNoteContent}
+        </View>
       ) : null}
       {showSubjectivePrompt ? (
         <SubjectiveInputPrompt
@@ -481,12 +468,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(28,21,16,0.08)',
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     gap: 8,
-  },
-  steadyNotePressed: {
-    opacity: 0.8,
   },
   steadyNoteMain: {
     flex: 1,

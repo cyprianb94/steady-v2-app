@@ -406,7 +406,7 @@ describe('HomeScreen', () => {
     expect(screen.queryByTestId('coach-annotation')).toBeNull();
   });
 
-  it('opens the Steady conversation when the planned today hero is tapped', () => {
+  it('does not open the Steady conversation from the planned today hero', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-06T12:00:00Z')); // Monday
     const today = '2026-04-06';
@@ -447,7 +447,7 @@ describe('HomeScreen', () => {
     render(<HomeScreen />);
 
     fireEvent.click(screen.getByTestId('hero-card'));
-    expect(mockRouterPush).toHaveBeenCalledWith('/(tabs)/coach');
+    expect(mockRouterPush).not.toHaveBeenCalled();
   });
 
   it('uses the weekday slot for today when saved session dates are out of range', () => {
