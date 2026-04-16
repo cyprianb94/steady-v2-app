@@ -3,14 +3,29 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PlannedSession, TrainingPlanWithAnnotation } from '@steady/types';
 
-const { mockRefresh, mockUpdateWeeks, planState } = vi.hoisted(() => ({
+const { mockRefresh, mockUpdateWeeks, planState, mockRouterPush, mockAuth } = vi.hoisted(() => ({
   mockRefresh: vi.fn(),
   mockUpdateWeeks: vi.fn(),
   planState: { current: null as TrainingPlanWithAnnotation | null },
+  mockRouterPush: vi.fn(),
+  mockAuth: {
+    session: { user: { id: 'runner-1' } },
+    isLoading: false,
+  },
 }));
 
 vi.mock('@react-navigation/native', () => ({
   useIsFocused: () => true,
+}));
+
+vi.mock('expo-router', () => ({
+  router: {
+    push: mockRouterPush,
+  },
+}));
+
+vi.mock('../lib/auth', () => ({
+  useAuth: () => mockAuth,
 }));
 
 vi.mock('../hooks/usePlan', () => ({
