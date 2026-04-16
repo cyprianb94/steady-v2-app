@@ -1,15 +1,20 @@
 # Steady
 
-Steady is a plan manager for runners with their own plans, consolidating multiple tools into one app. It acknowledges that training rarely goes perfectly – niggles and injuries happen – and lets you easily adapt. Manage your plan solo, with a real coach, or with AI. Plus, generate injury timeline reports that actually help your physio visits.
+Steady is an iOS beta for runners who already have a plan. The current beta is focused on the core loop: build the plan in app, see the current week and block clearly, sync Strava runs back to the plan, and handle injury/recovery without losing context.
 
-**Key features**
-- Bring your own plan in any format (manual, CSV, screenshot)
-- Sync runs from Strava, Garmin, and Apple Health
-- Planned vs actual tracking per session and across the block
-- Injury phase mode with return-to-running progression
-- Export your niggles, run history and injury history for your physio visit
-- AI coach that initiates conversations — debriefs after key sessions, week previews every Monday
-- Coach invite so a real human coach can see and edit the plan directly
+**Current beta features**
+- Build a plan in app with the plan builder
+- Today, Week, and Block views for the current training block
+- Strava sync
+- Planned vs actual tracking per session
+- Recovery mode with return-to-running progression and resume-week choice
+
+**Not in beta yet**
+- CSV or screenshot/photo plan import
+- Apple Health or Garmin sync
+- Coach invite / coach collaboration
+- Proactive Steady AI debriefs, weekly previews, or paid packaging
+- Physio export reports
 
 ## Stack
 
@@ -20,7 +25,7 @@ Steady is a plan manager for runners with their own plans, consolidating multipl
 
 ## Status
 
-Active development. v1 targets: plan import, block and week view, Strava sync, injury phase mode.
+Active development. Current beta focus: in-app plan builder, block and week view, Strava sync, planned vs actual, and recovery mode.
 
 Landing page and waitlist: [steadybyop.vercel.app](https://steadybyop.vercel.app)
 
