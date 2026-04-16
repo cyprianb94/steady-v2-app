@@ -1,18 +1,25 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, Modal } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  Animated,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { sessionKm, type PlannedSession } from '@steady/types';
+import { SessionEditor } from '../../../components/plan-builder/SessionEditor';
+import { DragHandle } from '../../../components/plan-builder/DragHandle';
+import { Btn } from '../../../components/ui/Btn';
 import { C } from '../../../constants/colours';
 import { SESSION_TYPE } from '../../../constants/session-types';
 import { FONTS } from '../../../constants/typography';
-import { SectionLabel } from '../../../components/ui/SectionLabel';
-import { Btn } from '../../../components/ui/Btn';
-import { RearrangeSheet } from '../../../components/block/RearrangeSheet';
-import { SessionEditor } from '../../../components/plan-builder/SessionEditor';
-import { DAYS, sessionLabel, TYPE_DEFAULTS } from '../../../lib/plan-helpers';
-import { sessionKm } from '@steady/types';
-import type { PlannedSession } from '@steady/types';
-import { usePreferences } from '../../../providers/preferences-context';
+import { useDirectWeekReschedule } from '../../../features/plan-builder/use-direct-week-reschedule';
+import { DAYS, sessionLabel } from '../../../lib/plan-helpers';
 import { formatDistance } from '../../../lib/units';
+import { usePreferences } from '../../../providers/preferences-context';
 
 const DEFAULT_TEMPLATE: (Partial<PlannedSession> | null)[] = [
   { type: 'EASY', distance: 8, pace: '5:20' },
@@ -24,9 +31,14 @@ const DEFAULT_TEMPLATE: (Partial<PlannedSession> | null)[] = [
   { type: 'LONG', distance: 20, pace: '5:10' },
 ];
 
-function toRearrangeSessions(template: (Partial<PlannedSession> | null)[]): (PlannedSession | null)[] {
+function createTemplateSessions(
+  template: (Partial<PlannedSession> | null)[],
+): (PlannedSession | null)[] {
   return template.map((session, index) => {
-    if (!session || session.type === 'REST') return null;
+    if (!session || session.type === 'REST') {
+      return null;
+    }
+
     return {
       id: `template-${index}`,
       date: 'template',
@@ -36,12 +48,35 @@ function toRearrangeSessions(template: (Partial<PlannedSession> | null)[]): (Pla
   });
 }
 
-function toTemplateSessions(sessions: (PlannedSession | null)[]): (Partial<PlannedSession> | null)[] {
+function toTemplateSessions(
+  sessions: (PlannedSession | null)[],
+): (Partial<PlannedSession> | null)[] {
   return sessions.map((session) => {
-    if (!session || session.type === 'REST') return null;
+    if (!session || session.type === 'REST') {
+      return null;
+    }
+
     const { id: _id, date: _date, actualActivityId: _actualActivityId, ...templateSession } = session;
     return templateSession;
   });
+}
+
+function materializeTemplateSession(
+  dayIndex: number,
+  updated: Partial<PlannedSession> | null,
+  existing: PlannedSession | null,
+): PlannedSession | null {
+  if (!updated || updated.type === 'REST') {
+    return null;
+  }
+
+  return {
+    ...existing,
+    ...updated,
+    id: existing?.id ?? `template-${dayIndex}`,
+    date: existing?.date ?? 'template',
+    type: updated.type ?? existing?.type ?? 'EASY',
+  };
 }
 
 export default function StepTemplate() {
@@ -56,48 +91,76 @@ export default function StepTemplate() {
     phases: string;
     hasPerWeekTweaks?: string;
   }>();
-  const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
+  const [templateSessions, setTemplateSessions] = useState<(PlannedSession | null)[]>(
+    () => createTemplateSessions(DEFAULT_TEMPLATE),
+  );
   const [editing, setEditing] = useState<number | null>(null);
-  const [rearranging, setRearranging] = useState(false);
-  const [pendingTemplate, setPendingTemplate] = useState<(Partial<PlannedSession> | null)[] | null>(null);
+  const [showRegenerateWarning, setShowRegenerateWarning] = useState(false);
 
-  const totalKm = template.reduce((acc, s) => acc + sessionKm(s as PlannedSession | null), 0);
   const weeks = Number(params.weeks) || 16;
   const hasPerWeekTweaks = params.hasPerWeekTweaks === 'true';
+  const reschedule = useDirectWeekReschedule({
+    initialSessions: templateSessions,
+    canDragDay: (session) => Boolean(session),
+  });
 
-  const handleSave = (dayIndex: number, session: Partial<PlannedSession> | null) => {
-    const t = [...template];
-    t[dayIndex] = session;
-    setTemplate(t);
-    setEditing(null);
-  };
-
-  const applyTemplateRearrange = (nextTemplate: (Partial<PlannedSession> | null)[]) => {
-    setTemplate(nextTemplate);
-    setPendingTemplate(null);
-  };
-
-  const handleRearrangeDone = (sessions: (PlannedSession | null)[]) => {
-    const nextTemplate = toTemplateSessions(sessions);
-    setRearranging(false);
-
-    if (hasPerWeekTweaks) {
-      setPendingTemplate(nextTemplate);
+  useEffect(() => {
+    if (!reschedule.hasChanges) {
       return;
     }
 
-    applyTemplateRearrange(nextTemplate);
-  };
+    if (hasPerWeekTweaks) {
+      setShowRegenerateWarning(true);
+      return;
+    }
 
-  const handleNext = () => {
+    setTemplateSessions(reschedule.sessions);
+  }, [hasPerWeekTweaks, reschedule.hasChanges, reschedule.sessions]);
+
+  const visibleTemplateSessions =
+    !showRegenerateWarning && reschedule.hasChanges
+      ? reschedule.sessions
+      : templateSessions;
+  const totalKm = visibleTemplateSessions.reduce(
+    (acc, session) => acc + sessionKm(session),
+    0,
+  );
+
+  function handleSave(dayIndex: number, session: Partial<PlannedSession> | null) {
+    const nextSessions = [...templateSessions];
+    nextSessions[dayIndex] = materializeTemplateSession(
+      dayIndex,
+      session,
+      templateSessions[dayIndex] ?? null,
+    );
+    setTemplateSessions(nextSessions);
+    setEditing(null);
+  }
+
+  function handleNext() {
+    const nextTemplateSessions =
+      showRegenerateWarning || !reschedule.hasChanges
+        ? templateSessions
+        : reschedule.sessions;
+
     router.push({
       pathname: '/onboarding/plan-builder/step-plan',
       params: {
         ...params,
-        template: JSON.stringify(template),
+        template: JSON.stringify(toTemplateSessions(nextTemplateSessions)),
       },
     });
-  };
+  }
+
+  function keepExistingTweaks() {
+    setShowRegenerateWarning(false);
+    reschedule.reset();
+  }
+
+  function regenerateFromReorderedTemplate() {
+    setTemplateSessions(reschedule.sessions);
+    setShowRegenerateWarning(false);
+  }
 
   return (
     <View style={styles.container}>
@@ -105,109 +168,156 @@ export default function StepTemplate() {
         <Text style={styles.step}>STEP 2 OF 3</Text>
         <Text style={styles.title}>Design your week</Text>
         <Text style={styles.subtitle}>
-          This pattern repeats across all {weeks} weeks. Tap any day to adjust.
+          Tap any day to tune the session. Use the grip to move it to a different spot in the week.
         </Text>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        {/* Info card */}
         <View style={styles.infoCard}>
           <View style={styles.infoDot} />
           <Text style={styles.infoText}>
             <Text style={styles.infoStrong}>Steady</Text> — This is your base week. It repeats across
-            all {weeks} weeks — you'll be able to fine-tune each week individually in the next step.
+            all {weeks} weeks, so set the rhythm first and fine-tune details later.
           </Text>
         </View>
 
-        <View style={styles.templateActions}>
-          <View>
-            <Text style={styles.templateActionsTitle}>Weekly layout</Text>
-            <Text style={styles.templateActionsText}>Move sessions between days before generating.</Text>
-          </View>
-          <Pressable onPress={() => setRearranging(true)} style={styles.rearrangeButton}>
-            <Text style={styles.rearrangeButtonText}>Rearrange</Text>
-          </Pressable>
+        <View style={styles.sectionHeading}>
+          <Text style={styles.sectionTitle}>Template week</Text>
+          <Text style={styles.sectionMeta}>~{formatDistance(totalKm, units, { spaced: true })} / week</Text>
         </View>
 
-        {/* Day cards */}
-        {DAYS.map((day, i) => {
-          const s = template[i];
-          const isRest = !s || s.type === 'REST';
-          const tc = s ? SESSION_TYPE[s.type as keyof typeof SESSION_TYPE] : null;
+        {reschedule.conflicts.length > 0 ? (
+          <View style={styles.warningBanner}>
+            <Text style={styles.warningBannerTitle}>Hard sessions are back-to-back</Text>
+            <Text style={styles.warningBannerText}>
+              {reschedule.conflicts
+                .map((conflict) => `${DAYS[conflict.firstDayIndex]}-${DAYS[conflict.secondDayIndex]}`)
+                .join(', ')}
+            </Text>
+          </View>
+        ) : null}
+
+        {reschedule.sessions.map((session, index) => {
+          const type = session?.type ?? 'REST';
+          const sessionType = SESSION_TYPE[type];
+          const isRest = !session;
+          const dragging = reschedule.dragState?.fromIndex === index;
+          const dropTarget =
+            reschedule.dragState?.overIndex === index &&
+            reschedule.dragState.fromIndex !== index;
+          const canDragDay = reschedule.canDragIndex(index);
 
           return (
-            <Pressable
-              key={day}
-              onPress={() => setEditing(i)}
+            <Animated.View
+              key={session?.id ?? `rest-${index}`}
               style={[
-                styles.dayCard,
-                {
-                  backgroundColor: isRest ? C.cream : tc?.bg || C.cream,
-                  borderColor: isRest ? C.border : `${tc?.color}35`,
-                },
+                styles.dayCardWrap,
+                dragging && { transform: [{ translateY: reschedule.dragY }] },
               ]}
             >
-              <View style={styles.dayLabel}>
-                <Text style={[styles.dayName, { color: isRest ? C.muted : tc?.color }]}>
-                  {day}
-                </Text>
-              </View>
-              {isRest ? (
-                <>
-                  <Text style={styles.restText}>Rest day</Text>
-                  <Text style={styles.addIcon}>+</Text>
-                </>
-              ) : (
-                <>
-                  <View style={styles.sessionInfo}>
-                    <Text style={styles.sessionMain} numberOfLines={1}>
-                      {sessionLabel(s, units)}
+              <View
+                style={[
+                  styles.dayCard,
+                  {
+                    backgroundColor: isRest ? C.surface : sessionType.bg,
+                    borderColor: dropTarget ? C.clay : isRest ? C.border : `${sessionType.color}35`,
+                  },
+                  dropTarget && styles.dayCardDropTarget,
+                  dragging && styles.dayCardDragging,
+                ]}
+              >
+                <Pressable
+                  testID={`template-day-${index}`}
+                  onPress={() => setEditing(index)}
+                  style={styles.dayCardPressable}
+                >
+                  <View style={styles.dayLabel}>
+                    <Text style={[styles.dayName, { color: isRest ? C.muted : sessionType.color }]}>
+                      {DAYS[index]}
                     </Text>
-                    <Text style={styles.sessionType}>{tc?.label}</Text>
                   </View>
-                  <Text style={styles.chevron}>›</Text>
-                </>
-              )}
-            </Pressable>
+
+                  <View style={styles.sessionInfo}>
+                    <View
+                      style={[
+                        styles.sessionDot,
+                        { backgroundColor: sessionType.color },
+                        isRest && styles.sessionDotRest,
+                      ]}
+                    />
+                    <View style={styles.sessionCopy}>
+                      <Text style={styles.sessionMain} numberOfLines={1}>
+                        {isRest ? 'Rest day' : sessionType.label}
+                      </Text>
+                      <Text style={[styles.sessionDetail, isRest && styles.sessionDetailRest]} numberOfLines={1}>
+                        {isRest
+                          ? 'Open slot if you want to move a run here'
+                          : sessionLabel(session, units)}
+                      </Text>
+                    </View>
+                  </View>
+                </Pressable>
+
+                <DragHandle
+                  testID={`template-drag-handle-${index}`}
+                  disabled={!canDragDay}
+                  active={dragging}
+                  onMouseDown={(event) => {
+                    event.stopPropagation?.();
+                    reschedule.recordTouchStart(event.clientY);
+                    reschedule.beginDrag(index);
+                  }}
+                  onMouseMove={(event) => {
+                    event.stopPropagation?.();
+                    reschedule.updateDrag(event.clientY);
+                  }}
+                  onMouseUp={(event) => {
+                    event.stopPropagation?.();
+                    reschedule.finishDrag();
+                  }}
+                  onTouchStart={(event) => {
+                    event.stopPropagation?.();
+                    reschedule.recordTouchStart(event.nativeEvent.pageY);
+                  }}
+                  onLongPress={() => {
+                    reschedule.beginDrag(index);
+                  }}
+                  onTouchMove={(event) => {
+                    event.stopPropagation?.();
+                    reschedule.updateDrag(event.nativeEvent.pageY);
+                  }}
+                  onTouchEnd={() => {
+                    reschedule.finishDrag();
+                  }}
+                />
+              </View>
+            </Animated.View>
           );
         })}
 
-        {/* Volume summary */}
         <View style={styles.volumeCard}>
           <Text style={styles.volumeLabel}>Template volume</Text>
           <Text style={styles.volumeValue}>~{formatDistance(totalKm, units, { spaced: true })} / week</Text>
         </View>
         <Text style={styles.volumeNote}>
-          Includes warm-up, cool-down and recovery jogs between reps
+          Includes warm-up, cool-down, and recovery jogging between reps.
         </Text>
       </ScrollView>
 
-      {/* CTA */}
       <View style={styles.footer}>
         <Btn title={`Generate ${weeks}-week plan →`} onPress={handleNext} fullWidth />
       </View>
 
-      {/* Session editor modal */}
-      {editing !== null && (
+      {editing !== null ? (
         <SessionEditor
           dayIndex={editing}
-          existing={template[editing]}
+          existing={templateSessions[editing]}
           onSave={handleSave}
           onClose={() => setEditing(null)}
         />
-      )}
-
-      {rearranging ? (
-        <RearrangeSheet
-          visible={rearranging}
-          weekNumber={1}
-          sessions={toRearrangeSessions(template)}
-          onCancel={() => setRearranging(false)}
-          onDone={handleRearrangeDone}
-        />
       ) : null}
 
-      {pendingTemplate ? (
+      {showRegenerateWarning ? (
         <Modal visible transparent animationType="fade">
           <View style={styles.warningOverlay}>
             <View style={styles.warningSheet}>
@@ -216,16 +326,10 @@ export default function StepTemplate() {
                 Rearranging the template will reset per-week edits already made in the preview.
               </Text>
               <View style={styles.warningActions}>
-                <Pressable
-                  onPress={() => setPendingTemplate(null)}
-                  style={styles.warningSecondary}
-                >
+                <Pressable onPress={keepExistingTweaks} style={styles.warningSecondary}>
                   <Text style={styles.warningSecondaryText}>Keep edits</Text>
                 </Pressable>
-                <Pressable
-                  onPress={() => applyTemplateRearrange(pendingTemplate)}
-                  style={styles.warningPrimary}
-                >
+                <Pressable onPress={regenerateFromReorderedTemplate} style={styles.warningPrimary}>
                   <Text style={styles.warningPrimaryText}>Regenerate</Text>
                 </Pressable>
               </View>
@@ -283,7 +387,7 @@ const styles = StyleSheet.create({
     padding: 12,
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   infoDot: {
     width: 6,
@@ -303,54 +407,71 @@ const styles = StyleSheet.create({
     color: C.forest,
     fontWeight: '600',
   },
-  templateActions: {
-    backgroundColor: C.surface,
-    borderWidth: 1,
-    borderColor: C.border,
-    borderRadius: 10,
-    padding: 12,
-    paddingHorizontal: 14,
+  sectionHeading: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
+    marginBottom: 10,
   },
-  templateActionsTitle: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 12,
+  sectionTitle: {
+    fontFamily: FONTS.serifBold,
+    fontSize: 19,
     color: C.ink,
   },
-  templateActionsText: {
-    fontFamily: FONTS.sans,
-    fontSize: 11,
-    color: C.muted,
-    marginTop: 2,
-  },
-  rearrangeButton: {
-    minHeight: 34,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: `${C.clay}45`,
-    backgroundColor: C.clayBg,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rearrangeButtonText: {
-    fontFamily: FONTS.sansSemiBold,
+  sectionMeta: {
+    fontFamily: FONTS.monoBold,
     fontSize: 12,
     color: C.clay,
+  },
+  warningBanner: {
+    backgroundColor: C.amberBg,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: `${C.amber}35`,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 10,
+  },
+  warningBannerTitle: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 12,
+    color: C.amber,
+  },
+  warningBannerText: {
+    fontFamily: FONTS.sans,
+    fontSize: 12,
+    color: C.ink2,
+    marginTop: 4,
+  },
+  dayCardWrap: {
+    marginBottom: 8,
   },
   dayCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    padding: 11,
-    paddingHorizontal: 14,
     borderRadius: 12,
     borderWidth: 1.5,
-    marginBottom: 6,
+    overflow: 'hidden',
+  },
+  dayCardPressable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 11,
+    paddingLeft: 14,
+    paddingRight: 6,
+  },
+  dayCardDropTarget: {
+    borderStyle: 'dashed',
+    backgroundColor: C.clayBg,
+  },
+  dayCardDragging: {
+    shadowColor: C.clay,
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
   dayLabel: {
     width: 30,
@@ -360,35 +481,37 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 0.3,
   },
-  restText: {
-    flex: 1,
-    fontFamily: FONTS.sans,
-    fontSize: 13,
-    color: C.muted,
-  },
-  addIcon: {
-    fontFamily: FONTS.sans,
-    fontSize: 20,
-    color: C.border,
-  },
   sessionInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    overflow: 'hidden',
+  },
+  sessionDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  sessionDotRest: {
+    backgroundColor: C.slate,
+  },
+  sessionCopy: {
     flex: 1,
     overflow: 'hidden',
   },
   sessionMain: {
     fontFamily: FONTS.sansMedium,
-    fontSize: 12.5,
+    fontSize: 13,
     color: C.ink,
   },
-  sessionType: {
+  sessionDetail: {
     fontFamily: FONTS.sans,
     fontSize: 11,
-    color: C.muted,
-    marginTop: 1,
+    color: C.ink2,
+    marginTop: 2,
   },
-  chevron: {
-    fontFamily: FONTS.sans,
-    fontSize: 14,
+  sessionDetailRest: {
     color: C.muted,
   },
   volumeCard: {
@@ -436,7 +559,7 @@ const styles = StyleSheet.create({
   },
   warningSheet: {
     backgroundColor: C.surface,
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 18,
     gap: 12,
   },

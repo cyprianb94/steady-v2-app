@@ -5,7 +5,14 @@ import { router, useLocalSearchParams } from 'expo-router';
 
 import StepTemplate from '../app/onboarding/plan-builder/step-template';
 
-describe('StepTemplate rearrange', () => {
+function dragHandle(testId: string, pageY: number) {
+  const handle = screen.getByTestId(testId);
+  fireEvent.mouseDown(handle, { clientY: 0 });
+  fireEvent.mouseMove(handle, { clientY: pageY });
+  fireEvent.mouseUp(handle);
+}
+
+describe('StepTemplate direct week reorder', () => {
   beforeEach(() => {
     vi.mocked(router.push).mockReset();
     vi.mocked(useLocalSearchParams).mockReturnValue({
@@ -16,13 +23,12 @@ describe('StepTemplate rearrange', () => {
     });
   });
 
-  it('opens RearrangeSheet and sends the rearranged template to Step 3', () => {
+  it('reorders the visible week directly and sends the updated template to Step 3', () => {
     render(<StepTemplate />);
 
-    fireEvent.click(screen.getByText('Rearrange'));
-    fireEvent.click(screen.getByTestId('rearrange-day-0'));
-    fireEvent.click(screen.getByTestId('rearrange-day-6'));
-    fireEvent.click(screen.getByTestId('rearrange-done'));
+    expect(screen.queryByText('Rearrange')).toBeNull();
+
+    dragHandle('template-drag-handle-0', 360);
     fireEvent.click(screen.getByText('Generate 8-week plan →'));
 
     expect(router.push).toHaveBeenCalledTimes(1);
@@ -45,10 +51,7 @@ describe('StepTemplate rearrange', () => {
 
     render(<StepTemplate />);
 
-    fireEvent.click(screen.getByText('Rearrange'));
-    fireEvent.click(screen.getByTestId('rearrange-day-0'));
-    fireEvent.click(screen.getByTestId('rearrange-day-6'));
-    fireEvent.click(screen.getByTestId('rearrange-done'));
+    dragHandle('template-drag-handle-0', 360);
 
     expect(screen.getByText('Regenerate plan preview?')).toBeTruthy();
     fireEvent.click(screen.getByText('Keep edits'));

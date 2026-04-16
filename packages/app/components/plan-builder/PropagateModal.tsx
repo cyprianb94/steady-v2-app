@@ -11,6 +11,10 @@ interface PropagateModalProps {
   totalWeeks: number;
   phaseName: PhaseName;
   phaseWeekCount?: number;
+  title?: string;
+  body?: string | null;
+  applyLabel?: string;
+  scopeLabels?: Partial<Record<'this' | 'remaining' | 'build', string>>;
   onApply: (scope: 'this' | 'remaining' | 'build') => void;
   onClose: () => void;
 }
@@ -31,6 +35,10 @@ export function PropagateModal({
   totalWeeks,
   phaseName,
   phaseWeekCount,
+  title = 'Apply change where?',
+  body = null,
+  applyLabel = 'Apply change',
+  scopeLabels,
   onApply,
   onClose,
 }: PropagateModalProps) {
@@ -58,15 +66,18 @@ export function PropagateModal({
 
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>Apply change where?</Text>
+            <Text style={styles.title}>{title}</Text>
             <Text style={styles.changeDesc}>{changeDesc}</Text>
+            {body ? <Text style={styles.body}>{body}</Text> : null}
           </View>
 
           {/* Options */}
           <View style={styles.options}>
             {OPTIONS.map((o) => {
               const active = scope === o.key;
-              const optionLabel = o.key === 'build' ? `${phaseDisplay} phase only` : o.label;
+              const optionLabel =
+                scopeLabels?.[o.key] ??
+                (o.key === 'build' ? `${phaseDisplay} phase only` : o.label);
               return (
                 <Pressable
                   key={o.key}
@@ -108,7 +119,7 @@ export function PropagateModal({
 
           {/* Apply button */}
           <View style={styles.footer}>
-            <Btn title="Apply change" onPress={() => onApply(scope)} fullWidth />
+            <Btn title={applyLabel} onPress={() => onApply(scope)} fullWidth />
           </View>
         </Pressable>
       </Pressable>
@@ -154,6 +165,13 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.monoBold,
     fontSize: 12,
     color: C.clay,
+  },
+  body: {
+    marginTop: 8,
+    fontFamily: FONTS.sans,
+    fontSize: 12,
+    lineHeight: 18,
+    color: C.ink2,
   },
   options: {
     paddingHorizontal: 20,

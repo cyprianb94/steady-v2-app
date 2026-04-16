@@ -71,10 +71,6 @@ vi.mock('../lib/trpc', () => ({
   },
 }));
 
-vi.mock('../components/block/RearrangeSheet', () => ({
-  RearrangeSheet: () => null,
-}));
-
 vi.mock('../components/plan-builder/PropagateModal', () => ({
   PropagateModal: () => null,
 }));

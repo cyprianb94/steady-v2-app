@@ -48,6 +48,13 @@ vi.mock('../lib/trpc', () => ({
 
 import BlockTab from '../app/(tabs)/block';
 
+function dragHandle(testId: string, pageY: number) {
+  const handle = screen.getByTestId(testId);
+  fireEvent.mouseDown(handle, { clientY: 0 });
+  fireEvent.mouseMove(handle, { clientY: pageY });
+  fireEvent.mouseUp(handle);
+}
+
 function session(id: string, type: PlannedSession['type'], overrides: Partial<PlannedSession> = {}): PlannedSession {
   return { id, type, date: '2026-04-06', distance: 8, ...overrides };
 }
@@ -129,22 +136,28 @@ describe('BlockTab session rearrange', () => {
     ).toBeTruthy();
   });
 
-  it('shows the scope picker after done and persists the swap to remaining weeks by default', async () => {
+  it('stages a reschedule locally and persists following weeks only after apply', async () => {
     render(<BlockTab />);
 
     fireEvent.click(screen.getByText('W1'));
-    fireEvent.click(screen.getByText('Rearrange sessions'));
-    fireEvent.click(screen.getByTestId('rearrange-day-0'));
-    fireEvent.click(screen.getByTestId('rearrange-day-2'));
-    fireEvent.click(screen.getByTestId('rearrange-done'));
+    expect(screen.queryByText('Rearrange sessions')).toBeNull();
 
-    expect(screen.getByText('Apply change where?')).toBeTruthy();
-    expect(screen.getByText('1 session swap')).toBeTruthy();
-    expect(screen.getByText('Base phase only')).toBeTruthy();
+    dragHandle('block-drag-handle-1-0', 120);
+
+    expect(mockUpdateWeeks).not.toHaveBeenCalled();
+    expect(screen.getByText('1 reschedule pending')).toBeTruthy();
+    expect(screen.getByTestId('block-day-1-0').textContent).toContain('Long Run');
+    expect(screen.getByText('Long Run moved to Mon. Easy Run moved to Wed')).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId('block-apply-reschedule'));
+
+    expect(screen.getByText('Where should this reschedule apply?')).toBeTruthy();
+    expect(screen.getByText('1 reschedule staged')).toBeTruthy();
+    expect(screen.getByText('Base weeks only')).toBeTruthy();
     expect(screen.getByText('2 base weeks in this plan')).toBeTruthy();
-    expect(screen.queryByText('Build phase only')).toBeNull();
+    expect(screen.queryByText('Build weeks only')).toBeNull();
 
-    fireEvent.click(screen.getByText('Apply change'));
+    fireEvent.click(screen.getAllByText('Apply reschedule').at(-1)!);
 
     await waitFor(() => expect(mockUpdateWeeks).toHaveBeenCalledTimes(1));
     const input = mockUpdateWeeks.mock.calls[0][0];
@@ -161,12 +174,10 @@ describe('BlockTab session rearrange', () => {
     render(<BlockTab />);
 
     fireEvent.click(screen.getByText('W1'));
-    fireEvent.click(screen.getByText('Rearrange sessions'));
-    fireEvent.click(screen.getByTestId('rearrange-day-0'));
-    fireEvent.click(screen.getByTestId('rearrange-day-2'));
-    fireEvent.click(screen.getByTestId('rearrange-done'));
-    fireEvent.click(screen.getByText('This week only'));
-    fireEvent.click(screen.getByText('Apply change'));
+    dragHandle('block-drag-handle-1-0', 120);
+    fireEvent.click(screen.getByTestId('block-apply-reschedule'));
+    fireEvent.click(screen.getByText('Just this week'));
+    fireEvent.click(screen.getAllByText('Apply reschedule').at(-1)!);
 
     await waitFor(() => expect(mockUpdateWeeks).toHaveBeenCalledTimes(1));
     const input = mockUpdateWeeks.mock.calls[0][0];
@@ -176,16 +187,16 @@ describe('BlockTab session rearrange', () => {
     expect(input.weeks[1].swapLog).toBeUndefined();
   });
 
-  it('hides the rearrange button when every session is completed', () => {
+  it('shows logged rows as locked and does not stage a drag for them', () => {
     planState.current = makePlan([
       makeWeek(1, [
         session('mon', 'EASY', { actualActivityId: 'act-1' }),
-        session('tue', 'EASY', { actualActivityId: 'act-2' }),
-        session('wed', 'EASY', { actualActivityId: 'act-3' }),
-        session('thu', 'EASY', { actualActivityId: 'act-4' }),
-        session('fri', 'EASY', { actualActivityId: 'act-5' }),
-        session('sat', 'EASY', { actualActivityId: 'act-6' }),
-        session('sun', 'EASY', { actualActivityId: 'act-7' }),
+        null,
+        session('wed', 'LONG', { distance: 18 }),
+        null,
+        null,
+        null,
+        null,
       ]),
     ]);
 
@@ -193,7 +204,25 @@ describe('BlockTab session rearrange', () => {
 
     fireEvent.click(screen.getByText('W1'));
 
-    expect(screen.queryByText('Rearrange sessions')).toBeNull();
+    expect(screen.getByText('Logged')).toBeTruthy();
+
+    dragHandle('block-drag-handle-1-0', 120);
+
+    expect(screen.queryByText('1 reschedule pending')).toBeNull();
+  });
+
+  it('resets the staged reschedule back to the saved order', () => {
+    render(<BlockTab />);
+
+    fireEvent.click(screen.getByText('W1'));
+    dragHandle('block-drag-handle-1-0', 120);
+
+    expect(screen.getByTestId('block-day-1-0').textContent).toContain('Long Run');
+
+    fireEvent.click(screen.getByTestId('block-reschedule-reset'));
+
+    expect(screen.queryByText('1 reschedule pending')).toBeNull();
+    expect(screen.getByTestId('block-day-1-0').textContent).toContain('Easy Run');
   });
 
   it('lets the user turn a planned day into a rest day from the expanded week editor', async () => {

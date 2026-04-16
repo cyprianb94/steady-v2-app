@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Pressable,
+  Animated,
   RefreshControl,
   ActivityIndicator,
   LayoutAnimation,
@@ -16,7 +17,7 @@ import { router } from 'expo-router';
 import { usePlan } from '../../hooks/usePlan';
 import { useStravaSync } from '../../hooks/useStravaSync';
 import { useTodayIso } from '../../hooks/useTodayIso';
-import { RearrangeSheet } from '../../components/block/RearrangeSheet';
+import { DragHandle } from '../../components/plan-builder/DragHandle';
 import { PropagateModal } from '../../components/plan-builder/PropagateModal';
 import { SessionEditor } from '../../components/plan-builder/SessionEditor';
 import { Btn } from '../../components/ui/Btn';
@@ -24,6 +25,7 @@ import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { PHASE_COLOR } from '../../constants/phase-meta';
 import { SESSION_TYPE } from '../../constants/session-types';
+import { useDirectWeekReschedule } from '../../features/plan-builder/use-direct-week-reschedule';
 import { useAuth } from '../../lib/auth';
 import { createId } from '../../lib/id';
 import { addDaysIso, DAYS, inferWeekStartDate, sessionLabel, todayIsoLocal, weekKm } from '../../lib/plan-helpers';
@@ -38,11 +40,12 @@ import {
   buildBlockWeekDayDetails,
   getBlockVolumeTone,
   getInjuryWeekRange,
-  propagateSwap,
   getWeekVolumeRatio,
   getWeekVolumeSummary,
   isInjuryWeek,
+  propagateSwap,
   propagateChange,
+  swapSessions,
   type BlockPhaseSegment,
   type CrossTrainingEntry,
   type Injury,
@@ -61,6 +64,8 @@ const COMPACT_PHASE_LABEL: Record<BlockPhaseSegment['name'], string> = {
   TAPER: 'TP',
   INJURY: 'INJ',
 };
+
+const EMPTY_WEEK_SESSIONS: (PlannedSession | null)[] = [null, null, null, null, null, null, null];
 
 const INACTIVE_PHASE_BACKGROUND: Record<PlanWeek['phase'], string> = {
   BASE: `${C.navy}59`,
@@ -200,15 +205,8 @@ function getStatusBadge(status: ReturnType<typeof buildBlockWeekDayDetails>[numb
   }
 }
 
-function isFullyCompletedWeek(week: PlanWeek): boolean {
-  return (
-    week.sessions.length === 7 &&
-    week.sessions.every((session) => Boolean(session?.actualActivityId))
-  );
-}
-
-interface PendingRearrange {
-  weekIndex: number;
+interface PreservedRescheduleDraft {
+  weekNumber: number;
   swapLog: SwapLogEntry[];
 }
 
@@ -281,6 +279,42 @@ function normalizeEditedDayIdentity(
   });
 }
 
+function applySwapLogToSessions(
+  sessions: (PlannedSession | null)[],
+  swapLog: SwapLogEntry[],
+) {
+  return swapLog.reduce<(PlannedSession | null)[]>((current, swap) => {
+    if (current[swap.from]?.actualActivityId || current[swap.to]?.actualActivityId) {
+      return current;
+    }
+
+    return swapSessions(current, swap.from, swap.to);
+  }, sessions);
+}
+
+function buildPendingRescheduleSummary(
+  initialSessions: (PlannedSession | null)[],
+  nextSessions: (PlannedSession | null)[],
+) {
+  const summaries = nextSessions.flatMap((session, index) => {
+    if (!session) {
+      return [];
+    }
+
+    const originalIndex = initialSessions.findIndex(
+      (candidate) => candidate?.id === session.id,
+    );
+
+    if (originalIndex === -1 || originalIndex === index) {
+      return [];
+    }
+
+    return `${SESSION_TYPE[session.type].label} moved to ${DAYS[index]}`;
+  });
+
+  return summaries.join('. ');
+}
+
 export default function BlockTab() {
   const { units } = usePreferences();
   const { session, isLoading: authLoading } = useAuth();
@@ -288,12 +322,13 @@ export default function BlockTab() {
   const isFocused = useIsFocused();
   const { requestAutoSync, forceSync, syncRevision, syncing } = useStravaSync();
   const [expandedWeekNumber, setExpandedWeekNumber] = useState<number | null>(null);
-  const [rearrangeWeekIndex, setRearrangeWeekIndex] = useState<number | null>(null);
-  const [pendingRearrange, setPendingRearrange] = useState<PendingRearrange | null>(null);
+  const [rescheduleWeekIndex, setRescheduleWeekIndex] = useState<number | null>(null);
+  const [rescheduleScopeVisible, setRescheduleScopeVisible] = useState(false);
   const [isSavingRearrange, setIsSavingRearrange] = useState(false);
   const [editingDay, setEditingDay] = useState<EditingDay | null>(null);
   const [pendingEdit, setPendingEdit] = useState<PendingEdit | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [preservedReschedule, setPreservedReschedule] = useState<PreservedRescheduleDraft | null>(null);
   const today = useTodayIso();
 
   const activityResolution = useActivityResolution({
@@ -332,6 +367,14 @@ export default function BlockTab() {
     fetchErrorMessage: 'Failed to fetch block cross-training entries:',
   });
   const { activeInjury } = recoveryData;
+  const rescheduleBaseWeek = rescheduleWeekIndex == null
+    ? null
+    : plan?.weeks[rescheduleWeekIndex] ?? null;
+  const reschedule = useDirectWeekReschedule({
+    initialSessions: rescheduleBaseWeek?.sessions ?? EMPTY_WEEK_SESSIONS,
+    canDragDay: (nextSession) => Boolean(nextSession) && !nextSession?.actualActivityId,
+    canDropDay: (nextSession) => !nextSession?.actualActivityId,
+  });
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -344,6 +387,54 @@ export default function BlockTab() {
       setExpandedWeekNumber(null);
     }
   }, [isFocused]);
+
+  useEffect(() => {
+    if (!plan) {
+      return;
+    }
+
+    if (expandedWeekNumber == null) {
+      if (!reschedule.hasChanges) {
+        setRescheduleWeekIndex(null);
+      }
+      return;
+    }
+
+    const nextIndex = plan.weeks.findIndex((week) => week.weekNumber === expandedWeekNumber);
+    if (nextIndex === -1) {
+      return;
+    }
+
+    setRescheduleWeekIndex((current) => (current === nextIndex ? current : nextIndex));
+  }, [expandedWeekNumber, plan, reschedule.hasChanges]);
+
+  useEffect(() => {
+    if (!plan || !preservedReschedule) {
+      return;
+    }
+
+    const restoredWeekIndex = plan.weeks.findIndex(
+      (week) => week.weekNumber === preservedReschedule.weekNumber,
+    );
+    if (restoredWeekIndex === -1) {
+      setPreservedReschedule(null);
+      return;
+    }
+
+    const restoredWeek = plan.weeks[restoredWeekIndex];
+    setRescheduleWeekIndex(restoredWeekIndex);
+    reschedule.restoreDraft(
+      applySwapLogToSessions(restoredWeek.sessions, preservedReschedule.swapLog),
+      preservedReschedule.swapLog,
+    );
+    setPreservedReschedule(null);
+  }, [plan, preservedReschedule, reschedule]);
+
+  useEffect(() => {
+    if (!reschedule.hasChanges) {
+      setRescheduleScopeVisible(false);
+    }
+  }, [reschedule.hasChanges]);
 
   const { refreshManually } = usePlanRefreshCoordinator({
     enabled: Boolean(session),
@@ -404,33 +495,23 @@ export default function BlockTab() {
   const activitiesById = activityResolution.activityById;
 
   function toggleWeek(weekNumber: number) {
+    if (reschedule.hasChanges) {
+      return;
+    }
+
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpandedWeekNumber((current) => (current === weekNumber ? null : weekNumber));
   }
 
-  function handleRearrangeDone(
-    _sessions: (PlannedSession | null)[],
-    swapLog: SwapLogEntry[],
-  ) {
-    if (!plan || rearrangeWeekIndex == null) return;
-    if (swapLog.length === 0) {
-      setRearrangeWeekIndex(null);
-      return;
-    }
-
-    setPendingRearrange({ weekIndex: rearrangeWeekIndex, swapLog });
-    setRearrangeWeekIndex(null);
-  }
-
   async function applyPendingRearrange(scope: PropagateScope) {
-    if (!plan || !pendingRearrange) return;
-    const sourceWeek = plan.weeks[pendingRearrange.weekIndex];
+    if (!plan || rescheduleWeekIndex == null || reschedule.swapLog.length === 0) return;
+    const sourceWeek = plan.weeks[rescheduleWeekIndex];
     if (!sourceWeek) return;
 
-    const nextWeeks = pendingRearrange.swapLog.reduce(
+    const nextWeeks = reschedule.swapLog.reduce(
       (weeks, swap) => propagateSwap(
         weeks,
-        pendingRearrange.weekIndex,
+        rescheduleWeekIndex,
         swap.from,
         swap.to,
         scope,
@@ -444,7 +525,8 @@ export default function BlockTab() {
       setIsSavingRearrange(true);
       await trpc.plan.updateWeeks.mutate({ weeks: nextWeeks });
       await refresh();
-      setPendingRearrange(null);
+      setRescheduleScopeVisible(false);
+      reschedule.reset();
     } catch (error) {
       console.error('Failed to rearrange sessions:', error);
     } finally {
@@ -471,6 +553,13 @@ export default function BlockTab() {
 
     const sourceWeek = plan.weeks[pendingEdit.weekIndex];
     if (!sourceWeek) return;
+    const preservedDraft =
+      reschedule.hasChanges && rescheduleWeekIndex != null
+        ? {
+            weekNumber: plan.weeks[rescheduleWeekIndex]?.weekNumber ?? 0,
+            swapLog: reschedule.swapLog,
+          }
+        : null;
 
     const updatedSession = materializeSessionForWeek(
       sourceWeek,
@@ -496,6 +585,9 @@ export default function BlockTab() {
       setIsSavingEdit(true);
       await trpc.plan.updateWeeks.mutate({ weeks: nextWeeks });
       await refresh();
+      if (preservedDraft && preservedDraft.weekNumber > 0) {
+        setPreservedReschedule(preservedDraft);
+      }
       setPendingEdit(null);
     } catch (error) {
       console.error('Failed to edit session:', error);
@@ -503,8 +595,6 @@ export default function BlockTab() {
       setIsSavingEdit(false);
     }
   }
-
-  const rearrangeWeek = rearrangeWeekIndex == null ? null : plan.weeks[rearrangeWeekIndex] ?? null;
 
   return (
     <>
@@ -608,11 +698,23 @@ export default function BlockTab() {
         const isFuture = i > safeCurrentWeekIndex;
         const injuryWeek = isInjuryWeek(i, injuryRange);
         const isExpanded = expandedWeekNumber === week.weekNumber;
+        const isRescheduleWeek = rescheduleWeekIndex === i;
+        const displayWeek =
+          isExpanded && isRescheduleWeek
+            ? {
+                ...week,
+                sessions: reschedule.sessions,
+                plannedKm: Math.round(weekKm(reschedule.sessions)),
+              }
+            : week;
         const weekEntries = injuryWeek ? getWeekEntries(recoveryData.entries, week) : [];
         const volumeTone = getBlockVolumeTone(i, safeCurrentWeekIndex);
-        const volumeSummary = getWeekVolumeSummary(week, activitiesById, volumeTone);
-        const blockDayDetails = buildBlockWeekDayDetails(week);
-        const canRearrange = !injuryWeek && !isFullyCompletedWeek(week);
+        const volumeSummary = getWeekVolumeSummary(displayWeek, activitiesById, volumeTone);
+        const blockDayDetails = buildBlockWeekDayDetails(displayWeek);
+        const pendingSummary =
+          isExpanded && isRescheduleWeek
+            ? buildPendingRescheduleSummary(week.sessions, reschedule.sessions)
+            : '';
 
         return (
           <View
@@ -661,7 +763,7 @@ export default function BlockTab() {
                   </View>
                 ) : (
                   <View style={styles.dots}>
-                    {week.sessions.map((s, d) => {
+                    {displayWeek.sessions.map((s, d) => {
                       const type: SessionType = s?.type ?? 'REST';
                       return (
                         <View
@@ -726,85 +828,177 @@ export default function BlockTab() {
                   isFuture && styles.expandedWeekFuture,
                 ]}
               >
+                {!injuryWeek ? (
+                  <Text style={styles.weekGuide}>
+                    {reschedule.hasChanges && isRescheduleWeek
+                      ? 'Tap any unchanged row to edit it. The moved rows stay marked until you apply the reschedule.'
+                      : 'Tap a day to adjust the session. Use the grip to reschedule it.'}
+                  </Text>
+                ) : null}
+
                 {blockDayDetails.map((detail, dayIndex) => {
                   const badge = getStatusBadge(detail.status);
-                  const canEditDay = !injuryWeek && !week.sessions[dayIndex]?.actualActivityId;
-                  const session = week.sessions[dayIndex] ?? null;
+                  const session = displayWeek.sessions[dayIndex] ?? null;
+                  const locked = Boolean(session?.actualActivityId);
+                  const moved = isRescheduleWeek && reschedule.movedDayIndexes.has(dayIndex);
+                  const dragging =
+                    isExpanded && isRescheduleWeek && reschedule.dragState?.fromIndex === dayIndex;
+                  const dropTarget =
+                    isExpanded &&
+                    isRescheduleWeek &&
+                    reschedule.dragState?.overIndex === dayIndex &&
+                    reschedule.dragState.fromIndex !== dayIndex;
+                  const invalidDropTarget = Boolean(dropTarget && !reschedule.canDropIndex(dayIndex));
+                  const canEditDay =
+                    !injuryWeek &&
+                    !locked &&
+                    (!reschedule.hasChanges || !moved);
+                  const canDragDay =
+                    !injuryWeek &&
+                    isExpanded &&
+                    isRescheduleWeek &&
+                    reschedule.canDragIndex(dayIndex);
                   const distanceLabel = session?.type === 'INTERVAL'
                     ? detail.distanceLabel
                     : session?.distance != null
                       ? formatDistance(session.distance, units)
                       : detail.distanceLabel;
                   return (
-                    <Pressable
+                    <Animated.View
                       key={`${week.weekNumber}-${detail.dayLabel}`}
-                      testID={`block-day-${week.weekNumber}-${dayIndex}`}
-                      disabled={!canEditDay}
-                      onPress={canEditDay ? () => setEditingDay({ weekIndex: i, dayIndex }) : undefined}
                       style={[
-                        styles.dayRow,
-                        isFuture && styles.dayRowFuture,
-                        canEditDay && styles.dayRowEditable,
-                        canEditDay && isFuture && styles.dayRowFutureEditable,
+                        styles.dayRowWrap,
+                        dragging && { transform: [{ translateY: reschedule.dragY }] },
                       ]}
                     >
-                      <View style={styles.dayMeta}>
-                        <Text style={styles.dayName}>{detail.dayLabel}</Text>
-                        <Text style={styles.dayDate}>{formatShortDate(detail.date)}</Text>
-                      </View>
+                      <View
+                        style={[
+                          styles.dayRow,
+                          isFuture && styles.dayRowFuture,
+                          canEditDay && styles.dayRowEditable,
+                          canEditDay && isFuture && styles.dayRowFutureEditable,
+                          moved && styles.dayRowMoved,
+                          locked && styles.dayRowLocked,
+                          dropTarget && styles.dayRowDropTarget,
+                          invalidDropTarget && styles.dayRowInvalidDropTarget,
+                          dragging && styles.dayRowDragging,
+                        ]}
+                      >
+                        <Pressable
+                          testID={`block-day-${week.weekNumber}-${dayIndex}`}
+                          disabled={!canEditDay}
+                          onPress={canEditDay ? () => setEditingDay({ weekIndex: i, dayIndex }) : undefined}
+                          style={styles.dayRowPressable}
+                        >
+                          <View style={styles.dayMeta}>
+                            <Text style={styles.dayName}>{detail.dayLabel}</Text>
+                            <Text style={styles.dayDate}>{formatShortDate(detail.date)}</Text>
+                          </View>
 
-                      <View style={styles.daySession}>
-                        <View
-                          style={[
-                            styles.dayDot,
-                            { backgroundColor: SESSION_TYPE[detail.sessionType].color },
-                            detail.isRest && styles.dayDotRest,
-                          ]}
-                        />
-                        <Text style={[styles.daySessionLabel, detail.isRest && styles.daySessionLabelRest]}>
-                          {detail.sessionLabel}
-                        </Text>
-                      </View>
+                          <View style={styles.daySession}>
+                            <View
+                              style={[
+                                styles.dayDot,
+                                { backgroundColor: SESSION_TYPE[detail.sessionType].color },
+                                detail.isRest && styles.dayDotRest,
+                              ]}
+                            />
+                            <Text style={[styles.daySessionLabel, detail.isRest && styles.daySessionLabelRest]}>
+                              {detail.sessionLabel}
+                            </Text>
+                          </View>
+                        </Pressable>
 
-                      <View style={styles.dayRight}>
-                        {distanceLabel ? (
-                          <Text style={styles.dayDistance}>{distanceLabel}</Text>
-                        ) : null}
-                        {canEditDay ? <Text style={styles.dayEdit}>Edit</Text> : null}
-                        {badge ? (
-                          <Text
-                            style={[
-                              styles.dayBadge,
-                              detail.status === 'completed' && styles.dayBadgeComplete,
-                              detail.status === 'off-target' && styles.dayBadgeWarning,
-                              detail.status === 'missed' && styles.dayBadgeMissed,
-                            ]}
-                          >
-                            {badge}
-                          </Text>
-                        ) : null}
+                        <View style={styles.dayRight}>
+                          {distanceLabel ? (
+                            <Text style={styles.dayDistance}>{distanceLabel}</Text>
+                          ) : null}
+                          {locked ? (
+                            <Text style={[styles.dayStatusChip, styles.dayStatusChipLocked]}>Logged</Text>
+                          ) : moved ? (
+                            <Text style={[styles.dayStatusChip, styles.dayStatusChipMoved]}>Moved</Text>
+                          ) : canEditDay ? (
+                            <Text style={styles.dayEdit}>Edit</Text>
+                          ) : null}
+                          {badge && !locked ? (
+                            <Text
+                              style={[
+                                styles.dayBadge,
+                                detail.status === 'completed' && styles.dayBadgeComplete,
+                                detail.status === 'off-target' && styles.dayBadgeWarning,
+                                detail.status === 'missed' && styles.dayBadgeMissed,
+                              ]}
+                            >
+                              {badge}
+                            </Text>
+                          ) : null}
+                          {!injuryWeek ? (
+                            <DragHandle
+                              testID={`block-drag-handle-${week.weekNumber}-${dayIndex}`}
+                              disabled={!canDragDay}
+                              active={dragging}
+                              onMouseDown={(event) => {
+                                event.stopPropagation?.();
+                                reschedule.recordTouchStart(event.clientY);
+                                reschedule.beginDrag(dayIndex);
+                              }}
+                              onMouseMove={(event) => {
+                                event.stopPropagation?.();
+                                reschedule.updateDrag(event.clientY);
+                              }}
+                              onMouseUp={(event) => {
+                                event.stopPropagation?.();
+                                reschedule.finishDrag();
+                              }}
+                              onTouchStart={(event) => {
+                                event.stopPropagation?.();
+                                reschedule.recordTouchStart(event.nativeEvent.pageY);
+                              }}
+                              onLongPress={() => {
+                                reschedule.beginDrag(dayIndex);
+                              }}
+                              onTouchMove={(event) => {
+                                event.stopPropagation?.();
+                                reschedule.updateDrag(event.nativeEvent.pageY);
+                              }}
+                              onTouchEnd={() => {
+                                reschedule.finishDrag();
+                              }}
+                            />
+                          ) : null}
+                        </View>
                       </View>
-                    </Pressable>
+                    </Animated.View>
                   );
                 })}
 
-                {canRearrange ? (
-                  <Pressable
-                    testID={`rearrange-week-${week.weekNumber}`}
-                    onPress={() => setRearrangeWeekIndex(i)}
-                    style={styles.rearrangeButton}
-                  >
-                    <View style={styles.rearrangeButtonContent}>
-                      <View style={styles.rearrangeButtonIcon}>
-                        <View style={styles.rearrangeButtonIconLeftHead} />
-                        <View style={styles.rearrangeButtonIconShaft} />
-                        <View style={styles.rearrangeButtonIconRightHead} />
-                      </View>
-                      <Text style={styles.rearrangeButtonText}>
-                        {isSavingRearrange && rearrangeWeekIndex === i ? 'Saving...' : 'Rearrange sessions'}
+                {isRescheduleWeek && reschedule.hasChanges ? (
+                  <View style={styles.pendingStrip}>
+                    <View style={styles.pendingCopy}>
+                      <Text style={styles.pendingLabel}>
+                        {`${reschedule.swapLog.length} reschedule${reschedule.swapLog.length === 1 ? '' : 's'} pending`}
+                      </Text>
+                      <Text style={styles.pendingText}>
+                        {pendingSummary || 'Review the new order, then choose where it should apply.'}
                       </Text>
                     </View>
-                  </Pressable>
+                    <View style={styles.pendingActions}>
+                      <Pressable
+                        testID="block-reschedule-reset"
+                        onPress={() => reschedule.reset()}
+                        style={styles.pendingSecondary}
+                      >
+                        <Text style={styles.pendingSecondaryText}>Reset</Text>
+                      </Pressable>
+                      <Pressable
+                        testID="block-apply-reschedule"
+                        onPress={() => setRescheduleScopeVisible(true)}
+                        style={styles.pendingPrimary}
+                      >
+                        <Text style={styles.pendingPrimaryText}>Apply reschedule</Text>
+                      </Pressable>
+                    </View>
+                  </View>
                 ) : null}
               </View>
             ) : null}
@@ -814,24 +1008,23 @@ export default function BlockTab() {
 
       <View style={{ height: 40 }} />
       </ScrollView>
-      {rearrangeWeek ? (
-        <RearrangeSheet
-          visible={Boolean(rearrangeWeek)}
-          weekNumber={rearrangeWeek.weekNumber}
-          sessions={rearrangeWeek.sessions}
-          onCancel={() => setRearrangeWeekIndex(null)}
-          onDone={handleRearrangeDone}
-        />
-      ) : null}
-      {pendingRearrange ? (
+      {rescheduleScopeVisible && rescheduleWeekIndex != null ? (
         <PropagateModal
-          changeDesc={`${pendingRearrange.swapLog.length} session ${pendingRearrange.swapLog.length === 1 ? 'swap' : 'swaps'}`}
-          weekIndex={pendingRearrange.weekIndex}
+          changeDesc={`${reschedule.swapLog.length} reschedule${reschedule.swapLog.length === 1 ? '' : 's'} staged`}
+          weekIndex={rescheduleWeekIndex}
           totalWeeks={plan.weeks.length}
-          phaseName={plan.weeks[pendingRearrange.weekIndex]?.phase ?? 'BUILD'}
-          phaseWeekCount={plan.weeks.filter((week) => week.phase === plan.weeks[pendingRearrange.weekIndex]?.phase).length}
+          phaseName={plan.weeks[rescheduleWeekIndex]?.phase ?? 'BUILD'}
+          phaseWeekCount={plan.weeks.filter((week) => week.phase === plan.weeks[rescheduleWeekIndex]?.phase).length}
+          title="Where should this reschedule apply?"
+          body={`You’ve rearranged this week. Choose whether the new layout stays local or carries into the rest of the ${formatPhaseName(plan.weeks[rescheduleWeekIndex]?.phase ?? 'BUILD').toLowerCase()} phase.`}
+          applyLabel={isSavingRearrange ? 'Applying…' : 'Apply reschedule'}
+          scopeLabels={{
+            this: 'Just this week',
+            remaining: 'This week + following weeks',
+            build: `${formatPhaseName(plan.weeks[rescheduleWeekIndex]?.phase ?? 'BUILD')} weeks only`,
+          }}
           onApply={applyPendingRearrange}
-          onClose={() => setPendingRearrange(null)}
+          onClose={() => setRescheduleScopeVisible(false)}
         />
       ) : null}
       {editingDay ? (
@@ -1109,77 +1302,54 @@ const styles = StyleSheet.create({
   expandedWeekFuture: {
     gap: 6,
   },
-  rearrangeButton: {
-    minHeight: 46,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: C.border,
-    backgroundColor: C.cream,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  rearrangeButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  rearrangeButtonIcon: {
-    width: 16,
-    height: 12,
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rearrangeButtonIconShaft: {
-    position: 'absolute',
-    left: 3,
-    right: 3,
-    top: 5,
-    height: 1.5,
-    backgroundColor: C.ink2,
-  },
-  rearrangeButtonIconLeftHead: {
-    position: 'absolute',
-    left: 0,
-    top: 2,
-    width: 0,
-    height: 0,
-    borderTopWidth: 4,
-    borderBottomWidth: 4,
-    borderRightWidth: 5,
-    borderTopColor: 'transparent',
-    borderBottomColor: 'transparent',
-    borderRightColor: C.ink2,
-  },
-  rearrangeButtonIconRightHead: {
-    position: 'absolute',
-    right: 0,
-    top: 2,
-    width: 0,
-    height: 0,
-    borderTopWidth: 4,
-    borderBottomWidth: 4,
-    borderLeftWidth: 5,
-    borderTopColor: 'transparent',
-    borderBottomColor: 'transparent',
-    borderLeftColor: C.ink2,
-  },
-  rearrangeButtonText: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 12,
+  weekGuide: {
+    fontFamily: FONTS.sans,
+    fontSize: 11,
+    lineHeight: 17,
     color: C.ink2,
+    marginBottom: 4,
+  },
+  dayRowWrap: {
+    marginBottom: 4,
   },
   dayRow: {
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 28,
+    borderRadius: 10,
+  },
+  dayRowPressable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   dayRowEditable: {
     borderRadius: 8,
+  },
+  dayRowMoved: {
+    backgroundColor: C.surface,
+    borderWidth: 1.5,
+    borderColor: `${C.clay}35`,
+  },
+  dayRowLocked: {
+    opacity: 0.74,
+  },
+  dayRowDropTarget: {
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: C.clay,
+    backgroundColor: C.clayBg,
+  },
+  dayRowInvalidDropTarget: {
+    borderColor: C.border,
+    backgroundColor: C.surface,
+  },
+  dayRowDragging: {
+    shadowColor: C.clay,
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
   dayRowFuture: {
     minHeight: 34,
@@ -1228,11 +1398,12 @@ const styles = StyleSheet.create({
     color: C.muted,
   },
   dayRight: {
-    minWidth: 74,
+    minWidth: 104,
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
+    paddingRight: 4,
   },
   dayEdit: {
     fontFamily: FONTS.sansSemiBold,
@@ -1244,6 +1415,24 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.mono,
     fontSize: 11,
     color: C.ink2,
+  },
+  dayStatusChip: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 9,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  dayStatusChipMoved: {
+    color: C.clay,
+    backgroundColor: C.clayBg,
+  },
+  dayStatusChipLocked: {
+    color: C.forest,
+    backgroundColor: C.forestBg,
   },
   dayBadge: {
     minWidth: 16,
@@ -1259,6 +1448,63 @@ const styles = StyleSheet.create({
   },
   dayBadgeMissed: {
     color: C.muted,
+  },
+  pendingStrip: {
+    marginTop: 8,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: `${C.clay}35`,
+    backgroundColor: C.surface,
+    gap: 12,
+  },
+  pendingCopy: {
+    gap: 4,
+  },
+  pendingLabel: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 12,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: C.clay,
+  },
+  pendingText: {
+    fontFamily: FONTS.sans,
+    fontSize: 12,
+    lineHeight: 18,
+    color: C.ink2,
+  },
+  pendingActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  pendingSecondary: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.surface,
+  },
+  pendingSecondaryText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 13,
+    color: C.ink2,
+  },
+  pendingPrimary: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.clay,
+  },
+  pendingPrimaryText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 13,
+    color: '#FFFFFF',
   },
 
   // Empty/loading
