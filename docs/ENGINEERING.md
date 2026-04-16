@@ -105,6 +105,35 @@ Separate computation from I/O. The computation functions (prompt building, plan 
 
 Fewer public methods = fewer tests needed = fewer ways for callers to break.
 
+### 4. Keep environment setup behind shared boundaries
+
+Screen-level modules should not trigger Expo, Supabase, or API host setup just by being imported.
+
+Preferred shape:
+
+```typescript
+// GOOD — import is cheap, environment setup happens on first real use
+export const trpc = new Proxy({} as AppTrpcClient, {
+  get(_target, property) {
+    return Reflect.get(getClient(), property);
+  },
+});
+
+// BAD — importing a screen now eagerly resolves env and creates clients
+export const trpc = createTRPCClient<AppRouter>({ ... });
+```
+
+If a module depends on environment-specific setup, keep that work inside a lazy getter, provider effect, or explicit bootstrap function owned by a shared boundary module. Screens, hooks, and components should consume the boundary, not recreate the setup.
+
+### 5. Respect package boundaries
+
+The app package may consume public server contracts such as `@steady/server/contracts`, but it must not reach into `packages/server/src` or `@steady/server/src/...`.
+
+If a consumer needs something new from another package:
+- add or extend a public export
+- depend on that public package directly
+- update the boundary check if the allowed surface intentionally changes
+
 ---
 
 ## Where to mock
@@ -224,6 +253,17 @@ Skip tests for:
 - UI components (manual QA and visual inspection)
 - Simple data fetching wrappers with no logic
 - Configuration files
+
+### App harness rule
+
+App tests should inherit environment setup from `packages/app/tests/harness.ts`.
+
+Use the harness to centralize:
+- Expo module mocks
+- Supabase client defaults
+- URL and `__DEV__` expectations
+
+Do not reintroduce per-suite copies of the same platform bootstrap unless the suite is explicitly testing a different boundary condition.
 
 ---
 

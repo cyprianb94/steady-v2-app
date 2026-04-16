@@ -6,9 +6,6 @@
     "paths": {
       "@steady/types": [
         "../types/src/index.ts"
-      ],
-      "@steady/server/contracts": [
-        "../server/src/contracts.ts"
       ]
     }
   }

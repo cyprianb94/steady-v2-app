@@ -22,6 +22,20 @@ Characteristics:
 - Describes WHAT, not HOW
 - One logical assertion per test
 
+## App Boundary Tests
+
+For the app package, environment-sensitive dependencies belong in shared boundary modules and the shared test harness.
+
+Good:
+- Import a screen or hook without forcing Expo host resolution or client creation at module load
+- Use `packages/app/tests/harness.ts` to provide default Expo, Supabase, and URL state
+- Write a focused boundary test when a shared module must stay lazy
+
+Bad:
+- Repeating the same Expo or Supabase mocks in many suites
+- Reaching into `packages/server/src` from the app package
+- Letting a screen test fail because a shared module performed environment setup during import
+
 ## Bad Tests
 
 **Implementation-detail tests**: Coupled to internal structure.
