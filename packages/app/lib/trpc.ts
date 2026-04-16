@@ -1,5 +1,5 @@
 import { createTRPCClient, httpBatchLink } from '@trpc/client';
-import type { AppRouter } from '@steady/server/src/trpc/router';
+import type { AppRouter } from '@steady/server/contracts';
 import { getAccessToken } from './auth-session';
 
 function parseHostname(value: string | null | undefined): string | null {

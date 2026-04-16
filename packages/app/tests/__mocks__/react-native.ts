@@ -145,6 +145,9 @@ export const Animated = {
   Value: AnimatedValue,
   View: createMockComponent('Animated.View'),
 };
+export const NativeModules = {
+  BlobModule: {},
+};
 
 export function Modal({
   visible,

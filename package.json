@@ -13,7 +13,7 @@
     "dev:server": "npm run dev -w packages/server",
     "dev:app": "npm run start -w packages/app",
     "build:types": "npm run build -w packages/types",
-    "typecheck": "npm run build:types && tsc --noEmit -p packages/server/tsconfig.json"
+    "typecheck": "npm run build:types && tsc --noEmit -p packages/server/tsconfig.json && tsc --noEmit -p packages/app/tsconfig.json"
   },
   "overrides": {
     "react": "19.1.0"

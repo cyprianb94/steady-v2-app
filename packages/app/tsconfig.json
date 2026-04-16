@@ -1,6 +1,15 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@steady/types": [
+        "../types/src/index.ts"
+      ],
+      "@steady/server/contracts": [
+        "../server/src/contracts.ts"
+      ]
+    }
   }
 }
