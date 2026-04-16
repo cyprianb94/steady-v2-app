@@ -137,6 +137,22 @@ describe('activity router', () => {
     expect(activities.map((activity) => activity.distance)).toEqual([15, 8]);
   });
 
+  it('includes persisted niggles when listing activities', async () => {
+    const activity = await activityRepo.save(makeActivity('user-1'));
+    await niggleRepo.setForActivity(activity.id, [
+      { bodyPart: 'hamstring', side: 'left', severity: 'mild', when: 'during' },
+    ]);
+
+    const [listedActivity] = await caller.activity.list();
+
+    expect(listedActivity).toMatchObject({
+      id: activity.id,
+      niggles: [
+        { bodyPart: 'hamstring', side: 'left', severity: 'mild', when: 'during' },
+      ],
+    });
+  });
+
   it('saveRunDetail persists subjective input, niggles, notes, and shoeId in one call', async () => {
     const activity = await activityRepo.save(makeActivity('user-1', { matchedSessionId: 'w1d0' }));
     await planRepo.save(makePlan(activity.id));

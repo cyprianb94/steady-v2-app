@@ -1,3 +1,4 @@
+import type { Niggle } from './niggle';
 import type { SubjectiveInput } from './session';
 
 export interface ActivitySplit {
@@ -38,4 +39,7 @@ export interface Activity {
 
   // Freeform notes captured on Run Detail
   notes?: string;
+
+  // Persisted niggles attached to this activity
+  niggles?: Niggle[];
 }

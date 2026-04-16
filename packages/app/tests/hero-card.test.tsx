@@ -172,6 +172,30 @@ describe('TodayHeroCard', () => {
     expect(screen.getByText(/8km @ 5:20/)).toBeTruthy();
   });
 
+  it('shows completed state from resolved activity data even before actualActivityId lands in the plan', () => {
+    render(
+      <TodayHeroCard
+        session={{
+          id: 's5',
+          type: 'EASY',
+          date: '2026-04-09',
+          distance: 8,
+          pace: '5:20',
+        }}
+        activity={{
+          id: 'act-1',
+          distance: 8.1,
+          avgPace: 318,
+          duration: 2620,
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('hero-completed')).toBeTruthy();
+    expect(screen.getByText('Completed')).toBeTruthy();
+    expect(screen.getByText(/8\.1/)).toBeTruthy();
+  });
+
   it('opens the Steady action when the planned hero is tapped', () => {
     const onPress = vi.fn();
 
@@ -255,5 +279,32 @@ describe('TodayHeroCard', () => {
     expect(screen.getByText('Breathing: Controlled')).toBeTruthy();
     expect(screen.getByText('Overall: Done')).toBeTruthy();
     expect(screen.queryByTestId('subjective-input-prompt')).toBeNull();
+  });
+
+  it('renders a Review run CTA when provided', () => {
+    const onReviewRun = vi.fn();
+
+    render(
+      <TodayHeroCard
+        session={{
+          id: 's-review',
+          type: 'EASY',
+          date: '2026-04-09',
+          distance: 8,
+          pace: '5:20',
+          actualActivityId: 'act-review',
+        }}
+        activity={{
+          id: 'act-review',
+          distance: 8,
+          avgPace: 320,
+          duration: 2560,
+        }}
+        onReviewRun={onReviewRun}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('hero-review-run'));
+    expect(onReviewRun).toHaveBeenCalledTimes(1);
   });
 });

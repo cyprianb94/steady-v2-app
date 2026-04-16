@@ -593,6 +593,153 @@ describe('HomeScreen', () => {
     expect(screen.queryByTestId('subjective-input-prompt')).toBeNull();
   });
 
+  it('uses resolved matched activity data for post-save completed state before actualActivityId refreshes', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const sessions = [null, null, null, null, null, null, null] as any[];
+    sessions[slotIndexForIsoDate(today)] = {
+      id: 'session-1',
+      type: 'LONG',
+      date: today,
+      distance: 20,
+      pace: '5:05',
+    };
+    const week = {
+      weekNumber: 3,
+      phase: 'BASE' as const,
+      sessions,
+      plannedKm: 52,
+    };
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-07-15',
+      coachAnnotation: 'Nice work.',
+    };
+    mockPlan.currentWeek = week;
+    mockActivityList.mockResolvedValue([
+      {
+        id: 'activity-1',
+        matchedSessionId: 'session-1',
+        distance: 12.01,
+        avgPace: 327,
+        duration: 3924,
+        splits: [],
+      },
+    ]);
+
+    render(<HomeScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('hero-completed')).toBeTruthy();
+    });
+    expect(screen.queryByText('I just finished this run')).toBeNull();
+    expect(screen.getByTestId('hero-review-run')).toBeTruthy();
+  });
+
+  it('opens the saved sync-run detail from the Review run CTA', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const sessions = [null, null, null, null, null, null, null] as any[];
+    sessions[slotIndexForIsoDate(today)] = {
+      id: 'session-1',
+      type: 'EASY',
+      date: today,
+      distance: 8,
+      pace: '5:20',
+    };
+    const week = {
+      weekNumber: 3,
+      phase: 'BASE' as const,
+      sessions,
+      plannedKm: 40,
+    };
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-07-15',
+      coachAnnotation: 'Nice work.',
+    };
+    mockPlan.currentWeek = week;
+    mockActivityList.mockResolvedValue([
+      {
+        id: 'activity-1',
+        matchedSessionId: 'session-1',
+        distance: 8.1,
+        avgPace: 319,
+        duration: 2580,
+        splits: [],
+      },
+    ]);
+
+    render(<HomeScreen />);
+
+    fireEvent.click(await screen.findByTestId('hero-review-run'));
+    expect(mockRouterPush).toHaveBeenCalledWith('/sync-run/activity-1');
+  });
+
+  it('renders a niggle banner when the resolved activity carries niggles', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const sessions = [null, null, null, null, null, null, null] as any[];
+    sessions[slotIndexForIsoDate(today)] = {
+      id: 'session-1',
+      type: 'EASY',
+      date: today,
+      distance: 8,
+      pace: '5:20',
+    };
+    const week = {
+      weekNumber: 3,
+      phase: 'BASE' as const,
+      sessions,
+      plannedKm: 40,
+    };
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-07-15',
+      coachAnnotation: 'Nice work.',
+    };
+    mockPlan.currentWeek = week;
+    mockActivityList.mockResolvedValue([
+      {
+        id: 'activity-1',
+        matchedSessionId: 'session-1',
+        distance: 8.1,
+        avgPace: 319,
+        duration: 2580,
+        splits: [],
+        niggles: [
+          {
+            id: 'niggle-1',
+            userId: '1',
+            activityId: 'activity-1',
+            bodyPart: 'hamstring',
+            side: 'left',
+            severity: 'mild',
+            when: 'during',
+            createdAt: '2026-04-15T08:00:00.000Z',
+          },
+        ],
+      },
+    ]);
+
+    render(<HomeScreen />);
+
+    expect(await screen.findByText(/You flagged/i)).toBeTruthy();
+    expect(screen.getByText(/Left Hamstring · Mild · During/i)).toBeTruthy();
+  });
+
   it('opens and dismisses the session detail sheet from the completed today hero', async () => {
     const today = new Date().toISOString().slice(0, 10);
     const sessions = [null, null, null, null, null, null, null] as any[];

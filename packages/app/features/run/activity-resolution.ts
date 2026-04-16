@@ -17,6 +17,7 @@ export interface ActivityResolution {
   activityById: Map<string, Activity>;
   activityByMatchedSessionId: Map<string, Activity>;
   activityForSession: (session: SessionRef | PlannedSession | null) => Activity | undefined;
+  isSessionComplete: (session: SessionRef | PlannedSession | null) => boolean;
   statusForDay: (
     session: PlannedSession | null,
     dayIndex: number,
@@ -71,6 +72,14 @@ export function createActivityResolution(activities: readonly Activity[]): Activ
     return activityByMatchedSessionId.get(session.id);
   }
 
+  function isSessionComplete(session: SessionRef | PlannedSession | null): boolean {
+    if (!session) {
+      return false;
+    }
+
+    return Boolean(session.actualActivityId || activityForSession(session));
+  }
+
   function statusForDay(
     session: PlannedSession | null,
     dayIndex: number,
@@ -80,8 +89,8 @@ export function createActivityResolution(activities: readonly Activity[]): Activ
       return 'rest';
     }
 
-    if (session.actualActivityId) {
-      const activity = activityForSession(session);
+    const activity = activityForSession(session);
+    if (activity) {
       if (activity && isOffTarget(session, activity)) {
         return 'off-target';
       }
@@ -110,6 +119,7 @@ export function createActivityResolution(activities: readonly Activity[]): Activ
     activityById,
     activityByMatchedSessionId,
     activityForSession,
+    isSessionComplete,
     statusForDay,
     weekActualKm,
   };
