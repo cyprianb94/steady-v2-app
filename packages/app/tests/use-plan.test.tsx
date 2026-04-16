@@ -61,6 +61,7 @@ function makePlan(id: string, weekNumber: number) {
       },
     ],
     activeInjury: null,
+    todayAnnotation: 'Stay controlled today.',
     coachAnnotation: 'Stay controlled.',
   };
 }

@@ -23,11 +23,13 @@ import { TodayHeroCard } from '../../components/home/TodayHeroCard';
 import { RemainingDaysList } from '../../components/home/RemainingDaysList';
 import { CoachAnnotationCard } from '../../components/home/CoachAnnotationCard';
 import { WeeklyLoadCard } from '../../components/home/WeeklyLoadCard';
+import { SessionDetailSheet } from '../../components/home/SessionDetailSheet';
 import { InjuryBanner } from '../../components/recovery/InjuryBanner';
 import { CrossTrainingLog } from '../../components/recovery/CrossTrainingLog';
 import { ReturnToRunning } from '../../components/recovery/ReturnToRunning';
 import { RecoveryFlowModal } from '../../components/recovery/RecoveryFlowModal';
 import { addDaysIso, findSessionForDateOrWeekday, inferWeekStartDate, startOfWeekIso } from '../../lib/plan-helpers';
+import { useHomeSessionDetail } from '../../features/home/use-home-session-detail';
 import { useActivityResolution } from '../../features/run/use-activity-resolution';
 import { useRecoveryData } from '../../features/recovery/use-recovery-data';
 import { useRecoveryActionController } from '../../features/recovery/use-recovery-action-controller';
@@ -134,6 +136,9 @@ export default function HomeScreen() {
     syncRefreshErrorMessage: 'Failed to refresh plan after Strava sync:',
     manualRefreshErrorMessage: 'Failed to refresh home screen:',
   });
+  const sessionDetail = useHomeSessionDetail({
+    activityForSession: activityResolution.activityForSession,
+  });
 
   if (authLoading || loading) {
     return (
@@ -198,8 +203,12 @@ export default function HomeScreen() {
   const showFinishedRunCta = Boolean(
     todaySession && todaySession.type !== 'REST' && !todaySession.actualActivityId,
   );
-  const steadyNote = todaySession ? plan.coachAnnotation : null;
-  const coachNote = steadyNote && plan.coachAnnotation === steadyNote ? null : plan.coachAnnotation;
+  const steadyNote = todaySession ? (plan.todayAnnotation ?? plan.coachAnnotation ?? null) : null;
+  const coachNote = plan.coachAnnotation && plan.coachAnnotation === steadyNote ? null : plan.coachAnnotation;
+  const handleSteadyNotePress = steadyNote ? () => router.push('/(tabs)/coach') : undefined;
+  const handleTodayHeroPress = sessionDetail.canOpenSessionDetail(todaySession)
+    ? () => sessionDetail.openSessionDetail(todaySession)
+    : handleSteadyNotePress;
 
   async function handleMarkRtrStepComplete() {
     const result = await recoveryController.advanceReturnToRun();
@@ -308,6 +317,8 @@ export default function HomeScreen() {
                 session={todaySession}
                 activity={activityResolution.activityForSession(todaySession)}
                 steadyNote={steadyNote}
+                onPress={handleTodayHeroPress}
+                onSteadyNotePress={handleTodayHeroPress === handleSteadyNotePress ? undefined : handleSteadyNotePress}
               />
               {showFinishedRunCta ? (
                 <View style={styles.ctaWrap}>
@@ -322,8 +333,10 @@ export default function HomeScreen() {
               <RemainingDaysList
                 sessions={week.sessions}
                 today={today}
-                activitiesById={activityResolution.activityById}
-                activitiesByMatchedSessionId={activityResolution.activityByMatchedSessionId}
+                weekStartDate={resolvedWeekStartDate}
+                activityForSession={activityResolution.activityForSession}
+                statusForDay={activityResolution.statusForDay}
+                onSessionPress={sessionDetail.openSessionDetail}
               />
             </>
           )}
@@ -342,6 +355,14 @@ export default function HomeScreen() {
           onMarkInjury={handleMarkInjury}
           onEndRecovery={handleEndRecovery}
         />
+        {sessionDetail.selectedSession && sessionDetail.selectedActivity ? (
+          <SessionDetailSheet
+            visible
+            session={sessionDetail.selectedSession}
+            activity={sessionDetail.selectedActivity}
+            onClose={sessionDetail.closeSessionDetail}
+          />
+        ) : null}
       </View>
     </PhaseThemeProvider>
   );

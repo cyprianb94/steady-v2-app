@@ -1,4 +1,9 @@
-import { expectedDistance, type Activity, type PlannedSession } from '@steady/types';
+import {
+  DISTANCE_TOLERANCE_PCT,
+  expectedDistance,
+  type Activity,
+  type PlannedSession,
+} from '@steady/types';
 
 export type ActivityDayStatus = 'completed' | 'off-target' | 'missed' | 'today' | 'upcoming' | 'rest';
 
@@ -18,6 +23,32 @@ export interface ActivityResolution {
     todayIndex: number,
   ) => ActivityDayStatus;
   weekActualKm: (sessions: readonly (PlannedSession | null)[]) => number;
+}
+
+function paceToSeconds(pace: string | undefined): number | null {
+  if (!pace) {
+    return null;
+  }
+
+  const [minutes, seconds] = pace.split(':').map(Number);
+  if (!Number.isFinite(minutes) || !Number.isFinite(seconds)) {
+    return null;
+  }
+
+  return (minutes * 60) + seconds;
+}
+
+function isOffTarget(session: PlannedSession, activity: Activity): boolean {
+  const plannedKm = expectedDistance(session);
+  const distanceRatio = plannedKm > 0
+    ? Number((Math.abs(activity.distance - plannedKm) / plannedKm).toFixed(4))
+    : 0;
+  const plannedPaceSeconds = paceToSeconds(session.pace);
+  const paceRatio = plannedPaceSeconds && plannedPaceSeconds > 0
+    ? Number((Math.abs(activity.avgPace - plannedPaceSeconds) / plannedPaceSeconds).toFixed(4))
+    : 0;
+
+  return distanceRatio > DISTANCE_TOLERANCE_PCT || paceRatio > DISTANCE_TOLERANCE_PCT;
 }
 
 export function createActivityResolution(activities: readonly Activity[]): ActivityResolution {
@@ -51,11 +82,8 @@ export function createActivityResolution(activities: readonly Activity[]): Activ
 
     if (session.actualActivityId) {
       const activity = activityForSession(session);
-      if (activity) {
-        const plannedKm = expectedDistance(session);
-        if (plannedKm > 0 && Math.abs(activity.distance - plannedKm) / plannedKm > 0.1) {
-          return 'off-target';
-        }
+      if (activity && isOffTarget(session, activity)) {
+        return 'off-target';
       }
 
       return 'completed';

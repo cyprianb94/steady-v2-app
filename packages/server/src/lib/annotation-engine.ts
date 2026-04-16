@@ -9,6 +9,11 @@ export interface AnnotationInput {
   allSessions: (PlannedSession | null)[];
 }
 
+export interface HomeAnnotations {
+  todayAnnotation: string;
+  coachAnnotation: string | null;
+}
+
 const PHASE_FALLBACKS: Record<PhaseName, string> = {
   BASE: 'Building your aerobic foundation — consistency matters more than intensity right now.',
   BUILD: 'Volume is climbing — trust the process and recover well between sessions.',
@@ -32,8 +37,8 @@ function findSessionIndex(
   });
 }
 
-export function generateAnnotation(input: AnnotationInput): string {
-  const { todaySession, tomorrowSession, phase, weekNumber, totalWeeks, allSessions } = input;
+function generateTodayAnnotation(input: AnnotationInput): string {
+  const { todaySession, phase, weekNumber, totalWeeks, allSessions } = input;
 
   // Rest day
   if (!todaySession || todaySession.type === 'REST') {
@@ -43,20 +48,6 @@ export function generateAnnotation(input: AnnotationInput): string {
   // Recovery phase override
   if (phase === 'RECOVERY') {
     return PHASE_FALLBACKS.RECOVERY;
-  }
-
-  const todayIdx = findSessionIndex(allSessions, todaySession);
-  const yesterday = todayIdx > 0 ? allSessions[todayIdx - 1] : null;
-  const isBackToBackQuality =
-    isQualitySession(todaySession) && (isQualitySession(yesterday) || isQualitySession(tomorrowSession));
-
-  if (isBackToBackQuality) {
-    return 'Back-to-back quality days — consider swapping if legs are heavy.';
-  }
-
-  // Intervals tomorrow — keep today easy
-  if (tomorrowSession && tomorrowSession.type === 'INTERVAL') {
-    return 'Intervals tomorrow — keep today conversational to stay fresh for the hard work.';
   }
 
   // Longest run of the week
@@ -89,4 +80,42 @@ export function generateAnnotation(input: AnnotationInput): string {
 
   // Phase-level fallback
   return PHASE_FALLBACKS[phase];
+}
+
+function generateCoachAnnotation(input: AnnotationInput): string | null {
+  const { todaySession, tomorrowSession, phase, allSessions } = input;
+
+  if (phase === 'RECOVERY') {
+    return null;
+  }
+
+  if (!todaySession || todaySession.type === 'REST') {
+    if (tomorrowSession?.type === 'INTERVAL') {
+      return 'Intervals tomorrow — keep today conversational to stay fresh for the hard work.';
+    }
+
+    return null;
+  }
+
+  const todayIdx = findSessionIndex(allSessions, todaySession);
+  const yesterday = todayIdx > 0 ? allSessions[todayIdx - 1] : null;
+  const isBackToBackQuality =
+    isQualitySession(todaySession) && (isQualitySession(yesterday) || isQualitySession(tomorrowSession));
+
+  if (isBackToBackQuality) {
+    return 'Back-to-back quality days — consider swapping if legs are heavy.';
+  }
+
+  if (tomorrowSession?.type === 'INTERVAL') {
+    return 'Intervals tomorrow — keep today conversational to stay fresh for the hard work.';
+  }
+
+  return null;
+}
+
+export function generateHomeAnnotations(input: AnnotationInput): HomeAnnotations {
+  return {
+    todayAnnotation: generateTodayAnnotation(input),
+    coachAnnotation: generateCoachAnnotation(input),
+  };
 }

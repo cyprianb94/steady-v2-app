@@ -29,6 +29,7 @@ interface TodayHeroCardProps {
   activity?: ActivitySummary;
   steadyNote?: string | null;
   onPress?: () => void;
+  onSteadyNotePress?: () => void;
   onSaveSubjectiveInput?: (input: SubjectiveInput) => void | Promise<void>;
   onDismissSubjectiveInput?: () => void | Promise<void>;
 }
@@ -93,6 +94,7 @@ export function TodayHeroCard({
   activity,
   steadyNote,
   onPress,
+  onSteadyNotePress,
   onSaveSubjectiveInput,
   onDismissSubjectiveInput,
 }: TodayHeroCardProps) {
@@ -116,8 +118,8 @@ export function TodayHeroCard({
     Boolean(onSaveSubjectiveInput || onDismissSubjectiveInput);
 
   if (completed) {
-    return (
-      <View style={[styles.card, styles.completedCard, { backgroundColor: meta.bg }]} testID="hero-completed">
+    const content = (
+      <>
         <Text style={[styles.typeLabel, { color: meta.color }]}>{meta.label}</Text>
         <Text style={styles.completedBadge}>Completed</Text>
         <Text style={[styles.mainStat, { color: meta.color }]}>
@@ -137,19 +139,49 @@ export function TodayHeroCard({
             onDismiss={onDismissSubjectiveInput}
           />
         ) : null}
+      </>
+    );
+
+    if (onPress) {
+      return (
+        <Pressable
+          accessibilityRole="button"
+          onPress={onPress}
+          style={({ pressed }) => [
+            styles.card,
+            styles.completedCard,
+            { backgroundColor: meta.bg },
+            pressed && styles.cardPressed,
+          ]}
+          testID="hero-completed"
+        >
+          {content}
+        </Pressable>
+      );
+    }
+
+    return (
+      <View style={[styles.card, styles.completedCard, { backgroundColor: meta.bg }]} testID="hero-completed">
+        {content}
       </View>
     );
   }
 
-  return (
-    <View
-      style={[
-        styles.card,
-        styles.plannedCard,
-        { backgroundColor: PLANNED_CARD_BG[session.type], borderColor: meta.color },
-      ]}
-      testID="hero-card"
-    >
+  const plannedType = session.type as Exclude<PlannedSession['type'], 'REST'>;
+  const showSteadyAction = Boolean(onSteadyNotePress || onPress);
+  const steadyNoteContent = steadyNote ? (
+    <>
+      <View style={styles.steadyNoteMain}>
+        <View style={[styles.steadyDot, { backgroundColor: meta.color }]} />
+        <Text style={styles.steadyText}>
+          <Text style={styles.steadyLabel}>Steady</Text>: {steadyNote}
+        </Text>
+      </View>
+      {showSteadyAction ? <Text style={styles.steadyAction}>Open Steady</Text> : null}
+    </>
+  ) : null;
+  const plannedContent = (
+    <>
       <View style={styles.topRow}>
         <Text
           style={[
@@ -195,12 +227,20 @@ export function TodayHeroCard({
         </View>
       )}
       {steadyNote ? (
-        <View style={styles.steadyNote}>
-          <View style={[styles.steadyDot, { backgroundColor: meta.color }]} />
-          <Text style={styles.steadyText}>
-            <Text style={styles.steadyLabel}>Steady</Text>: {steadyNote}
-          </Text>
-        </View>
+        onSteadyNotePress ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onSteadyNotePress}
+            style={({ pressed }) => [styles.steadyNote, pressed && styles.steadyNotePressed]}
+            testID="hero-steady-note"
+          >
+            {steadyNoteContent}
+          </Pressable>
+        ) : (
+          <View style={styles.steadyNote} testID="hero-steady-note">
+            {steadyNoteContent}
+          </View>
+        )
       ) : null}
       {showSubjectivePrompt ? (
         <SubjectiveInputPrompt
@@ -208,6 +248,37 @@ export function TodayHeroCard({
           onDismiss={onDismissSubjectiveInput}
         />
       ) : null}
+    </>
+  );
+
+  if (onPress) {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.card,
+          styles.plannedCard,
+          { backgroundColor: PLANNED_CARD_BG[plannedType], borderColor: meta.color },
+          pressed && styles.cardPressed,
+        ]}
+        testID="hero-card"
+      >
+        {plannedContent}
+      </Pressable>
+    );
+  }
+
+  return (
+    <View
+      style={[
+        styles.card,
+        styles.plannedCard,
+        { backgroundColor: PLANNED_CARD_BG[plannedType], borderColor: meta.color },
+      ]}
+      testID="hero-card"
+    >
+      {plannedContent}
     </View>
   );
 }
@@ -327,6 +398,9 @@ const styles = StyleSheet.create({
   plannedCard: {
     borderWidth: 1.5,
   },
+  cardPressed: {
+    opacity: 0.84,
+  },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -409,6 +483,16 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(28,21,16,0.08)',
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  steadyNotePressed: {
+    opacity: 0.8,
+  },
+  steadyNoteMain: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
   },
@@ -427,6 +511,13 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.sans,
     fontSize: 13,
     lineHeight: 19,
+    color: C.ink2,
+  },
+  steadyAction: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 11,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
     color: C.ink2,
   },
   extraText: {

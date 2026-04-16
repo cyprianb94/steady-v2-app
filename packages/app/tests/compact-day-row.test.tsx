@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { vi, describe, it, expect } from 'vitest';
 
 vi.mock('../lib/trpc', () => ({ trpc: {} }));
@@ -108,5 +108,27 @@ describe('CompactDayRow', () => {
 
     expect(screen.getByText('Fri')).toBeTruthy();
     expect(screen.getByText('Rest')).toBeTruthy();
+  });
+
+  it('becomes pressable when a row action is provided', () => {
+    const onPress = vi.fn();
+
+    render(
+      <CompactDayRow
+        dayName="Sat"
+        onPress={onPress}
+        session={{
+          id: 's5',
+          type: 'LONG',
+          date: '2026-04-11',
+          distance: 18,
+          pace: '5:10',
+          actualActivityId: 'act-1',
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('compact-day-row-pressable'));
+    expect(onPress).toHaveBeenCalledTimes(1);
   });
 });

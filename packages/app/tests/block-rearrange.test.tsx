@@ -87,6 +87,7 @@ function makePlan(weeks: TrainingPlanWithAnnotation['weeks']): TrainingPlanWithA
     templateWeek: weeks[0].sessions,
     weeks,
     activeInjury: null,
+    todayAnnotation: 'Keep the easy days easy.',
     coachAnnotation: 'Keep going.',
   };
 }

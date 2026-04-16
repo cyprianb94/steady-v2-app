@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import type { PlannedSession } from '@steady/types';
 import { SESSION_TYPE } from '../../constants/session-types';
 import { FONTS } from '../../constants/typography';
@@ -13,6 +13,7 @@ interface CompactDayRowProps {
   session: PlannedSession | null;
   status?: 'completed' | 'off-target' | 'missed' | 'today' | 'upcoming' | 'rest';
   metricLabel?: string | null;
+  onPress?: () => void;
 }
 
 function StatusIcon({ status }: { status: 'completed' | 'off-target' | 'missed' }) {
@@ -32,13 +33,13 @@ function StatusIcon({ status }: { status: 'completed' | 'off-target' | 'missed' 
   );
 }
 
-export function CompactDayRow({ dayName, dateLabel, session, status, metricLabel }: CompactDayRowProps) {
+export function CompactDayRow({ dayName, dateLabel, session, status, metricLabel, onPress }: CompactDayRowProps) {
   const { units } = usePreferences();
   const isRest = !session || session.type === 'REST';
   const meta = session && !isRest ? SESSION_TYPE[session.type] : null;
   const rowStatus = status ?? (session?.actualActivityId ? 'completed' : isRest ? 'rest' : 'upcoming');
-
-  return (
+  const isPressable = typeof onPress === 'function';
+  const rowContent = (
     <View
       style={[styles.row, rowStatus === 'today' && styles.todayRow]}
       testID="compact-day-row"
@@ -65,6 +66,21 @@ export function CompactDayRow({ dayName, dateLabel, session, status, metricLabel
       </View>
     </View>
   );
+
+  if (isPressable) {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        onPress={onPress}
+        style={({ pressed }) => [pressed && styles.rowPressed]}
+        testID="compact-day-row-pressable"
+      >
+        {rowContent}
+      </Pressable>
+    );
+  }
+
+  return rowContent;
 }
 
 const styles = StyleSheet.create({
@@ -74,6 +90,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 4,
     gap: 10,
+  },
+  rowPressed: {
+    opacity: 0.82,
   },
   todayRow: {
     backgroundColor: 'rgba(212,136,42,0.08)',

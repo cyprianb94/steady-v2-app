@@ -5,7 +5,7 @@ import { generatePlan, getDisplayWeekIndex, propagateChange } from '@steady/type
 import type { TrainingPlan, TrainingPlanWithAnnotation, PlanWeek, PhaseConfig, PlannedSession } from '@steady/types';
 import type { PlanRepo } from '../repos/plan-repo';
 import type { ProfileRepo } from '../repos/profile-repo';
-import { generateAnnotation } from '../lib/annotation-engine';
+import { generateHomeAnnotations } from '../lib/annotation-engine';
 
 const PhaseConfigSchema = z.object({
   BASE: z.number().min(0),
@@ -64,7 +64,7 @@ function findSessionForDateOrWeekday(
   return sessions[dayIndexForDate(date)] ?? null;
 }
 
-function withCoachAnnotation(plan: TrainingPlan | null, today: string): TrainingPlanWithAnnotation | null {
+function withHomeAnnotations(plan: TrainingPlan | null, today: string): TrainingPlanWithAnnotation | null {
   if (!plan) return null;
 
   const currentWeek = plan.weeks[getDisplayWeekIndex(plan.weeks, today)];
@@ -72,24 +72,26 @@ function withCoachAnnotation(plan: TrainingPlan | null, today: string): Training
   if (!currentWeek) {
     return {
       ...plan,
-      coachAnnotation: 'Your plan is ready — build consistency one week at a time.',
+      todayAnnotation: 'Your plan is ready — build consistency one week at a time.',
+      coachAnnotation: null,
     };
   }
 
   const tomorrow = addDays(today, 1);
   const todaySession = findSessionForDateOrWeekday(currentWeek.sessions, today);
   const tomorrowSession = findSessionForDateOrWeekday(currentWeek.sessions, tomorrow);
+  const annotations = generateHomeAnnotations({
+    todaySession,
+    tomorrowSession,
+    phase: currentWeek.phase,
+    weekNumber: currentWeek.weekNumber,
+    totalWeeks: plan.weeks.length,
+    allSessions: currentWeek.sessions,
+  });
 
   return {
     ...plan,
-    coachAnnotation: generateAnnotation({
-      todaySession,
-      tomorrowSession,
-      phase: currentWeek.phase,
-      weekNumber: currentWeek.weekNumber,
-      totalWeeks: plan.weeks.length,
-      allSessions: currentWeek.sessions,
-    }),
+    ...annotations,
   };
 }
 
@@ -102,7 +104,7 @@ export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo) {
         profileRepo.getById(ctx.userId),
       ]);
 
-      return withCoachAnnotation(plan, currentIsoDateInTimezone(profile?.timezone ?? 'UTC'));
+      return withHomeAnnotations(plan, currentIsoDateInTimezone(profile?.timezone ?? 'UTC'));
     }),
 
     /** Generate a plan server-side from a template. */

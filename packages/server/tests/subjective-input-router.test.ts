@@ -96,7 +96,7 @@ describe('subjective input router contract', () => {
     expect(procedures['activity.updateSubjectiveInput']).toBeUndefined();
   });
 
-  it('builds the coach annotation from the weekday slot when session dates are stale', async () => {
+  it('builds the today annotation from the weekday slot when session dates are stale', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-10T12:00:00Z')); // Friday
     await planRepo.save({
@@ -127,8 +127,9 @@ describe('subjective input router contract', () => {
 
     const plan = await caller.plan.get();
 
-    expect(plan?.coachAnnotation).toMatch(/first week|consistency/i);
-    expect(plan?.coachAnnotation).not.toMatch(/rest day/i);
+    expect(plan?.todayAnnotation).toMatch(/first week|consistency/i);
+    expect(plan?.todayAnnotation).not.toMatch(/rest day/i);
+    expect(plan?.coachAnnotation).toBeNull();
   });
 
   it('treats today as rest when another slot carries a stale copy of today’s date', async () => {
@@ -162,8 +163,9 @@ describe('subjective input router contract', () => {
 
     const plan = await caller.plan.get();
 
-    expect(plan?.coachAnnotation).toMatch(/rest day/i);
-    expect(plan?.coachAnnotation).not.toMatch(/consistency/i);
+    expect(plan?.todayAnnotation).toMatch(/rest day/i);
+    expect(plan?.todayAnnotation).not.toMatch(/consistency/i);
+    expect(plan?.coachAnnotation).toBeNull();
   });
 
   it('uses the profile timezone when local time is still yesterday behind UTC', async () => {
@@ -204,8 +206,9 @@ describe('subjective input router contract', () => {
 
     const plan = await caller.plan.get();
 
-    expect(plan?.coachAnnotation).toMatch(/conversational|easy/i);
-    expect(plan?.coachAnnotation).not.toMatch(/key|adaptation|quality/i);
+    expect(plan?.todayAnnotation).toMatch(/first week|consistency/i);
+    expect(plan?.todayAnnotation).not.toMatch(/intervals tomorrow|conversational/i);
+    expect(plan?.coachAnnotation).toMatch(/intervals tomorrow|conversational/i);
   });
 
   it('uses the profile timezone when local time is already tomorrow ahead of UTC', async () => {
@@ -246,7 +249,7 @@ describe('subjective input router contract', () => {
 
     const plan = await caller.plan.get();
 
-    expect(plan?.coachAnnotation).toMatch(/key|adaptation|quality/i);
-    expect(plan?.coachAnnotation).not.toMatch(/conversational|easy/i);
+    expect(plan?.todayAnnotation).toMatch(/key|adaptation|quality/i);
+    expect(plan?.coachAnnotation).toBeNull();
   });
 });

@@ -33,7 +33,7 @@ describe('createActivityResolution', () => {
     ).toMatchObject({ id: 'activity-1' });
   });
 
-  it('marks materially short completed runs as off-target', () => {
+  it('marks materially short completed runs as off-target once distance drifts past 5%', () => {
     const resolution = createActivityResolution([
       {
         id: 'activity-1',
@@ -44,6 +44,70 @@ describe('createActivityResolution', () => {
         distance: 5.5,
         duration: 2200,
         avgPace: 400,
+        splits: [],
+        matchedSessionId: 'session-1',
+      },
+    ]);
+
+    expect(
+      resolution.statusForDay(
+        {
+          id: 'session-1',
+          type: 'EASY',
+          date: '2026-04-15',
+          distance: 8,
+          pace: '5:20',
+          actualActivityId: 'activity-1',
+        },
+        0,
+        0,
+      ),
+    ).toBe('off-target');
+  });
+
+  it('keeps completed runs on target when distance lands exactly on the 5% boundary', () => {
+    const resolution = createActivityResolution([
+      {
+        id: 'activity-1',
+        userId: 'user-1',
+        source: 'strava',
+        externalId: 'strava-1',
+        startTime: '2026-04-15T07:15:00.000Z',
+        distance: 7.6,
+        duration: 2432,
+        avgPace: 320,
+        splits: [],
+        matchedSessionId: 'session-1',
+      },
+    ]);
+
+    expect(
+      resolution.statusForDay(
+        {
+          id: 'session-1',
+          type: 'EASY',
+          date: '2026-04-15',
+          distance: 8,
+          pace: '5:20',
+          actualActivityId: 'activity-1',
+        },
+        0,
+        0,
+      ),
+    ).toBe('completed');
+  });
+
+  it('marks completed runs off-target when pace drifts past the 5% tolerance', () => {
+    const resolution = createActivityResolution([
+      {
+        id: 'activity-1',
+        userId: 'user-1',
+        source: 'strava',
+        externalId: 'strava-1',
+        startTime: '2026-04-15T07:15:00.000Z',
+        distance: 8,
+        duration: 2704,
+        avgPace: 338,
         splits: [],
         matchedSessionId: 'session-1',
       },

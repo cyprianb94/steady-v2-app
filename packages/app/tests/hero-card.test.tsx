@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { vi, describe, it, expect } from 'vitest';
 
 vi.mock('../lib/trpc', () => ({ trpc: {} }));
@@ -170,6 +170,66 @@ describe('TodayHeroCard', () => {
     expect(screen.getByText('Completed')).toBeTruthy();
     expect(screen.getByText('Easy Run')).toBeTruthy();
     expect(screen.getByText(/8km @ 5:20/)).toBeTruthy();
+  });
+
+  it('opens the Steady action when the planned hero is tapped', () => {
+    const onPress = vi.fn();
+
+    render(
+      <TodayHeroCard
+        session={{
+          id: 's-note',
+          type: 'EASY',
+          date: '2026-04-09',
+          distance: 8,
+          pace: '5:20',
+        }}
+        steadyNote="Keep this one relaxed so tomorrow still has teeth."
+        onPress={onPress}
+      />,
+    );
+
+    expect(screen.getByText('Open Steady')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('hero-card'));
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('still supports a dedicated inline Steady note action when provided', () => {
+    const onSteadyNotePress = vi.fn();
+
+    render(
+      <TodayHeroCard
+        session={{
+          id: 's-inline-note',
+          type: 'EASY',
+          date: '2026-04-09',
+          distance: 8,
+          pace: '5:20',
+        }}
+        steadyNote="Keep this one relaxed so tomorrow still has teeth."
+        onSteadyNotePress={onSteadyNotePress}
+      />,
+    );
+
+    expect(screen.getByText('Open Steady')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('hero-steady-note'));
+    expect(onSteadyNotePress).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not render an inline Steady note when no note is available', () => {
+    render(
+      <TodayHeroCard
+        session={{
+          id: 's-no-note',
+          type: 'EASY',
+          date: '2026-04-09',
+          distance: 8,
+          pace: '5:20',
+        }}
+      />,
+    );
+
+    expect(screen.queryByTestId('hero-steady-note')).toBeNull();
   });
 
   it('renders saved feel from the matched activity in completed state', () => {

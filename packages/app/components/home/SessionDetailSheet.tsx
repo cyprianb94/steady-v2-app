@@ -51,7 +51,7 @@ export function SessionDetailSheet({ visible, session, activity, onClose }: Sess
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
+        <Pressable style={styles.backdrop} onPress={onClose} testID="session-detail-backdrop" />
         <View style={styles.sheet}>
           <View style={styles.handle} />
 

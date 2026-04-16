@@ -52,5 +52,6 @@ export interface TrainingPlan {
 }
 
 export interface TrainingPlanWithAnnotation extends TrainingPlan {
-  coachAnnotation: string;
+  todayAnnotation: string | null;
+  coachAnnotation: string | null;
 }

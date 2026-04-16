@@ -10,7 +10,7 @@ Use this file when a feature touches an area that historically attracted debt.
 - `packages/app/app/onboarding/plan-builder/step-goal.tsx` — `699` lines. Plan-builder rules should land in shared plan-builder modules or shared domain helpers, not in the screen.
 - `packages/app/app/onboarding/plan-builder/step-plan.tsx` — `488` lines. Keep generated-plan editing rules out of the onboarding screen shell.
 - `packages/app/app/onboarding/plan-builder/step-template.tsx` — `485` lines. Template-week logic should prefer shared plan-builder modules over screen-local logic.
-- `packages/app/app/(tabs)/home.tsx` — `430` lines. Home should stay a composition surface, not a new business-logic sink.
+- `packages/app/app/(tabs)/home.tsx` — `451` lines. Home should stay a composition surface, not a new business-logic sink.
 - `packages/server/src/services/strava-workflow-service.ts` — `570` lines. High-impact workflow boundary. Keep new behavior cohesive and avoid leaking orchestration back into routers or screens.
 - `packages/server/src/trpc/plan.ts` — `261` lines. Plan validation and annotation logic are starting to concentrate here. Keep workflow logic out of the router.
 
@@ -25,6 +25,16 @@ If the same behavior appears in `Home`, `Week`, `Block`, `Settings`, or `sync-ru
 - focused feature components under `packages/app/components/<feature>/` for UI-specific shared behavior
 
 Do not independently patch each screen unless the change is tiny and presentation-only.
+
+### Home follow-up work
+
+Start by looking in:
+
+- `packages/app/features/home/*` for Home-only interaction controllers such as session-detail state and note-driven navigation
+- `packages/app/components/home/*` for Home card/list presentation work
+- `packages/app/features/run/*` when a Home row status rule should remain shared with activity-resolution boundaries
+
+Keep `packages/app/app/(tabs)/home.tsx` focused on composition. Do not move row-status heuristics or sheet orchestration back into the screen.
 
 ### Recovery-related work
 

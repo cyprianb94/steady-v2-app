@@ -151,6 +151,7 @@ describe('BlockTab injury history', () => {
         status: 'resolved',
         resolvedDate: '2026-04-24',
       },
+      todayAnnotation: 'Peak work starts soon.',
       coachAnnotation: 'Ease into the peak block.',
     };
   });
