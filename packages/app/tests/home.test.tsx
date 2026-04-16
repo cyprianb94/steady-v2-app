@@ -446,7 +446,6 @@ describe('HomeScreen', () => {
 
     render(<HomeScreen />);
 
-    expect(screen.getByText('Open Steady')).toBeTruthy();
     fireEvent.click(screen.getByTestId('hero-card'));
     expect(mockRouterPush).toHaveBeenCalledWith('/(tabs)/coach');
   });

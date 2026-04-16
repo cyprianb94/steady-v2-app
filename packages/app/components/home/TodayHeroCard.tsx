@@ -168,7 +168,6 @@ export function TodayHeroCard({
   }
 
   const plannedType = session.type as Exclude<PlannedSession['type'], 'REST'>;
-  const showSteadyAction = Boolean(onSteadyNotePress || onPress);
   const steadyNoteContent = steadyNote ? (
     <>
       <View style={styles.steadyNoteMain}>
@@ -177,7 +176,6 @@ export function TodayHeroCard({
           <Text style={styles.steadyLabel}>Steady</Text>: {steadyNote}
         </Text>
       </View>
-      {showSteadyAction ? <Text style={styles.steadyAction}>Open Steady</Text> : null}
     </>
   ) : null;
   const plannedContent = (
@@ -511,13 +509,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.sans,
     fontSize: 13,
     lineHeight: 19,
-    color: C.ink2,
-  },
-  steadyAction: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 11,
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
     color: C.ink2,
   },
   extraText: {

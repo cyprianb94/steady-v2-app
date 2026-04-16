@@ -189,7 +189,6 @@ describe('TodayHeroCard', () => {
       />,
     );
 
-    expect(screen.getByText('Open Steady')).toBeTruthy();
     fireEvent.click(screen.getByTestId('hero-card'));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
@@ -211,7 +210,6 @@ describe('TodayHeroCard', () => {
       />,
     );
 
-    expect(screen.getByText('Open Steady')).toBeTruthy();
     fireEvent.click(screen.getByTestId('hero-steady-note'));
     expect(onSteadyNotePress).toHaveBeenCalledTimes(1);
   });
