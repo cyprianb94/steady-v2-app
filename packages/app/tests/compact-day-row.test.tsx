@@ -79,6 +79,28 @@ describe('CompactDayRow', () => {
     expect(screen.getByTestId('day-row-warning')).toBeTruthy();
   });
 
+  it('shows a completed-style badge for off-target completed sessions', () => {
+    render(
+      <CompactDayRow
+        dayName="Wed"
+        status="off-target"
+        metricLabel="8.4k"
+        session={{
+          id: 's-off-target',
+          type: 'EASY',
+          date: '2026-04-09',
+          distance: 8,
+          pace: '5:20',
+          actualActivityId: 'act-1',
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('day-row-off-target')).toBeTruthy();
+    expect(screen.queryByTestId('day-row-warning')).toBeNull();
+    expect(screen.getByText('8.4k')).toBeTruthy();
+  });
+
   it('shows the right-hand metric for the current planned session', () => {
     render(
       <CompactDayRow

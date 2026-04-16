@@ -17,10 +17,15 @@ interface CompactDayRowProps {
 }
 
 function StatusIcon({ status }: { status: 'completed' | 'off-target' | 'missed' }) {
-  if (status === 'completed') {
+  if (status === 'completed' || status === 'off-target') {
+    const isOffTarget = status === 'off-target';
+
     return (
-      <View style={styles.checkBadge} testID="day-row-check">
-        <Text style={styles.checkGlyph}>✓</Text>
+      <View
+        style={[styles.checkBadge, isOffTarget && styles.checkBadgeOffTarget]}
+        testID={isOffTarget ? 'day-row-off-target' : 'day-row-check'}
+      >
+        <Text style={[styles.checkGlyph, isOffTarget && styles.checkGlyphOffTarget]}>✓</Text>
       </View>
     );
   }
@@ -60,9 +65,14 @@ export function CompactDayRow({ dayName, dateLabel, session, status, metricLabel
       </Text>
 
       <View style={styles.statusBlock}>
-        {metricLabel ? <Text style={styles.metricLabel}>{metricLabel}</Text> : null}
-        {rowStatus === 'completed' && <StatusIcon status="completed" />}
-        {(rowStatus === 'off-target' || rowStatus === 'missed') && <StatusIcon status={rowStatus} />}
+        {metricLabel ? (
+          <Text style={[styles.metricLabel, rowStatus === 'off-target' && styles.metricLabelOffTarget]}>
+            {metricLabel}
+          </Text>
+        ) : null}
+        {(rowStatus === 'completed' || rowStatus === 'off-target' || rowStatus === 'missed') && (
+          <StatusIcon status={rowStatus} />
+        )}
       </View>
     </View>
   );
@@ -140,6 +150,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: C.muted,
   },
+  metricLabelOffTarget: {
+    color: C.clay,
+  },
   muted: {
     color: C.muted,
   },
@@ -153,11 +166,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(42,92,69,0.08)',
   },
+  checkBadgeOffTarget: {
+    borderColor: `${C.clay}35`,
+    backgroundColor: C.clayBg,
+  },
   checkGlyph: {
     fontFamily: FONTS.sansSemiBold,
     fontSize: 10,
     color: C.forest,
     lineHeight: 10,
+  },
+  checkGlyphOffTarget: {
+    color: C.clay,
   },
   warningWrap: {
     width: 16,

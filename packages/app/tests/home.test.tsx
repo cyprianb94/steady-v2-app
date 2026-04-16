@@ -45,10 +45,15 @@ vi.mock('../lib/trpc', () => ({
 }));
 
 import HomeScreen from '../app/(tabs)/home';
+import { todayIsoLocal } from '../lib/plan-helpers';
 
 function slotIndexForIsoDate(date: string): number {
   const day = new Date(`${date}T00:00:00Z`).getUTCDay();
   return day === 0 ? 6 : day - 1;
+}
+
+function currentLocalIsoDate(): string {
+  return todayIsoLocal(new Date());
 }
 
 describe('HomeScreen', () => {
@@ -541,7 +546,7 @@ describe('HomeScreen', () => {
   });
 
   it('renders saved feel for today’s matched activity from activity data', async () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = currentLocalIsoDate();
     const sessions = [null, null, null, null, null, null, null] as any[];
     sessions[slotIndexForIsoDate(today)] = {
       id: 'session-1',
@@ -594,7 +599,7 @@ describe('HomeScreen', () => {
   });
 
   it('uses resolved matched activity data for post-save completed state before actualActivityId refreshes', async () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = currentLocalIsoDate();
     const sessions = [null, null, null, null, null, null, null] as any[];
     sessions[slotIndexForIsoDate(today)] = {
       id: 'session-1',
@@ -641,7 +646,7 @@ describe('HomeScreen', () => {
   });
 
   it('opens the saved sync-run detail from the Review run CTA', async () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = currentLocalIsoDate();
     const sessions = [null, null, null, null, null, null, null] as any[];
     sessions[slotIndexForIsoDate(today)] = {
       id: 'session-1',
@@ -685,7 +690,7 @@ describe('HomeScreen', () => {
   });
 
   it('renders a niggle banner when the resolved activity carries niggles', async () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = currentLocalIsoDate();
     const sessions = [null, null, null, null, null, null, null] as any[];
     sessions[slotIndexForIsoDate(today)] = {
       id: 'session-1',
@@ -741,7 +746,7 @@ describe('HomeScreen', () => {
   });
 
   it('opens and dismisses the session detail sheet from the completed today hero', async () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = currentLocalIsoDate();
     const sessions = [null, null, null, null, null, null, null] as any[];
     sessions[slotIndexForIsoDate(today)] = {
       id: 'session-hero',
@@ -796,7 +801,7 @@ describe('HomeScreen', () => {
   });
 
   it('opens the session detail sheet from a completed This week row', async () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = currentLocalIsoDate();
     const todayIndex = slotIndexForIsoDate(today);
     const weekStart = new Date(`${today}T00:00:00Z`);
     weekStart.setUTCDate(weekStart.getUTCDate() - todayIndex);
@@ -867,8 +872,81 @@ describe('HomeScreen', () => {
     expect(screen.getAllByText(/8\.2km/).length).toBeGreaterThan(0);
   });
 
+  it('keeps matched off-target week rows visually completed while still opening the detail sheet', async () => {
+    const today = currentLocalIsoDate();
+    const todayIndex = slotIndexForIsoDate(today);
+    const weekStart = new Date(`${today}T00:00:00Z`);
+    weekStart.setUTCDate(weekStart.getUTCDate() - todayIndex);
+    const isoForWeekIndex = (index: number) => {
+      const value = new Date(weekStart);
+      value.setUTCDate(value.getUTCDate() + index);
+      return value.toISOString().slice(0, 10);
+    };
+    const completedIndex = todayIndex === 0 ? 1 : 0;
+    const sessions = [null, null, null, null, null, null, null] as any[];
+    sessions[todayIndex] = {
+      id: 'today-session',
+      type: 'TEMPO',
+      date: isoForWeekIndex(todayIndex),
+      distance: 10,
+      pace: '4:20',
+    };
+    sessions[completedIndex] = {
+      id: 'completed-off-target-session',
+      type: 'EASY',
+      date: isoForWeekIndex(completedIndex),
+      distance: 8,
+      pace: '5:30',
+      actualActivityId: 'act-off-target',
+    };
+    const week = {
+      weekNumber: 3,
+      phase: 'BUILD' as const,
+      sessions,
+      plannedKm: 50,
+    };
+
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-07-15',
+      todayAnnotation: 'Keep the first half controlled.',
+      coachAnnotation: null,
+    };
+    mockPlan.currentWeek = week;
+    mockActivityList.mockResolvedValue([
+      {
+        id: 'act-off-target',
+        userId: '1',
+        source: 'strava',
+        externalId: 'strava-off-target-1',
+        startTime: `${isoForWeekIndex(completedIndex)}T07:00:00.000Z`,
+        distance: 8.4,
+        duration: 3000,
+        avgPace: 355,
+        splits: [],
+        matchedSessionId: 'completed-off-target-session',
+      },
+    ]);
+
+    render(<HomeScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('day-row-off-target')).toBeTruthy();
+    });
+    expect(screen.queryByTestId('day-row-warning')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('compact-day-row-pressable'));
+    expect(screen.getByText('Actual')).toBeTruthy();
+    expect(screen.getAllByText(/8\.4km/).length).toBeGreaterThan(0);
+  });
+
   it('does not show a subjective prompt for a matched run without saved feel', () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = currentLocalIsoDate();
     const sessions = [null, null, null, null, null, null, null] as any[];
     sessions[slotIndexForIsoDate(today)] = {
       id: 'session-1',

@@ -137,7 +137,7 @@ describe('RemainingDaysList', () => {
     expect(screen.getByTestId('day-row-check')).toBeTruthy();
   });
 
-  it('shows an off-target warning when a completed session is materially short of plan', () => {
+  it('keeps completed sessions visually completed when they are materially short of plan', () => {
     const sessions = DAYS.map((_, i) =>
       makeSession(`2026-04-${String(7 + i).padStart(2, '0')}`),
     );
@@ -171,10 +171,11 @@ describe('RemainingDaysList', () => {
     });
 
     expect(screen.getByText('5.5k')).toBeTruthy();
-    expect(screen.getAllByTestId('day-row-warning').length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('day-row-off-target').length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('day-row-warning')).toHaveLength(2);
   });
 
-  it('shows an off-target warning when pace drifts past the 5% tolerance even if distance matches', () => {
+  it('keeps completed sessions visually completed when pace drifts past the 5% tolerance', () => {
     const sessions = DAYS.map((_, i) =>
       makeSession(`2026-04-${String(7 + i).padStart(2, '0')}`),
     );
@@ -208,7 +209,8 @@ describe('RemainingDaysList', () => {
     });
 
     expect(screen.getAllByText('8k').length).toBeGreaterThan(0);
-    expect(screen.getAllByTestId('day-row-warning').length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('day-row-off-target').length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('day-row-warning')).toHaveLength(2);
   });
 
   it('shows planned totals on the right for incomplete week rows', () => {
