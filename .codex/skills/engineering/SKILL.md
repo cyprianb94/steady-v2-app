@@ -7,6 +7,8 @@ description: Use when applying Steady engineering workflow, implementation disci
 
 This document translates the project skills into concrete rules for how Steady's codebase is built. Every decision here derives from the skill files in this project folder. Read the source skills for full context and examples.
 
+For Steady product feature work, also load `steady-feature-guardrails` for repo-specific module-placement and debt-avoidance rules.
+
 ---
 
 ## Workflow hygiene
