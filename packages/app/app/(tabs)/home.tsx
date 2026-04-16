@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,20 +6,17 @@ import {
   ActivityIndicator,
   StyleSheet,
   RefreshControl,
-  Alert,
   Pressable,
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { Activity, CrossTrainingEntry } from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { useAuth } from '../../lib/auth';
 import { usePlan } from '../../hooks/usePlan';
 import { useStravaSync } from '../../hooks/useStravaSync';
 import { useTodayIso } from '../../hooks/useTodayIso';
-import { trpc } from '../../lib/trpc';
 import { Btn } from '../../components/ui/Btn';
 import { PhaseThemeProvider } from '../../components/home/PhaseThemeProvider';
 import { TodayHeroCard } from '../../components/home/TodayHeroCard';
@@ -31,8 +28,10 @@ import { CrossTrainingLog } from '../../components/recovery/CrossTrainingLog';
 import { ReturnToRunning } from '../../components/recovery/ReturnToRunning';
 import { RecoveryFlowModal } from '../../components/recovery/RecoveryFlowModal';
 import { addDaysIso, findSessionForDateOrWeekday, inferWeekStartDate, startOfWeekIso } from '../../lib/plan-helpers';
-import { usePlanScreenSync } from './plan-screen-sync';
-import { advanceRecoveryStep, endRecovery } from './recovery-actions';
+import { useActivityResolution } from '../../features/run/use-activity-resolution';
+import { useRecoveryData } from '../../features/recovery/use-recovery-data';
+import { useRecoveryActionController } from '../../features/recovery/use-recovery-action-controller';
+import { usePlanRefreshCoordinator } from '../../features/sync/use-plan-refresh-coordinator';
 
 const HOME_SCROLL_TOP_PADDING = 14;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
@@ -93,125 +92,48 @@ export default function HomeScreen() {
   const { session, isLoading: authLoading } = useAuth();
   const { plan, loading, currentWeek, refresh } = usePlan();
   const { forceSync, requestAutoSync, syncRevision, syncing } = useStravaSync();
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [isSavingGoal, setIsSavingGoal] = useState(false);
-  const [crossTrainingEntries, setCrossTrainingEntries] = useState<CrossTrainingEntry[]>([]);
-  const [isLoadingCrossTraining, setIsLoadingCrossTraining] = useState(false);
-  const [isSavingCrossTraining, setIsSavingCrossTraining] = useState(false);
-  const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
-  const [isUpdatingRtr, setIsUpdatingRtr] = useState(false);
-  const [isMutatingRecovery, setIsMutatingRecovery] = useState(false);
   const [recoveryModalMode, setRecoveryModalMode] = useState<'mark' | 'resume' | null>(null);
   const [resumeFlowKind, setResumeFlowKind] = useState<'manual' | 'complete-step'>('manual');
   const today = useTodayIso();
   const weekSessions = currentWeek?.sessions ?? [];
-  const activeInjury =
-    plan?.activeInjury && plan.activeInjury.status !== 'resolved' ? plan.activeInjury : null;
   const weekStartDate = currentWeek ? resolveCurrentWeekStartDate(currentWeek, today) : null;
-
-  // Two lookup maps so we handle both normalized and legacy session IDs
-  const activitiesById = useMemo(() => {
-    return new Map(activities.map((a) => [a.id, a]));
-  }, [activities]);
-
-  const activitiesByMatchedSessionId = useMemo(() => {
-    return new Map(
-      activities
-        .filter((a) => Boolean(a.matchedSessionId))
-        .map((a) => [a.matchedSessionId!, a]),
-    );
-  }, [activities]);
-
-  // Resolve activity for a session: prefer actualActivityId, fallback to matchedSessionId
-  function activityForSession(session: { id: string; actualActivityId?: string } | null): Activity | undefined {
-    if (!session) return undefined;
-    if (session.actualActivityId) return activitiesById.get(session.actualActivityId);
-    return activitiesByMatchedSessionId.get(session.id);
-  }
-
-  const weeklyActualKm = useMemo(() => {
-    const total = weekSessions.reduce((sum, s) => {
-      if (!s?.id) return sum;
-      return sum + (activityForSession(s)?.distance ?? 0);
-    }, 0);
-    return Number(total.toFixed(1));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activitiesById, activitiesByMatchedSessionId, weekSessions]);
-
-  useEffect(() => {
-    if (!plan || !isFocused) {
-      setActivities([]);
-      return;
-    }
-
-    let cancelled = false;
-
-    async function fetchActivities() {
-      try {
-        const nextActivities = await trpc.activity.list.query();
-        if (!cancelled) {
-          setActivities(nextActivities);
-        }
-      } catch (error) {
-        console.error('Failed to fetch activities for home view:', error);
-        if (!cancelled) {
-          setActivities([]);
-        }
-      }
-    }
-
-    fetchActivities();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isFocused, plan?.id, syncRevision]);
-
-  usePlanScreenSync({
+  const activityResolution = useActivityResolution({
+    enabled: Boolean(session),
+    isFocused,
+    planId: plan?.id,
+    syncRevision,
+    fetchErrorMessage: 'Failed to fetch activities for home view:',
+  });
+  const recoveryScope = useMemo(
+    () => (weekStartDate ? { type: 'week' as const, weekStartDate } : null),
+    [weekStartDate],
+  );
+  const recoveryData = useRecoveryData({
+    plan,
+    enabled: Boolean(session),
+    isFocused,
+    scope: recoveryScope,
+    fetchErrorMessage: 'Failed to fetch cross-training entries for home view:',
+  });
+  const { activeInjury } = recoveryData;
+  const recoveryController = useRecoveryActionController({
+    planId: plan?.id,
+    activeInjury,
+    today,
+    refreshPlan: refresh,
+    refreshCrossTraining: recoveryData.refreshEntries,
+  });
+  const { refreshManually } = usePlanRefreshCoordinator({
     enabled: Boolean(session),
     isFocused,
     requestAutoSync,
-    refresh,
+    forceSync,
+    refreshPlan: refresh,
     syncRevision,
     autoSyncErrorMessage: 'Failed to auto-sync Strava on home focus:',
-    refreshErrorMessage: 'Failed to refresh plan after Strava sync:',
+    syncRefreshErrorMessage: 'Failed to refresh plan after Strava sync:',
+    manualRefreshErrorMessage: 'Failed to refresh home screen:',
   });
-
-  useEffect(() => {
-    if (!plan || !currentWeek || !activeInjury || !weekStartDate || !isFocused) {
-      setCrossTrainingEntries([]);
-      setIsLoadingCrossTraining(false);
-      return;
-    }
-
-    const recoveryWeekStartDate = weekStartDate;
-    let cancelled = false;
-
-    async function fetchCrossTraining() {
-      try {
-        setIsLoadingCrossTraining(true);
-        const entries = await trpc.crossTraining.getForWeek.query({ weekStartDate: recoveryWeekStartDate });
-        if (!cancelled) {
-          setCrossTrainingEntries(entries);
-        }
-      } catch (error) {
-        console.error('Failed to fetch cross-training entries for home view:', error);
-        if (!cancelled) {
-          setCrossTrainingEntries([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoadingCrossTraining(false);
-        }
-      }
-    }
-
-    fetchCrossTraining();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeInjury, currentWeek, isFocused, plan, weekStartDate]);
 
   if (authLoading || loading) {
     return (
@@ -272,128 +194,38 @@ export default function HomeScreen() {
   const week = currentWeek;
   const resolvedWeekStartDate = weekStartDate ?? resolveCurrentWeekStartDate(week, today);
   const todaySession = findSessionForDateOrWeekday(week.sessions, today);
+  const weeklyActualKm = activityResolution.weekActualKm(weekSessions);
   const showFinishedRunCta = Boolean(
     todaySession && todaySession.type !== 'REST' && !todaySession.actualActivityId,
   );
   const steadyNote = todaySession ? plan.coachAnnotation : null;
   const coachNote = steadyNote && plan.coachAnnotation === steadyNote ? null : plan.coachAnnotation;
 
-  async function handleSaveReassessedTarget(value: string) {
-    try {
-      setIsSavingGoal(true);
-      await trpc.plan.updateInjury.mutate({ reassessedTarget: value });
-      await refresh();
-    } catch (error) {
-      console.error('Failed to update reassessed target from home:', error);
-      Alert.alert('Could not update goal', 'Please try again in a moment.');
-    } finally {
-      setIsSavingGoal(false);
-    }
-  }
-
-  async function refreshCrossTraining() {
-    const entries = await trpc.crossTraining.getForWeek.query({ weekStartDate: resolvedWeekStartDate });
-    setCrossTrainingEntries(entries);
-  }
-
-  async function handleAddCrossTraining(input: {
-    date: string;
-    type: CrossTrainingEntry['type'];
-    durationMinutes: number;
-  }) {
-    try {
-      setIsSavingCrossTraining(true);
-      await trpc.crossTraining.log.mutate(input);
-      await refreshCrossTraining();
-    } catch (error) {
-      console.error('Failed to save cross-training entry from home:', error);
-      Alert.alert('Could not save entry', 'Please try again in a moment.');
-    } finally {
-      setIsSavingCrossTraining(false);
-    }
-  }
-
-  async function handleDeleteCrossTraining(id: string) {
-    try {
-      setDeletingEntryId(id);
-      await trpc.crossTraining.delete.mutate({ id });
-      await refreshCrossTraining();
-    } catch (error) {
-      console.error('Failed to delete cross-training entry from home:', error);
-      Alert.alert('Could not delete entry', 'Please try again in a moment.');
-    } finally {
-      setDeletingEntryId(null);
-    }
-  }
-
   async function handleMarkRtrStepComplete() {
-    if (!activeInjury) return;
-
-    if (activeInjury.rtrStep >= 3) {
+    const result = await recoveryController.advanceReturnToRun();
+    if (result === 'needs-resume') {
       setResumeFlowKind('complete-step');
       setRecoveryModalMode('resume');
-      return;
-    }
-
-    try {
-      setIsUpdatingRtr(true);
-      await advanceRecoveryStep({
-        activeInjury,
-        today,
-        updateInjury: trpc.plan.updateInjury.mutate,
-        refresh,
-      });
-    } catch (error) {
-      console.error('Failed to update return-to-running progress from home:', error);
-      Alert.alert('Could not update progress', 'Please try again in a moment.');
-    } finally {
-      setIsUpdatingRtr(false);
     }
   }
 
   async function handleMarkInjury(name: string) {
-    try {
-      setIsMutatingRecovery(true);
-      await trpc.plan.markInjury.mutate({ name });
-      await refresh();
+    const didMarkInjury = await recoveryController.markInjury(name);
+    if (didMarkInjury) {
       setRecoveryModalMode(null);
       setResumeFlowKind('manual');
-    } catch (error) {
-      console.error('Failed to start recovery from home:', error);
-      Alert.alert('Could not start recovery', 'Please try again in a moment.');
-    } finally {
-      setIsMutatingRecovery(false);
     }
   }
 
   async function handleEndRecovery(option: { type: 'current' } | { type: 'choose'; weekNumber: number }) {
-    if (!plan) return;
-
-    try {
-      setIsMutatingRecovery(true);
-      await endRecovery({
-        planId: plan.id,
+    const didEndRecovery = await recoveryController.endRecovery({
         option,
-        clearInjury: () => trpc.plan.clearInjury.mutate(),
-        refresh,
-        activeInjury,
         completeCurrentStep: resumeFlowKind === 'complete-step',
-        today,
-        updateInjury: trpc.plan.updateInjury.mutate,
       });
+    if (didEndRecovery) {
       setRecoveryModalMode(null);
       setResumeFlowKind('manual');
-    } catch (error) {
-      console.error('Failed to end recovery from home:', error);
-      Alert.alert('Could not end recovery', 'Please try again in a moment.');
-    } finally {
-      setIsMutatingRecovery(false);
     }
-  }
-
-  async function handleRefresh() {
-    await forceSync();
-    await refresh();
   }
 
   return (
@@ -405,11 +237,7 @@ export default function HomeScreen() {
           refreshControl={
             <RefreshControl
               refreshing={loading || syncing}
-              onRefresh={() => {
-                handleRefresh().catch((error) => {
-                  console.error('Failed to refresh home screen:', error);
-                });
-              }}
+              onRefresh={refreshManually}
               tintColor={C.clay}
             />
           }
@@ -425,7 +253,7 @@ export default function HomeScreen() {
             </Text>
             <Pressable
               accessibilityRole="button"
-              disabled={syncing || isUpdatingRtr || isMutatingRecovery}
+              disabled={syncing || recoveryController.isUpdatingRtr || recoveryController.isMutatingRecovery}
               onPress={() => {
                 setResumeFlowKind('manual');
                 setRecoveryModalMode(activeInjury ? 'resume' : 'mark');
@@ -434,7 +262,7 @@ export default function HomeScreen() {
                 styles.headerAction,
                 activeInjury && styles.headerActionActive,
                 pressed && styles.headerActionPressed,
-                (syncing || isUpdatingRtr || isMutatingRecovery) && styles.headerActionDisabled,
+                (syncing || recoveryController.isUpdatingRtr || recoveryController.isMutatingRecovery) && styles.headerActionDisabled,
               ]}
             >
               <Text style={[styles.headerActionText, activeInjury && styles.headerActionTextActive]}>
@@ -449,22 +277,28 @@ export default function HomeScreen() {
                 plan={plan}
                 weekNumber={week.weekNumber}
                 totalWeeks={plan.weeks.length}
-                onSaveReassessedTarget={handleSaveReassessedTarget}
-                isSavingGoal={isSavingGoal}
+                onSaveReassessedTarget={async (value) => {
+                  await recoveryController.saveReassessedTarget(value);
+                }}
+                isSavingGoal={recoveryController.isSavingGoal}
               />
               <CrossTrainingLog
-                entries={crossTrainingEntries}
+                entries={recoveryData.entries}
                 weekStartDate={resolvedWeekStartDate}
-                onAdd={handleAddCrossTraining}
-                onDelete={handleDeleteCrossTraining}
-                isSaving={isSavingCrossTraining || isLoadingCrossTraining}
-                deletingId={deletingEntryId}
+                onAdd={async (input) => {
+                  await recoveryController.addCrossTraining(input);
+                }}
+                onDelete={async (id) => {
+                  await recoveryController.deleteCrossTraining(id);
+                }}
+                isSaving={recoveryController.isSavingCrossTraining || recoveryData.isLoadingEntries}
+                deletingId={recoveryController.deletingEntryId}
               />
               <ReturnToRunning
                 injury={activeInjury}
                 currentWeekNumber={week.weekNumber}
                 onMarkComplete={handleMarkRtrStepComplete}
-                isUpdating={isUpdatingRtr}
+                isUpdating={recoveryController.isUpdatingRtr}
               />
             </>
           ) : (
@@ -472,7 +306,7 @@ export default function HomeScreen() {
               <WeeklyLoadCard actualKm={weeklyActualKm} plannedKm={week.plannedKm} />
               <TodayHeroCard
                 session={todaySession}
-                activity={activityForSession(todaySession)}
+                activity={activityResolution.activityForSession(todaySession)}
                 steadyNote={steadyNote}
               />
               {showFinishedRunCta ? (
@@ -488,8 +322,8 @@ export default function HomeScreen() {
               <RemainingDaysList
                 sessions={week.sessions}
                 today={today}
-                activitiesById={activitiesById}
-                activitiesByMatchedSessionId={activitiesByMatchedSessionId}
+                activitiesById={activityResolution.activityById}
+                activitiesByMatchedSessionId={activityResolution.activityByMatchedSessionId}
               />
             </>
           )}
@@ -500,7 +334,7 @@ export default function HomeScreen() {
           plan={plan}
           currentWeekNumber={week.weekNumber}
           injury={activeInjury}
-          busy={syncing || isUpdatingRtr || isMutatingRecovery}
+          busy={syncing || recoveryController.isUpdatingRtr || recoveryController.isMutatingRecovery}
           onClose={() => {
             setRecoveryModalMode(null);
             setResumeFlowKind('manual');
