@@ -22,6 +22,8 @@ import { PhaseThemeProvider } from '../../components/home/PhaseThemeProvider';
 import { TodayHeroCard } from '../../components/home/TodayHeroCard';
 import { RemainingDaysList } from '../../components/home/RemainingDaysList';
 import { CoachAnnotationCard } from '../../components/home/CoachAnnotationCard';
+import { FinishedRunCta } from '../../components/home/FinishedRunCta';
+import { NiggleBanner } from '../../components/home/NiggleBanner';
 import { WeeklyLoadCard } from '../../components/home/WeeklyLoadCard';
 import { SessionDetailSheet } from '../../components/home/SessionDetailSheet';
 import { InjuryBanner } from '../../components/recovery/InjuryBanner';
@@ -199,9 +201,12 @@ export default function HomeScreen() {
   const week = currentWeek;
   const resolvedWeekStartDate = weekStartDate ?? resolveCurrentWeekStartDate(week, today);
   const todaySession = findSessionForDateOrWeekday(week.sessions, today);
+  const todayActivity = activityResolution.activityForSession(todaySession);
   const weeklyActualKm = activityResolution.weekActualKm(weekSessions);
   const showFinishedRunCta = Boolean(
-    todaySession && todaySession.type !== 'REST' && !todaySession.actualActivityId,
+    todaySession
+    && todaySession.type !== 'REST'
+    && !activityResolution.isSessionComplete(todaySession),
   );
   const steadyNote = todaySession ? (plan.todayAnnotation ?? plan.coachAnnotation ?? null) : null;
   const coachNote = plan.coachAnnotation && plan.coachAnnotation === steadyNote ? null : plan.coachAnnotation;
@@ -314,17 +319,15 @@ export default function HomeScreen() {
               <WeeklyLoadCard actualKm={weeklyActualKm} plannedKm={week.plannedKm} />
               <TodayHeroCard
                 session={todaySession}
-                activity={activityResolution.activityForSession(todaySession)}
+                activity={todayActivity}
                 steadyNote={steadyNote}
                 onPress={handleTodayHeroPress}
+                onReviewRun={todayActivity ? () => router.push(`/sync-run/${todayActivity.id}`) : undefined}
               />
+              {todayActivity?.niggles?.length ? <NiggleBanner niggles={todayActivity.niggles} /> : null}
               {showFinishedRunCta ? (
                 <View style={styles.ctaWrap}>
-                  <Btn
-                    title="I just finished this run"
-                    fullWidth
-                    onPress={() => router.push('/sync-run')}
-                  />
+                  <FinishedRunCta onPress={() => router.push('/sync-run')} />
                 </View>
               ) : null}
               <CoachAnnotationCard annotation={coachNote} />

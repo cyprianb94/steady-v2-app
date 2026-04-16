@@ -112,7 +112,14 @@ export function createActivityWorkflowService(deps: ActivityWorkflowServiceDeps)
   return {
     async listActivities(userId: string): Promise<Activity[]> {
       const activities = await deps.activityRepo.getByUserId(userId);
-      return activities.sort((a, b) => b.startTime.localeCompare(a.startTime));
+      const activitiesWithNiggles = await Promise.all(
+        activities.map(async (activity) => ({
+          ...activity,
+          niggles: await deps.niggleRepo.listByActivity(activity.id),
+        })),
+      );
+
+      return activitiesWithNiggles.sort((a, b) => b.startTime.localeCompare(a.startTime));
     },
 
     async matchSession(userId: string, input: MatchSessionInput): Promise<{ activity: Activity; plan: TrainingPlan }> {

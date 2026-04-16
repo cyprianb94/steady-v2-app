@@ -141,9 +141,25 @@ export default function SyncRunPickerScreen() {
 
   if (authLoading || loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={C.forest} />
-        <Text style={styles.loadingText}>{syncing ? 'Pulling from Strava...' : 'Loading runs...'}</Text>
+      <View style={styles.loadingScreen}>
+        <View style={styles.loadingCard}>
+          <ActivityIndicator size="large" color={C.forest} />
+          <Text style={styles.loadingTitle}>{syncing ? 'Finding your run…' : 'Loading recent runs…'}</Text>
+          <Text style={styles.loadingText}>
+            {syncing
+              ? 'Pulling your latest activity from Strava. This usually takes about 5 seconds.'
+              : 'Checking your recent runs so we can open the right one.'}
+          </Text>
+          {syncing ? (
+            <View style={styles.loadingSteps}>
+              <Text style={[styles.loadingStep, styles.loadingStepDone]}>CONNECTED</Text>
+              <Text style={styles.loadingStepSep}>·</Text>
+              <Text style={[styles.loadingStep, styles.loadingStepActive]}>FETCHING</Text>
+              <Text style={styles.loadingStepSep}>·</Text>
+              <Text style={styles.loadingStep}>MATCHING</Text>
+            </View>
+          ) : null}
+        </View>
       </View>
     );
   }
@@ -177,7 +193,7 @@ export default function SyncRunPickerScreen() {
         <Text style={styles.screenSub}>
           {candidates.length > 0
             ? 'We found recent runs in Strava. Tap the one you want to review and save.'
-            : 'No unmatched runs found this week. Pull to refresh after your next sync.'}
+            : 'No fresh runs found yet. Pull to refresh after your next Strava sync.'}
         </Text>
 
         {candidates.map((activity) => {
@@ -226,17 +242,60 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: C.cream,
   },
-  center: {
+  loadingScreen: {
     flex: 1,
     backgroundColor: C.cream,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
+    padding: 28,
+  },
+  loadingCard: {
+    width: '100%',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: C.surface,
+    paddingHorizontal: 28,
+    paddingVertical: 32,
+    alignItems: 'center',
+  },
+  loadingTitle: {
+    marginTop: 18,
+    marginBottom: 10,
+    fontFamily: FONTS.serifBold,
+    fontSize: 22,
+    color: C.ink,
   },
   loadingText: {
-    marginTop: 12,
     fontFamily: FONTS.sans,
-    fontSize: 14,
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: 'center',
+    color: C.muted,
+    maxWidth: 260,
+  },
+  loadingSteps: {
+    marginTop: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  loadingStep: {
+    fontFamily: FONTS.mono,
+    fontSize: 10,
+    color: C.muted,
+    letterSpacing: 1,
+  },
+  loadingStepDone: {
+    color: C.forest,
+  },
+  loadingStepActive: {
+    color: C.ink,
+    fontFamily: FONTS.monoBold,
+  },
+  loadingStepSep: {
+    fontFamily: FONTS.mono,
+    fontSize: 10,
     color: C.muted,
   },
   navBar: {

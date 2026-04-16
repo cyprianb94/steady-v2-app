@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type DimensionValue } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { expectedDistance, BODY_PARTS, NIGGLE_SEVERITIES, NIGGLE_WHEN_OPTIONS, type Activity, type BodyPart, type Niggle, type NiggleSeverity, type NiggleSide, type NiggleWhen, type PlannedSession, type SubjectiveBreathing, type SubjectiveInput, type SubjectiveLegs, type SubjectiveOverall } from '@steady/types';
+import { expectedDistance, type Activity, type PlannedSession, type Shoe, type SubjectiveBreathing, type SubjectiveInput, type SubjectiveLegs, type SubjectiveOverall } from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { trpc } from '../../lib/trpc';
@@ -10,8 +10,10 @@ import { usePlan } from '../../hooks/usePlan';
 import { findSessionForDateOrWeekday, todayIsoLocal } from '../../lib/plan-helpers';
 import { usePreferences } from '../../providers/preferences-context';
 import { formatDistance, formatPace, formatSessionTitle, formatSplitLabel, formatStoredPace } from '../../lib/units';
-
-// ─── Formatting helpers ───────────────────────────────────────────────────────
+import { type EditableNiggle, isRunnableSession, listRunnableSessions, resolveDefaultMatchSessionId, shoeWearState, toEditableNiggles } from '../../features/sync/sync-run-detail';
+import { MatchPickerModal } from '../../components/sync-run/MatchPickerModal';
+import { NigglePickerModal } from '../../components/sync-run/NigglePickerModal';
+import { ShoePickerModal } from '../../components/sync-run/ShoePickerModal';
 
 function formatDuration(seconds: number): string {
   const hrs = Math.floor(seconds / 3600);
@@ -24,9 +26,10 @@ function formatDuration(seconds: number): string {
 
 function formatRunMeta(startTime: string): string {
   const value = new Date(startTime);
-  const day = value.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+  const weekday = value.toLocaleDateString([], { weekday: 'short' });
+  const monthDay = value.toLocaleDateString([], { month: 'short', day: 'numeric' });
   const time = value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-  return `${day} · ${time}`;
+  return `${weekday} ${monthDay} · ${time}`;
 }
 
 function paceBarWidth(splitPace: number, fastestPace: number, slowestPace: number): DimensionValue {
@@ -35,11 +38,21 @@ function paceBarWidth(splitPace: number, fastestPace: number, slowestPace: numbe
   return `${35 + ratio * 55}%`;
 }
 
-function isRunnableSession(session: PlannedSession | null): session is PlannedSession {
-  return session != null && session.type !== 'REST';
+function titleCase(value: string): string {
+  return value
+    .split('-')
+    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
+    .join(' ');
 }
 
-// ─── Feel chip helpers ────────────────────────────────────────────────────────
+function shoeLabel(shoe: Shoe): string {
+  return `${shoe.brand} ${shoe.model}`;
+}
+
+function formatNiggleChip(niggle: EditableNiggle): string {
+  const side = niggle.side ? `${titleCase(niggle.side)} ` : '';
+  return `${side}${titleCase(niggle.bodyPart)} · ${titleCase(niggle.severity)} · ${titleCase(niggle.when)}`;
+}
 
 const LEGS_OPTIONS: { value: SubjectiveLegs; label: string }[] = [
   { value: 'fresh', label: 'Fresh' },
@@ -59,24 +72,6 @@ const OVERALL_OPTIONS: { value: SubjectiveOverall; label: string }[] = [
   { value: 'done', label: 'Done' },
   { value: 'shattered', label: 'Shattered' },
 ];
-
-// ─── Niggle helpers ───────────────────────────────────────────────────────────
-
-type NiggleDraft = { bodyPart: BodyPart; severity: NiggleSeverity; when: NiggleWhen; side: NiggleSide };
-
-const BODY_PART_LABELS: Record<BodyPart, string> = {
-  calf: 'Calf', knee: 'Knee', hamstring: 'Hamstring', quad: 'Quad',
-  hip: 'Hip', glute: 'Glute', foot: 'Foot', shin: 'Shin',
-  ankle: 'Ankle', achilles: 'Achilles', back: 'Back', other: 'Other',
-};
-
-const SEVERITY_LABELS: Record<NiggleSeverity, string> = {
-  niggle: 'Niggle', mild: 'Mild', moderate: 'Moderate', stop: 'Stop',
-};
-
-const WHEN_LABELS: Record<NiggleWhen, string> = {
-  before: 'Before', during: 'During', after: 'After',
-};
 
 function FeelRow<T extends string>({
   label,
@@ -101,9 +96,7 @@ function FeelRow<T extends string>({
               onPress={() => onChange(opt.value)}
               style={[styles.feelChip, selected && styles.feelChipSelected]}
             >
-              <Text style={[styles.feelChipText, selected && styles.feelChipTextSelected]}>
-                {opt.label}
-              </Text>
+              <Text style={[styles.feelChipText, selected && styles.feelChipTextSelected]}>{opt.label}</Text>
             </Pressable>
           );
         })}
@@ -112,125 +105,142 @@ function FeelRow<T extends string>({
   );
 }
 
-// ─── Main screen ──────────────────────────────────────────────────────────────
-
 export default function SyncRunDetailScreen() {
   const { activityId } = useLocalSearchParams<{ activityId: string }>();
   const insets = useSafeAreaInsets();
   const { units } = usePreferences();
   const { currentWeek, refresh: refreshPlan } = usePlan();
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [shoes, setShoes] = useState<Shoe[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [refreshingFromStrava, setRefreshingFromStrava] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [showMatchPicker, setShowMatchPicker] = useState(false);
+  const [showShoePicker, setShowShoePicker] = useState(false);
+  const [showNigglePicker, setShowNigglePicker] = useState(false);
+  const [draftSeedActivityId, setDraftSeedActivityId] = useState<string | null>(null);
   const today = todayIsoLocal();
   const todaySession = findSessionForDateOrWeekday(currentWeek?.sessions ?? [], today);
+  const sessionOptions = useMemo(
+    () => listRunnableSessions(currentWeek?.sessions ?? []),
+    [currentWeek?.sessions],
+  );
 
-  // Feel inputs
   const [legs, setLegs] = useState<SubjectiveLegs | null>(null);
   const [breathing, setBreathing] = useState<SubjectiveBreathing | null>(null);
   const [overall, setOverall] = useState<SubjectiveOverall | null>(null);
   const [notes, setNotes] = useState('');
-
-  // Niggle inputs
-  const [niggles, setNiggles] = useState<NiggleDraft[]>([]);
-  const [addingNiggle, setAddingNiggle] = useState(false);
-  const [niggleDraft, setNiggleDraft] = useState<Partial<NiggleDraft>>({});
-
-  async function loadActivityList() {
-    setLoadError(null);
-
-    try {
-      setLoading(true);
-      const next = await trpc.activity.list.query();
-      setActivities(next);
-    } catch (error) {
-      console.error('Failed to load sync-run detail activity:', error);
-      setActivities([]);
-      setLoadError('We could not refresh this run. Try again or go back to the picker.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadActivity() {
-      try {
-        setLoadError(null);
-        setLoading(true);
-        const next = await trpc.activity.list.query();
-        if (!cancelled) setActivities(next);
-      } catch (error) {
-        console.error('Failed to load sync-run detail activity:', error);
-        if (!cancelled) {
-          setActivities([]);
-          setLoadError('We could not refresh this run. Try again or go back to the picker.');
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    loadActivity().catch((error) => {
-      console.error('Failed to initialize sync-run detail:', error);
-    });
-
-    return () => { cancelled = true; };
-  }, [activityId]);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [selectedShoeId, setSelectedShoeId] = useState<string | null>(null);
+  const [niggles, setNiggles] = useState<EditableNiggle[]>([]);
 
   const activity = useMemo(
     () => activities.find((item) => item.id === activityId) ?? null,
     [activities, activityId],
   );
-
-  // Only offer today's session — "I just finished this run" maps to today only
-  const sessionOptions = useMemo(
-    () => (todaySession && isRunnableSession(todaySession) ? [todaySession] : []),
-    [todaySession],
+  const recommendedSessionId = useMemo(
+    () => resolveDefaultMatchSessionId({
+      activity,
+      today,
+      todaySession: isRunnableSession(todaySession) ? todaySession : null,
+      sessionOptions,
+    }),
+    [activity, sessionOptions, today, todaySession],
   );
-
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!activity) return;
-    // Prefer today's session when the run happened today — this matches what home shows
-    if (todaySession && activity.startTime.slice(0, 10) === today) {
-      setSelectedSessionId(todaySession.id);
-      return;
-    }
-    // Fall back to whatever the auto-matcher assigned
-    if (activity.matchedSessionId && sessionOptions.some((session) => session.id === activity.matchedSessionId)) {
-      setSelectedSessionId(activity.matchedSessionId);
-      return;
-    }
-    setSelectedSessionId(null);
-  }, [activity, sessionOptions, today, todaySession?.id, todaySession?.date]);
-
-  // Pre-fill feel if activity already has subjective data
-  useEffect(() => {
-    if (!activity?.subjectiveInput) return;
-    setLegs(activity.subjectiveInput.legs);
-    setBreathing(activity.subjectiveInput.breathing);
-    setOverall(activity.subjectiveInput.overall);
-  }, [activity?.id]);
-
-  const selectedSession = sessionOptions.find((s) => s.id === selectedSessionId) ?? null;
+  const selectedSession = sessionOptions.find((session) => session.id === selectedSessionId) ?? null;
+  const selectedShoe = shoes.find((shoe) => shoe.id === selectedShoeId) ?? null;
   const hasStaleMatchedSession = Boolean(
     activity?.matchedSessionId && !sessionOptions.some((session) => session.id === activity.matchedSessionId),
   );
-  const splitPaces = activity?.splits.map((s) => s.pace) ?? [];
+  const splitPaces = activity?.splits.map((split) => split.pace) ?? [];
   const fastestPace = splitPaces.length ? Math.min(...splitPaces) : 0;
   const slowestPace = splitPaces.length ? Math.max(...splitPaces) : 0;
-
   const feelComplete = legs !== null && breathing !== null && overall !== null;
   const subjectiveInput: SubjectiveInput | undefined = feelComplete
     ? { legs: legs!, breathing: breathing!, overall: overall! }
     : undefined;
+  const canSave = feelComplete && !saving;
+
+  useEffect(() => {
+    setDraftSeedActivityId(null);
+  }, [activityId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadDetail() {
+      try {
+        setLoading(true);
+        setLoadError(null);
+        const [nextActivities, nextShoes] = await Promise.all([
+          trpc.activity.list.query(),
+          trpc.shoe.list.query(),
+        ]);
+        if (cancelled) {
+          return;
+        }
+        setActivities(nextActivities);
+        setShoes(nextShoes);
+      } catch (error) {
+        console.error('Failed to load sync-run detail activity:', error);
+        if (!cancelled) {
+          setActivities([]);
+          setShoes([]);
+          setLoadError('We could not refresh this run. Try again or go back to the picker.');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadDetail().catch((error) => {
+      console.error('Failed to initialize sync-run detail:', error);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activityId]);
+
+  useEffect(() => {
+    if (!activity || draftSeedActivityId === activity.id) {
+      return;
+    }
+
+    setSelectedSessionId(recommendedSessionId);
+    setSelectedShoeId(activity.shoeId ?? null);
+    setNiggles(toEditableNiggles(activity.niggles));
+    setNotes(activity.notes ?? '');
+    setLegs(activity.subjectiveInput?.legs ?? null);
+    setBreathing(activity.subjectiveInput?.breathing ?? null);
+    setOverall(activity.subjectiveInput?.overall ?? null);
+    setDraftSeedActivityId(activity.id);
+  }, [activity, draftSeedActivityId, recommendedSessionId]);
+
+  async function reloadDetail() {
+    try {
+      setLoading(true);
+      setLoadError(null);
+      const [nextActivities, nextShoes] = await Promise.all([
+        trpc.activity.list.query(),
+        trpc.shoe.list.query(),
+      ]);
+      setActivities(nextActivities);
+      setShoes(nextShoes);
+    } catch (error) {
+      console.error('Failed to load sync-run detail activity:', error);
+      setActivities([]);
+      setShoes([]);
+      setLoadError('We could not refresh this run. Try again or go back to the picker.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleSave() {
     if (!activity || !subjectiveInput) return;
@@ -240,17 +250,21 @@ export default function SyncRunDetailScreen() {
 
     try {
       setSaving(true);
-      await trpc.activity.saveRunDetail.mutate({
+      const result = await trpc.activity.saveRunDetail.mutate({
         activityId: activity.id,
         subjectiveInput,
         niggles,
         notes: notes.trim() || undefined,
+        shoeId: selectedShoeId,
         matchedSessionId: selectedSessionId,
       });
 
+      setActivities((current) => current.map((item) => (
+        item.id === activity.id ? { ...item, ...result.activity, niggles: result.niggles } : item
+      )));
     } catch (error) {
       console.error('Failed to save synced run:', error);
-      setSaveError('Could not save this run yet. Your notes and match are still here so you can retry.');
+      setSaveError('Could not save this run yet. Your notes and selections are still here so you can retry.');
       Alert.alert('Could not save run', 'Please try again in a moment.');
       setSaving(false);
       return;
@@ -276,7 +290,9 @@ export default function SyncRunDetailScreen() {
       setRefreshError(null);
       setRefreshingFromStrava(true);
       const refreshed = await trpc.strava.refreshActivity.mutate({ activityId: activity.id });
-      setActivities((current) => current.map((item) => item.id === refreshed.id ? refreshed : item));
+      setActivities((current) => current.map((item) => (
+        item.id === refreshed.id ? { ...item, ...refreshed, niggles: item.niggles } : item
+      )));
     } catch (error) {
       console.error('Failed to refresh Strava activity:', error);
       Alert.alert('Could not re-sync run', 'Please try again in a moment.');
@@ -300,7 +316,7 @@ export default function SyncRunDetailScreen() {
         <Text style={styles.emptyCopy}>
           {loadError ?? 'Go back to the picker and choose another run, or try refreshing this screen.'}
         </Text>
-        <Pressable onPress={() => { void loadActivityList(); }}>
+        <Pressable onPress={() => { void reloadDetail(); }}>
           <Text style={styles.emptyAction}>Try again</Text>
         </Pressable>
         <Pressable onPress={() => router.replace('/sync-run')}>
@@ -311,7 +327,13 @@ export default function SyncRunDetailScreen() {
   }
 
   const matchedToToday = selectedSession && todaySession && selectedSession.id === todaySession.id;
-  const canSave = feelComplete && !saving;
+  const matchedChipText = matchedToToday
+    ? `${selectedSession.type} · MATCHED TO TODAY`
+    : selectedSession
+      ? `${selectedSession.type} · MATCHED`
+      : 'UNMATCHED · BONUS RUN';
+  const matchedChipStyle = selectedSession ? styles.matchChipActive : styles.matchChipNeutral;
+  const matchedChipTextStyle = selectedSession ? styles.matchChipTextActive : styles.matchChipTextNeutral;
 
   return (
     <View style={styles.container}>
@@ -325,30 +347,22 @@ export default function SyncRunDetailScreen() {
           onPress={() => { void handleSave(); }}
           disabled={!canSave}
         >
-          <Text style={styles.saveAction}>Save</Text>
+          <Text style={[styles.saveAction, !canSave && styles.saveActionDisabled]}>Save</Text>
         </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
         <View style={styles.header}>
-          <Pressable
-            onPress={() => {
-              if (todaySession) setSelectedSessionId(todaySession.id);
-            }}
-            style={[styles.matchChip, matchedToToday ? styles.matchChipActive : styles.matchChipNeutral]}
-          >
-            <Text style={[styles.matchChipText, matchedToToday ? styles.matchChipTextActive : styles.matchChipTextNeutral]}>
-              {matchedToToday ? `${selectedSession?.type} · MATCHED TO TODAY` : 'BONUS RUN'}
-            </Text>
+          <Pressable onPress={() => setShowMatchPicker(true)} style={[styles.matchChip, matchedChipStyle]}>
+            <Text style={[styles.matchChipText, matchedChipTextStyle]}>{matchedChipText}</Text>
+            <Text style={[styles.matchChipChevron, matchedChipTextStyle]}>›</Text>
           </Pressable>
           <Text style={styles.runTitle}>
-            {selectedSession ? formatSessionTitle(selectedSession, units) : 'Bonus run'}
+            {selectedSession ? formatSessionTitle(selectedSession, units) : activity.name ?? 'Bonus run'}
           </Text>
           <Text style={styles.runMeta}>{formatRunMeta(activity.startTime)}</Text>
         </View>
 
-        {/* Metric grid */}
         <View style={styles.metricGrid}>
           <View style={styles.metricCell}>
             <Text style={styles.metricValue}>{formatDistance(activity.distance, units, { spaced: true })}</Text>
@@ -364,13 +378,13 @@ export default function SyncRunDetailScreen() {
           </View>
           <View style={styles.metricCell}>
             <Text style={styles.metricValue}>{activity.avgHR?.toFixed(0) ?? '—'}</Text>
-            <Text style={styles.metricLabel}>Avg HR</Text>
+            <Text style={styles.metricLabel}>Avg heart rate</Text>
           </View>
         </View>
-        <Text style={styles.subMetrics}>
-          Max HR <Text style={styles.subMetricsBold}>{activity.maxHR ?? '—'}</Text>
-          {' · '}Elevation <Text style={styles.subMetricsBold}>{activity.elevationGain ?? 0} m</Text>
-        </Text>
+        <View style={styles.subMetrics}>
+          <Text style={styles.subMetricsText}>Max HR <Text style={styles.subMetricsBold}>{activity.maxHR ?? '—'}</Text></Text>
+          <Text style={styles.subMetricsText}>Elevation <Text style={styles.subMetricsBold}>{activity.elevationGain ?? 0} m</Text></Text>
+        </View>
 
         {hasStaleMatchedSession ? (
           <View style={styles.statusCard}>
@@ -378,15 +392,21 @@ export default function SyncRunDetailScreen() {
             <Text style={styles.statusCopy}>
               This run was matched to a session that is no longer available here. Re-match it before saving, or keep it as a bonus run.
             </Text>
+            <Pressable onPress={() => setShowMatchPicker(true)}>
+              <Text style={styles.statusAction}>Match to a session ›</Text>
+            </Pressable>
           </View>
         ) : null}
 
-        {!sessionOptions.length ? (
+        {!selectedSession ? (
           <View style={styles.statusCard}>
-            <Text style={styles.statusTitle}>No runnable session for today</Text>
+            <Text style={styles.statusTitle}>Didn&apos;t match a planned session</Text>
             <Text style={styles.statusCopy}>
-              Save this as a bonus run, or go back and choose a different activity if this run belongs to another day.
+              We&apos;ll log this as a bonus run. Was it meant for a planned session instead?
             </Text>
+            <Pressable onPress={() => setShowMatchPicker(true)}>
+              <Text style={styles.statusAction}>Match to a session ›</Text>
+            </Pressable>
           </View>
         ) : null}
 
@@ -404,7 +424,38 @@ export default function SyncRunDetailScreen() {
           </View>
         ) : null}
 
-        {/* Planned vs actual */}
+        <View style={styles.section}>
+          <View style={styles.sectionHead}>
+            <Text style={styles.sectionTitle}>Shoe</Text>
+          </View>
+          <Pressable onPress={() => setShowShoePicker(true)} style={styles.shoeRow}>
+            <View style={styles.shoeIcon}>
+              <Text style={styles.shoeIconText}>👟</Text>
+            </View>
+            <View style={styles.shoeBody}>
+              <Text style={styles.shoeName}>{selectedShoe ? shoeLabel(selectedShoe) : 'Not tracked'}</Text>
+              <Text style={styles.shoeMeta}>
+                {selectedShoe
+                  ? `${selectedShoe.nickname ? `${selectedShoe.nickname} · ` : ''}lifetime ${Math.round(selectedShoe.totalKm)} km`
+                  : 'Choose the pair used for this run'}
+              </Text>
+              {selectedShoe?.retireAtKm ? (
+                <View style={styles.shoeBar}>
+                  <View
+                    style={[
+                      styles.shoeBarFill,
+                      shoeWearState(selectedShoe) === 'warn' && styles.shoeBarFillWarn,
+                      shoeWearState(selectedShoe) === 'critical' && styles.shoeBarFillCritical,
+                      { width: `${Math.min(100, Math.round((selectedShoe.totalKm / selectedShoe.retireAtKm) * 100))}%` },
+                    ]}
+                  />
+                </View>
+              ) : null}
+            </View>
+            <Text style={styles.shoeChange}>Change ›</Text>
+          </Pressable>
+        </View>
+
         {selectedSession ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Planned vs actual</Text>
@@ -435,10 +486,12 @@ export default function SyncRunDetailScreen() {
           </View>
         ) : null}
 
-        {/* Splits */}
         {activity.splits.length > 0 ? (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Splits</Text>
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionTitle}>Splits</Text>
+              <Text style={styles.sectionAction}>per km</Text>
+            </View>
             {activity.splits.map((split) => (
               <View key={split.km} style={styles.splitRow}>
                 <Text style={styles.splitKm}>{formatSplitLabel(split, units)}</Text>
@@ -452,20 +505,21 @@ export default function SyncRunDetailScreen() {
           </View>
         ) : null}
 
-        {/* How did it feel */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>How did it feel?</Text>
-          <FeelRow label="LEGS" options={LEGS_OPTIONS} value={legs} onChange={setLegs} />
-          <FeelRow label="BREATHING" options={BREATHING_OPTIONS} value={breathing} onChange={setBreathing} />
-          <FeelRow label="OVERALL" options={OVERALL_OPTIONS} value={overall} onChange={setOverall} />
+          <FeelRow label="Legs" options={LEGS_OPTIONS} value={legs} onChange={setLegs} />
+          <FeelRow label="Breathing" options={BREATHING_OPTIONS} value={breathing} onChange={setBreathing} />
+          <FeelRow label="Overall" options={OVERALL_OPTIONS} value={overall} onChange={setOverall} />
         </View>
 
-        {/* Notes */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notes</Text>
+          <View style={styles.sectionHead}>
+            <Text style={styles.sectionTitle}>Notes</Text>
+            <Text style={styles.sectionAction}>Optional</Text>
+          </View>
           <TextInput
             style={styles.notesInput}
-            placeholder="Add a note about this run…"
+            placeholder="Anything worth remembering about this run?"
             placeholderTextColor={C.muted}
             multiline
             numberOfLines={3}
@@ -474,138 +528,27 @@ export default function SyncRunDetailScreen() {
           />
         </View>
 
-        {/* Any niggles? */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Any niggles?</Text>
-          {niggles.map((n, i) => (
-            <View key={i} style={styles.niggleRow}>
-              <Text style={styles.niggleText}>
-                {BODY_PART_LABELS[n.bodyPart]}{n.side ? ` (${n.side})` : ''} · {SEVERITY_LABELS[n.severity]} · {WHEN_LABELS[n.when]}
-              </Text>
-              <Pressable onPress={() => setNiggles((prev) => prev.filter((_, j) => j !== i))}>
-                <Text style={styles.niggleRemove}>✕</Text>
-              </Pressable>
-            </View>
-          ))}
-
-          {addingNiggle ? (
-            <View style={styles.niggleForm}>
-              <Text style={styles.niggleFormLabel}>Body part</Text>
-              <View style={styles.feelChips}>
-                {BODY_PARTS.map((bp) => (
-                  <Pressable
-                    key={bp}
-                    onPress={() => setNiggleDraft((d) => ({ ...d, bodyPart: bp }))}
-                    style={[styles.feelChip, niggleDraft.bodyPart === bp && styles.feelChipSelected]}
-                  >
-                    <Text style={[styles.feelChipText, niggleDraft.bodyPart === bp && styles.feelChipTextSelected]}>
-                      {BODY_PART_LABELS[bp]}
-                    </Text>
+          <View style={styles.sectionHead}>
+            <Text style={styles.sectionTitle}>Niggles</Text>
+            <Pressable onPress={() => setShowNigglePicker(true)}>
+              <Text style={styles.sectionActionPrimary}>Flag a niggle</Text>
+            </Pressable>
+          </View>
+          {niggles.length ? (
+            <View style={styles.niggleChips}>
+              {niggles.map((niggle, index) => (
+                <View key={`${niggle.bodyPart}-${niggle.when}-${index}`} style={styles.niggleChip}>
+                  <Text style={styles.niggleChipText}>{formatNiggleChip(niggle)}</Text>
+                  <Pressable onPress={() => setNiggles((current) => current.filter((_, currentIndex) => currentIndex !== index))}>
+                    <Text style={styles.niggleChipRemove}>✕</Text>
                   </Pressable>
-                ))}
-              </View>
-              <Text style={styles.niggleFormLabel}>Severity</Text>
-              <View style={styles.feelChips}>
-                {NIGGLE_SEVERITIES.map((s) => (
-                  <Pressable
-                    key={s}
-                    onPress={() => setNiggleDraft((d) => ({ ...d, severity: s }))}
-                    style={[styles.feelChip, niggleDraft.severity === s && styles.feelChipSelected]}
-                  >
-                    <Text style={[styles.feelChipText, niggleDraft.severity === s && styles.feelChipTextSelected]}>
-                      {SEVERITY_LABELS[s]}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-              <Text style={styles.niggleFormLabel}>When</Text>
-              <View style={styles.feelChips}>
-                {NIGGLE_WHEN_OPTIONS.map((w) => (
-                  <Pressable
-                    key={w}
-                    onPress={() => setNiggleDraft((d) => ({ ...d, when: w }))}
-                    style={[styles.feelChip, niggleDraft.when === w && styles.feelChipSelected]}
-                  >
-                    <Text style={[styles.feelChipText, niggleDraft.when === w && styles.feelChipTextSelected]}>
-                      {WHEN_LABELS[w]}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-              <Text style={styles.niggleFormLabel}>Side</Text>
-              <View style={styles.feelChips}>
-                {(['left', 'right', null] as NiggleSide[]).map((side) => (
-                  <Pressable
-                    key={String(side)}
-                    onPress={() => setNiggleDraft((d) => ({ ...d, side }))}
-                    style={[styles.feelChip, niggleDraft.side === side && styles.feelChipSelected]}
-                  >
-                    <Text style={[styles.feelChipText, niggleDraft.side === side && styles.feelChipTextSelected]}>
-                      {side ?? 'Both/N/A'}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-              <View style={styles.niggleFormActions}>
-                <Pressable
-                  onPress={() => {
-                    const { bodyPart, severity, when } = niggleDraft;
-                    if (bodyPart && severity && when) {
-                      setNiggles((prev) => [...prev, { bodyPart, severity, when, side: niggleDraft.side ?? null }]);
-                      setNiggleDraft({});
-                      setAddingNiggle(false);
-                    }
-                  }}
-                  style={styles.niggleConfirm}
-                >
-                  <Text style={styles.niggleConfirmText}>Add niggle</Text>
-                </Pressable>
-                <Pressable onPress={() => { setAddingNiggle(false); setNiggleDraft({}); }}>
-                  <Text style={styles.niggleCancel}>Cancel</Text>
-                </Pressable>
-              </View>
+                </View>
+              ))}
             </View>
           ) : (
-            <Pressable onPress={() => setAddingNiggle(true)} style={styles.niggleAdd}>
-              <Text style={styles.niggleAddText}>+ Add niggle</Text>
-            </Pressable>
+            <Text style={styles.emptySectionCopy}>No niggles flagged for this run.</Text>
           )}
-        </View>
-
-        {/* Match to session */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Match to session</Text>
-          {sessionOptions.map((s, index) => {
-            const selected = s.id === selectedSessionId;
-            return (
-              <Pressable
-                key={`${s.id}-${s.date}-${index}`}
-                onPress={() => setSelectedSessionId(s.id)}
-                style={[styles.sessionOption, selected && styles.sessionOptionSelected]}
-              >
-                <View style={styles.sessionOptionBody}>
-                  <Text style={styles.sessionOptionTitle}>{formatSessionTitle(s, units)}</Text>
-                  <Text style={styles.sessionOptionSub}>{s.date}</Text>
-                </View>
-                <Text style={[styles.sessionOptionTick, selected && styles.sessionOptionTickSelected]}>
-                  {selected ? 'Matched to today' : 'Match to today'}
-                </Text>
-              </Pressable>
-            );
-          })}
-
-          <Pressable
-            onPress={() => setSelectedSessionId(null)}
-            style={[styles.sessionOption, selectedSessionId == null && styles.sessionOptionSelected]}
-          >
-            <View style={styles.sessionOptionBody}>
-              <Text style={styles.sessionOptionTitle}>Bonus run</Text>
-              <Text style={styles.sessionOptionSub}>Keep this off-plan and save without matching</Text>
-            </View>
-            <Text style={[styles.sessionOptionTick, selectedSessionId == null && styles.sessionOptionTickSelected]}>
-              {selectedSessionId == null ? 'Selected' : 'Choose'}
-            </Text>
-          </Pressable>
         </View>
 
         <Pressable
@@ -618,6 +561,34 @@ export default function SyncRunDetailScreen() {
           </Text>
         </Pressable>
       </ScrollView>
+
+      <MatchPickerModal
+        visible={showMatchPicker}
+        activity={activity}
+        sessionOptions={sessionOptions}
+        selectedSessionId={selectedSessionId}
+        recommendedSessionId={recommendedSessionId}
+        todaySessionId={todaySession?.id}
+        onSelect={setSelectedSessionId}
+        onClose={() => setShowMatchPicker(false)}
+        onConfirm={() => setShowMatchPicker(false)}
+      />
+      <ShoePickerModal
+        visible={showShoePicker}
+        shoes={shoes}
+        selectedShoeId={selectedShoeId}
+        onSelect={setSelectedShoeId}
+        onClose={() => setShowShoePicker(false)}
+        onDone={() => setShowShoePicker(false)}
+      />
+      <NigglePickerModal
+        visible={showNigglePicker}
+        onClose={() => setShowNigglePicker(false)}
+        onAdd={(niggle) => {
+          setNiggles((current) => [...current, niggle]);
+          setShowNigglePicker(false);
+        }}
+      />
     </View>
   );
 }
@@ -688,22 +659,26 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.forest,
   },
+  saveActionButtonDisabled: {
+    opacity: 0.5,
+  },
   saveAction: {
     fontFamily: FONTS.sansSemiBold,
     fontSize: 14,
     color: C.forest,
   },
-  saveActionButtonDisabled: {
-    opacity: 0.5,
+  saveActionDisabled: {
+    color: C.muted,
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 22,
+    paddingTop: 10,
     paddingBottom: 120,
   },
   header: {
     paddingHorizontal: 4,
-    marginBottom: 18,
+    paddingTop: 26,
+    paddingBottom: 20,
   },
   matchChip: {
     alignSelf: 'flex-start',
@@ -712,14 +687,18 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     marginBottom: 14,
     borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   matchChipActive: {
     backgroundColor: C.forestBg,
     borderColor: C.forest,
   },
   matchChipNeutral: {
-    backgroundColor: C.surface,
-    borderColor: C.border,
+    backgroundColor: '#F2F2F4',
+    borderColor: C.slate,
+    borderStyle: 'dashed',
   },
   matchChipText: {
     fontFamily: FONTS.sansSemiBold,
@@ -730,7 +709,11 @@ const styles = StyleSheet.create({
     color: C.forest,
   },
   matchChipTextNeutral: {
-    color: C.muted,
+    color: C.slate,
+  },
+  matchChipChevron: {
+    fontFamily: FONTS.serifBold,
+    fontSize: 11,
   },
   runTitle: {
     fontFamily: FONTS.serifBold,
@@ -756,7 +739,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 15,
   },
   metricValue: {
@@ -774,35 +757,51 @@ const styles = StyleSheet.create({
   },
   subMetrics: {
     paddingHorizontal: 4,
-    marginBottom: 20,
+    marginBottom: 22,
+    flexDirection: 'row',
+    gap: 14,
+  },
+  subMetricsText: {
     fontFamily: FONTS.mono,
     fontSize: 11,
     color: C.muted,
   },
   subMetricsBold: {
-    color: C.ink,
     fontFamily: FONTS.monoBold,
+    color: C.ink,
   },
   statusCard: {
     marginBottom: 18,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: `${C.clay}24`,
+    borderColor: 'rgba(196,82,42,0.30)',
     backgroundColor: C.clayBg,
   },
   statusTitle: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 13,
+    fontFamily: FONTS.serifBold,
+    fontSize: 14,
     color: C.ink,
     marginBottom: 4,
   },
   statusCopy: {
     fontFamily: FONTS.sans,
-    fontSize: 13,
-    lineHeight: 20,
-    color: C.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    color: C.ink2,
+    marginBottom: 10,
+  },
+  statusAction: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 11,
+    color: C.surface,
+    alignSelf: 'flex-start',
+    backgroundColor: C.ink,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 999,
+    overflow: 'hidden',
   },
   section: {
     backgroundColor: C.surface,
@@ -812,11 +811,79 @@ const styles = StyleSheet.create({
     padding: 18,
     marginBottom: 14,
   },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
   sectionTitle: {
     fontFamily: FONTS.serifBold,
-    fontSize: 18,
+    fontSize: 17,
     color: C.ink,
-    marginBottom: 12,
+  },
+  sectionAction: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 12,
+    color: C.muted,
+  },
+  sectionActionPrimary: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 12,
+    color: C.forest,
+  },
+  shoeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  shoeIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.card,
+  },
+  shoeIconText: {
+    fontSize: 22,
+  },
+  shoeBody: {
+    flex: 1,
+  },
+  shoeName: {
+    fontFamily: FONTS.serifBold,
+    fontSize: 16,
+    color: C.ink,
+    marginBottom: 2,
+  },
+  shoeMeta: {
+    fontFamily: FONTS.mono,
+    fontSize: 11,
+    color: C.muted,
+  },
+  shoeBar: {
+    marginTop: 6,
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: C.card,
+    overflow: 'hidden',
+  },
+  shoeBarFill: {
+    height: '100%',
+    backgroundColor: C.forest,
+    borderRadius: 999,
+  },
+  shoeBarFillWarn: {
+    backgroundColor: C.amber,
+  },
+  shoeBarFillCritical: {
+    backgroundColor: C.clay,
+  },
+  shoeChange: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 12,
+    color: C.forest,
   },
   pvaRow: {
     flexDirection: 'row',
@@ -846,14 +913,14 @@ const styles = StyleSheet.create({
     borderTopColor: C.border,
   },
   splitKm: {
-    width: 52,
+    width: 36,
     fontFamily: FONTS.sansSemiBold,
     fontSize: 10,
     color: C.muted,
     letterSpacing: 1,
   },
   splitPace: {
-    width: 54,
+    width: 56,
     fontFamily: FONTS.monoBold,
     fontSize: 13,
     color: C.ink,
@@ -871,7 +938,7 @@ const styles = StyleSheet.create({
     backgroundColor: C.forest,
   },
   splitHr: {
-    width: 58,
+    width: 56,
     textAlign: 'right',
     fontFamily: FONTS.mono,
     fontSize: 11,
@@ -940,44 +1007,36 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     paddingTop: 0,
   },
-  sessionOption: {
+  niggleChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  niggleChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 8,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: C.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 8,
-    backgroundColor: C.surface,
+    borderColor: 'rgba(196,82,42,0.25)',
+    backgroundColor: C.clayBg,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
-  sessionOptionSelected: {
-    borderColor: C.forest,
-    backgroundColor: C.forestBg,
-  },
-  sessionOptionBody: {
-    flex: 1,
-    paddingRight: 12,
-  },
-  sessionOptionTitle: {
+  niggleChipText: {
     fontFamily: FONTS.sansSemiBold,
-    fontSize: 14,
-    color: C.ink,
-    marginBottom: 2,
+    fontSize: 11,
+    color: C.ink2,
   },
-  sessionOptionSub: {
-    fontFamily: FONTS.sans,
-    fontSize: 12,
-    color: C.muted,
-  },
-  sessionOptionTick: {
+  niggleChipRemove: {
     fontFamily: FONTS.sansSemiBold,
     fontSize: 12,
     color: C.clay,
   },
-  sessionOptionTickSelected: {
-    color: C.forest,
+  emptySectionCopy: {
+    fontFamily: FONTS.sans,
+    fontSize: 13,
+    color: C.muted,
   },
   saveButton: {
     marginTop: 6,
@@ -993,67 +1052,5 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.sansSemiBold,
     fontSize: 15,
     color: C.surface,
-  },
-  niggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-  },
-  niggleText: {
-    fontFamily: FONTS.sans,
-    fontSize: 13,
-    color: C.ink,
-    flex: 1,
-  },
-  niggleRemove: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 13,
-    color: C.clay,
-    paddingLeft: 12,
-  },
-  niggleAdd: {
-    paddingVertical: 8,
-  },
-  niggleAddText: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 13,
-    color: C.forest,
-  },
-  niggleForm: {
-    marginTop: 8,
-    gap: 8,
-  },
-  niggleFormLabel: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 11,
-    color: C.muted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginTop: 4,
-  },
-  niggleFormActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    marginTop: 8,
-  },
-  niggleConfirm: {
-    backgroundColor: C.forest,
-    borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  niggleConfirmText: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 13,
-    color: C.surface,
-  },
-  niggleCancel: {
-    fontFamily: FONTS.sans,
-    fontSize: 13,
-    color: C.muted,
   },
 });

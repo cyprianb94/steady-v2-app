@@ -5,14 +5,15 @@ Use this file when a feature touches an area that historically attracted debt.
 ## Current hotspot files
 
 - `packages/app/app/(tabs)/block.tsx` — `1523` lines. Highest-risk controller screen. Avoid adding more orchestration here; direct-reschedule state now belongs in `packages/app/features/plan-builder/use-direct-week-reschedule.ts`.
-- `packages/app/app/sync-run/[activityId].tsx` — `1059` lines. Manual run resolution still mixes fetch, matching, form state, and save orchestration. Do not pile more workflow here.
+- `packages/app/app/sync-run/[activityId].tsx` — `1056` lines. Manual run resolution still mixes fetch, staged form state, and save orchestration even after the modal extraction. Keep pushing picker UIs and pure selection rules into sync feature modules/components.
 - `packages/app/app/(tabs)/settings.tsx` — `718` lines. Settings, auth, Strava actions, and recovery actions are easy to sprawl here.
 - `packages/app/app/onboarding/plan-builder/step-goal.tsx` — `699` lines. Plan-builder rules should land in shared plan-builder modules or shared domain helpers, not in the screen.
 - `packages/app/app/onboarding/plan-builder/step-plan.tsx` — `488` lines. Keep generated-plan editing rules out of the onboarding screen shell.
 - `packages/app/app/onboarding/plan-builder/step-template.tsx` — `914` lines. Template-week logic should prefer shared plan-builder modules over screen-local logic.
-- `packages/app/app/(tabs)/home.tsx` — `449` lines. Home should stay a composition surface, not a new business-logic sink.
+- `packages/app/app/(tabs)/home.tsx` — `452` lines. Home should stay a composition surface, not a new business-logic sink.
 - `packages/server/src/services/strava-workflow-service.ts` — `570` lines. High-impact workflow boundary. Keep new behavior cohesive and avoid leaking orchestration back into routers or screens.
 - `packages/server/src/trpc/plan.ts` — `261` lines. Plan validation and annotation logic are starting to concentrate here. Keep workflow logic out of the router.
+- `packages/server/src/services/activity-workflow-service.ts` — `250` lines. Shared activity save/list workflow now carries niggle enrichment plus match/shoe persistence. Keep UI-specific shaping out of this service.
 
 ## Preferred landing zones
 
@@ -63,6 +64,7 @@ Start by looking in:
 
 - `packages/app/features/run/*`
 - `packages/app/features/sync/*`
+- `packages/app/components/sync-run/*`
 - `packages/server/src/services/*`
 - `packages/server/src/repos/*`
 

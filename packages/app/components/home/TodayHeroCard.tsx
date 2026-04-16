@@ -29,6 +29,7 @@ interface TodayHeroCardProps {
   activity?: ActivitySummary;
   steadyNote?: string | null;
   onPress?: () => void;
+  onReviewRun?: () => void;
   onSaveSubjectiveInput?: (input: SubjectiveInput) => void | Promise<void>;
   onDismissSubjectiveInput?: () => void | Promise<void>;
 }
@@ -93,6 +94,7 @@ export function TodayHeroCard({
   activity,
   steadyNote,
   onPress,
+  onReviewRun,
   onSaveSubjectiveInput,
   onDismissSubjectiveInput,
 }: TodayHeroCardProps) {
@@ -108,7 +110,7 @@ export function TodayHeroCard({
 
   const meta = SESSION_TYPE[session.type];
   const isInterval = session.type === 'INTERVAL';
-  const completed = !!session.actualActivityId;
+  const completed = Boolean(session.actualActivityId || activity);
   const savedSubjectiveInput = activity?.subjectiveInput;
   const showSubjectivePrompt =
     !!session.actualActivityId &&
@@ -136,6 +138,20 @@ export function TodayHeroCard({
             onSave={onSaveSubjectiveInput}
             onDismiss={onDismissSubjectiveInput}
           />
+        ) : null}
+        {onReviewRun ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={(event) => {
+              event.stopPropagation?.();
+              onReviewRun();
+            }}
+            style={styles.reviewLink}
+            testID="hero-review-run"
+          >
+            <Text style={styles.reviewLinkText}>Review run</Text>
+            <Text style={styles.reviewLinkArrow}>›</Text>
+          </Pressable>
         ) : null}
       </>
     );
@@ -527,6 +543,25 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.sansSemiBold,
     fontSize: 12,
     color: C.ink2,
+  },
+  reviewLink: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(42,92,69,0.18)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  reviewLinkText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 13,
+    color: C.forest,
+  },
+  reviewLinkArrow: {
+    fontFamily: FONTS.serifBold,
+    fontSize: 16,
+    color: C.forest,
   },
   subjectivePrompt: {
     marginTop: 16,

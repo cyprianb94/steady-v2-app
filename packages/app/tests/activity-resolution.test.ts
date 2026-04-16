@@ -65,6 +65,34 @@ describe('createActivityResolution', () => {
     ).toBe('off-target');
   });
 
+  it('treats a matched activity as completed even before the plan refresh stamps actualActivityId', () => {
+    const resolution = createActivityResolution([
+      {
+        id: 'activity-1',
+        userId: 'user-1',
+        source: 'strava',
+        externalId: 'strava-1',
+        startTime: '2026-04-15T07:15:00.000Z',
+        distance: 8.1,
+        duration: 2620,
+        avgPace: 317,
+        splits: [],
+        matchedSessionId: 'session-1',
+      },
+    ]);
+
+    const session = {
+      id: 'session-1',
+      type: 'EASY' as const,
+      date: '2026-04-15',
+      distance: 8,
+      pace: '5:20',
+    };
+
+    expect(resolution.isSessionComplete(session)).toBe(true);
+    expect(resolution.statusForDay(session, 0, 0)).toBe('completed');
+  });
+
   it('keeps completed runs on target when distance lands exactly on the 5% boundary', () => {
     const resolution = createActivityResolution([
       {
