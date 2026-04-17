@@ -38,6 +38,7 @@ import {
   preserveResolvedLockedWeeks,
   restoreResolvedSwapDraft,
 } from '../../features/run/block-week-resolution';
+import { buildDisplayWeek } from '../../features/run/display-week';
 import { useActivityResolution } from '../../features/run/use-activity-resolution';
 import { useRecoveryData } from '../../features/recovery/use-recovery-data';
 import { getVisibleHistoricalInjury, MVP_RECOVERY_UI_ENABLED } from '../../features/recovery/recovery-ui-gate';
@@ -247,7 +248,7 @@ function materializeSessionForWeek(
     ...updated,
     type: updated.type ?? existing?.type ?? 'EASY',
     id: existing?.id ?? createId(),
-    date: existing?.date ?? addDaysIso(getWeekStartDate(week), dayIndex),
+    date: addDaysIso(getWeekStartDate(week), dayIndex),
   };
 }
 
@@ -263,7 +264,7 @@ function normalizeEditedDayIdentity(
     const originalWeek = originalWeeks[weekIndex] ?? nextWeek;
     const originalSession = originalWeek.sessions[dayIndex];
     const id = originalSession?.id ?? createId();
-    const date = originalSession?.date ?? addDaysIso(getWeekStartDate(originalWeek), dayIndex);
+    const date = addDaysIso(getWeekStartDate(originalWeek), dayIndex);
 
     if (nextSession.id === id && nextSession.date === date) {
       return nextWeek;
@@ -671,7 +672,7 @@ export default function BlockTab() {
         const injuryWeek = isInjuryWeek(i, injuryRange);
         const isExpanded = expandedWeekNumber === week.weekNumber;
         const isRescheduleWeek = rescheduleWeekIndex === i;
-        const displayWeek =
+        const baseDisplayWeek =
           isExpanded && isRescheduleWeek
             ? {
                 ...week,
@@ -679,6 +680,7 @@ export default function BlockTab() {
                 plannedKm: Math.round(weekKm(reschedule.sessions)),
               }
             : week;
+        const displayWeek = buildDisplayWeek(baseDisplayWeek, getWeekStartDate(week));
         const weekEntries = injuryWeek ? getWeekEntries(recoveryData.entries, week) : [];
         const volumeTone = getBlockVolumeTone(i, safeCurrentWeekIndex);
         const volumeSummary = getResolvedWeekVolumeSummary(displayWeek, volumeTone, activityResolution);

@@ -36,6 +36,7 @@ import { useRecoveryData } from '../../features/recovery/use-recovery-data';
 import { useRecoveryActionController } from '../../features/recovery/use-recovery-action-controller';
 import { getVisibleActiveInjury, MVP_RECOVERY_UI_ENABLED } from '../../features/recovery/recovery-ui-gate';
 import { usePlanRefreshCoordinator } from '../../features/sync/use-plan-refresh-coordinator';
+import { buildDisplayWeek } from '../../features/run/display-week';
 
 const HOME_SCROLL_TOP_PADDING = 14;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
@@ -99,7 +100,6 @@ export default function HomeScreen() {
   const [recoveryModalMode, setRecoveryModalMode] = useState<'mark' | 'resume' | null>(null);
   const [resumeFlowKind, setResumeFlowKind] = useState<'manual' | 'complete-step'>('manual');
   const today = useTodayIso();
-  const weekSessions = currentWeek?.sessions ?? [];
   const weekStartDate = currentWeek ? resolveCurrentWeekStartDate(currentWeek, today) : null;
   const activeInjury = getVisibleActiveInjury(plan);
   const activityResolution = useActivityResolution({
@@ -200,7 +200,9 @@ export default function HomeScreen() {
 
   const week = currentWeek;
   const resolvedWeekStartDate = weekStartDate ?? resolveCurrentWeekStartDate(week, today);
-  const todaySession = findSessionForDateOrWeekday(week.sessions, today);
+  const displayWeek = buildDisplayWeek(week, resolvedWeekStartDate);
+  const weekSessions = displayWeek.sessions;
+  const todaySession = findSessionForDateOrWeekday(weekSessions, today);
   const todayActivity = activityResolution.activityForSession(todaySession);
   const weeklyActualKm = activityResolution.weekActualKm(weekSessions);
   const showFinishedRunCta = Boolean(
@@ -334,7 +336,7 @@ export default function HomeScreen() {
               ) : null}
               <CoachAnnotationCard annotation={coachNote} />
               <RemainingDaysList
-                sessions={week.sessions}
+                sessions={weekSessions}
                 today={today}
                 weekStartDate={resolvedWeekStartDate}
                 activityForSession={activityResolution.activityForSession}

@@ -2,6 +2,7 @@ import type { PlannedSession, SessionType } from '../session';
 import type { PhaseName, PlanWeek, SwapLogEntry } from '../plan';
 import type { PropagateScope } from './propagate-change';
 import { weekKm } from './session-km';
+import { assignWeekSessionDates, inferWeekStartDate } from './week-dates';
 
 export interface HardSessionConflict {
   firstDayIndex: number;
@@ -46,7 +47,11 @@ export function propagateSwap(
     if (!shouldApplySwap(index, week, weekIndex, scope, phaseScope)) return week;
     if (hasCompletedSwapPosition(week, fromIndex, toIndex)) return week;
 
-    const sessions = swapSessions(week.sessions, fromIndex, toIndex);
+    const weekStartDate = inferWeekStartDate(week);
+    const sessions = assignWeekSessionDates(
+      swapSessions(week.sessions, fromIndex, toIndex),
+      weekStartDate,
+    );
     if (sessions === week.sessions) return week;
 
     return {

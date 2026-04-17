@@ -235,7 +235,7 @@ describe('HomeScreen', () => {
 
   it('refreshes the today card when the tab stays open across midnight', () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-04-09T22:59:30Z'));
+    vi.setSystemTime(new Date('2026-04-09T21:59:30Z'));
 
     const week = {
       weekNumber: 1,
@@ -322,6 +322,105 @@ describe('HomeScreen', () => {
     const weeklyLoadCard = screen.getByTestId('weekly-load-card');
     expect(within(weeklyLoadCard).getByText('8.2km')).toBeTruthy();
     expect(within(weeklyLoadCard).getByText('/ 50km')).toBeTruthy();
+  });
+
+  it('keeps linked runs visible on home before the activity snapshot catches up', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-18T12:00:00Z')); // Saturday
+
+    const week = {
+      weekNumber: 1,
+      phase: 'BASE' as const,
+      sessions: [
+        null,
+        null,
+        {
+          id: 'wed-run',
+          type: 'EASY',
+          date: '2026-04-15',
+          distance: 8,
+          pace: '5:20',
+          actualActivityId: 'act-wed',
+        },
+        null,
+        {
+          id: 'fri-run',
+          type: 'EASY',
+          date: '2026-04-17',
+          distance: 8,
+          pace: '5:20',
+          actualActivityId: 'act-fri',
+        },
+        null,
+        null,
+      ],
+      plannedKm: 16,
+    };
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-07-15',
+      coachAnnotation: null,
+    };
+    mockPlan.currentWeek = week;
+    mockActivityList.mockResolvedValue([]);
+
+    render(<HomeScreen />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const weeklyLoadCard = screen.getByTestId('weekly-load-card');
+    expect(within(weeklyLoadCard).getByText('16km')).toBeTruthy();
+    expect(screen.getAllByTestId('day-row-check')).toHaveLength(2);
+    expect(screen.queryByTestId('day-row-warning')).toBeNull();
+  });
+
+  it('normalizes scrambled session dates back onto the displayed week slots', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-18T12:00:00Z')); // Saturday
+
+    const week = {
+      weekNumber: 1,
+      phase: 'BASE' as const,
+      sessions: [
+        { id: 'mon-int', type: 'INTERVAL', date: '2026-04-16', reps: 6, repDist: 800, recovery: '90s', warmup: 1.5, cooldown: 1, pace: '3:50' },
+        null,
+        { id: 'wed-easy', type: 'EASY', date: '2026-04-15', distance: 8, pace: '5:20' },
+        null,
+        { id: 'fri-easy', type: 'EASY', date: '2026-04-18', distance: 8, pace: '5:20' },
+        { id: 'sat-tempo', type: 'TEMPO', date: '2026-04-13', distance: 10, pace: '4:20', warmup: 2, cooldown: 1.5 },
+        { id: 'sun-long', type: 'LONG', date: '2026-04-19', distance: 20, pace: '5:05' },
+      ],
+      plannedKm: 58,
+    };
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-11-22',
+      coachAnnotation: null,
+    };
+    mockPlan.currentWeek = week;
+    mockActivityList.mockResolvedValue([]);
+
+    render(<HomeScreen />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText('APR 13 – 19 · 2026')).toBeTruthy();
+    expect(screen.getByText('10km Tempo')).toBeTruthy();
+    expect(screen.getByText('Saturday, Apr 18')).toBeTruthy();
   });
 
   it('renders the today note inline and keeps broader guidance in the lower coach card', () => {

@@ -67,7 +67,7 @@ export function RemainingDaysList({
             session={session ?? null}
             status={statusForDay(session ?? null, index, todayIndex)}
             metricLabel={formatActualDistance(activity?.distance, units) ?? formatPlannedDistance(session, units)}
-            onPress={session && activity ? () => onSessionPress?.(session) : undefined}
+            onPress={session && (session.actualActivityId || activity) ? () => onSessionPress?.(session) : undefined}
           />
         );
       })}

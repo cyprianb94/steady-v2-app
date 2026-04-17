@@ -94,6 +94,22 @@ describe('createActivityResolution', () => {
     expect(resolution.statusForDay(session, 0, 0)).toBe('completed');
   });
 
+  it('keeps a linked session completed when the activity snapshot is temporarily unavailable', () => {
+    const resolution = createActivityResolution([]);
+    const session = {
+      id: 'session-1',
+      type: 'EASY' as const,
+      date: '2026-04-15',
+      distance: 8,
+      pace: '5:20',
+      actualActivityId: 'activity-1',
+    };
+
+    expect(resolution.isSessionComplete(session)).toBe(true);
+    expect(resolution.completionStatusForSession(session)).toBe('completed');
+    expect(resolution.statusForDay(session, 0, 0)).toBe('completed');
+  });
+
   it('keeps completed runs on target when distance lands exactly on the 5% boundary', () => {
     const resolution = createActivityResolution([
       {
@@ -206,5 +222,30 @@ describe('createActivityResolution', () => {
         },
       ]),
     ).toBe(20.6);
+  });
+
+  it('falls back to the planned distance when a linked activity id exists but the activity snapshot has not loaded yet', () => {
+    const resolution = createActivityResolution([]);
+
+    expect(
+      resolution.weekActualKm([
+        {
+          id: 'session-1',
+          type: 'EASY',
+          date: '2026-04-15',
+          distance: 8,
+          pace: '5:20',
+          actualActivityId: 'activity-1',
+        },
+        {
+          id: 'session-2',
+          type: 'LONG',
+          date: '2026-04-17',
+          distance: 12,
+          pace: '5:05',
+          actualActivityId: 'activity-2',
+        },
+      ]),
+    ).toBe(20);
   });
 });

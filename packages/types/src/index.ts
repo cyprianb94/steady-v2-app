@@ -65,6 +65,7 @@ export { propagateChange } from './lib/propagate-change';
 export type { PropagateScope } from './lib/propagate-change';
 export { getRtrProgression, RTR_STEPS } from './lib/rtr-progression';
 export { getDisplayWeekIndex } from './lib/plan-current-week';
+export { addDaysIso, assignWeekSessionDates, inferWeekStartDate, startOfWeekIso } from './lib/week-dates';
 export { buildBlockPhaseSegments, getInjuryWeekRange, isInjuryWeek } from './lib/block-injury';
 export { getBlockVolumeTone, getWeekVolumeRatio, getWeekVolumeSummary } from './lib/block-volume';
 export { buildBlockWeekDayDetails } from './lib/block-week-detail';

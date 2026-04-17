@@ -89,7 +89,7 @@ export function createActivityResolution(activities: readonly Activity[]): Activ
 
     const activity = activityForSession(session);
     if (!activity) {
-      return null;
+      return session.actualActivityId ? 'completed' : null;
     }
 
     return isOffTarget(session, activity) ? 'off-target' : 'completed';
@@ -121,7 +121,18 @@ export function createActivityResolution(activities: readonly Activity[]): Activ
   }
 
   function weekActualKm(sessions: readonly (PlannedSession | null)[]): number {
-    const total = sessions.reduce((sum, session) => sum + (activityForSession(session)?.distance ?? 0), 0);
+    const total = sessions.reduce((sum, session) => {
+      if (!session || session.type === 'REST') {
+        return sum;
+      }
+
+      const actualDistance = activityForSession(session)?.distance;
+      if (typeof actualDistance === 'number') {
+        return sum + actualDistance;
+      }
+
+      return session.actualActivityId ? sum + expectedDistance(session) : sum;
+    }, 0);
     return Number(total.toFixed(1));
   }
 

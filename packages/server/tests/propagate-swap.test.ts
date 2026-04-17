@@ -130,4 +130,28 @@ describe('propagateSwap', () => {
       { from: 0, to: 2 },
     ]);
   });
+
+  it('reassigns swapped sessions onto their new calendar dates', () => {
+    const plan: PlanWeek[] = [
+      {
+        weekNumber: 1,
+        phase: 'BASE',
+        plannedKm: 24,
+        sessions: [
+          { id: 'easy', type: 'EASY', date: '2026-04-06', distance: 8 },
+          null,
+          { id: 'long', type: 'LONG', date: '2026-04-08', distance: 16 },
+          null,
+          null,
+          null,
+          null,
+        ],
+      },
+    ];
+
+    const result = propagateSwap(plan, 0, 0, 2, 'this');
+
+    expect(result[0].sessions[0]).toMatchObject({ id: 'long', date: '2026-04-06' });
+    expect(result[0].sessions[2]).toMatchObject({ id: 'easy', date: '2026-04-08' });
+  });
 });
