@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Steady - Hero Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Space+Mono:wght@400;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
+
+    :root {
+      --cream: #F4EFE6; --surface: #FDFAF5; --card: #F0EAE0;
+      --ink: #1C1510; --ink2: #3D3028; --muted: #9A8E7E; --border: #E5DDD0;
+      --clay: #C4522A; --clayBg: #FDF0EB;
+      --amber: #D4882A; --amberBg: #FDF6EB;
+      --forest: #2A5C45; --forestBg: #EEF4F1;
+      --navy: #1B3A6B; --navyBg: #EDF1F8;
+      --slate: #8A8E9A; --purple: #7C5CBF;
+    }
+
+    * { box-sizing: border-box; -webkit-font-smoothing: antialiased; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: transparent;
+      font-family: 'DM Sans', system-ui, sans-serif;
+      color: var(--ink);
+    }
+
+    body {
+      display: flex; justify-content: center; align-items: center;
+      padding: 20px 0;
+      overflow: hidden;
+    }
+
+    .stage {
+      position: relative;
+      width: 375px;
+      height: 700px;
+      display: flex; justify-content: center; align-items: center;
+    }
+
+    /* Ambient glow behind phone */
+    .stage::before {
+      content: '';
+      position: absolute; inset: -40px;
+      background:
+        radial-gradient(closest-side, rgba(196,82,42,0.12), transparent 70%),
+        radial-gradient(closest-side at 30% 30%, rgba(42,92,69,0.08), transparent 70%);
+      filter: blur(20px);
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .phone-frame {
+      position: relative;
+      width: 320px; height: 670px;
+      background: var(--cream);
+      border-radius: 42px;
+      border: 10px solid var(--ink);
+      box-shadow:
+        0 40px 80px rgba(28,21,16,0.22),
+        0 0 0 1px rgba(28,21,16,0.1),
+        inset 0 1px 0 rgba(255,255,255,0.6);
+      overflow: hidden;
+      display: flex; flex-direction: column;
+      z-index: 2;
+    }
+
+    /* Notch */
+    .notch {
+      position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+      width: 110px; height: 22px;
+      background: var(--ink);
+      border-radius: 0 0 16px 16px;
+      z-index: 5;
+    }
+
+    .status-bar {
+      height: 36px; display: flex; justify-content: space-between; align-items: center;
+      padding: 0 22px; background: var(--cream); flex-shrink: 0;
+      font-weight: 600; font-size: 11px; color: var(--ink);
+    }
+    .status-bar .right { display: flex; gap: 5px; align-items: center; }
+    .signal { display: flex; gap: 2px; align-items: flex-end; height: 8px; }
+    .signal div { width: 2.5px; background: var(--ink); border-radius: 1px; }
+
+    .content-area {
+      flex: 1;
+      padding: 8px 14px 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Scene framework: stacked scenes that fade/swap */
+    .scene {
+      position: absolute;
+      inset: 8px 14px 0;
+      display: flex; flex-direction: column;
+      opacity: 0;
+    }
+
+    /* ============ HEADER ============ */
+    .header-meta {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 10px; color: var(--muted); letter-spacing: 0.8px;
+      text-transform: uppercase; margin-bottom: 6px; font-weight: 500;
+    }
+    .header-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 26px; color: var(--ink); font-weight: 700; line-height: 1.1;
+      margin-bottom: 18px;
+    }
+
+    /* ============ WEEKLY LOAD (no card background — matches actual app) ============ */
+    .load {
+      margin-bottom: 18px;
+    }
+    .load-row {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 6px;
+    }
+    .load-label {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 9px; color: var(--muted); letter-spacing: 1.1px;
+      text-transform: uppercase; font-weight: 600;
+    }
+    .load-values {
+      font-family: 'Space Mono', monospace;
+      font-size: 13px; font-weight: 700;
+    }
+    .load-actual { color: var(--forest); }
+    .load-planned { color: var(--muted); font-weight: 400; margin-left: 2px; }
+    .load-track {
+      height: 4px; background: var(--border); border-radius: 999px; overflow: hidden;
+    }
+    .load-fill {
+      height: 100%; background: var(--forest); border-radius: 999px;
+      width: 0;
+      transition: width 1.4s cubic-bezier(.22,1,.36,1);
+    }
+
+    /* ============ TODAY HERO — PLANNED (TEMPO, amber) ============ */
+    .today-planned {
+      background: #F1E8DA;
+      border: 1.5px solid var(--amber);
+      border-radius: 14px;
+      padding: 14px 14px 16px;
+    }
+    .today-top {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
+    }
+    .type-chip {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 9px; font-weight: 700; letter-spacing: 0.8px;
+      color: var(--surface); background: var(--amber);
+      border-radius: 999px; padding: 3px 10px;
+      text-transform: uppercase;
+    }
+    .today-badge {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--amber);
+    }
+    .today-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px; color: var(--amber); font-weight: 700; line-height: 1.15;
+      margin-bottom: 4px;
+    }
+    .today-date {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px; color: var(--muted); margin-bottom: 12px;
+    }
+    .metric-row {
+      display: flex; gap: 6px; margin-bottom: 12px;
+    }
+    .metric {
+      flex: 1;
+      background: rgba(255,255,255,0.4);
+      border-radius: 8px;
+      padding: 7px 9px;
+    }
+    .metric-v {
+      font-family: 'Playfair Display', serif;
+      font-size: 14px; color: var(--ink); font-weight: 700;
+      line-height: 1.1; margin-bottom: 2px;
+    }
+    .metric-l {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 9px; color: var(--muted);
+    }
+    .steady-note {
+      padding-top: 12px;
+      border-top: 1px solid rgba(28,21,16,0.08);
+      display: flex; gap: 8px; align-items: flex-start;
+    }
+    .steady-dot {
+      width: 5px; height: 5px; border-radius: 50%; background: var(--amber);
+      margin-top: 5px; flex-shrink: 0;
+    }
+    .steady-text {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 11px; color: var(--ink2); line-height: 1.5;
+    }
+    .steady-text strong {
+      font-weight: 600; color: var(--ink);
+    }
+
+    /* ============ TODAY HERO — COMPLETED ============ */
+    .today-completed {
+      background: var(--amberBg);
+      border-radius: 14px;
+      padding: 14px 14px 16px;
+    }
+    .completed-label {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 11px; color: var(--amber); font-weight: 600;
+      letter-spacing: 0.5px; text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .completed-badge {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 10px; color: var(--forest); font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .completed-stat {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px; color: var(--amber); font-weight: 700; line-height: 1.1;
+      margin-bottom: 10px;
+    }
+    .completed-extra {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px; color: var(--ink2);
+    }
+    .review-link {
+      margin-top: 12px; padding-top: 10px;
+      border-top: 1px solid rgba(42,92,69,0.18);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .review-link span {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px; color: var(--forest); font-weight: 600;
+    }
+    .review-link .arrow {
+      font-family: 'Playfair Display', serif;
+      font-size: 16px; color: var(--forest);
+    }
+
+    /* ============ WEEK LIST ============ */
+    .section-label {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 9px; font-weight: 600; letter-spacing: 1.1px; text-transform: uppercase;
+      color: var(--muted); margin-top: 20px; margin-bottom: 4px;
+    }
+    .day-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 7px 4px;
+    }
+    .day-row.today-row {
+      background: rgba(212,136,42,0.08);
+      border-radius: 8px;
+      padding: 7px 8px;
+      margin: 0 -4px;
+    }
+    .day-block {
+      width: 36px;
+    }
+    .day-name {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 10px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.7px;
+    }
+    .day-date {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 9px; color: var(--muted); margin-top: 1px;
+      text-transform: uppercase;
+    }
+    .day-dot {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+    }
+    .day-label {
+      flex: 1;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px; color: var(--ink2); font-weight: 500;
+    }
+    .day-status {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .day-metric {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px; color: var(--muted);
+    }
+    .day-metric.clay { color: var(--clay); }
+    .check-badge {
+      width: 14px; height: 14px; border-radius: 999px;
+      border: 1px solid rgba(42,92,69,0.35);
+      background: rgba(42,92,69,0.08);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 8px; color: var(--forest); font-weight: 700;
+    }
+    .check-badge.off-target {
+      border-color: rgba(196,82,42,0.35);
+      background: var(--clayBg);
+      color: var(--clay);
+    }
+    .rest-label {
+      color: var(--muted); font-weight: 400;
+    }
+
+    /* ============ INJURY BANNER (Recovery mode) ============ */
+    .injury-banner {
+      background: var(--clayBg);
+      border: 1.5px solid rgba(196,82,42,0.35);
+      border-radius: 14px;
+      padding: 14px;
+    }
+    .injury-top {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin-bottom: 10px;
+    }
+    .injury-chip {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+      color: #FFFFFF; background: var(--clay);
+      border-radius: 999px; padding: 3px 9px;
+    }
+    .injury-status {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 9px; font-weight: 600;
+      color: var(--forest); background: var(--forestBg);
+      border: 1px solid rgba(42,92,69,0.2);
+      border-radius: 999px; padding: 3px 9px;
+    }
+    .injury-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 20px; color: var(--ink); font-weight: 700; line-height: 1.2;
+    }
+    .injury-meta {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 10px; color: var(--muted); margin-top: 4px;
+    }
+
+    /* Cross-training log card */
+    .xt-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-top: 10px;
+    }
+    .xt-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 8px;
+    }
+    .xt-title {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 11px; font-weight: 600; color: var(--muted);
+      letter-spacing: 0.8px; text-transform: uppercase;
+    }
+    .xt-count {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px; color: var(--muted);
+    }
+    .xt-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 6px 0;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+    }
+    .xt-item + .xt-item {
+      border-top: 1px solid var(--border);
+    }
+    .xt-item-name { color: var(--ink2); font-weight: 500; }
+    .xt-item-meta { color: var(--muted); font-family: 'Space Mono', monospace; font-size: 10px; }
+
+    /* Return-to-running card */
+    .rtr-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-top: 10px;
+    }
+    .rtr-step {
+      display: flex; align-items: center; gap: 10px;
+      padding: 6px 0;
+    }
+    .rtr-check {
+      width: 16px; height: 16px; border-radius: 999px;
+      border: 1.5px solid var(--border); flex-shrink: 0;
+    }
+    .rtr-check.done {
+      background: var(--forest); border-color: var(--forest);
+      color: var(--surface); font-size: 10px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .rtr-check.active {
+      border-color: var(--clay);
+      background: var(--clayBg);
+    }
+    .rtr-label {
+      flex: 1;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px; color: var(--ink2);
+    }
+    .rtr-label.done { color: var(--muted); text-decoration: line-through; }
+    .rtr-label.active { color: var(--ink); font-weight: 600; }
+
+    /* ============ TAB BAR ============ */
+    .tab-bar {
+      height: 56px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      display: flex; flex-shrink: 0;
+    }
+    .tab {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 3px;
+    }
+    .tab-label {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 9px; color: var(--muted); letter-spacing: 0.2px; font-weight: 500;
+    }
+    .tab.active .tab-label { color: var(--clay); font-weight: 600; }
+
+    /* ============ ANIMATION ============ */
+    /*
+     Timeline (total 14s loop):
+       0.0s - 3.5s   Scene 1: Planned Tempo session, week list visible
+       3.5s - 4.0s   Sync toast appears
+       4.0s - 7.5s   Scene 2: Completed run (swap card + Tue also marks ✓)
+       7.5s - 11.5s  Scene 3: Injury banner + recovery view
+       11.5s - 14s   Fade back to scene 1
+    */
+
+    #scene-today {
+      animation: sceneToday 14s infinite;
+    }
+    @keyframes sceneToday {
+      0%, 25% { opacity: 1; }
+      28%, 53% { opacity: 1; }
+      56%, 82% { opacity: 0; }
+      85%, 95% { opacity: 0; }
+      98%, 100% { opacity: 1; }
+    }
+
+    /* Swap planned card for completed one in same position */
+    .today-planned.planned-anim {
+      animation: showPlanned 14s infinite;
+    }
+    @keyframes showPlanned {
+      0%, 25% { opacity: 1; transform: translateY(0); }
+      29%, 30% { opacity: 0; transform: translateY(-8px); }
+      55%, 100% { opacity: 0; transform: translateY(-8px); }
+    }
+    .today-completed.completed-anim {
+      animation: showCompleted 14s infinite;
+      position: absolute;
+      left: 0; right: 0; top: 0;
+    }
+    @keyframes showCompleted {
+      0%, 28% { opacity: 0; transform: translateY(8px); }
+      31%, 55% { opacity: 1; transform: translateY(0); }
+      58%, 100% { opacity: 0; transform: translateY(-8px); }
+    }
+    .today-stack {
+      position: relative;
+      height: 210px;
+    }
+
+    .load-fill-anim {
+      animation: loadFill 14s infinite;
+    }
+    @keyframes loadFill {
+      0%, 25% { width: 46%; }
+      30%, 55% { width: 66%; }
+      57%, 100% { width: 66%; }
+    }
+    .load-values-anim .load-actual {
+      animation: loadValue 14s infinite;
+    }
+    @keyframes loadValue {
+      0%, 25% { content: '31.1km'; }
+    }
+
+    /* Tuesday off-target → becomes check when completed run syncs */
+    .tue-status.tue-anim {
+      animation: tueOffTarget 14s infinite;
+    }
+    @keyframes tueOffTarget {
+      0%, 27% { opacity: 1; }
+      30%, 100% { opacity: 0; }
+    }
+    .tue-status-completed.tue-completed-anim {
+      animation: tueCompleted 14s infinite;
+      opacity: 0;
+    }
+    @keyframes tueCompleted {
+      0%, 27% { opacity: 0; }
+      32%, 55% { opacity: 1; }
+      58%, 100% { opacity: 0; }
+    }
+    .tue-status-wrap {
+      position: relative;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .tue-status-wrap > * {
+      position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+      display: flex; align-items: center; gap: 6px;
+      white-space: nowrap;
+    }
+
+    /* Sync toast */
+    .sync-toast {
+      position: absolute;
+      top: 6px; left: 50%; transform: translate(-50%, -20px);
+      background: var(--ink);
+      color: var(--surface);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 10px; font-weight: 600;
+      padding: 6px 12px; border-radius: 999px;
+      display: flex; align-items: center; gap: 8px;
+      opacity: 0;
+      animation: syncToast 14s infinite;
+      z-index: 10;
+      box-shadow: 0 8px 24px rgba(28,21,16,0.25);
+    }
+    @keyframes syncToast {
+      0%, 22% { opacity: 0; transform: translate(-50%, -20px); }
+      25%, 31% { opacity: 1; transform: translate(-50%, 0); }
+      34%, 100% { opacity: 0; transform: translate(-50%, -20px); }
+    }
+    .sync-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #FC4C02;
+      box-shadow: 0 0 0 0 rgba(252,76,2,0.6);
+      animation: pulseDot 1s infinite;
+    }
+    @keyframes pulseDot {
+      0% { box-shadow: 0 0 0 0 rgba(252,76,2,0.6); }
+      70% { box-shadow: 0 0 0 8px rgba(252,76,2,0); }
+      100% { box-shadow: 0 0 0 0 rgba(252,76,2,0); }
+    }
+
+    /* Scene 3 — injury view */
+    #scene-injury {
+      animation: sceneInjury 14s infinite;
+    }
+    @keyframes sceneInjury {
+      0%, 53% { opacity: 0; transform: translateY(12px); }
+      58%, 82% { opacity: 1; transform: translateY(0); }
+      85%, 100% { opacity: 0; transform: translateY(-12px); }
+    }
+
+    /* Header morphs into "Recovery Mode" during scene 3 */
+    .header-title.title-anim .title-plan {
+      animation: titlePlan 14s infinite;
+    }
+    .header-title.title-anim .title-recovery {
+      position: absolute;
+      top: 0; left: 0;
+      opacity: 0;
+      animation: titleRecovery 14s infinite;
+      color: var(--clay);
+    }
+    @keyframes titlePlan {
+      0%, 53% { opacity: 1; }
+      57%, 83% { opacity: 0; }
+      87%, 100% { opacity: 1; }
+    }
+    @keyframes titleRecovery {
+      0%, 53% { opacity: 0; }
+      57%, 83% { opacity: 1; }
+      87%, 100% { opacity: 0; }
+    }
+    .title-wrap { position: relative; display: inline-block; }
+
+    /* Small nub indicator used in recovery steps */
+    .stagger-1 { animation-delay: 0.1s !important; }
+    .stagger-2 { animation-delay: 0.2s !important; }
+    .stagger-3 { animation-delay: 0.3s !important; }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div class="phone-frame">
+      <div class="notch"></div>
+
+      <div class="status-bar">
+        <span>9:41</span>
+        <div class="right">
+          <div class="signal">
+            <div style="height: 3px;"></div>
+            <div style="height: 4px;"></div>
+            <div style="height: 6px;"></div>
+            <div style="height: 8px;"></div>
+          </div>
+          <svg width="13" height="9" fill="none" aria-hidden="true">
+            <rect x=".6" y=".6" width="10" height="7.3" rx="1.3" stroke="#1C1510" stroke-width="1.2"/>
+            <rect x="11.3" y="2.5" width="1.3" height="3.4" rx=".6" fill="#1C1510"/>
+            <rect x="1.8" y="1.9" width="7" height="4.7" rx=".6" fill="#1C1510"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="content-area">
+        <!-- Sync toast (transient) -->
+        <div class="sync-toast">
+          <span class="sync-dot"></span>
+          <span>Strava synced · 12.1km run matched</span>
+        </div>
+
+        <!-- SCENE 1 + 2: Today -->
+        <div class="scene" id="scene-today" style="opacity:1;">
+          <div class="header-meta">APR 13 – 19 · 2026</div>
+          <div class="header-title title-anim">
+            <span class="title-wrap">
+              <span class="title-plan">Week 14 · Build Phase</span>
+              <span class="title-recovery">Recovery Mode</span>
+            </span>
+          </div>
+
+          <div class="load">
+            <div class="load-row">
+              <span class="load-label">Weekly load</span>
+              <span class="load-values load-values-anim">
+                <span class="load-actual">31.1km</span><span class="load-planned">/ 67km</span>
+              </span>
+            </div>
+            <div class="load-track">
+              <div class="load-fill load-fill-anim" style="width: 46%;"></div>
+            </div>
+          </div>
+
+          <!-- Stack: planned and completed cards occupy same slot -->
+          <div class="today-stack">
+            <!-- PLANNED -->
+            <div class="today-planned planned-anim">
+              <div class="today-top">
+                <span class="type-chip">TEMPO</span>
+                <span class="today-badge">TODAY</span>
+              </div>
+              <div class="today-title">12km Tempo</div>
+              <div class="today-date">Thursday, Apr 16</div>
+              <div class="metric-row">
+                <div class="metric">
+                  <div class="metric-v">12km</div>
+                  <div class="metric-l">distance</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-v">4:10–4:20</div>
+                  <div class="metric-l">target pace</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-v">Zone 4</div>
+                  <div class="metric-l">heart rate</div>
+                </div>
+              </div>
+              <div class="steady-note">
+                <div class="steady-dot"></div>
+                <div class="steady-text">
+                  <strong>Steady</strong>: Your last tempo faded in the back half. Start at 4:18 and build — don't force 4:10 from the gun.
+                </div>
+              </div>
+            </div>
+
+            <!-- COMPLETED -->
+            <div class="today-completed completed-anim">
+              <div class="completed-label">Tempo</div>
+              <div class="completed-badge">Completed</div>
+              <div class="completed-stat">12.1km @ 4:15</div>
+              <div class="completed-extra">162 bpm avg · 48 min elapsed</div>
+              <div class="review-link">
+                <span>Review run</span>
+                <span class="arrow">›</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-label">This week</div>
+          <div class="day-row">
+            <div class="day-block">
+              <div class="day-name">Mon</div>
+              <div class="day-date">Apr 13</div>
+            </div>
+            <div class="day-dot" style="background: var(--forest);"></div>
+            <div class="day-label">Easy 10km</div>
+            <div class="day-status">
+              <span class="day-metric">10.2km</span>
+              <span class="check-badge">✓</span>
+            </div>
+          </div>
+          <div class="day-row">
+            <div class="day-block">
+              <div class="day-name">Tue</div>
+              <div class="day-date">Apr 14</div>
+            </div>
+            <div class="day-dot" style="background: var(--clay);"></div>
+            <div class="day-label">6×800m Intervals</div>
+            <div class="tue-status-wrap">
+              <span class="tue-status tue-anim">
+                <span class="day-metric clay">5.2km</span>
+                <span class="check-badge off-target">✓</span>
+              </span>
+              <span class="tue-status-completed tue-completed-anim">
+                <span class="day-metric">6.1km</span>
+                <span class="check-badge">✓</span>
+              </span>
+            </div>
+          </div>
+          <div class="day-row">
+            <div class="day-block">
+              <div class="day-name">Wed</div>
+              <div class="day-date">Apr 15</div>
+            </div>
+            <div class="day-dot" style="background: var(--forest);"></div>
+            <div class="day-label">Easy 8km + Strides</div>
+            <div class="day-status">
+              <span class="day-metric">7.9km</span>
+              <span class="check-badge">✓</span>
+            </div>
+          </div>
+          <div class="day-row today-row">
+            <div class="day-block">
+              <div class="day-name">Thu</div>
+              <div class="day-date">Apr 16</div>
+            </div>
+            <div class="day-dot" style="background: var(--amber);"></div>
+            <div class="day-label">12km Tempo</div>
+            <div class="day-status">
+              <span class="day-metric">12km</span>
+            </div>
+          </div>
+          <div class="day-row">
+            <div class="day-block">
+              <div class="day-name">Fri</div>
+              <div class="day-date">Apr 17</div>
+            </div>
+            <div class="day-dot" style="background: var(--border);"></div>
+            <div class="day-label rest-label">Rest</div>
+            <div class="day-status"></div>
+          </div>
+          <div class="day-row">
+            <div class="day-block">
+              <div class="day-name">Sun</div>
+              <div class="day-date">Apr 19</div>
+            </div>
+            <div class="day-dot" style="background: var(--navy);"></div>
+            <div class="day-label">22km Long Run</div>
+            <div class="day-status">
+              <span class="day-metric">22km</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCENE 3: Recovery -->
+        <div class="scene" id="scene-injury">
+          <div class="header-meta">APR 13 – 19 · 2026</div>
+
+          <div class="injury-banner">
+            <div class="injury-top">
+              <span class="injury-chip">Injury</span>
+              <span class="injury-status">Recovering</span>
+            </div>
+            <div class="injury-title">Left Achilles niggle</div>
+            <div class="injury-meta">Marked Apr 15 · Week 14 of 20 · marathon plan</div>
+          </div>
+
+          <div class="xt-card">
+            <div class="xt-header">
+              <span class="xt-title">Cross-training this week</span>
+              <span class="xt-count">2 sessions</span>
+            </div>
+            <div class="xt-item">
+              <span class="xt-item-name">Bike · easy spin</span>
+              <span class="xt-item-meta">45 min</span>
+            </div>
+            <div class="xt-item">
+              <span class="xt-item-name">Pool · aqua jog</span>
+              <span class="xt-item-meta">30 min</span>
+            </div>
+          </div>
+
+          <div class="rtr-card">
+            <div class="xt-header">
+              <span class="xt-title">Return to running</span>
+              <span class="xt-count">Step 2 of 4</span>
+            </div>
+            <div class="rtr-step">
+              <div class="rtr-check done">✓</div>
+              <div class="rtr-label done">Walk 30 min · pain-free</div>
+            </div>
+            <div class="rtr-step">
+              <div class="rtr-check active"></div>
+              <div class="rtr-label active">Walk/jog intervals · 3×</div>
+            </div>
+            <div class="rtr-step">
+              <div class="rtr-check"></div>
+              <div class="rtr-label">Easy 5km continuous</div>
+            </div>
+            <div class="rtr-step">
+              <div class="rtr-check"></div>
+              <div class="rtr-label">Return to plan · week 15</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab bar -->
+      <div class="tab-bar">
+        <div class="tab active">
+          <svg width="18" height="18" fill="none" viewBox="0 0 22 22" aria-hidden="true">
+            <path d="M3 9.5L11 3l8 6.5V19a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="#C4522A" stroke-width="1.5" stroke-linejoin="round"/>
+            <path d="M9 20v-6h4v6" stroke="#C4522A" stroke-width="1.5" stroke-linejoin="round"/>
+          </svg>
+          <span class="tab-label">Home</span>
+        </div>
+        <div class="tab">
+          <svg width="18" height="18" fill="none" viewBox="0 0 22 22" aria-hidden="true">
+            <rect x="2" y="3" width="18" height="4" rx="1.5" fill="#9A8E7E" opacity="0.4"/>
+            <rect x="2" y="9" width="18" height="4" rx="1.5" fill="#9A8E7E"/>
+            <rect x="2" y="15" width="18" height="4" rx="1.5" fill="#9A8E7E" opacity="0.4"/>
+          </svg>
+          <span class="tab-label">Block</span>
+        </div>
+        <div class="tab">
+          <svg width="18" height="18" fill="none" viewBox="0 0 22 22" aria-hidden="true">
+            <circle cx="11" cy="11" r="3" stroke="#9A8E7E" stroke-width="1.5"/>
+            <path d="M11 2v2M11 18v2M2 11h2M18 11h2M4.93 4.93l1.41 1.41M15.66 15.66l1.41 1.41M4.93 17.07l1.41-1.41M15.66 6.34l1.41-1.41" stroke="#9A8E7E" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <span class="tab-label">Settings</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

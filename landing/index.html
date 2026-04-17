@@ -153,6 +153,18 @@
       border-left: 3px solid var(--clay);
     }
 
+    /* Hero demo (looping app video) */
+    .hero-demo {
+      display: flex; justify-content: center;
+      padding: 10px 0 40px;
+    }
+    .hero-demo-frame {
+      width: 375px; height: 700px;
+      border: none;
+      background: transparent;
+      max-width: 100%;
+    }
+
     /* Phone frame for wireframes */
     .phone-showcase {
       display: flex; justify-content: center; margin: 36px 0 0;
@@ -307,6 +319,17 @@
       </form>
       <div class="waitlist-feedback" aria-live="polite"></div>
     </section>
+
+    <!-- Hero demo video: looping animation of the actual app -->
+    <div class="hero-demo">
+      <iframe
+        class="hero-demo-frame"
+        src="hero-demo.html"
+        loading="eager"
+        title="Steady app preview"
+        aria-label="Steady app preview: Today screen, planned vs actual run sync, and injury recovery mode"
+      ></iframe>
+    </div>
   </div>
 
   <!-- Origin Story -->
