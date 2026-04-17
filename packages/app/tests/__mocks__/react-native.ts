@@ -153,6 +153,9 @@ export const Animated = {
 };
 export const NativeModules = {
   BlobModule: {},
+  SourceCode: {
+    scriptURL: undefined,
+  },
 };
 
 export function Modal({

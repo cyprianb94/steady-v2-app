@@ -23,7 +23,7 @@ vi.mock('expo', () => ({
 }));
 
 describe('trpc boundary', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetModules();
     queryMock.mockReset();
     createTRPCClientMock.mockClear();
@@ -33,10 +33,14 @@ describe('trpc boundary', () => {
     Reflect.set(Constants, 'manifest', {});
     Reflect.set(Constants, 'manifest2', {});
     Reflect.set(Constants, 'expoGoConfig', null);
-    Reflect.set(Constants, 'linkingUri', 'steady://');
+    Reflect.set(Constants, 'platform', {});
+    Reflect.set(Constants, 'linkingUri', undefined);
+    Reflect.set(Constants, 'experienceUrl', undefined);
+    const { NativeModules } = await import('react-native');
+    NativeModules.SourceCode.scriptURL = undefined;
     vi.mocked(Linking.createURL).mockImplementation((path = '/') => {
       const normalizedPath = path.replace(/^\/+/, '');
-      return normalizedPath ? `steady://${normalizedPath}` : 'steady://';
+      return normalizedPath ? `exp://127.0.0.1:8081/--/${normalizedPath}` : 'exp://127.0.0.1:8081/--/';
     });
     vi.mocked(getExpoGoProjectConfig).mockReturnValue(null);
 
@@ -45,12 +49,18 @@ describe('trpc boundary', () => {
   });
 
   it('does not create the client while the module is imported', async () => {
+    const { NativeModules } = await import('react-native');
+    NativeModules.SourceCode.scriptURL = undefined;
+
     await import('../lib/trpc');
 
     expect(createTRPCClientMock).not.toHaveBeenCalled();
   });
 
   it('creates the client lazily on first use and reuses it afterwards', async () => {
+    const { NativeModules } = await import('react-native');
+    NativeModules.SourceCode.scriptURL = undefined;
+
     const { trpc } = await import('../lib/trpc');
 
     expect(createTRPCClientMock).not.toHaveBeenCalled();
@@ -183,6 +193,25 @@ describe('trpc boundary', () => {
     expect(createTRPCClientMock).not.toHaveBeenCalled();
     expect(() => trpc.plan).toThrow(
       'Missing EXPO_PUBLIC_API_URL. Release builds need a public HTTPS API URL.',
+    );
+  });
+
+  it('prefers a non-loopback runtime bundle host over localhost metadata in dev', async () => {
+    const { NativeModules } = await import('react-native');
+    delete process.env.EXPO_PUBLIC_API_URL;
+    Reflect.set(Constants, 'expoConfig', {
+      hostUri: 'localhost:8081',
+    });
+    NativeModules.SourceCode.scriptURL = 'http://192.168.1.42:8081/index.bundle?platform=ios';
+
+    const { trpc } = await import('../lib/trpc');
+
+    await trpc.plan.get.query();
+
+    expect(httpBatchLinkMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: 'http://192.168.1.42:3000/trpc',
+      }),
     );
   });
 });

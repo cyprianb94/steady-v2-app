@@ -3,10 +3,12 @@ import { getExpoGoProjectConfig } from 'expo';
 import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 import type { AppRouter } from '@steady/server/contracts';
+import { NativeModules } from 'react-native';
 import { getAccessToken } from './auth-session';
 
 type ExpoConstantsShape = {
   linkingUri?: string;
+  experienceUrl?: string;
   expoConfig?: {
     hostUri?: string;
     extra?: {
@@ -32,6 +34,10 @@ type ExpoConstantsShape = {
       };
     };
   };
+  platform?: {
+    hostUri?: string;
+    developer?: string;
+  };
   expoGoConfig?: {
     debuggerHost?: string;
   } | null;
@@ -51,26 +57,13 @@ function parseHostname(value: string | null | undefined): string | null {
   }
 }
 
-function getDevApiHost(): string | null {
-  const expoGoProjectConfig = getExpoGoProjectConfig();
-  const candidates = [
-    expoGoProjectConfig?.debuggerHost,
-    Constants.expoConfig?.hostUri,
-    Constants.expoGoConfig?.debuggerHost,
-    Constants.manifest2?.extra?.expoGo?.debuggerHost,
-    Constants.manifest?.debuggerHost,
-    Constants.linkingUri,
-    Linking.createURL('/'),
-  ];
-
-  for (const candidate of candidates) {
-    const hostname = parseHostname(candidate);
-    if (hostname) {
-      return hostname;
-    }
-  }
-
-  return null;
+function isLoopbackHost(hostname: string): boolean {
+  return (
+    hostname === 'localhost' ||
+    hostname === '::1' ||
+    hostname === '0.0.0.0' ||
+    hostname.startsWith('127.')
+  );
 }
 
 function getRuntimeConfiguredApiUrl(): string | null {
@@ -93,6 +86,47 @@ function getRuntimeConfiguredApiUrl(): string | null {
   }
 
   return null;
+}
+
+function getRuntimeBundleHost(): string | null {
+  return parseHostname(
+    (NativeModules as { SourceCode?: { scriptURL?: string } }).SourceCode?.scriptURL,
+  );
+}
+
+function getDevApiHost(): string | null {
+  const expoGoProjectConfig = getExpoGoProjectConfig();
+  const expoConstants = Constants as ExpoConstantsShape;
+  const runtimeBundleHost = getRuntimeBundleHost();
+  const candidates = [
+    expoGoProjectConfig?.debuggerHost,
+    expoConstants.expoConfig?.hostUri,
+    expoConstants.expoGoConfig?.debuggerHost,
+    expoConstants.platform?.hostUri,
+    expoConstants.platform?.developer,
+    expoConstants.manifest2?.extra?.expoGo?.debuggerHost,
+    expoConstants.manifest?.debuggerHost,
+    expoConstants.linkingUri,
+    expoConstants.experienceUrl,
+    runtimeBundleHost,
+    Linking.createURL('/'),
+  ];
+  let loopbackHost: string | null = null;
+
+  for (const candidate of candidates) {
+    const hostname = parseHostname(candidate);
+    if (!hostname) {
+      continue;
+    }
+
+    if (!isLoopbackHost(hostname)) {
+      return hostname;
+    }
+
+    loopbackHost ??= hostname;
+  }
+
+  return loopbackHost;
 }
 
 function normalizeBaseUrl(baseUrl: string): string {
