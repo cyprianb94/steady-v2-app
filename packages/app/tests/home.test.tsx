@@ -788,6 +788,46 @@ describe('HomeScreen', () => {
     expect(mockRouterPush).toHaveBeenCalledWith('/sync-run/activity-1');
   });
 
+  it('keeps the Review run CTA when the session is linked before activity details resolve', async () => {
+    const today = currentLocalIsoDate();
+    const sessions = [null, null, null, null, null, null, null] as any[];
+    sessions[slotIndexForIsoDate(today)] = {
+      id: 'session-1',
+      type: 'EASY',
+      date: today,
+      distance: 8,
+      pace: '5:20',
+      actualActivityId: 'activity-1',
+    };
+    const week = {
+      weekNumber: 3,
+      phase: 'BASE' as const,
+      sessions,
+      plannedKm: 40,
+    };
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-07-15',
+      coachAnnotation: 'Nice work.',
+    };
+    mockPlan.currentWeek = week;
+    mockActivityList.mockResolvedValue([]);
+
+    render(<HomeScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('hero-completed')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByTestId('hero-review-run'));
+    expect(mockRouterPush).toHaveBeenCalledWith('/sync-run/activity-1');
+  });
+
   it('renders a niggle banner when the resolved activity carries niggles', async () => {
     const today = currentLocalIsoDate();
     const sessions = [null, null, null, null, null, null, null] as any[];

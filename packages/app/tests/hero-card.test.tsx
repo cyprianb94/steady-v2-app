@@ -147,9 +147,9 @@ describe('TodayHeroCard', () => {
     // Should show "Completed" indicator
     expect(screen.getByTestId('hero-completed')).toBeTruthy();
     // Should show actual distance
-    expect(screen.getByText(/8\.2/)).toBeTruthy();
+    expect(screen.getAllByText(/8\.2/).length).toBeGreaterThan(0);
     // Should show actual pace (318 sec/km = 5:18)
-    expect(screen.getByText(/5:18/)).toBeTruthy();
+    expect(screen.getAllByText(/5:18/).length).toBeGreaterThan(0);
   });
 
   it('shows completed state when session has actualActivityId even before activity details load', () => {
@@ -168,6 +168,7 @@ describe('TodayHeroCard', () => {
 
     expect(screen.getByTestId('hero-completed')).toBeTruthy();
     expect(screen.getByText('Completed')).toBeTruthy();
+    expect(screen.getByText('Run saved')).toBeTruthy();
     expect(screen.getByText('Easy Run')).toBeTruthy();
     expect(screen.getByText(/8km @ 5:20/)).toBeTruthy();
   });
@@ -193,7 +194,7 @@ describe('TodayHeroCard', () => {
 
     expect(screen.getByTestId('hero-completed')).toBeTruthy();
     expect(screen.getByText('Completed')).toBeTruthy();
-    expect(screen.getByText(/8\.1/)).toBeTruthy();
+    expect(screen.getAllByText(/8\.1/).length).toBeGreaterThan(0);
   });
 
   it('opens the Steady action when the planned hero is tapped', () => {

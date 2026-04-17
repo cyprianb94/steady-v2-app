@@ -215,6 +215,9 @@ export default function HomeScreen() {
   const handleTodayHeroPress = runDetailNavigation.canOpenRunDetail(todaySession)
     ? () => runDetailNavigation.openRunDetail(todaySession)
     : undefined;
+  const handleReviewRunPress = runDetailNavigation.canOpenRunDetail(todaySession)
+    ? () => runDetailNavigation.openRunDetail(todaySession)
+    : undefined;
 
   async function handleMarkRtrStepComplete() {
     const result = await recoveryController.advanceReturnToRun();
@@ -326,7 +329,7 @@ export default function HomeScreen() {
                 activity={todayActivity}
                 steadyNote={steadyNote}
                 onPress={handleTodayHeroPress}
-                onReviewRun={todayActivity ? () => router.push(`/sync-run/${todayActivity.id}`) : undefined}
+                onReviewRun={handleReviewRunPress}
               />
               {todayActivity?.niggles?.length ? <NiggleBanner niggles={todayActivity.niggles} /> : null}
               {showFinishedRunCta ? (

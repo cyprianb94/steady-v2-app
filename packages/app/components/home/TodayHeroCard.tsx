@@ -1,6 +1,15 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import type { PlannedSession, SubjectiveInput, SubjectiveBreathing, SubjectiveLegs, SubjectiveOverall } from '@steady/types';
+import {
+  summariseVsPlan,
+  type Activity,
+  type PlannedSession,
+  type PvaHeadline,
+  type SubjectiveInput,
+  type SubjectiveBreathing,
+  type SubjectiveLegs,
+  type SubjectiveOverall,
+} from '@steady/types';
 import { SESSION_TYPE } from '../../constants/session-types';
 import { FONTS } from '../../constants/typography';
 import { C } from '../../constants/colours';
@@ -43,10 +52,29 @@ const PLANNED_CARD_BG: Record<Exclude<PlannedSession['type'], 'REST'>, string> =
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+const COMPLETED_HEADLINES: Record<PvaHeadline, string> = {
+  'on-target': 'On target',
+  'crushed-it': 'Crushed it',
+  'eased-in': 'Eased in',
+  'cut-short': 'Cut short',
+  'bonus-effort': 'Bonus effort',
+  'under-distance': 'Under distance',
+  'over-pace': 'Went out hot',
+  'hr-high': 'Heart rate high',
+};
 
 function formatSessionDate(date: string): string {
   const value = new Date(`${date}T00:00:00Z`);
   return `${WEEKDAYS[value.getUTCDay()]}, ${MONTHS[value.getUTCMonth()]} ${value.getUTCDate()}`;
+}
+
+function formatDuration(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainder = seconds % 60;
+  return hours > 0
+    ? `${hours}:${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`
+    : `${minutes}:${String(remainder).padStart(2, '0')}`;
 }
 
 function plannedHeartRateZone(session: PlannedSession): string {
@@ -70,10 +98,91 @@ function titleCase(value: string): string {
     .join(' ');
 }
 
+function sentenceCaseFact(fact: string): string {
+  return `${fact.slice(0, 1).toUpperCase()}${fact.slice(1)}`;
+}
+
+function toSummaryActivity(activity: ActivitySummary): Activity {
+  return {
+    id: activity.id,
+    userId: 'summary',
+    source: 'manual',
+    externalId: activity.id,
+    startTime: '1970-01-01T00:00:00.000Z',
+    distance: activity.distance,
+    duration: activity.duration,
+    elevationGain: activity.elevationGain,
+    avgPace: activity.avgPace,
+    avgHR: activity.avgHR,
+    splits: [],
+    subjectiveInput: activity.subjectiveInput,
+  };
+}
+
+function buildCompletedSummary(session: PlannedSession, activity?: ActivitySummary) {
+  if (!activity) {
+    return {
+      headline: 'Run saved',
+      subcopy: 'Saved to your week. Open run detail to review feel, notes, or niggles.',
+    };
+  }
+
+  const summary = summariseVsPlan(session, toSummaryActivity(activity));
+  const primaryFact = (
+    summary.verdicts.find((verdict) => verdict.kind === 'hr')
+    ?? summary.verdicts.find((verdict) => verdict.status !== 'ok')
+    ?? summary.verdicts.find((verdict) => verdict.kind === 'pace')
+    ?? summary.verdicts[0]
+  );
+
+  return {
+    headline: COMPLETED_HEADLINES[summary.headline],
+    subcopy: `${formatDistance(activity.distance, 'metric')} at ${formatPace(activity.avgPace, 'metric', { withUnit: true })} · ${sentenceCaseFact(primaryFact.fact)}`,
+  };
+}
+
+function buildCompletedMetrics(session: PlannedSession, activity: ActivitySummary | undefined, units: ReturnType<typeof usePreferences>['units']) {
+  if (!activity) {
+    return [
+      {
+        value: formatDistance(session.distance ?? 0, units),
+        label: 'planned km',
+      },
+      {
+        value: formatStoredPace(session.pace, units),
+        label: 'target pace',
+      },
+      {
+        value: SESSION_TYPE[session.type].label,
+        label: 'session',
+      },
+    ];
+  }
+
+  return [
+    {
+      value: formatDistance(activity.distance, units),
+      label: 'distance',
+    },
+    {
+      value: formatPace(activity.avgPace, units),
+      label: 'avg pace',
+    },
+    activity.avgHR != null
+      ? {
+          value: `${activity.avgHR}`,
+          label: 'avg bpm',
+        }
+      : {
+          value: formatDuration(activity.duration),
+          label: 'elapsed',
+        },
+  ];
+}
+
 function SavedSubjectiveInput({ input }: { input: SubjectiveInput }) {
   return (
     <View style={styles.savedFeelGroup}>
-      <Text style={styles.savedFeelTitle}>Saved feel</Text>
       <View style={styles.savedFeelChips}>
         <View style={styles.savedFeelChip}>
           <Text style={styles.savedFeelChipText}>Legs: {titleCase(input.legs)}</Text>
@@ -112,6 +221,8 @@ export function TodayHeroCard({
   const isInterval = session.type === 'INTERVAL';
   const completed = Boolean(session.actualActivityId || activity);
   const savedSubjectiveInput = activity?.subjectiveInput;
+  const completedSummary = buildCompletedSummary(session, activity);
+  const completedMetrics = buildCompletedMetrics(session, activity, units);
   const showSubjectivePrompt =
     !!session.actualActivityId &&
     !savedSubjectiveInput &&
@@ -120,16 +231,49 @@ export function TodayHeroCard({
   if (completed) {
     const content = (
       <>
-        <Text style={[styles.typeLabel, { color: meta.color }]}>{meta.label}</Text>
-        <Text style={styles.completedBadge}>Completed</Text>
-        <Text style={[styles.mainStat, { color: meta.color }]}>
-          {activity
-            ? `${formatDistance(activity.distance, units)} @ ${formatPace(activity.avgPace, units)}`
-            : formatSessionLabel(session, units)}
+        <View style={styles.completedTopRow}>
+          <View style={styles.completedBadge}>
+            <Text style={styles.completedBadgeTick}>✓</Text>
+            <Text style={styles.completedBadgeText}>Completed</Text>
+          </View>
+          <View
+            style={[
+              styles.completedTypeChip,
+              { borderColor: `${meta.color}35`, backgroundColor: meta.bg },
+            ]}
+          >
+            <Text style={[styles.completedTypeChipText, { color: meta.color }]}>{session.type}</Text>
+          </View>
+        </View>
+
+        <Text style={[styles.completedHeadline, { color: meta.color }]}>
+          {completedSummary.headline}
         </Text>
-        {activity?.avgHR ? (
-          <Text style={styles.extraText}>{activity.avgHR} bpm avg</Text>
-        ) : null}
+        <Text style={styles.completedSubcopy}>
+          {activity ? (
+            <>
+              <Text style={styles.completedSubcopyMetric}>{formatDistance(activity.distance, units)}</Text>
+              <Text> at </Text>
+              <Text style={styles.completedSubcopyMetric}>{formatPace(activity.avgPace, units, { withUnit: true })}</Text>
+              <Text>{completedSummary.subcopy.split(' · ').length > 1 ? ` · ${completedSummary.subcopy.split(' · ').slice(1).join(' · ')}` : ''}</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.completedSubcopyMetric}>{formatSessionLabel(session, units)}</Text>
+              <Text>{` · ${completedSummary.subcopy}`}</Text>
+            </>
+          )}
+        </Text>
+
+        <View style={styles.completedMetricRow}>
+          {completedMetrics.map((metric) => (
+            <View key={metric.label} style={styles.completedMetricCard}>
+              <Text style={styles.completedMetricValue}>{metric.value}</Text>
+              <Text style={styles.completedMetricLabel}>{metric.label}</Text>
+            </View>
+          ))}
+        </View>
+
         {savedSubjectiveInput ? (
           <SavedSubjectiveInput input={savedSubjectiveInput} />
         ) : null}
@@ -149,7 +293,10 @@ export function TodayHeroCard({
             style={styles.reviewLink}
             testID="hero-review-run"
           >
-            <Text style={styles.reviewLinkText}>Review run</Text>
+            <View>
+              <Text style={styles.reviewLinkText}>Review run</Text>
+              <Text style={styles.reviewLinkHint}>Open run detail and edit notes or feel.</Text>
+            </View>
             <Text style={styles.reviewLinkArrow}>›</Text>
           </Pressable>
         ) : null}
@@ -394,7 +541,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   completedCard: {
-    opacity: 0.9,
+    justifyContent: 'flex-start',
+    borderWidth: 1.5,
+    borderColor: 'rgba(28,21,16,0.08)',
   },
   plannedCard: {
     borderWidth: 1.5,
@@ -428,16 +577,95 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
+  completedTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 16,
+  },
   completedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: C.forestBg,
+    borderWidth: 1,
+    borderColor: 'rgba(42,92,69,0.18)',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  completedBadgeTick: {
     fontFamily: FONTS.sansSemiBold,
     fontSize: 11,
     color: C.forest,
-    marginBottom: 6,
+  },
+  completedBadgeText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 10,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: C.forest,
+  },
+  completedTypeChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  completedTypeChipText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 10,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   mainStat: {
     fontFamily: FONTS.serifBold,
     fontSize: 26,
     marginBottom: 12,
+  },
+  completedHeadline: {
+    fontFamily: FONTS.serifBold,
+    fontSize: 28,
+    marginBottom: 8,
+  },
+  completedSubcopy: {
+    fontFamily: FONTS.sans,
+    fontSize: 13,
+    lineHeight: 20,
+    color: C.ink2,
+    marginBottom: 16,
+  },
+  completedSubcopyMetric: {
+    fontFamily: FONTS.monoBold,
+    color: C.ink,
+  },
+  completedMetricRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 14,
+  },
+  completedMetricCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.52)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(28,21,16,0.08)',
+  },
+  completedMetricValue: {
+    fontFamily: FONTS.monoBold,
+    fontSize: 17,
+    color: C.ink,
+    marginBottom: 3,
+  },
+  completedMetricLabel: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 10,
+    color: C.muted,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
   mainTitle: {
     fontFamily: FONTS.serifBold,
@@ -516,15 +744,7 @@ const styles = StyleSheet.create({
     color: C.ink2,
   },
   savedFeelGroup: {
-    marginTop: 14,
-    gap: 8,
-  },
-  savedFeelTitle: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 11,
-    color: C.ink2,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
+    marginTop: 2,
   },
   savedFeelChips: {
     flexDirection: 'row',
@@ -545,23 +765,31 @@ const styles = StyleSheet.create({
     color: C.ink2,
   },
   reviewLink: {
-    marginTop: 12,
-    paddingTop: 10,
+    marginTop: 14,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: 'rgba(42,92,69,0.18)',
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
+    gap: 12,
   },
   reviewLinkText: {
     fontFamily: FONTS.sansSemiBold,
-    fontSize: 13,
+    fontSize: 14,
     color: C.forest,
+  },
+  reviewLinkHint: {
+    fontFamily: FONTS.sans,
+    fontSize: 12,
+    color: C.ink2,
+    marginTop: 3,
   },
   reviewLinkArrow: {
     fontFamily: FONTS.serifBold,
-    fontSize: 16,
+    fontSize: 18,
     color: C.forest,
+    marginTop: -1,
   },
   subjectivePrompt: {
     marginTop: 16,
