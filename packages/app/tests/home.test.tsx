@@ -745,7 +745,7 @@ describe('HomeScreen', () => {
     expect(screen.getByText(/Left Hamstring · Mild · During/i)).toBeTruthy();
   });
 
-  it('opens and dismisses the session detail sheet from the completed today hero', async () => {
+  it('opens the sync-run detail screen from the completed today hero', async () => {
     const today = currentLocalIsoDate();
     const sessions = [null, null, null, null, null, null, null] as any[];
     sessions[slotIndexForIsoDate(today)] = {
@@ -793,14 +793,10 @@ describe('HomeScreen', () => {
     });
 
     fireEvent.click(screen.getByTestId('hero-completed'));
-    expect(await screen.findByText('Planned')).toBeTruthy();
-    expect(screen.getByText('Actual')).toBeTruthy();
-
-    fireEvent.click(screen.getByTestId('session-detail-backdrop'));
-    expect(screen.queryByText('Planned')).toBeNull();
+    expect(mockRouterPush).toHaveBeenCalledWith('/sync-run/activity-1');
   });
 
-  it('opens the session detail sheet from a completed This week row', async () => {
+  it('opens the sync-run detail screen from a completed This week row', async () => {
     const today = currentLocalIsoDate();
     const todayIndex = slotIndexForIsoDate(today);
     const weekStart = new Date(`${today}T00:00:00Z`);
@@ -868,11 +864,10 @@ describe('HomeScreen', () => {
     });
 
     fireEvent.click(screen.getByTestId('compact-day-row-pressable'));
-    expect(screen.getByText('Actual')).toBeTruthy();
-    expect(screen.getAllByText(/8\.2km/).length).toBeGreaterThan(0);
+    expect(mockRouterPush).toHaveBeenCalledWith('/sync-run/act-1');
   });
 
-  it('keeps matched off-target week rows visually completed while still opening the detail sheet', async () => {
+  it('keeps matched off-target week rows visually completed while still opening the sync-run detail screen', async () => {
     const today = currentLocalIsoDate();
     const todayIndex = slotIndexForIsoDate(today);
     const weekStart = new Date(`${today}T00:00:00Z`);
@@ -941,8 +936,7 @@ describe('HomeScreen', () => {
     expect(screen.queryByTestId('day-row-warning')).toBeNull();
 
     fireEvent.click(screen.getByTestId('compact-day-row-pressable'));
-    expect(screen.getByText('Actual')).toBeTruthy();
-    expect(screen.getAllByText(/8\.4km/).length).toBeGreaterThan(0);
+    expect(mockRouterPush).toHaveBeenCalledWith('/sync-run/act-off-target');
   });
 
   it('does not show a subjective prompt for a matched run without saved feel', () => {

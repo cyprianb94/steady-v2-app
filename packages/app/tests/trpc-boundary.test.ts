@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { getExpoGoProjectConfig } from 'expo';
 import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 
@@ -17,6 +18,10 @@ vi.mock('@trpc/client', () => ({
   httpBatchLink: httpBatchLinkMock,
 }));
 
+vi.mock('expo', () => ({
+  getExpoGoProjectConfig: vi.fn(() => null),
+}));
+
 describe('trpc boundary', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -27,10 +32,13 @@ describe('trpc boundary', () => {
     Reflect.set(Constants, 'expoConfig', {});
     Reflect.set(Constants, 'manifest', {});
     Reflect.set(Constants, 'manifest2', {});
+    Reflect.set(Constants, 'expoGoConfig', null);
+    Reflect.set(Constants, 'linkingUri', 'steady://');
     vi.mocked(Linking.createURL).mockImplementation((path = '/') => {
       const normalizedPath = path.replace(/^\/+/, '');
       return normalizedPath ? `steady://${normalizedPath}` : 'steady://';
     });
+    vi.mocked(getExpoGoProjectConfig).mockReturnValue(null);
 
     process.env.EXPO_PUBLIC_API_URL = 'https://api.steady.test';
     Reflect.set(globalThis, '__DEV__', true);
@@ -72,6 +80,38 @@ describe('trpc boundary', () => {
     );
   });
 
+  it('prefers the live Expo host over a stale private dev API URL', async () => {
+    process.env.EXPO_PUBLIC_API_URL = 'http://192.168.1.103:3000';
+    Reflect.set(Constants, 'expoGoConfig', {
+      debuggerHost: '10.152.149.178:8081',
+    });
+
+    const { trpc } = await import('../lib/trpc');
+    await trpc.plan.get.query();
+
+    expect(httpBatchLinkMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: 'http://10.152.149.178:3000/trpc',
+      }),
+    );
+  });
+
+  it('uses the live Expo Go project config when expo-constants is stale', async () => {
+    process.env.EXPO_PUBLIC_API_URL = 'http://192.168.1.103:3000';
+    vi.mocked(getExpoGoProjectConfig).mockReturnValue({
+      debuggerHost: '10.152.149.178:8081',
+    });
+
+    const { trpc } = await import('../lib/trpc');
+    await trpc.plan.get.query();
+
+    expect(httpBatchLinkMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: 'http://10.152.149.178:3000/trpc',
+      }),
+    );
+  });
+
   it('rejects insecure release API URLs before making requests', async () => {
     process.env.EXPO_PUBLIC_API_URL = 'http://api.steady.test';
     Reflect.set(globalThis, '__DEV__', false);
@@ -85,7 +125,7 @@ describe('trpc boundary', () => {
 
   it('adds API context to network failures', async () => {
     const originalFetch = global.fetch;
-    global.fetch = vi.fn().mockRejectedValue(new Error('Network request failed')) as typeof fetch;
+    global.fetch = vi.fn().mockRejectedValue(new Error('Network request timed out')) as typeof fetch;
 
     try {
       const { trpc } = await import('../lib/trpc');
@@ -96,6 +136,39 @@ describe('trpc boundary', () => {
       await expect(trpcFetch('https://api.steady.test/trpc/plan.get', {})).rejects.toThrow(
         'Network request failed while calling https://api.steady.test. Check EXPO_PUBLIC_API_URL or that the local API server is reachable.',
       );
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  it('retries the live Expo host against the configured private dev URL', async () => {
+    const originalFetch = global.fetch;
+    process.env.EXPO_PUBLIC_API_URL = 'http://192.168.1.103:3000';
+    Reflect.set(Constants, 'expoGoConfig', {
+      debuggerHost: '10.152.149.178:8081',
+    });
+
+    global.fetch = vi.fn().mockImplementation(async (input) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+      if (url.startsWith('http://10.152.149.178:3000')) {
+        throw new Error('Network request timed out');
+      }
+      return { ok: true } as Response;
+    }) as typeof fetch;
+
+    try {
+      const { trpc } = await import('../lib/trpc');
+      await trpc.plan.get.query();
+
+      const [{ fetch: trpcFetch }] = httpBatchLinkMock.mock.calls.at(-1) ?? [];
+      expect(trpcFetch).toBeTypeOf('function');
+
+      await expect(trpcFetch('http://10.152.149.178:3000/trpc/plan.get', {})).resolves.toEqual(
+        expect.objectContaining({ ok: true }),
+      );
+
+      expect(global.fetch).toHaveBeenNthCalledWith(1, 'http://10.152.149.178:3000/trpc/plan.get', {});
+      expect(global.fetch).toHaveBeenNthCalledWith(2, 'http://192.168.1.103:3000/trpc/plan.get', {});
     } finally {
       global.fetch = originalFetch;
     }

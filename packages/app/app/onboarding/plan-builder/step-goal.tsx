@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,11 +11,17 @@ import { router } from 'expo-router';
 import { defaultPhases } from '@steady/types';
 import type { PhaseConfig } from '@steady/types';
 import { PhaseEditor } from '../../../components/plan-builder/PhaseEditor';
+import { RaceDateBottomSheet } from '../../../components/plan-builder/RaceDateBottomSheet';
 import { TripleWheelPicker } from '../../../components/plan-builder/TripleWheelPicker';
 import { Btn } from '../../../components/ui/Btn';
 import { SectionLabel } from '../../../components/ui/SectionLabel';
 import { C } from '../../../constants/colours';
 import { FONTS } from '../../../constants/typography';
+import {
+  formatShortDate,
+  parseIsoDate,
+  weeksToRace,
+} from '../../../features/plan-builder/race-date';
 import {
   RACE_TARGETS,
   raceDateForPlanStartingThisWeek,
@@ -25,37 +30,11 @@ import {
 
 const RACES = ['5K', '10K', 'Half Marathon', 'Marathon', 'Ultra'] as const;
 const ULTRA_PRESETS = ['50K', '100K', '100M', 'Custom'] as const;
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const HOURS = Array.from({ length: 30 }, (_, index) => String(index).padStart(2, '0'));
 const MINUTES_SECONDS = Array.from({ length: 60 }, (_, index) => String(index).padStart(2, '0'));
 
 type Race = (typeof RACES)[number];
 type UltraPreset = (typeof ULTRA_PRESETS)[number];
-
-function buildIsoDate(year: number, monthIndex: number, day: number) {
-  return new Date(Date.UTC(year, monthIndex, day)).toISOString().slice(0, 10);
-}
-
-function parseIsoDate(isoDate: string) {
-  const [year, month, day] = isoDate.split('-').map(Number);
-  return { year, monthIndex: month - 1, day };
-}
-
-function daysInMonth(year: number, monthIndex: number) {
-  return new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
-}
-
-function formatShortDate(isoDate: string) {
-  const { year, monthIndex, day } = parseIsoDate(isoDate);
-  return `${day} ${MONTHS[monthIndex]} ${year}`;
-}
-
-function weeksToRace(todayIso: string, raceDate: string) {
-  const today = new Date(`${todayIso}T00:00:00Z`);
-  const race = new Date(`${raceDate}T00:00:00Z`);
-  const diffDays = Math.ceil((race.getTime() - today.getTime()) / 86_400_000);
-  return Math.max(4, Math.min(52, Math.ceil(Math.max(diffDays, 1) / 7)));
-}
 
 function raceLabelFor(race: Race, ultraPreset: UltraPreset, customUltraDistance: string) {
   if (race !== 'Ultra') return race;
@@ -111,14 +90,12 @@ export default function StepGoal() {
   const [customUltraDistance, setCustomUltraDistance] = useState('');
   const [raceName, setRaceName] = useState('');
   const [raceDate, setRaceDate] = useState(() => raceDateForPlanStartingThisWeek(todayIso, 16));
-  const [draftRaceDate, setDraftRaceDate] = useState(raceDate);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [target, setTarget] = useState('sub-3:15');
   const [isCustomTarget, setIsCustomTarget] = useState(false);
   const [customTime, setCustomTime] = useState(() => defaultCustomTimeForRace('Marathon'));
   const [phases, setPhases] = useState<PhaseConfig>(() => defaultPhases(16));
 
-  const years = Array.from({ length: 6 }, (_, index) => String(parseIsoDate(todayIso).year + index));
   const weeks = weeksToRace(todayIso, raceDate);
   const targets = RACE_TARGETS[race] || [];
   const allTargets = [...targets, 'Other'];
@@ -126,15 +103,6 @@ export default function StepGoal() {
   const resolvedTargetTime = isCustomTarget
     ? formatTargetTime(customTime.hours, customTime.minutes, customTime.seconds)
     : target;
-
-  const draftParts = parseIsoDate(draftRaceDate);
-  const draftDayItems = Array.from(
-    { length: daysInMonth(draftParts.year, draftParts.monthIndex) },
-    (_, index) => String(index + 1).padStart(2, '0'),
-  );
-  const draftYearIndex = Math.max(0, years.findIndex((year) => Number(year) === draftParts.year));
-  const draftMonthIndex = draftParts.monthIndex;
-  const draftDayIndex = Math.max(0, draftParts.day - 1);
 
   useEffect(() => {
     setPhases(defaultPhases(weeks));
@@ -156,11 +124,6 @@ export default function StepGoal() {
     }
     setIsCustomTarget(false);
     setTarget(value);
-  };
-
-  const updateDraftDate = (year: number, monthIndex: number, day: number) => {
-    const boundedDay = Math.min(day, daysInMonth(year, monthIndex));
-    setDraftRaceDate(buildIsoDate(year, monthIndex, boundedDay));
   };
 
   const handleNext = () => {
@@ -260,10 +223,11 @@ export default function StepGoal() {
 
         <View style={styles.section}>
           <SectionLabel>Race date</SectionLabel>
-          <Pressable onPress={() => {
-            setDraftRaceDate(raceDate);
-            setShowDatePicker(true);
-          }} style={styles.dateRow}>
+          <Pressable
+            onPress={() => setShowDatePicker(true)}
+            style={styles.dateRow}
+            testID="race-date-trigger"
+          >
             <View>
               <Text style={styles.dateValue}>{formatShortDate(raceDate)}</Text>
               <Text style={styles.dateHint}>Sets weeks to race automatically</Text>
@@ -335,57 +299,14 @@ export default function StepGoal() {
         <Btn title="Build my template week →" onPress={handleNext} fullWidth />
       </View>
 
-      <Modal visible={showDatePicker} transparent animationType="fade">
-        <View style={styles.sheetOverlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowDatePicker(false)} />
-          <View style={styles.sheet}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Pick race date</Text>
-            <Text style={styles.sheetSubtitle}>{formatShortDate(draftRaceDate)}</Text>
-            <TripleWheelPicker
-              columns={[
-                {
-                  items: draftDayItems,
-                  label: 'day',
-                  selectedIndex: draftDayIndex,
-                  onSelect: (index) =>
-                    updateDraftDate(draftParts.year, draftParts.monthIndex, index + 1),
-                },
-                {
-                  items: MONTHS,
-                  label: 'month',
-                  selectedIndex: draftMonthIndex,
-                  onSelect: (index) => updateDraftDate(draftParts.year, index, draftParts.day),
-                },
-                {
-                  items: years,
-                  label: 'year',
-                  selectedIndex: draftYearIndex,
-                  onSelect: (index) =>
-                    updateDraftDate(Number(years[index]), draftParts.monthIndex, draftParts.day),
-                },
-              ]}
-              activeColor={C.clay}
-              borderColor={C.border}
-            />
-            <View style={styles.sheetActions}>
-              <Pressable onPress={() => setShowDatePicker(false)} style={styles.sheetSecondary}>
-                <Text style={styles.sheetSecondaryText}>Cancel</Text>
-              </Pressable>
-              <View style={styles.sheetPrimary}>
-                <Btn
-                  title="Done"
-                  onPress={() => {
-                    setRaceDate(draftRaceDate);
-                    setShowDatePicker(false);
-                  }}
-                  fullWidth
-                />
-              </View>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <RaceDateBottomSheet
+        minDate={todayIso}
+        onClose={() => setShowDatePicker(false)}
+        onConfirm={setRaceDate}
+        open={showDatePicker}
+        todayIso={todayIso}
+        value={raceDate}
+      />
     </View>
   );
 }
@@ -637,63 +558,5 @@ const styles = StyleSheet.create({
     backgroundColor: C.cream,
     borderTopWidth: 1,
     borderTopColor: `${C.border}AA`,
-  },
-  sheetOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(28,21,16,0.60)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    backgroundColor: C.cream,
-    paddingHorizontal: 18,
-    paddingTop: 10,
-    paddingBottom: 24,
-  },
-  sheetHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: C.border,
-    alignSelf: 'center',
-    marginBottom: 16,
-  },
-  sheetTitle: {
-    fontFamily: FONTS.serifBold,
-    fontSize: 22,
-    color: C.ink,
-    marginBottom: 4,
-  },
-  sheetSubtitle: {
-    fontFamily: FONTS.monoBold,
-    fontSize: 13,
-    color: C.clay,
-    marginBottom: 16,
-  },
-  sheetActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 16,
-  },
-  sheetSecondary: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 48,
-    borderRadius: 22,
-    borderWidth: 1.5,
-    borderColor: C.border,
-    backgroundColor: C.surface,
-    paddingHorizontal: 16,
-  },
-  sheetSecondaryText: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 14,
-    color: C.ink,
-  },
-  sheetPrimary: {
-    flex: 1.2,
   },
 });

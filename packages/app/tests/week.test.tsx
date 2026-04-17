@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
@@ -83,7 +83,11 @@ vi.mock('../components/week/LoadBar', () => ({
 }));
 
 vi.mock('../components/week/DayCard', () => ({
-  DayCard: ({ dayName }: any) => <div>{dayName}</div>,
+  DayCard: ({ dayName, onPress }: any) => (
+    <button onClick={onPress} type="button">
+      {dayName}
+    </button>
+  ),
 }));
 
 vi.mock('../components/recovery/InjuryBanner', () => ({
@@ -100,10 +104,6 @@ vi.mock('../components/recovery/ReturnToRunning', () => ({
 
 vi.mock('../components/recovery/RecoveryFlowModal', () => ({
   RecoveryFlowModal: () => null,
-}));
-
-vi.mock('../components/home/SessionDetailSheet', () => ({
-  SessionDetailSheet: () => null,
 }));
 
 import WeekTab from '../app/(tabs)/week';
@@ -194,5 +194,59 @@ describe('WeekTab', () => {
       expect(mockActivityList).toHaveBeenCalledTimes(1);
     });
     expect(mockCrossTrainingGetForWeek).not.toHaveBeenCalled();
+  });
+
+  it('opens the sync-run detail screen when a completed day is tapped', async () => {
+    mockAuth.session = { user: { id: 'runner-1' } };
+    mockPlan.plan = {
+      id: 'plan-1',
+      weeks: [
+        {
+          weekNumber: 1,
+          phase: 'BASE' as const,
+          plannedKm: 42,
+          sessions: [
+            {
+              id: 'session-1',
+              type: 'EASY',
+              date: '2026-04-13',
+              distance: 8,
+              pace: '5:20',
+              actualActivityId: 'activity-1',
+            },
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+          ],
+        },
+      ],
+      activeInjury: null,
+    };
+    mockActivityList.mockResolvedValue([
+      {
+        id: 'activity-1',
+        userId: 'runner-1',
+        source: 'strava',
+        externalId: 'strava-1',
+        startTime: '2026-04-13T07:00:00.000Z',
+        distance: 8.1,
+        duration: 2580,
+        avgPace: 319,
+        splits: [],
+        matchedSessionId: 'session-1',
+      },
+    ]);
+
+    render(<WeekTab />);
+
+    await waitFor(() => {
+      expect(mockActivityList).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getByText('Mon'));
+    expect(mockRouterPush).toHaveBeenCalledWith('/sync-run/activity-1');
   });
 });

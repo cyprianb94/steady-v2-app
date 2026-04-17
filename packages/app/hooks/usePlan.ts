@@ -1,18 +1,25 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useIsFocused } from '@react-navigation/native';
 import { getDisplayWeekIndex, type TrainingPlanWithAnnotation, type PlanWeek } from '@steady/types';
-import { trpc } from '../lib/trpc';
 import { useAuth } from '../lib/auth';
 import { isLikelyNetworkError } from '../lib/network-errors';
+import { getPlan } from '../lib/plan-api';
 import { getResumeWeekOverride } from '../lib/resume-week';
 import { useTodayIso } from './useTodayIso';
 
 interface UsePlanResult {
   plan: TrainingPlanWithAnnotation | null;
   loading: boolean;
+  refreshing: boolean;
   currentWeek: PlanWeek | null;
   currentWeekIndex: number;
   refresh: () => Promise<void>;
+  refreshWithIndicator: () => Promise<void>;
+}
+
+interface FetchPlanOptions {
+  keepVisibleContent?: boolean;
+  showRefreshIndicator?: boolean;
 }
 
 export function usePlan(): UsePlanResult {
@@ -21,20 +28,33 @@ export function usePlan(): UsePlanResult {
   const [plan, setPlan] = useState<TrainingPlanWithAnnotation | null>(null);
   const [resumeWeekNumber, setResumeWeekNumber] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const planRef = useRef<TrainingPlanWithAnnotation | null>(null);
   const hasLoadedOnceRef = useRef(false);
   const wasFocusedRef = useRef(false);
 
-  const fetchPlan = useCallback(async () => {
+  const fetchPlan = useCallback(async ({
+    keepVisibleContent = false,
+    showRefreshIndicator = false,
+  }: FetchPlanOptions = {}) => {
     if (!session) {
       setPlan(null);
       setResumeWeekNumber(null);
       setLoading(false);
+      setRefreshing(false);
       return;
     }
 
+    const isInPlaceRefresh = keepVisibleContent && planRef.current !== null;
+    const shouldShowRefreshIndicator = isInPlaceRefresh && showRefreshIndicator;
+
     try {
-      setLoading(true);
-      const result = await trpc.plan.get.query();
+      if (shouldShowRefreshIndicator) {
+        setRefreshing(true);
+      } else if (!isInPlaceRefresh) {
+        setLoading(true);
+      }
+      const result = await getPlan();
       setPlan(result);
       setResumeWeekNumber(result ? await getResumeWeekOverride(result.id) : null);
     } catch (err) {
@@ -44,14 +64,23 @@ export function usePlan(): UsePlanResult {
       setPlan(null);
       setResumeWeekNumber(null);
     } finally {
-      setLoading(false);
+      if (shouldShowRefreshIndicator) {
+        setRefreshing(false);
+      } else if (!isInPlaceRefresh) {
+        setLoading(false);
+      }
     }
   }, [session]);
+
+  useEffect(() => {
+    planRef.current = plan;
+  }, [plan]);
 
   useEffect(() => {
     if (authLoading) {
       hasLoadedOnceRef.current = false;
       setLoading(true);
+      setRefreshing(false);
       return;
     }
     fetchPlan()
@@ -68,7 +97,10 @@ export function usePlan(): UsePlanResult {
       return;
     }
 
-    fetchPlan().catch((err) => {
+    fetchPlan({
+      keepVisibleContent: planRef.current !== null,
+      showRefreshIndicator: false,
+    }).catch((err) => {
       if (!isLikelyNetworkError(err)) {
         console.log('Plan refresh on focus failed:', err);
       }
@@ -83,8 +115,16 @@ export function usePlan(): UsePlanResult {
   return {
     plan,
     loading,
+    refreshing,
     currentWeek: plan?.weeks[currentWeekIndex] ?? null,
     currentWeekIndex,
-    refresh: fetchPlan,
+    refresh: () => fetchPlan({
+      keepVisibleContent: planRef.current !== null,
+      showRefreshIndicator: false,
+    }),
+    refreshWithIndicator: () => fetchPlan({
+      keepVisibleContent: planRef.current !== null,
+      showRefreshIndicator: true,
+    }),
   };
 }

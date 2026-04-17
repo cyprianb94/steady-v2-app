@@ -9,8 +9,8 @@ import { Btn } from '../../../components/ui/Btn';
 import { SessionDot } from '../../../components/ui/SessionDot';
 import { SessionRow } from '../../../components/plan-builder/SessionRow';
 import { generatePlan, propagateChange, assignDates } from '@steady/types';
-import { trpc } from '../../../lib/trpc';
 import type { PlannedSession, PhaseConfig, PlanWeek } from '@steady/types';
+import { savePlan } from '../../../lib/plan-api';
 import { usePreferences } from '../../../providers/preferences-context';
 import { formatDistance } from '../../../lib/units';
 
@@ -70,7 +70,7 @@ export default function StepPlan() {
     try {
       const raceDate = params.raceDate || new Date().toISOString().slice(0, 10);
       const datedWeeks = assignDates(plan, raceDate);
-      await trpc.plan.save.mutate({
+      await savePlan({
         raceName: params.raceName || params.raceLabel || params.raceDistance || 'Race',
         raceDate,
         raceDistance: (params.raceDistance as any) || 'Marathon',

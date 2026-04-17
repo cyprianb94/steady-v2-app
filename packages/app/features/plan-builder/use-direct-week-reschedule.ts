@@ -25,11 +25,13 @@ interface DirectWeekRescheduleResult {
   swapLog: SwapLogEntry[];
   dragState: WeekRescheduleDragState | null;
   dragY: Animated.Value;
+  isHandleActive: boolean;
   conflicts: HardSessionConflict[];
   hasChanges: boolean;
   movedDayIndexes: Set<number>;
   canDragIndex: (index: number) => boolean;
   canDropIndex: (index: number) => boolean;
+  registerSlotLayout: (index: number, y: number, height: number) => void;
   recordTouchStart: (pageY: number) => void;
   beginDrag: (index: number) => boolean;
   updateDrag: (pageY: number) => void;
@@ -43,6 +45,10 @@ interface DirectWeekRescheduleResult {
 
 const DEFAULT_DRAG_SLOT_PITCH = 58;
 
+interface SlotLayout {
+  centerY: number;
+}
+
 export function useDirectWeekReschedule({
   initialSessions,
   canDragDay = (session) => Boolean(session),
@@ -52,9 +58,11 @@ export function useDirectWeekReschedule({
   const [sessions, setSessions] = useState<(PlannedSession | null)[]>(initialSessions);
   const [swapLog, setSwapLog] = useState<SwapLogEntry[]>([]);
   const [dragState, setDragState] = useState<WeekRescheduleDragState | null>(null);
+  const [isHandleActive, setIsHandleActive] = useState(false);
   const dragY = useRef(new Animated.Value(0)).current;
   const dragStateRef = useRef<WeekRescheduleDragState | null>(null);
   const pressStartPageYRef = useRef(0);
+  const slotLayoutsRef = useRef<Record<number, SlotLayout>>({});
 
   function setCurrentDragState(nextDragState: WeekRescheduleDragState | null) {
     dragStateRef.current = nextDragState;
@@ -64,6 +72,7 @@ export function useDirectWeekReschedule({
   function restoreDraft(nextSessions: (PlannedSession | null)[], nextSwapLog: SwapLogEntry[] = []) {
     setSessions(nextSessions);
     setSwapLog(nextSwapLog);
+    setIsHandleActive(false);
     dragY.setValue(0);
     setCurrentDragState(null);
   }
@@ -78,6 +87,12 @@ export function useDirectWeekReschedule({
 
   function canDropIndex(index: number) {
     return canDropDay(sessions[index] ?? null, index);
+  }
+
+  function registerSlotLayout(index: number, y: number, height: number) {
+    slotLayoutsRef.current[index] = {
+      centerY: y + height / 2,
+    };
   }
 
   function applySwap(fromIndex: number, toIndex: number) {
@@ -95,6 +110,7 @@ export function useDirectWeekReschedule({
 
   function recordTouchStart(pageY: number) {
     pressStartPageYRef.current = pageY;
+    setIsHandleActive(true);
   }
 
   function beginDrag(index: number) {
@@ -116,16 +132,46 @@ export function useDirectWeekReschedule({
     const dy = pageY - pressStartPageYRef.current;
     dragY.setValue(dy);
 
+    const measuredOverIndex = getMeasuredOverIndex(current.fromIndex, dy);
     const offset = Math.round(dy / dragSlotPitch);
-    const overIndex = Math.max(0, Math.min(sessions.length - 1, current.fromIndex + offset));
+    const overIndex =
+      measuredOverIndex ??
+      Math.max(0, Math.min(sessions.length - 1, current.fromIndex + offset));
 
     if (current.overIndex !== overIndex) {
       setCurrentDragState({ ...current, overIndex });
     }
   }
 
+  function getMeasuredOverIndex(fromIndex: number, dy: number) {
+    const sourceCenter = slotLayoutsRef.current[fromIndex]?.centerY;
+    if (sourceCenter == null) {
+      return null;
+    }
+
+    const draggedCenter = sourceCenter + dy;
+    let closestIndex: number | null = null;
+    let closestDistance = Number.POSITIVE_INFINITY;
+
+    for (let index = 0; index < sessions.length; index += 1) {
+      const centerY = slotLayoutsRef.current[index]?.centerY;
+      if (centerY == null) {
+        continue;
+      }
+
+      const distance = Math.abs(centerY - draggedCenter);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = index;
+      }
+    }
+
+    return closestIndex;
+  }
+
   function finishDrag() {
     const current = dragStateRef.current;
+    setIsHandleActive(false);
     dragY.setValue(0);
     setCurrentDragState(null);
 
@@ -137,6 +183,7 @@ export function useDirectWeekReschedule({
   }
 
   function cancelDrag() {
+    setIsHandleActive(false);
     dragY.setValue(0);
     setCurrentDragState(null);
   }
@@ -178,11 +225,13 @@ export function useDirectWeekReschedule({
     swapLog,
     dragState,
     dragY,
+    isHandleActive,
     conflicts,
     hasChanges: swapLog.length > 0,
     movedDayIndexes,
     canDragIndex,
     canDropIndex,
+    registerSlotLayout,
     recordTouchStart,
     beginDrag,
     updateDrag,

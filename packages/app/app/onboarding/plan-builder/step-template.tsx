@@ -96,7 +96,13 @@ export default function StepTemplate() {
 
   const reschedule = useDirectWeekReschedule({
     initialSessions: templateSessions,
-    canDragDay: (session) => Boolean(session && session.type !== 'REST'),
+    canDragDay: (session) => {
+      if (starterMode === 'clean') {
+        return Boolean(session);
+      }
+
+      return true;
+    },
   });
 
   useEffect(() => {
@@ -227,7 +233,11 @@ export default function StepTemplate() {
         <Text style={styles.subtitle}>{subtitle}</Text>
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        scrollEnabled={!reschedule.isHandleActive}
+      >
         {starterMode === null ? (
           <StarterChoiceCards onSelect={requestStarterMode} units={units} />
         ) : (
@@ -287,6 +297,13 @@ export default function StepTemplate() {
                 return (
                   <View
                     key={DAYS[index]}
+                    onLayout={(event) => {
+                      reschedule.registerSlotLayout(
+                        index,
+                        event.nativeEvent.layout.y,
+                        event.nativeEvent.layout.height,
+                      );
+                    }}
                     style={[
                       styles.emptyDayCard,
                       dropTarget && styles.dayCardDropTarget,
@@ -318,8 +335,16 @@ export default function StepTemplate() {
               return (
                 <Animated.View
                   key={session?.id ?? `${DAYS[index]}-${type}`}
+                  onLayout={(event) => {
+                    reschedule.registerSlotLayout(
+                      index,
+                      event.nativeEvent.layout.y,
+                      event.nativeEvent.layout.height,
+                    );
+                  }}
                   style={[
                     styles.dayCardWrap,
+                    dragging && styles.dayCardWrapDragging,
                     dragging && { transform: [{ translateY: reschedule.dragY }] },
                   ]}
                 >
@@ -387,12 +412,16 @@ export default function StepTemplate() {
                         event.stopPropagation?.();
                         reschedule.recordTouchStart(event.nativeEvent.pageY);
                       }}
-                      onLongPress={() => {
+                      onLongPress={(event) => {
+                        reschedule.recordTouchStart(event.nativeEvent.pageY);
                         reschedule.beginDrag(index);
                       }}
                       onTouchMove={(event) => {
                         event.stopPropagation?.();
                         reschedule.updateDrag(event.nativeEvent.pageY);
+                      }}
+                      onTouchCancel={() => {
+                        reschedule.cancelDrag();
                       }}
                       onTouchEnd={() => {
                         reschedule.finishDrag();
@@ -657,6 +686,11 @@ const styles = StyleSheet.create({
   },
   dayCardWrap: {
     marginBottom: 8,
+    position: 'relative',
+  },
+  dayCardWrapDragging: {
+    zIndex: 30,
+    elevation: 8,
   },
   dayCard: {
     flexDirection: 'row',
@@ -672,18 +706,17 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 13,
     paddingLeft: 14,
-    paddingRight: 6,
+    paddingRight: 2,
   },
   dayCardDropTarget: {
     borderStyle: 'dashed',
-    backgroundColor: C.clayBg,
   },
   dayCardDragging: {
     shadowColor: C.clay,
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
   },
   dayLabel: {
     width: 44,

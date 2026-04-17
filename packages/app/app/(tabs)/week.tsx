@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, StyleSheet, RefreshControl } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { router } from 'expo-router';
-import { type PlannedSession } from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { usePlan } from '../../hooks/usePlan';
@@ -18,8 +17,8 @@ import { InjuryBanner } from '../../components/recovery/InjuryBanner';
 import { CrossTrainingLog } from '../../components/recovery/CrossTrainingLog';
 import { RecoveryFlowModal } from '../../components/recovery/RecoveryFlowModal';
 import { ReturnToRunning } from '../../components/recovery/ReturnToRunning';
-import { SessionDetailSheet } from '../../components/home/SessionDetailSheet';
 import { useActivityResolution } from '../../features/run/use-activity-resolution';
+import { useRunDetailNavigation } from '../../features/run/use-run-detail-navigation';
 import { useRecoveryData } from '../../features/recovery/use-recovery-data';
 import { useRecoveryActionController } from '../../features/recovery/use-recovery-action-controller';
 import { getVisibleActiveInjury, MVP_RECOVERY_UI_ENABLED } from '../../features/recovery/recovery-ui-gate';
@@ -28,11 +27,10 @@ import { usePlanRefreshCoordinator } from '../../features/sync/use-plan-refresh-
 export default function WeekTab() {
   const isFocused = useIsFocused();
   const { session, isLoading: authLoading } = useAuth();
-  const { plan, loading, currentWeekIndex, refresh } = usePlan();
-  const { requestAutoSync, forceSync, syncRevision, syncing } = useStravaSync();
+  const { plan, loading, refreshing, currentWeekIndex, refresh, refreshWithIndicator } = usePlan();
+  const { forceSync, syncRevision, syncing } = useStravaSync();
   const [weekOffset, setWeekOffset] = useState(0);
   const [showResumeModal, setShowResumeModal] = useState(false);
-  const [selectedSession, setSelectedSession] = useState<PlannedSession | null>(null);
   const today = useTodayIso();
   const weekIdx = plan
     ? Math.min(Math.max(currentWeekIndex + weekOffset, 0), Math.max(plan.weeks.length - 1, 0))
@@ -66,7 +64,9 @@ export default function WeekTab() {
     refreshPlan: refresh,
     refreshCrossTraining: recoveryData.refreshEntries,
   });
-  const selectedActivity = activityResolution.activityForSession(selectedSession) ?? null;
+  const runDetailNavigation = useRunDetailNavigation({
+    activityForSession: activityResolution.activityForSession,
+  });
 
   useEffect(() => {
     if (!activeInjury) {
@@ -77,11 +77,10 @@ export default function WeekTab() {
   const { refreshManually } = usePlanRefreshCoordinator({
     enabled: Boolean(session),
     isFocused,
-    requestAutoSync,
     forceSync,
     refreshPlan: refresh,
+    refreshPlanWithIndicator: refreshWithIndicator,
     syncRevision,
-    autoSyncErrorMessage: 'Failed to auto-sync Strava on week focus:',
     syncRefreshErrorMessage: 'Failed to refresh week plan after Strava sync:',
     manualRefreshErrorMessage: 'Failed to refresh week screen:',
   });
@@ -176,7 +175,7 @@ export default function WeekTab() {
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
-            refreshing={loading || syncing}
+            refreshing={refreshing || syncing}
             onRefresh={refreshManually}
             tintColor={C.clay}
           />
@@ -220,7 +219,6 @@ export default function WeekTab() {
         {week.sessions.map((session, i) => {
           const sessionDate = session?.date ?? '';
           const isToday = sessionDate === today;
-          const activity = activityResolution.activityForSession(session);
 
           return (
             <DayCard
@@ -229,7 +227,9 @@ export default function WeekTab() {
               dayName={DAYS[i]}
               isToday={isToday}
               muted={!!activeInjury && !session?.actualActivityId}
-              onPress={activity && session ? () => setSelectedSession(session) : undefined}
+              onPress={runDetailNavigation.canOpenRunDetail(session)
+                ? () => runDetailNavigation.openRunDetail(session)
+                : undefined}
             />
           );
         })}
@@ -246,14 +246,6 @@ export default function WeekTab() {
           onClose={() => setShowResumeModal(false)}
           onMarkInjury={async () => {}}
           onEndRecovery={handleCompleteRecovery}
-        />
-      ) : null}
-      {selectedSession && selectedActivity ? (
-        <SessionDetailSheet
-          visible
-          session={selectedSession}
-          activity={selectedActivity}
-          onClose={() => setSelectedSession(null)}
         />
       ) : null}
     </View>

@@ -29,6 +29,7 @@ function createMockComponent(tag: string) {
       accessibilityRole: _accessibilityRole,
       delayLongPress: _delayLongPress,
       numberOfLines: _numberOfLines,
+      onLayout: _onLayout,
       onPress,
       onLongPress,
       onTouchStart,
@@ -73,8 +74,12 @@ export const Text = createMockComponent('Text');
 export const ActivityIndicator = createMockComponent('ActivityIndicator');
 export const RefreshControl = createMockComponent('RefreshControl');
 export const TouchableOpacity = createMockComponent('TouchableOpacity');
+export const TouchableHighlight = createMockComponent('TouchableHighlight');
+export const TouchableWithoutFeedback = createMockComponent('TouchableWithoutFeedback');
 export const Pressable = createMockComponent('Pressable');
 export const FlatList = createMockComponent('FlatList');
+export const SectionList = createMockComponent('SectionList');
+export const VirtualizedList = createMockComponent('VirtualizedList');
 export const KeyboardAvoidingView = createMockComponent('KeyboardAvoidingView');
 
 export const TextInput = React.forwardRef(function MockTextInput(
@@ -90,6 +95,7 @@ export const TextInput = React.forwardRef(function MockTextInput(
     onSubmitEditing,
     onFocus,
     onBlur,
+    selectionColor: _selectionColor,
     placeholderTextColor: _placeholderTextColor,
     returnKeyType: _returnKeyType,
     blurOnSubmit: _blurOnSubmit,
@@ -122,7 +128,7 @@ export const TextInput = React.forwardRef(function MockTextInput(
 });
 
 export const ScrollView = React.forwardRef(function MockScrollView(
-  { testID, children, style, contentContainerStyle: _contentContainerStyle, showsVerticalScrollIndicator: _showsVerticalScrollIndicator, snapToInterval: _snapToInterval, decelerationRate: _decelerationRate, nestedScrollEnabled: _nestedScrollEnabled, onMomentumScrollEnd: _onMomentumScrollEnd, refreshControl: _refreshControl, ...props }: any,
+  { testID, children, style, contentContainerStyle: _contentContainerStyle, showsVerticalScrollIndicator: _showsVerticalScrollIndicator, snapToInterval: _snapToInterval, decelerationRate: _decelerationRate, nestedScrollEnabled: _nestedScrollEnabled, scrollEnabled: _scrollEnabled, onMomentumScrollEnd: _onMomentumScrollEnd, refreshControl: _refreshControl, ...props }: any,
   ref: any,
 ) {
   const resolved = style ? resolveStyle(style) : undefined;
@@ -170,8 +176,18 @@ export const UIManager = {
 };
 export const StyleSheet = {
   create: <T extends Record<string, any>>(styles: T): T => styles,
+  absoluteFill: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
 };
 export const Platform = { OS: 'ios', select: (obj: any) => obj.ios ?? obj.default };
+export const Dimensions = {
+  get: () => ({ width: 390, height: 844 }),
+};
 export const AppState = {
   currentState: 'active',
   addEventListener: () => ({

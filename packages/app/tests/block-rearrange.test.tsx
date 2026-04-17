@@ -3,9 +3,10 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PlannedSession, TrainingPlanWithAnnotation } from '@steady/types';
 
-const { mockRefresh, mockUpdateWeeks, planState, mockRouterPush, mockAuth } = vi.hoisted(() => ({
+const { mockRefresh, mockUpdateWeeks, mockActivityListQuery, planState, mockRouterPush, mockAuth } = vi.hoisted(() => ({
   mockRefresh: vi.fn(),
   mockUpdateWeeks: vi.fn(),
+  mockActivityListQuery: vi.fn(),
   planState: { current: null as TrainingPlanWithAnnotation | null },
   mockRouterPush: vi.fn(),
   mockAuth: {
@@ -40,7 +41,7 @@ vi.mock('../hooks/usePlan', () => ({
 
 vi.mock('../lib/trpc', () => ({
   trpc: {
-    activity: { list: { query: vi.fn(() => new Promise(() => {})) } },
+    activity: { list: { query: mockActivityListQuery } },
     crossTraining: { getForDateRange: { query: vi.fn().mockResolvedValue([]) } },
     plan: { updateWeeks: { mutate: mockUpdateWeeks } },
   },
@@ -103,7 +104,9 @@ describe('BlockTab session rearrange', () => {
   beforeEach(() => {
     mockRefresh.mockReset();
     mockUpdateWeeks.mockReset();
+    mockActivityListQuery.mockReset();
     mockUpdateWeeks.mockResolvedValue(null);
+    mockActivityListQuery.mockResolvedValue([]);
     planState.current = makePlan([
       makeWeek(1, [
         session('w1-easy', 'EASY', { distance: 8 }),
@@ -145,14 +148,14 @@ describe('BlockTab session rearrange', () => {
     dragHandle('block-drag-handle-1-0', 120);
 
     expect(mockUpdateWeeks).not.toHaveBeenCalled();
-    expect(screen.getByText('1 reschedule pending')).toBeTruthy();
+    expect(screen.getByText('Do you want to apply reschedule?')).toBeTruthy();
     expect(screen.getByTestId('block-day-1-0').textContent).toContain('Long Run');
-    expect(screen.getByText('Long Run moved to Mon. Easy Run moved to Wed')).toBeTruthy();
+    expect(screen.queryByText('Moved')).toBeNull();
 
     fireEvent.click(screen.getByTestId('block-apply-reschedule'));
 
     expect(screen.getByText('Where should this reschedule apply?')).toBeTruthy();
-    expect(screen.getByText('1 reschedule staged')).toBeTruthy();
+    expect(screen.queryByText('1 reschedule staged')).toBeNull();
     expect(screen.getByText('Base weeks only')).toBeTruthy();
     expect(screen.getByText('2 base weeks in this plan')).toBeTruthy();
     expect(screen.queryByText('Build weeks only')).toBeNull();
@@ -208,7 +211,69 @@ describe('BlockTab session rearrange', () => {
 
     dragHandle('block-drag-handle-1-0', 120);
 
-    expect(screen.queryByText('1 reschedule pending')).toBeNull();
+    expect(screen.queryByText('Do you want to apply reschedule?')).toBeNull();
+  });
+
+  it('lets the user drag a rest day to move the gap within the week', () => {
+    render(<BlockTab />);
+
+    fireEvent.click(screen.getByText('W1'));
+    dragHandle('block-drag-handle-1-1', 60);
+
+    expect(screen.getByText('Do you want to apply reschedule?')).toBeTruthy();
+    expect(screen.getByTestId('block-day-1-1').textContent).toContain('Long Run');
+  });
+
+  it('locks matched completed rows and counts their distance before actualActivityId refreshes', async () => {
+    planState.current = makePlan([
+      makeWeek(1, [
+        session('mon', 'TEMPO', { distance: 10 }),
+        session('tue', 'EASY', { distance: 8 }),
+        session('wed', 'EASY', { distance: 8, actualActivityId: 'act-wed' }),
+        null,
+        null,
+        null,
+        null,
+      ]),
+    ]);
+    mockActivityListQuery.mockResolvedValue([
+      {
+        id: 'act-tue',
+        userId: 'user-1',
+        source: 'strava',
+        externalId: 'strava-tue',
+        startTime: '2026-04-14T07:00:00.000Z',
+        distance: 7.6,
+        duration: 2800,
+        avgPace: 368,
+        splits: [],
+        matchedSessionId: 'tue',
+      },
+      {
+        id: 'act-wed',
+        userId: 'user-1',
+        source: 'strava',
+        externalId: 'strava-wed',
+        startTime: '2026-04-15T07:00:00.000Z',
+        distance: 8.4,
+        duration: 2900,
+        avgPace: 345,
+        splits: [],
+        matchedSessionId: 'wed',
+      },
+    ]);
+
+    render(<BlockTab />);
+
+    await waitFor(() => expect(screen.getByText('16km')).toBeTruthy());
+
+    fireEvent.click(screen.getByText('W1'));
+
+    await waitFor(() => expect(screen.getAllByText('Logged')).toHaveLength(2));
+
+    dragHandle('block-drag-handle-1-1', 120);
+
+    expect(screen.queryByText('Do you want to apply reschedule?')).toBeNull();
   });
 
   it('resets the staged reschedule back to the saved order', () => {
@@ -221,7 +286,7 @@ describe('BlockTab session rearrange', () => {
 
     fireEvent.click(screen.getByTestId('block-reschedule-reset'));
 
-    expect(screen.queryByText('1 reschedule pending')).toBeNull();
+    expect(screen.queryByText('Do you want to apply reschedule?')).toBeNull();
     expect(screen.getByTestId('block-day-1-0').textContent).toContain('Easy Run');
   });
 

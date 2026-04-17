@@ -114,10 +114,9 @@ export default function SyncRunDetailScreen() {
   const [shoes, setShoes] = useState<Shoe[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [refreshingFromStrava, setRefreshingFromStrava] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [planRefreshError, setPlanRefreshError] = useState<string | null>(null);
   const [showMatchPicker, setShowMatchPicker] = useState(false);
   const [showShoePicker, setShowShoePicker] = useState(false);
   const [showNigglePicker, setShowNigglePicker] = useState(false);
@@ -246,7 +245,7 @@ export default function SyncRunDetailScreen() {
     if (!activity || !subjectiveInput) return;
 
     setSaveError(null);
-    setRefreshError(null);
+    setPlanRefreshError(null);
 
     try {
       setSaving(true);
@@ -274,31 +273,13 @@ export default function SyncRunDetailScreen() {
       await refreshPlan();
     } catch (error) {
       console.error('Saved run but failed to refresh the plan:', error);
-      setRefreshError('Run saved. We will refresh the plan when you return home.');
+      setPlanRefreshError('Run saved. We will refresh the plan when you return home.');
       Alert.alert('Run saved', 'We could not refresh the plan yet, but your run was saved.');
     } finally {
       setSaving(false);
     }
 
     router.replace('/(tabs)/home');
-  }
-
-  async function handleRefreshFromStrava() {
-    if (!activity || activity.source !== 'strava') return;
-
-    try {
-      setRefreshError(null);
-      setRefreshingFromStrava(true);
-      const refreshed = await trpc.strava.refreshActivity.mutate({ activityId: activity.id });
-      setActivities((current) => current.map((item) => (
-        item.id === refreshed.id ? { ...item, ...refreshed, niggles: item.niggles } : item
-      )));
-    } catch (error) {
-      console.error('Failed to refresh Strava activity:', error);
-      Alert.alert('Could not re-sync run', 'Please try again in a moment.');
-    } finally {
-      setRefreshingFromStrava(false);
-    }
   }
 
   if (loading) {
@@ -417,44 +398,12 @@ export default function SyncRunDetailScreen() {
           </View>
         ) : null}
 
-        {refreshError ? (
+        {planRefreshError ? (
           <View style={styles.statusCard}>
             <Text style={styles.statusTitle}>Plan refresh delayed</Text>
-            <Text style={styles.statusCopy}>{refreshError}</Text>
+            <Text style={styles.statusCopy}>{planRefreshError}</Text>
           </View>
         ) : null}
-
-        <View style={styles.section}>
-          <View style={styles.sectionHead}>
-            <Text style={styles.sectionTitle}>Shoe</Text>
-          </View>
-          <Pressable onPress={() => setShowShoePicker(true)} style={styles.shoeRow}>
-            <View style={styles.shoeIcon}>
-              <Text style={styles.shoeIconText}>👟</Text>
-            </View>
-            <View style={styles.shoeBody}>
-              <Text style={styles.shoeName}>{selectedShoe ? shoeLabel(selectedShoe) : 'Not tracked'}</Text>
-              <Text style={styles.shoeMeta}>
-                {selectedShoe
-                  ? `${selectedShoe.nickname ? `${selectedShoe.nickname} · ` : ''}lifetime ${Math.round(selectedShoe.totalKm)} km`
-                  : 'Choose the pair used for this run'}
-              </Text>
-              {selectedShoe?.retireAtKm ? (
-                <View style={styles.shoeBar}>
-                  <View
-                    style={[
-                      styles.shoeBarFill,
-                      shoeWearState(selectedShoe) === 'warn' && styles.shoeBarFillWarn,
-                      shoeWearState(selectedShoe) === 'critical' && styles.shoeBarFillCritical,
-                      { width: `${Math.min(100, Math.round((selectedShoe.totalKm / selectedShoe.retireAtKm) * 100))}%` },
-                    ]}
-                  />
-                </View>
-              ) : null}
-            </View>
-            <Text style={styles.shoeChange}>Change ›</Text>
-          </Pressable>
-        </View>
 
         {selectedSession ? (
           <View style={styles.section}>
@@ -469,20 +418,6 @@ export default function SyncRunDetailScreen() {
               <Text style={styles.pvaValue}>{formatDistance(activity.distance, units, { spaced: true })}</Text>
               <Text style={styles.pvaValue}>{formatPace(activity.avgPace, units, { withUnit: true })}</Text>
             </View>
-          </View>
-        ) : null}
-
-        {activity.source === 'strava' ? (
-          <View style={styles.section}>
-            <Pressable
-              style={[styles.secondaryButton, refreshingFromStrava && styles.secondaryButtonDisabled]}
-              onPress={() => { void handleRefreshFromStrava(); }}
-              disabled={refreshingFromStrava}
-            >
-              <Text style={styles.secondaryButtonText}>
-                {refreshingFromStrava ? 'Re-syncing…' : 'Re-sync from Strava'}
-              </Text>
-            </Pressable>
           </View>
         ) : null}
 
@@ -510,6 +445,35 @@ export default function SyncRunDetailScreen() {
           <FeelRow label="Legs" options={LEGS_OPTIONS} value={legs} onChange={setLegs} />
           <FeelRow label="Breathing" options={BREATHING_OPTIONS} value={breathing} onChange={setBreathing} />
           <FeelRow label="Overall" options={OVERALL_OPTIONS} value={overall} onChange={setOverall} />
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHead}>
+            <Text style={styles.sectionTitle}>Shoe</Text>
+          </View>
+          <Pressable onPress={() => setShowShoePicker(true)} style={styles.shoeRow}>
+            <View style={styles.shoeBody}>
+              <Text style={styles.shoeName}>{selectedShoe ? shoeLabel(selectedShoe) : 'Not tracked'}</Text>
+              <Text style={styles.shoeMeta}>
+                {selectedShoe
+                  ? `${selectedShoe.nickname ? `${selectedShoe.nickname} · ` : ''}lifetime ${Math.round(selectedShoe.totalKm)} km`
+                  : 'Choose the pair used for this run'}
+              </Text>
+              {selectedShoe?.retireAtKm ? (
+                <View style={styles.shoeBar}>
+                  <View
+                    style={[
+                      styles.shoeBarFill,
+                      shoeWearState(selectedShoe) === 'warn' && styles.shoeBarFillWarn,
+                      shoeWearState(selectedShoe) === 'critical' && styles.shoeBarFillCritical,
+                      { width: `${Math.min(100, Math.round((selectedShoe.totalKm / selectedShoe.retireAtKm) * 100))}%` },
+                    ]}
+                  />
+                </View>
+              ) : null}
+            </View>
+            <Text style={styles.shoeChange}>Change ›</Text>
+          </Pressable>
         </View>
 
         <View style={styles.section}>
@@ -835,18 +799,7 @@ const styles = StyleSheet.create({
   shoeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-  },
-  shoeIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: C.card,
-  },
-  shoeIconText: {
-    fontSize: 22,
+    gap: 12,
   },
   shoeBody: {
     flex: 1,
@@ -884,6 +837,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.sansSemiBold,
     fontSize: 12,
     color: C.forest,
+    paddingLeft: 8,
   },
   pvaRow: {
     flexDirection: 'row',
@@ -943,24 +897,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.mono,
     fontSize: 11,
     color: C.ink2,
-  },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: C.border,
-    borderRadius: 999,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: C.surface,
-  },
-  secondaryButtonDisabled: {
-    opacity: 0.6,
-  },
-  secondaryButtonText: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 13,
-    color: C.ink,
   },
   feelRow: {
     marginBottom: 14,

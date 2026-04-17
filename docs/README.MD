@@ -40,7 +40,7 @@ landing/    — marketing site
 
 ```bash
 npm run dev:server    # start Fastify on port 3000
-npm run dev:app       # start Expo
+npm run dev:app       # start Expo in LAN mode for Expo Go on the current Wi-Fi
 npm run test:server   # run server tests
 npm run build:types   # build shared types
 ```

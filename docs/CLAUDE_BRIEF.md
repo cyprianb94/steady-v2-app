@@ -111,7 +111,7 @@ Two working React prototypes exist in this project. Read them before building an
 - `BlockTab` — full training block with phase strip and all weeks
 - `CoachTab` — AI coach conversation with plan edit proposal cards
 - `SettingsTab` — integrations, plan management, subscription
-- `SessionSheet` — bottom sheet detail for any session (planned + actual + pace trace)
+- `app/sync-run/[activityId].tsx` — shared full-screen run detail for matched/saved runs
 - `PaceTrace` — SVG component overlaying planned vs actual pace splits
 
 **`steady-plan-builder.jsx`** — The 3-step plan creation flow:

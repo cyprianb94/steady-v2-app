@@ -6,7 +6,7 @@ import { FONTS } from '../../constants/typography';
 import { Btn } from '../ui/Btn';
 
 interface PropagateModalProps {
-  changeDesc: string;
+  changeDesc?: string | null;
   weekIndex: number;
   totalWeeks: number;
   phaseName: PhaseName;
@@ -30,7 +30,7 @@ function phaseLabel(phaseName: PhaseName): string {
 }
 
 export function PropagateModal({
-  changeDesc,
+  changeDesc = null,
   weekIndex,
   totalWeeks,
   phaseName,
@@ -67,7 +67,7 @@ export function PropagateModal({
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>{title}</Text>
-            <Text style={styles.changeDesc}>{changeDesc}</Text>
+            {changeDesc ? <Text style={styles.changeDesc}>{changeDesc}</Text> : null}
             {body ? <Text style={styles.body}>{body}</Text> : null}
           </View>
 

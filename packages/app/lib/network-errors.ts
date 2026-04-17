@@ -11,9 +11,18 @@ export function isLikelyNetworkError(error: unknown): boolean {
 
   return (
     normalized.includes('network request failed')
+    || normalized.includes('network request timed out')
     || normalized.includes('failed to fetch')
     || normalized.includes('networkerror')
     || normalized.includes('fetch failed')
     || normalized.includes('load failed')
+    || normalized.includes('timed out')
+    || normalized.includes('timeout')
   );
+}
+
+export function logNonNetworkError(message: string, error: unknown): void {
+  if (!isLikelyNetworkError(error)) {
+    console.log(message, error);
+  }
 }

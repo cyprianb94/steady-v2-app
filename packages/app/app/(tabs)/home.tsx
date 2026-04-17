@@ -25,14 +25,13 @@ import { CoachAnnotationCard } from '../../components/home/CoachAnnotationCard';
 import { FinishedRunCta } from '../../components/home/FinishedRunCta';
 import { NiggleBanner } from '../../components/home/NiggleBanner';
 import { WeeklyLoadCard } from '../../components/home/WeeklyLoadCard';
-import { SessionDetailSheet } from '../../components/home/SessionDetailSheet';
 import { InjuryBanner } from '../../components/recovery/InjuryBanner';
 import { CrossTrainingLog } from '../../components/recovery/CrossTrainingLog';
 import { ReturnToRunning } from '../../components/recovery/ReturnToRunning';
 import { RecoveryFlowModal } from '../../components/recovery/RecoveryFlowModal';
 import { addDaysIso, findSessionForDateOrWeekday, inferWeekStartDate, startOfWeekIso } from '../../lib/plan-helpers';
-import { useHomeSessionDetail } from '../../features/home/use-home-session-detail';
 import { useActivityResolution } from '../../features/run/use-activity-resolution';
+import { useRunDetailNavigation } from '../../features/run/use-run-detail-navigation';
 import { useRecoveryData } from '../../features/recovery/use-recovery-data';
 import { useRecoveryActionController } from '../../features/recovery/use-recovery-action-controller';
 import { getVisibleActiveInjury, MVP_RECOVERY_UI_ENABLED } from '../../features/recovery/recovery-ui-gate';
@@ -95,8 +94,8 @@ export default function HomeScreen() {
   const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
   const { session, isLoading: authLoading } = useAuth();
-  const { plan, loading, currentWeek, refresh } = usePlan();
-  const { forceSync, requestAutoSync, syncRevision, syncing } = useStravaSync();
+  const { plan, loading, refreshing, currentWeek, refresh, refreshWithIndicator } = usePlan();
+  const { forceSync, syncRevision, syncing } = useStravaSync();
   const [recoveryModalMode, setRecoveryModalMode] = useState<'mark' | 'resume' | null>(null);
   const [resumeFlowKind, setResumeFlowKind] = useState<'manual' | 'complete-step'>('manual');
   const today = useTodayIso();
@@ -132,15 +131,14 @@ export default function HomeScreen() {
   const { refreshManually } = usePlanRefreshCoordinator({
     enabled: Boolean(session),
     isFocused,
-    requestAutoSync,
     forceSync,
     refreshPlan: refresh,
+    refreshPlanWithIndicator: refreshWithIndicator,
     syncRevision,
-    autoSyncErrorMessage: 'Failed to auto-sync Strava on home focus:',
     syncRefreshErrorMessage: 'Failed to refresh plan after Strava sync:',
     manualRefreshErrorMessage: 'Failed to refresh home screen:',
   });
-  const sessionDetail = useHomeSessionDetail({
+  const runDetailNavigation = useRunDetailNavigation({
     activityForSession: activityResolution.activityForSession,
   });
 
@@ -212,8 +210,8 @@ export default function HomeScreen() {
   );
   const steadyNote = todaySession ? (plan.todayAnnotation ?? plan.coachAnnotation ?? null) : null;
   const coachNote = plan.coachAnnotation && plan.coachAnnotation === steadyNote ? null : plan.coachAnnotation;
-  const handleTodayHeroPress = sessionDetail.canOpenSessionDetail(todaySession)
-    ? () => sessionDetail.openSessionDetail(todaySession)
+  const handleTodayHeroPress = runDetailNavigation.canOpenRunDetail(todaySession)
+    ? () => runDetailNavigation.openRunDetail(todaySession)
     : undefined;
 
   async function handleMarkRtrStepComplete() {
@@ -251,7 +249,7 @@ export default function HomeScreen() {
           style={styles.scroll}
           refreshControl={
             <RefreshControl
-              refreshing={loading || syncing}
+              refreshing={refreshing || syncing}
               onRefresh={refreshManually}
               tintColor={C.clay}
             />
@@ -341,7 +339,7 @@ export default function HomeScreen() {
                 weekStartDate={resolvedWeekStartDate}
                 activityForSession={activityResolution.activityForSession}
                 statusForDay={activityResolution.statusForDay}
-                onSessionPress={sessionDetail.openSessionDetail}
+                onSessionPress={runDetailNavigation.openRunDetail}
               />
             </>
           )}
@@ -360,14 +358,6 @@ export default function HomeScreen() {
             }}
             onMarkInjury={handleMarkInjury}
             onEndRecovery={handleEndRecovery}
-          />
-        ) : null}
-        {sessionDetail.selectedSession && sessionDetail.selectedActivity ? (
-          <SessionDetailSheet
-            visible
-            session={sessionDetail.selectedSession}
-            activity={sessionDetail.selectedActivity}
-            onClose={sessionDetail.closeSessionDetail}
           />
         ) : null}
       </View>

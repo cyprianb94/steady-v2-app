@@ -6,6 +6,7 @@ import {
 } from '@steady/types';
 
 export type ActivityDayStatus = 'completed' | 'off-target' | 'missed' | 'today' | 'upcoming' | 'rest';
+export type ActivityCompletionStatus = Extract<ActivityDayStatus, 'completed' | 'off-target'>;
 
 interface SessionRef {
   id: string;
@@ -18,6 +19,7 @@ export interface ActivityResolution {
   activityByMatchedSessionId: Map<string, Activity>;
   activityForSession: (session: SessionRef | PlannedSession | null) => Activity | undefined;
   isSessionComplete: (session: SessionRef | PlannedSession | null) => boolean;
+  completionStatusForSession: (session: PlannedSession | null) => ActivityCompletionStatus | null;
   statusForDay: (
     session: PlannedSession | null,
     dayIndex: number,
@@ -80,6 +82,19 @@ export function createActivityResolution(activities: readonly Activity[]): Activ
     return Boolean(session.actualActivityId || activityForSession(session));
   }
 
+  function completionStatusForSession(session: PlannedSession | null): ActivityCompletionStatus | null {
+    if (!session || session.type === 'REST') {
+      return null;
+    }
+
+    const activity = activityForSession(session);
+    if (!activity) {
+      return null;
+    }
+
+    return isOffTarget(session, activity) ? 'off-target' : 'completed';
+  }
+
   function statusForDay(
     session: PlannedSession | null,
     dayIndex: number,
@@ -89,13 +104,9 @@ export function createActivityResolution(activities: readonly Activity[]): Activ
       return 'rest';
     }
 
-    const activity = activityForSession(session);
-    if (activity) {
-      if (activity && isOffTarget(session, activity)) {
-        return 'off-target';
-      }
-
-      return 'completed';
+    const completionStatus = completionStatusForSession(session);
+    if (completionStatus) {
+      return completionStatus;
     }
 
     if (dayIndex < todayIndex) {
@@ -120,6 +131,7 @@ export function createActivityResolution(activities: readonly Activity[]): Activ
     activityByMatchedSessionId,
     activityForSession,
     isSessionComplete,
+    completionStatusForSession,
     statusForDay,
     weekActualKm,
   };

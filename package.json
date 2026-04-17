@@ -12,7 +12,7 @@
     "test:boundaries": "node ./scripts/check-package-boundaries.mjs",
     "test:server": "npm run build:types && npm run test -w packages/server",
     "dev:server": "npm run dev -w packages/server",
-    "dev:app": "npm run start -w packages/app",
+    "dev:app": "node ./scripts/start-expo-lan.mjs",
     "build:types": "npm run build -w packages/types",
     "typecheck": "npm run build:types && tsc --noEmit -p packages/server/tsconfig.json && tsc --noEmit -p packages/app/tsconfig.json"
   },

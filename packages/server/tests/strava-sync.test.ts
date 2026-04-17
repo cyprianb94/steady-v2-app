@@ -126,6 +126,14 @@ describe('strava workflow service — sync', () => {
                 average_heartrate: 148,
                 elevation_difference: 5,
               },
+              {
+                split: 2,
+                distance: 1000,
+                elapsed_time: 310,
+                average_speed: 3.23,
+                average_heartrate: 151,
+                elevation_difference: -2,
+              },
             ],
             laps: [
               {
@@ -203,19 +211,17 @@ describe('strava workflow service — sync', () => {
     });
     expect(activities[0].splits[0]).toMatchObject({
       km: 1,
-      pace: 360,
-      hr: 135,
-      elevation: 8,
-      label: '2.0 km',
-      distance: 2,
+      pace: 300,
+      hr: 148,
+      elevation: 5,
+      distance: 1,
     });
     expect(activities[0].splits[1]).toMatchObject({
       km: 2,
-      pace: 220,
-      hr: 174,
-      elevation: 1,
-      label: '400m',
-      distance: 0.4,
+      pace: 310,
+      hr: 151,
+      elevation: -2,
+      distance: 1,
     });
 
     const plan = await planRepo.getActive('user-1');

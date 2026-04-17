@@ -30,13 +30,11 @@ App
 │   ├── Steady nudge (AI-generated, context-aware, 2 lines max)
 │   ├── 7-day session list (Mon–Sun)
 │   │   └── Each day: type dot, session name, status badge, key metric
-│   ├── [Tap any session] → SessionSheet (bottom sheet)
-│   │   ├── Session header (type tag, name, date, status badge)
-│   │   ├── Planned section (distance, pace target, HR zone)
-│   │   ├── Actual section (distance, avg pace, avg HR, elapsed)
-│   │   ├── Pace trace (planned dashed vs actual solid SVG)
-│   │   ├── Split breakdown (interval sessions: per-rep planned vs actual)
-│   │   └── Steady's read (AI analysis of this specific session)
+│   ├── [Tap completed session] → Run Detail screen (`/sync-run/[activityId]`)
+│   │   ├── Planned vs actual comparison
+│   │   ├── Splits, HR, elevation, niggles, notes
+│   │   ├── Match / re-match controls
+│   │   └── Re-entry path for reviewing the run later
 │   │
 │   └── [Injury active] → Home tab transforms to Recovery state
 │       ├── Injury banner (injury type, date marked, recovering status)
@@ -247,11 +245,11 @@ Integration rows:
 
 ---
 
-## Screen: Session Detail (bottom sheet)
+## Screen: Run Detail
 
-**Purpose:** Deep understanding of one session — what was planned, what happened, what Steady thinks.
+**Purpose:** Deep understanding of one matched run using the same full-screen flow as Sync My Run.
 
-**Prototype reference:** `SessionSheet` in `steady-app.jsx`
+**Entry points:** Sync My Run list, Home completed card, Home completed week rows, Week completed day cards.
 
 **Sections:**
 
@@ -268,6 +266,8 @@ Integration rows:
 6. **Steady's read** — 3–5 sentence AI analysis. Must reference specific numbers. Not generic.
 
 7. **Upcoming sessions** — for future sessions with no actual, show: contextual explanation + "Check back after your run"
+
+There is no separate matched-run bottom sheet. Re-entry uses the same run-detail screen so runners can come back to richer detail later.
 
 ---
 

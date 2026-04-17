@@ -230,6 +230,24 @@ describe('strava router', () => {
         elapsed_time: 2549,
         average_heartrate: 162,
         max_heartrate: 200,
+        splits_metric: [
+          {
+            split: 1,
+            distance: 1000,
+            elapsed_time: 300,
+            average_speed: 3.33,
+            average_heartrate: 150,
+            elevation_difference: 3,
+          },
+          {
+            split: 2,
+            distance: 1000,
+            elapsed_time: 318,
+            average_speed: 3.14,
+            average_heartrate: 156,
+            elevation_difference: -1,
+          },
+        ],
         laps: [
           { lap_index: 0, distance: 2000, elapsed_time: 720, average_heartrate: 135, total_elevation_gain: 8 },
           { lap_index: 1, distance: 400, elapsed_time: 88, average_heartrate: 174, total_elevation_gain: 1 },
@@ -258,8 +276,10 @@ describe('strava router', () => {
       matchedSessionId: 'w1d0',
       notes: 'keep this note',
     });
-    expect(refreshed.splits[0]).toMatchObject({ label: '2.0 km', pace: 360 });
-    expect(refreshed.splits[1]).toMatchObject({ label: '400m', pace: 220 });
+    expect(refreshed.splits[0]).toMatchObject({ km: 1, pace: 300, hr: 150, distance: 1 });
+    expect(refreshed.splits[0]?.label).toBeUndefined();
+    expect(refreshed.splits[1]).toMatchObject({ km: 2, pace: 318, hr: 156, distance: 1 });
+    expect(refreshed.splits[1]?.label).toBeUndefined();
   });
 
   it('rejects unauthenticated requests', async () => {

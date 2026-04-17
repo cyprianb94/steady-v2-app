@@ -32,21 +32,24 @@ import { addDaysIso, DAYS, inferWeekStartDate, sessionLabel, todayIsoLocal, week
 import { trpc } from '../../lib/trpc';
 import { usePreferences } from '../../providers/preferences-context';
 import { formatDistance, type DistanceUnits } from '../../lib/units';
+import {
+  buildResolvedBlockWeekDayDetails,
+  getResolvedWeekVolumeSummary,
+  preserveResolvedLockedWeeks,
+  restoreResolvedSwapDraft,
+} from '../../features/run/block-week-resolution';
 import { useActivityResolution } from '../../features/run/use-activity-resolution';
 import { useRecoveryData } from '../../features/recovery/use-recovery-data';
 import { getVisibleHistoricalInjury, MVP_RECOVERY_UI_ENABLED } from '../../features/recovery/recovery-ui-gate';
 import { usePlanRefreshCoordinator } from '../../features/sync/use-plan-refresh-coordinator';
 import {
   buildBlockPhaseSegments,
-  buildBlockWeekDayDetails,
   getBlockVolumeTone,
   getInjuryWeekRange,
   getWeekVolumeRatio,
-  getWeekVolumeSummary,
   isInjuryWeek,
   propagateSwap,
   propagateChange,
-  swapSessions,
   type BlockPhaseSegment,
   type CrossTrainingEntry,
   type Injury,
@@ -193,7 +196,7 @@ function formatShortDate(date: string | null): string {
   });
 }
 
-function getStatusBadge(status: ReturnType<typeof buildBlockWeekDayDetails>[number]['status']): string | null {
+function getStatusBadge(status: ReturnType<typeof buildResolvedBlockWeekDayDetails>[number]['status']): string | null {
   switch (status) {
     case 'completed':
       return '✓';
@@ -280,48 +283,12 @@ function normalizeEditedDayIdentity(
   });
 }
 
-function applySwapLogToSessions(
-  sessions: (PlannedSession | null)[],
-  swapLog: SwapLogEntry[],
-) {
-  return swapLog.reduce<(PlannedSession | null)[]>((current, swap) => {
-    if (current[swap.from]?.actualActivityId || current[swap.to]?.actualActivityId) {
-      return current;
-    }
-
-    return swapSessions(current, swap.from, swap.to);
-  }, sessions);
-}
-
-function buildPendingRescheduleSummary(
-  initialSessions: (PlannedSession | null)[],
-  nextSessions: (PlannedSession | null)[],
-) {
-  const summaries = nextSessions.flatMap((session, index) => {
-    if (!session) {
-      return [];
-    }
-
-    const originalIndex = initialSessions.findIndex(
-      (candidate) => candidate?.id === session.id,
-    );
-
-    if (originalIndex === -1 || originalIndex === index) {
-      return [];
-    }
-
-    return `${SESSION_TYPE[session.type].label} moved to ${DAYS[index]}`;
-  });
-
-  return summaries.join('. ');
-}
-
 export default function BlockTab() {
   const { units } = usePreferences();
   const { session, isLoading: authLoading } = useAuth();
-  const { plan, loading, currentWeekIndex, refresh } = usePlan();
+  const { plan, loading, refreshing, currentWeekIndex, refresh, refreshWithIndicator } = usePlan();
   const isFocused = useIsFocused();
-  const { requestAutoSync, forceSync, syncRevision, syncing } = useStravaSync();
+  const { forceSync, syncRevision, syncing } = useStravaSync();
   const [expandedWeekNumber, setExpandedWeekNumber] = useState<number | null>(null);
   const [rescheduleWeekIndex, setRescheduleWeekIndex] = useState<number | null>(null);
   const [rescheduleScopeVisible, setRescheduleScopeVisible] = useState(false);
@@ -372,8 +339,8 @@ export default function BlockTab() {
     : plan?.weeks[rescheduleWeekIndex] ?? null;
   const reschedule = useDirectWeekReschedule({
     initialSessions: rescheduleBaseWeek?.sessions ?? EMPTY_WEEK_SESSIONS,
-    canDragDay: (nextSession) => Boolean(nextSession) && !nextSession?.actualActivityId,
-    canDropDay: (nextSession) => !nextSession?.actualActivityId,
+    canDragDay: (nextSession) => !activityResolution.isSessionComplete(nextSession),
+    canDropDay: (nextSession) => !activityResolution.isSessionComplete(nextSession),
   });
 
   useEffect(() => {
@@ -422,13 +389,18 @@ export default function BlockTab() {
     }
 
     const restoredWeek = plan.weeks[restoredWeekIndex];
+    const restoredDraft = restoreResolvedSwapDraft(
+      restoredWeek.sessions,
+      preservedReschedule.swapLog,
+      activityResolution,
+    );
     setRescheduleWeekIndex(restoredWeekIndex);
     reschedule.restoreDraft(
-      applySwapLogToSessions(restoredWeek.sessions, preservedReschedule.swapLog),
-      preservedReschedule.swapLog,
+      restoredDraft.sessions,
+      restoredDraft.swapLog,
     );
     setPreservedReschedule(null);
-  }, [plan, preservedReschedule, reschedule]);
+  }, [activityResolution, plan, preservedReschedule, reschedule]);
 
   useEffect(() => {
     if (!reschedule.hasChanges) {
@@ -439,11 +411,10 @@ export default function BlockTab() {
   const { refreshManually } = usePlanRefreshCoordinator({
     enabled: Boolean(session),
     isFocused,
-    requestAutoSync,
     forceSync,
     refreshPlan: refresh,
+    refreshPlanWithIndicator: refreshWithIndicator,
     syncRevision,
-    autoSyncErrorMessage: 'Failed to auto-sync Strava on block focus:',
     syncRefreshErrorMessage: 'Failed to refresh block plan after Strava sync:',
     manualRefreshErrorMessage: 'Failed to refresh block screen:',
   });
@@ -492,7 +463,6 @@ export default function BlockTab() {
     : plan.weeks[safeCurrentWeekIndex]?.phase ?? 'BUILD';
   const isHistoricalCurrentInjury = currentPhase === 'INJURY' && historicalInjury?.status === 'resolved';
   const maxKm = Math.max(...plan.weeks.map(weekKm), 1);
-  const activitiesById = activityResolution.activityById;
 
   function toggleWeek(weekNumber: number) {
     if (reschedule.hasChanges) {
@@ -508,17 +478,18 @@ export default function BlockTab() {
     const sourceWeek = plan.weeks[rescheduleWeekIndex];
     if (!sourceWeek) return;
 
-    const nextWeeks = reschedule.swapLog.reduce(
-      (weeks, swap) => propagateSwap(
+    const nextWeeks = reschedule.swapLog.reduce((weeks, swap) => {
+      const propagated = propagateSwap(
         weeks,
         rescheduleWeekIndex,
         swap.from,
         swap.to,
         scope,
         sourceWeek.phase,
-      ),
-      plan.weeks,
-    );
+      );
+
+      return preserveResolvedLockedWeeks(weeks, propagated, swap, activityResolution);
+    }, plan.weeks);
 
 
     try {
@@ -601,9 +572,10 @@ export default function BlockTab() {
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.content}
+        scrollEnabled={!reschedule.isHandleActive}
         refreshControl={
           <RefreshControl
-            refreshing={loading || syncing}
+            refreshing={refreshing || syncing}
             onRefresh={refreshManually}
             tintColor={C.clay}
           />
@@ -709,12 +681,8 @@ export default function BlockTab() {
             : week;
         const weekEntries = injuryWeek ? getWeekEntries(recoveryData.entries, week) : [];
         const volumeTone = getBlockVolumeTone(i, safeCurrentWeekIndex);
-        const volumeSummary = getWeekVolumeSummary(displayWeek, activitiesById, volumeTone);
-        const blockDayDetails = buildBlockWeekDayDetails(displayWeek);
-        const pendingSummary =
-          isExpanded && isRescheduleWeek
-            ? buildPendingRescheduleSummary(week.sessions, reschedule.sessions)
-            : '';
+        const volumeSummary = getResolvedWeekVolumeSummary(displayWeek, volumeTone, activityResolution);
+        const blockDayDetails = buildResolvedBlockWeekDayDetails(displayWeek, activityResolution);
 
         return (
           <View
@@ -825,13 +793,12 @@ export default function BlockTab() {
                 style={[
                   styles.expandedWeek,
                   !isPast && styles.expandedWeekNoDivider,
-                  isFuture && styles.expandedWeekFuture,
                 ]}
               >
                 {!injuryWeek ? (
                   <Text style={styles.weekGuide}>
                     {reschedule.hasChanges && isRescheduleWeek
-                      ? 'Tap any unchanged row to edit it. The moved rows stay marked until you apply the reschedule.'
+                      ? 'Tap any unchanged row to edit it. Apply the reschedule when the new order looks right.'
                       : 'Tap a day to adjust the session. Use the grip to reschedule it.'}
                   </Text>
                 ) : null}
@@ -839,7 +806,7 @@ export default function BlockTab() {
                 {blockDayDetails.map((detail, dayIndex) => {
                   const badge = getStatusBadge(detail.status);
                   const session = displayWeek.sessions[dayIndex] ?? null;
-                  const locked = Boolean(session?.actualActivityId);
+                  const locked = activityResolution.isSessionComplete(session);
                   const moved = isRescheduleWeek && reschedule.movedDayIndexes.has(dayIndex);
                   const dragging =
                     isExpanded && isRescheduleWeek && reschedule.dragState?.fromIndex === dayIndex;
@@ -866,6 +833,13 @@ export default function BlockTab() {
                   return (
                     <Animated.View
                       key={`${week.weekNumber}-${detail.dayLabel}`}
+                      onLayout={(event) => {
+                        reschedule.registerSlotLayout(
+                          dayIndex,
+                          event.nativeEvent.layout.y,
+                          event.nativeEvent.layout.height,
+                        );
+                      }}
                       style={[
                         styles.dayRowWrap,
                         dragging && { transform: [{ translateY: reschedule.dragY }] },
@@ -874,16 +848,21 @@ export default function BlockTab() {
                       <View
                         style={[
                           styles.dayRow,
-                          isFuture && styles.dayRowFuture,
                           canEditDay && styles.dayRowEditable,
-                          canEditDay && isFuture && styles.dayRowFutureEditable,
-                          moved && styles.dayRowMoved,
                           locked && styles.dayRowLocked,
                           dropTarget && styles.dayRowDropTarget,
-                          invalidDropTarget && styles.dayRowInvalidDropTarget,
                           dragging && styles.dayRowDragging,
                         ]}
                       >
+                        {dropTarget ? (
+                          <View
+                            pointerEvents="none"
+                            style={[
+                              styles.dayRowDropTargetOutline,
+                              invalidDropTarget && styles.dayRowDropTargetOutlineInvalid,
+                            ]}
+                          />
+                        ) : null}
                         <Pressable
                           testID={`block-day-${week.weekNumber}-${dayIndex}`}
                           disabled={!canEditDay}
@@ -915,10 +894,6 @@ export default function BlockTab() {
                           ) : null}
                           {locked ? (
                             <Text style={[styles.dayStatusChip, styles.dayStatusChipLocked]}>Logged</Text>
-                          ) : moved ? (
-                            <Text style={[styles.dayStatusChip, styles.dayStatusChipMoved]}>Moved</Text>
-                          ) : canEditDay ? (
-                            <Text style={styles.dayEdit}>Edit</Text>
                           ) : null}
                           {badge && !locked ? (
                             <Text
@@ -954,12 +929,16 @@ export default function BlockTab() {
                                 event.stopPropagation?.();
                                 reschedule.recordTouchStart(event.nativeEvent.pageY);
                               }}
-                              onLongPress={() => {
+                              onLongPress={(event) => {
+                                reschedule.recordTouchStart(event.nativeEvent.pageY);
                                 reschedule.beginDrag(dayIndex);
                               }}
                               onTouchMove={(event) => {
                                 event.stopPropagation?.();
                                 reschedule.updateDrag(event.nativeEvent.pageY);
+                              }}
+                              onTouchCancel={() => {
+                                reschedule.cancelDrag();
                               }}
                               onTouchEnd={() => {
                                 reschedule.finishDrag();
@@ -974,28 +953,21 @@ export default function BlockTab() {
 
                 {isRescheduleWeek && reschedule.hasChanges ? (
                   <View style={styles.pendingStrip}>
-                    <View style={styles.pendingCopy}>
-                      <Text style={styles.pendingLabel}>
-                        {`${reschedule.swapLog.length} reschedule${reschedule.swapLog.length === 1 ? '' : 's'} pending`}
-                      </Text>
-                      <Text style={styles.pendingText}>
-                        {pendingSummary || 'Review the new order, then choose where it should apply.'}
-                      </Text>
-                    </View>
+                    <Text style={styles.pendingPrompt}>Do you want to apply reschedule?</Text>
                     <View style={styles.pendingActions}>
                       <Pressable
                         testID="block-reschedule-reset"
                         onPress={() => reschedule.reset()}
                         style={styles.pendingSecondary}
                       >
-                        <Text style={styles.pendingSecondaryText}>Reset</Text>
+                        <Text style={styles.pendingSecondaryText}>No</Text>
                       </Pressable>
                       <Pressable
                         testID="block-apply-reschedule"
                         onPress={() => setRescheduleScopeVisible(true)}
                         style={styles.pendingPrimary}
                       >
-                        <Text style={styles.pendingPrimaryText}>Apply reschedule</Text>
+                        <Text style={styles.pendingPrimaryText}>Yes</Text>
                       </Pressable>
                     </View>
                   </View>
@@ -1010,7 +982,6 @@ export default function BlockTab() {
       </ScrollView>
       {rescheduleScopeVisible && rescheduleWeekIndex != null ? (
         <PropagateModal
-          changeDesc={`${reschedule.swapLog.length} reschedule${reschedule.swapLog.length === 1 ? '' : 's'} staged`}
           weekIndex={rescheduleWeekIndex}
           totalWeeks={plan.weeks.length}
           phaseName={plan.weeks[rescheduleWeekIndex]?.phase ?? 'BUILD'}
@@ -1299,9 +1270,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 0,
     paddingTop: 0,
   },
-  expandedWeekFuture: {
-    gap: 6,
-  },
   weekGuide: {
     fontFamily: FONTS.sans,
     fontSize: 11,
@@ -1326,23 +1294,25 @@ const styles = StyleSheet.create({
   dayRowEditable: {
     borderRadius: 8,
   },
-  dayRowMoved: {
-    backgroundColor: C.surface,
-    borderWidth: 1.5,
-    borderColor: `${C.clay}35`,
-  },
   dayRowLocked: {
     opacity: 0.74,
   },
   dayRowDropTarget: {
+    position: 'relative',
+  },
+  dayRowDropTargetOutline: {
+    position: 'absolute',
+    top: -6,
+    bottom: -6,
+    left: -10,
+    right: -6,
+    borderRadius: 14,
     borderWidth: 1.5,
     borderStyle: 'dashed',
     borderColor: C.clay,
-    backgroundColor: C.clayBg,
   },
-  dayRowInvalidDropTarget: {
+  dayRowDropTargetOutlineInvalid: {
     borderColor: C.border,
-    backgroundColor: C.surface,
   },
   dayRowDragging: {
     shadowColor: C.clay,
@@ -1350,17 +1320,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
     elevation: 3,
-  },
-  dayRowFuture: {
-    minHeight: 34,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: C.border,
-    backgroundColor: '#FBF7F0',
-  },
-  dayRowFutureEditable: {
-    backgroundColor: C.surface,
   },
   dayMeta: {
     width: 74,
@@ -1398,18 +1357,12 @@ const styles = StyleSheet.create({
     color: C.muted,
   },
   dayRight: {
-    minWidth: 104,
+    minWidth: 86,
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
     gap: 6,
     paddingRight: 4,
-  },
-  dayEdit: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 10,
-    color: C.clay,
-    textTransform: 'uppercase',
   },
   dayDistance: {
     fontFamily: FONTS.mono,
@@ -1424,15 +1377,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 4,
     borderRadius: 999,
+    borderWidth: 1,
     overflow: 'hidden',
-  },
-  dayStatusChipMoved: {
-    color: C.clay,
-    backgroundColor: C.clayBg,
   },
   dayStatusChipLocked: {
     color: C.forest,
     backgroundColor: C.forestBg,
+    borderColor: `${C.forest}35`,
   },
   dayBadge: {
     minWidth: 16,
@@ -1458,21 +1409,12 @@ const styles = StyleSheet.create({
     backgroundColor: C.surface,
     gap: 12,
   },
-  pendingCopy: {
-    gap: 4,
-  },
-  pendingLabel: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 12,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    color: C.clay,
-  },
-  pendingText: {
-    fontFamily: FONTS.sans,
-    fontSize: 12,
-    lineHeight: 18,
-    color: C.ink2,
+  pendingPrompt: {
+    fontFamily: FONTS.sansMedium,
+    fontSize: 14,
+    lineHeight: 20,
+    color: C.ink,
+    textAlign: 'center',
   },
   pendingActions: {
     flexDirection: 'row',

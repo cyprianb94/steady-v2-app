@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { AppState } from 'react-native';
 import type { StravaSyncResult } from '@steady/types';
 import { trpc } from '../lib/trpc';
 import { useAuth } from '../lib/auth';
@@ -126,20 +125,6 @@ export function StravaSyncProvider({ children }: React.PropsWithChildren) {
 
     refreshStatus().catch(() => {});
   }, [session]);
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextState) => {
-      if (nextState === 'active') {
-        runSync(false).catch((error) => {
-          if (!isLikelyNetworkError(error)) {
-            console.log('Strava foreground sync failed:', error);
-          }
-        });
-      }
-    });
-
-    return () => subscription.remove();
-  }, [session, status?.connected]);
 
   return (
     <StravaSyncContext.Provider

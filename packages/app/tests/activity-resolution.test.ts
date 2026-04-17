@@ -90,6 +90,7 @@ describe('createActivityResolution', () => {
     };
 
     expect(resolution.isSessionComplete(session)).toBe(true);
+    expect(resolution.completionStatusForSession(session)).toBe('completed');
     expect(resolution.statusForDay(session, 0, 0)).toBe('completed');
   });
 

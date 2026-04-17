@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Platform,
   Pressable,
   StyleSheet,
   View,
@@ -8,6 +9,11 @@ import {
 } from 'react-native';
 import { C } from '../../constants/colours';
 
+const HANDLE_BAR_WIDTHS = Platform.select({
+  android: [16, 16],
+  default: [18, 18, 18],
+}) as number[];
+
 interface DragHandleProps {
   testID?: string;
   disabled?: boolean;
@@ -15,6 +21,7 @@ interface DragHandleProps {
   onTouchStart?: (event: GestureResponderEvent) => void;
   onLongPress?: PressableProps['onLongPress'];
   onTouchMove?: (event: GestureResponderEvent) => void;
+  onTouchCancel?: (event: GestureResponderEvent) => void;
   onTouchEnd?: PressableProps['onTouchEnd'];
   onMouseDown?: (event: { clientY: number; stopPropagation?: () => void }) => void;
   onMouseMove?: (event: { clientY: number; stopPropagation?: () => void }) => void;
@@ -28,6 +35,7 @@ export function DragHandle({
   onTouchStart,
   onLongPress,
   onTouchMove,
+  onTouchCancel,
   onTouchEnd,
   onMouseDown,
   onMouseMove,
@@ -44,6 +52,7 @@ export function DragHandle({
       onTouchStart={disabled ? undefined : onTouchStart}
       onLongPress={disabled ? undefined : onLongPress}
       onTouchMove={disabled ? undefined : onTouchMove}
+      onTouchCancel={disabled ? undefined : onTouchCancel}
       onTouchEnd={disabled ? undefined : onTouchEnd}
       {...({
         onMouseDown: disabled ? undefined : onMouseDown,
@@ -56,21 +65,29 @@ export function DragHandle({
         active && styles.handleActive,
       ]}
     >
-      <View style={[styles.dot, disabled && styles.dotDisabled]} />
-      <View style={[styles.dot, disabled && styles.dotDisabled]} />
-      <View style={[styles.dot, disabled && styles.dotDisabled]} />
+      {HANDLE_BAR_WIDTHS.map((width, index) => (
+        <View
+          key={index}
+          style={[
+            styles.bar,
+            { width },
+            disabled && styles.barDisabled,
+          ]}
+        />
+      ))}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   handle: {
-    width: 28,
-    minHeight: 28,
-    borderRadius: 14,
+    width: 38,
+    minHeight: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
+    marginRight: 2,
   },
   handleDisabled: {
     opacity: 0.45,
@@ -78,13 +95,12 @@ const styles = StyleSheet.create({
   handleActive: {
     backgroundColor: `${C.clay}12`,
   },
-  dot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+  bar: {
+    height: 2.5,
+    borderRadius: 999,
     backgroundColor: C.muted,
   },
-  dotDisabled: {
+  barDisabled: {
     backgroundColor: C.border,
   },
 });

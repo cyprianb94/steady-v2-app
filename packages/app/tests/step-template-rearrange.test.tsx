@@ -67,4 +67,20 @@ describe('StepTemplate direct week reorder', () => {
     expect(template[0].type).toBe('EASY');
     expect(template[6].type).toBe('LONG');
   });
+
+  it('lets the user drag the default rest day to a new slot', () => {
+    render(<StepTemplate />);
+
+    fireEvent.click(screen.getByTestId('starter-choice-template'));
+
+    dragHandle('template-drag-handle-4', -120);
+    fireEvent.click(screen.getByText('Generate 8-week plan →'));
+
+    const call = vi.mocked(router.push).mock.calls[0][0] as unknown as {
+      params: { template: string };
+    };
+    const template = JSON.parse(call.params.template);
+    expect(template[2]).toBeNull();
+    expect(template[4]?.type).toBe('EASY');
+  });
 });

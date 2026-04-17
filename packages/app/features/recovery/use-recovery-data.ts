@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { CrossTrainingEntry, Injury, TrainingPlanWithAnnotation } from '@steady/types';
 import { trpc } from '../../lib/trpc';
+import { logNonNetworkError } from '../../lib/network-errors';
 
 export type RecoveryDataScope =
   | { type: 'week'; weekStartDate: string }
@@ -65,7 +66,7 @@ export function useRecoveryData({
 
       setEntries(nextEntries);
     } catch (error) {
-      console.error(fetchErrorMessage, error);
+      logNonNetworkError(fetchErrorMessage, error);
       setEntries([]);
     } finally {
       setIsLoadingEntries(false);
@@ -96,7 +97,7 @@ export function useRecoveryData({
           setEntries(nextEntries);
         }
       } catch (error) {
-        console.error(fetchErrorMessage, error);
+        logNonNetworkError(fetchErrorMessage, error);
         if (!cancelled) {
           setEntries([]);
         }
@@ -108,7 +109,7 @@ export function useRecoveryData({
     }
 
     loadEntries().catch((error) => {
-      console.error(fetchErrorMessage, error);
+      logNonNetworkError(fetchErrorMessage, error);
     });
 
     return () => {

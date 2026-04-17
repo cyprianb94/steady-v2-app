@@ -51,9 +51,6 @@ export function ShoePickerModal({
             onPress={() => onSelect(shoe.id)}
             style={[styles.shoeRow, selected && styles.shoeRowSelected]}
           >
-            <View style={[styles.shoeIcon, selected && styles.shoeIconSelected]}>
-              <Text style={styles.shoeIconText}>👟</Text>
-            </View>
             <View style={styles.shoeBody}>
               <View style={styles.shoeNameRow}>
                 <Text style={styles.shoeName}>{shoe.nickname ?? `${shoe.brand} ${shoe.model}`}</Text>
@@ -94,9 +91,6 @@ export function ShoePickerModal({
             onPress={() => onSelect(shoe.id)}
             style={[styles.shoeRow, styles.shoeRowRetired, selected && styles.shoeRowSelected]}
           >
-            <View style={[styles.shoeIcon, selected && styles.shoeIconSelected]}>
-              <Text style={styles.shoeIconText}>👟</Text>
-            </View>
             <View style={styles.shoeBody}>
               <View style={styles.shoeNameRow}>
                 <Text style={styles.shoeName}>{shoe.nickname ?? `${shoe.brand} ${shoe.model}`}</Text>
@@ -168,20 +162,6 @@ const styles = StyleSheet.create({
   },
   shoeRowRetired: {
     opacity: 0.6,
-  },
-  shoeIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: C.card,
-  },
-  shoeIconSelected: {
-    backgroundColor: C.surface,
-  },
-  shoeIconText: {
-    fontSize: 22,
   },
   shoeBody: {
     flex: 1,

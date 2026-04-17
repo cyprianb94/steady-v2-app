@@ -80,10 +80,6 @@ steady-v2-app/
 │   │   ├── SteadyNudge.tsx
 │   │   ├── SessionGrid.tsx       # 7-day grid
 │   │   └── DayCard.tsx           # Individual day in grid
-│   ├── session/
-│   │   ├── SessionSheet.tsx      # Bottom sheet detail
-│   │   ├── PaceTrace.tsx         # SVG pace comparison
-│   │   └── SplitRow.tsx          # Per-rep split display
 │   ├── coach/
 │   │   ├── CoachHeader.tsx
 │   │   ├── MessageBubble.tsx
@@ -175,12 +171,12 @@ This is the highest priority UI feature. Build it first so you have data to popu
 
 1. Bottom tab navigation
 2. `WeekTab` with `SessionGrid`, `LoadBar`, `SteadyNudge`
-3. `SessionSheet` bottom sheet with `PaceTrace`
+3. Full-screen run detail at `app/sync-run/[activityId].tsx`
 4. `BlockTab` with `PhaseStrip` and `WeekRow` list
 5. `SettingsTab` with integration status
 6. Activity sync from Strava (webhook handler in server)
 7. Activity matching to planned sessions
-8. Planned vs actual data flowing into `SessionSheet`
+8. Planned vs actual data flowing into the shared run-detail screen
 
 **Reference:** `steady-app.jsx` is the complete working prototype.
 
