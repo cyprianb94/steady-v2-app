@@ -33,6 +33,8 @@ interface RaceDateBottomSheetProps {
   onConfirm: (nextDate: string) => void;
 }
 
+const FIRST_DAY_OF_WEEK = 1;
+
 export function RaceDateBottomSheet({
   open,
   value,
@@ -182,6 +184,7 @@ export function RaceDateBottomSheet({
               <DateTimePicker
                 date={isoDateToLocalDate(draftDate)}
                 endYear={endYear}
+                firstDayOfWeek={FIRST_DAY_OF_WEEK}
                 minDate={isoDateToLocalDate(minDate)}
                 mode="single"
                 monthCaptionFormat="full"

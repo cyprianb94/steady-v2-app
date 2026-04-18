@@ -23,6 +23,7 @@ describe('StepGoal race date picker', () => {
 
     fireEvent.click(screen.getByTestId('race-date-trigger'));
     expect(screen.getByText('Pick race date')).toBeTruthy();
+    expect(screen.getByTestId('race-date-calendar-weekdays').textContent).toBe('Mon Tue Wed Thu Fri Sat Sun');
 
     fireEvent.change(screen.getByTestId('race-date-calendar'), {
       target: { value: '2026-09-20' },
