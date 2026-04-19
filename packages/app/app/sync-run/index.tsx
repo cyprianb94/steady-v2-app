@@ -10,6 +10,7 @@ import { trpc } from '../../lib/trpc';
 import { usePlan } from '../../hooks/usePlan';
 import { useStravaSync } from '../../hooks/useStravaSync';
 import { addDaysIso, findSessionForDateOrWeekday, startOfWeekIso, todayIsoLocal } from '../../lib/plan-helpers';
+import { buildCurrentDisplayWeek } from '../../features/run/display-week';
 import { usePreferences } from '../../providers/preferences-context';
 import { formatDistance, formatPace } from '../../lib/units';
 
@@ -86,7 +87,11 @@ export default function SyncRunPickerScreen() {
   const [loading, setLoading] = useState(true);
   const today = todayIsoLocal();
   const weekStart = startOfWeekIso(today);
-  const todaySession = findSessionForDateOrWeekday(currentWeek?.sessions ?? [], today);
+  const displayWeek = useMemo(
+    () => (currentWeek ? buildCurrentDisplayWeek(currentWeek, today) : null),
+    [currentWeek, today],
+  );
+  const todaySession = findSessionForDateOrWeekday(displayWeek?.sessions ?? [], today);
 
   async function loadActivities(runSync = false) {
     if (!session) {
@@ -104,7 +109,7 @@ export default function SyncRunPickerScreen() {
       const next = await trpc.activity.list.query();
       setAllActivities(next);
     } catch (error) {
-      console.error('Failed to load sync-run activities:', error);
+      console.warn('Failed to load sync-run activities:', error);
       setAllActivities([]);
     } finally {
       setLoading(false);
@@ -113,7 +118,7 @@ export default function SyncRunPickerScreen() {
 
   useEffect(() => {
     loadActivities(true).catch((error) => {
-      console.error('Failed to initialize sync-run picker:', error);
+      console.warn('Failed to initialize sync-run picker:', error);
     });
   }, [session]);
 
@@ -182,7 +187,7 @@ export default function SyncRunPickerScreen() {
             refreshing={syncing || loading}
             onRefresh={() => {
               loadActivities(true).catch((error) => {
-                console.error('Failed to refresh sync-run picker:', error);
+                console.warn('Failed to refresh sync-run picker:', error);
               });
             }}
             tintColor={C.forest}

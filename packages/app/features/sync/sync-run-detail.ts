@@ -11,6 +11,10 @@ export function listRunnableSessions(sessions: readonly (PlannedSession | null)[
   return sessions.filter(isRunnableSession);
 }
 
+export function isSessionSelectable(session: PlannedSession, activityId: string): boolean {
+  return !session.actualActivityId || session.actualActivityId === activityId;
+}
+
 export function resolveDefaultMatchSessionId({
   activity,
   today,
@@ -26,12 +30,19 @@ export function resolveDefaultMatchSessionId({
     return null;
   }
 
-  if (todaySession && activity.startTime.slice(0, 10) === today) {
-    return todaySession.id;
+  if (activity.matchedSessionId) {
+    const matchedSession = sessionOptions.find((session) => session.id === activity.matchedSessionId);
+    if (matchedSession && isSessionSelectable(matchedSession, activity.id)) {
+      return activity.matchedSessionId;
+    }
   }
 
-  if (activity.matchedSessionId && sessionOptions.some((session) => session.id === activity.matchedSessionId)) {
-    return activity.matchedSessionId;
+  if (
+    todaySession
+    && activity.startTime.slice(0, 10) === today
+    && isSessionSelectable(todaySession, activity.id)
+  ) {
+    return todaySession.id;
   }
 
   return null;

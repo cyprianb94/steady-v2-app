@@ -29,14 +29,14 @@ import { InjuryBanner } from '../../components/recovery/InjuryBanner';
 import { CrossTrainingLog } from '../../components/recovery/CrossTrainingLog';
 import { ReturnToRunning } from '../../components/recovery/ReturnToRunning';
 import { RecoveryFlowModal } from '../../components/recovery/RecoveryFlowModal';
-import { addDaysIso, findSessionForDateOrWeekday, inferWeekStartDate, startOfWeekIso } from '../../lib/plan-helpers';
+import { addDaysIso, findSessionForDateOrWeekday } from '../../lib/plan-helpers';
 import { useActivityResolution } from '../../features/run/use-activity-resolution';
 import { useRunDetailNavigation } from '../../features/run/use-run-detail-navigation';
 import { useRecoveryData } from '../../features/recovery/use-recovery-data';
 import { useRecoveryActionController } from '../../features/recovery/use-recovery-action-controller';
 import { getVisibleActiveInjury, MVP_RECOVERY_UI_ENABLED } from '../../features/recovery/recovery-ui-gate';
 import { usePlanRefreshCoordinator } from '../../features/sync/use-plan-refresh-coordinator';
-import { buildDisplayWeek } from '../../features/run/display-week';
+import { buildCurrentDisplayWeek, resolveDisplayWeekStartDate } from '../../features/run/display-week';
 
 const HOME_SCROLL_TOP_PADDING = 14;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
@@ -53,44 +53,6 @@ function formatPhaseHeading(weekNumber: number, phase: string): string {
   return `Week ${weekNumber} · ${phase.slice(0, 1)}${phase.slice(1).toLowerCase()} Phase`;
 }
 
-function hasCohesiveScheduledWeek(
-  week: NonNullable<ReturnType<typeof usePlan>['currentWeek']>,
-  inferredWeekStartDate: string,
-): boolean {
-  const datedSessions = week.sessions.flatMap((session, index) => (
-    session?.date ? [{ index, date: session.date }] : []
-  ));
-
-  if (datedSessions.length < 4) {
-    return false;
-  }
-
-  return datedSessions.every(({ index, date }) => date === addDaysIso(inferredWeekStartDate, index));
-}
-
-function resolveCurrentWeekStartDate(
-  week: NonNullable<ReturnType<typeof usePlan>['currentWeek']>,
-  today: string,
-): string {
-  const inferred = inferWeekStartDate(week, today);
-  if (hasCohesiveScheduledWeek(week, inferred)) {
-    return inferred;
-  }
-
-  const slotResolvedTodaySession = findSessionForDateOrWeekday(week.sessions, today);
-  const exactTodaySession = week.sessions.find((session) => session?.date === today) ?? null;
-
-  if (
-    slotResolvedTodaySession
-    && !exactTodaySession
-    && slotResolvedTodaySession.date !== today
-  ) {
-    return startOfWeekIso(today);
-  }
-
-  return inferred;
-}
-
 export default function HomeScreen() {
   const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
@@ -100,7 +62,7 @@ export default function HomeScreen() {
   const [recoveryModalMode, setRecoveryModalMode] = useState<'mark' | 'resume' | null>(null);
   const [resumeFlowKind, setResumeFlowKind] = useState<'manual' | 'complete-step'>('manual');
   const today = useTodayIso();
-  const weekStartDate = currentWeek ? resolveCurrentWeekStartDate(currentWeek, today) : null;
+  const weekStartDate = currentWeek ? resolveDisplayWeekStartDate(currentWeek, today) : null;
   const activeInjury = getVisibleActiveInjury(plan);
   const activityResolution = useActivityResolution({
     enabled: Boolean(session),
@@ -199,8 +161,8 @@ export default function HomeScreen() {
   }
 
   const week = currentWeek;
-  const resolvedWeekStartDate = weekStartDate ?? resolveCurrentWeekStartDate(week, today);
-  const displayWeek = buildDisplayWeek(week, resolvedWeekStartDate);
+  const resolvedWeekStartDate = weekStartDate ?? resolveDisplayWeekStartDate(week, today);
+  const displayWeek = buildCurrentDisplayWeek(week, today);
   const weekSessions = displayWeek.sessions;
   const todaySession = findSessionForDateOrWeekday(weekSessions, today);
   const todayActivity = activityResolution.activityForSession(todaySession);

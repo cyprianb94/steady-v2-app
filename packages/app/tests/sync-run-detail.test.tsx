@@ -2,7 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Alert } from 'react-native';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { dayIndexForIsoDate, todayIsoLocal } from '../lib/plan-helpers';
+import { addDaysIso, dayIndexForIsoDate, startOfWeekIso, todayIsoLocal } from '../lib/plan-helpers';
 
 const {
   mockRouterBack,
@@ -136,6 +136,7 @@ describe('SyncRunDetailScreen', () => {
     });
     vi.spyOn(Alert, 'alert').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -192,6 +193,85 @@ describe('SyncRunDetailScreen', () => {
 
     expect(await screen.findByText('EASY · MATCHED TO TODAY')).toBeTruthy();
     expect(screen.getByText('8km Easy Run')).toBeTruthy();
+  });
+
+  it('does not auto-match to today when that session is already linked to another run', async () => {
+    const today = todayIsoLocal();
+    const sessions = [null, null, null, null, null, null, null] as any[];
+    const index = dayIndexForIsoDate(today);
+    sessions[index] = {
+      id: 'today-session',
+      type: 'EASY',
+      date: today,
+      distance: 8,
+      pace: '5:10',
+      actualActivityId: 'other-activity',
+    };
+    mockPlanState.currentWeek = {
+      weekNumber: 1,
+      phase: 'BASE',
+      plannedKm: 12,
+      sessions,
+    };
+    mockActivityList.mockResolvedValue([
+      {
+        id: 'activity-1',
+        source: 'strava',
+        startTime: `${today}T07:15:00.000Z`,
+        distance: 12.01,
+        duration: 4300,
+        avgPace: 358,
+        avgHR: 148,
+        splits: [],
+        matchedSessionId: null,
+      },
+    ]);
+
+    render(<SyncRunDetailScreen />);
+
+    expect(await screen.findByText('UNMATCHED · BONUS RUN')).toBeTruthy();
+    expect(screen.getByText("Didn't match a planned session")).toBeTruthy();
+  });
+
+  it('shows the slot-corrected weekday for stale session dates in the match picker', async () => {
+    const today = todayIsoLocal();
+    const todayIndex = dayIndexForIsoDate(today);
+    const weekStart = startOfWeekIso(today);
+    const targetIndex = todayIndex === 5 ? 4 : 5;
+    const expectedDay = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][targetIndex];
+    const staleDate = addDaysIso(weekStart, todayIndex === 0 ? 1 : 0);
+    const staleDay = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][dayIndexForIsoDate(staleDate)];
+    const sessions = [null, null, null, null, null, null, null] as any[];
+
+    sessions[todayIndex] = { id: 'today-long', type: 'LONG', date: staleDate, distance: 20, pace: '5:10' };
+    sessions[targetIndex] = { id: 'target-tempo', type: 'TEMPO', date: staleDate, distance: 10, pace: '4:20' };
+
+    mockPlanState.currentWeek = {
+      weekNumber: 1,
+      phase: 'BASE',
+      plannedKm: 30,
+      sessions,
+    };
+    mockActivityList.mockResolvedValue([
+      {
+        id: 'activity-1',
+        source: 'strava',
+        startTime: `${today}T07:15:00.000Z`,
+        distance: 13.5,
+        duration: 4300,
+        avgPace: 318,
+        avgHR: 148,
+        splits: [],
+        matchedSessionId: null,
+      },
+    ]);
+
+    render(<SyncRunDetailScreen />);
+
+    fireEvent.click(await screen.findByText('LONG · MATCHED TO TODAY'));
+
+    expect(await screen.findByText(`${expectedDay} · 10km Tempo`)).toBeTruthy();
+    expect(screen.queryByText(`${staleDay} · 10km Tempo`)).toBeNull();
   });
 
   it('keeps shoe selection below feel, removes the placeholder shoe art, and hides manual Strava re-sync', async () => {

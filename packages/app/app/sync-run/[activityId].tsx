@@ -10,7 +10,8 @@ import { usePlan } from '../../hooks/usePlan';
 import { findSessionForDateOrWeekday, todayIsoLocal } from '../../lib/plan-helpers';
 import { usePreferences } from '../../providers/preferences-context';
 import { formatDistance, formatPace, formatSessionTitle, formatSplitLabel, formatStoredPace } from '../../lib/units';
-import { type EditableNiggle, isRunnableSession, listRunnableSessions, resolveDefaultMatchSessionId, shoeWearState, toEditableNiggles } from '../../features/sync/sync-run-detail';
+import { type EditableNiggle, isRunnableSession, isSessionSelectable, listRunnableSessions, resolveDefaultMatchSessionId, shoeWearState, toEditableNiggles } from '../../features/sync/sync-run-detail';
+import { buildCurrentDisplayWeek } from '../../features/run/display-week';
 import { MatchPickerModal } from '../../components/sync-run/MatchPickerModal';
 import { NigglePickerModal } from '../../components/sync-run/NigglePickerModal';
 import { ShoePickerModal } from '../../components/sync-run/ShoePickerModal';
@@ -122,10 +123,14 @@ export default function SyncRunDetailScreen() {
   const [showNigglePicker, setShowNigglePicker] = useState(false);
   const [draftSeedActivityId, setDraftSeedActivityId] = useState<string | null>(null);
   const today = todayIsoLocal();
-  const todaySession = findSessionForDateOrWeekday(currentWeek?.sessions ?? [], today);
+  const displayWeek = useMemo(
+    () => (currentWeek ? buildCurrentDisplayWeek(currentWeek, today) : null),
+    [currentWeek, today],
+  );
+  const todaySession = findSessionForDateOrWeekday(displayWeek?.sessions ?? [], today);
   const sessionOptions = useMemo(
-    () => listRunnableSessions(currentWeek?.sessions ?? []),
-    [currentWeek?.sessions],
+    () => listRunnableSessions(displayWeek?.sessions ?? []),
+    [displayWeek?.sessions],
   );
 
   const [legs, setLegs] = useState<SubjectiveLegs | null>(null);
@@ -151,8 +156,12 @@ export default function SyncRunDetailScreen() {
   );
   const selectedSession = sessionOptions.find((session) => session.id === selectedSessionId) ?? null;
   const selectedShoe = shoes.find((shoe) => shoe.id === selectedShoeId) ?? null;
+  const matchedSession = activity?.matchedSessionId
+    ? sessionOptions.find((session) => session.id === activity.matchedSessionId) ?? null
+    : null;
   const hasStaleMatchedSession = Boolean(
-    activity?.matchedSessionId && !sessionOptions.some((session) => session.id === activity.matchedSessionId),
+    activity?.matchedSessionId
+      && (!matchedSession || !isSessionSelectable(matchedSession, activity.id)),
   );
   const splitPaces = activity?.splits.map((split) => split.pace) ?? [];
   const fastestPace = splitPaces.length ? Math.min(...splitPaces) : 0;
@@ -184,7 +193,7 @@ export default function SyncRunDetailScreen() {
         setActivities(nextActivities);
         setShoes(nextShoes);
       } catch (error) {
-        console.error('Failed to load sync-run detail activity:', error);
+        console.warn('Failed to load sync-run detail activity:', error);
         if (!cancelled) {
           setActivities([]);
           setShoes([]);
@@ -198,7 +207,7 @@ export default function SyncRunDetailScreen() {
     }
 
     loadDetail().catch((error) => {
-      console.error('Failed to initialize sync-run detail:', error);
+      console.warn('Failed to initialize sync-run detail:', error);
     });
 
     return () => {
@@ -232,7 +241,7 @@ export default function SyncRunDetailScreen() {
       setActivities(nextActivities);
       setShoes(nextShoes);
     } catch (error) {
-      console.error('Failed to load sync-run detail activity:', error);
+      console.warn('Failed to load sync-run detail activity:', error);
       setActivities([]);
       setShoes([]);
       setLoadError('We could not refresh this run. Try again or go back to the picker.');
@@ -246,6 +255,12 @@ export default function SyncRunDetailScreen() {
 
     setSaveError(null);
     setPlanRefreshError(null);
+
+    if (selectedSession && !isSessionSelectable(selectedSession, activity.id)) {
+      setSaveError('That session is already linked to another run. Pick a different session or save this as a bonus run.');
+      Alert.alert('Choose a different session', 'That planned session is already linked to another run.');
+      return;
+    }
 
     try {
       setSaving(true);
@@ -262,7 +277,7 @@ export default function SyncRunDetailScreen() {
         item.id === activity.id ? { ...item, ...result.activity, niggles: result.niggles } : item
       )));
     } catch (error) {
-      console.error('Failed to save synced run:', error);
+      console.warn('Failed to save synced run:', error);
       setSaveError('Could not save this run yet. Your notes and selections are still here so you can retry.');
       Alert.alert('Could not save run', 'Please try again in a moment.');
       setSaving(false);
@@ -272,7 +287,7 @@ export default function SyncRunDetailScreen() {
     try {
       await refreshPlan();
     } catch (error) {
-      console.error('Saved run but failed to refresh the plan:', error);
+      console.warn('Saved run but failed to refresh the plan:', error);
       setPlanRefreshError('Run saved. We will refresh the plan when you return home.');
       Alert.alert('Run saved', 'We could not refresh the plan yet, but your run was saved.');
     } finally {

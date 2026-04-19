@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Activity, PlannedSession } from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
+import { isSessionSelectable } from '../../features/sync/sync-run-detail';
 import { usePreferences } from '../../providers/preferences-context';
 import { formatDistance, formatPace, formatSessionTitle, formatStoredPace } from '../../lib/units';
 import { SyncRunModalShell } from './SyncRunModalShell';
@@ -76,17 +77,26 @@ export function MatchPickerModal({
       <Text style={styles.groupLabel}>This week</Text>
       {sessionOptions.map((session) => {
         const selected = selectedSessionId === session.id;
-        const tag = session.id === recommendedSessionId
-          ? 'AUTO'
-          : session.id === todaySessionId
-            ? 'TODAY'
-            : 'MISSED';
+        const selectable = isSessionSelectable(session, activity.id);
+        const tag = !selectable
+          ? 'TAKEN'
+          : session.id === recommendedSessionId
+            ? 'AUTO'
+            : session.id === todaySessionId
+              ? 'TODAY'
+              : 'MISSED';
 
         return (
           <Pressable
             key={session.id}
-            onPress={() => onSelect(session.id)}
-            style={[styles.option, selected && styles.optionSelected]}
+            onPress={() => {
+              if (!selectable) {
+                return;
+              }
+              onSelect(session.id);
+            }}
+            disabled={!selectable}
+            style={[styles.option, selected && styles.optionSelected, !selectable && styles.optionDisabled]}
           >
             <View style={[styles.radio, selected && styles.radioSelected]}>
               <View style={[styles.radioDot, selected && styles.radioDotSelected]} />
@@ -102,6 +112,7 @@ export function MatchPickerModal({
             <Text
               style={[
                 styles.optionTag,
+                tag === 'TAKEN' && styles.optionTagTaken,
                 tag === 'AUTO' && styles.optionTagAuto,
                 tag === 'TODAY' && styles.optionTagToday,
                 tag === 'MISSED' && styles.optionTagMissed,
@@ -212,6 +223,9 @@ const styles = StyleSheet.create({
     borderColor: C.forest,
     backgroundColor: C.forestBg,
   },
+  optionDisabled: {
+    opacity: 0.45,
+  },
   radio: {
     width: 22,
     height: 22,
@@ -259,6 +273,10 @@ const styles = StyleSheet.create({
   optionTagAuto: {
     color: C.surface,
     backgroundColor: C.forest,
+  },
+  optionTagTaken: {
+    color: C.surface,
+    backgroundColor: C.clay,
   },
   optionTagToday: {
     color: C.surface,
