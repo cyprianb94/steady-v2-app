@@ -163,6 +163,10 @@
       border: none;
       background: transparent;
       max-width: 100%;
+      /* Drop shadow lives on the outside of the iframe so it traces the
+         phone's rounded silhouette and spills onto the landing cream bg
+         instead of being clipped to the iframe viewport. */
+      filter: drop-shadow(0 24px 48px rgba(28,21,16,0.18));
     }
 
     /* Phone frame for wireframes */

@@ -21,10 +21,17 @@
 
     html, body {
       height: 100%;
-      background: var(--cream);
+      /* Transparent so the landing page's cream bg shows through the iframe.
+         If the shadow cast by .phone-frame painted onto a local cream bg, the
+         iframe interior would end up ~4 RGB points darker than the landing page.
+         Rendering transparent lets the phone's shadow composite directly onto
+         the landing cream, producing a perfect match. The .solid-bg override
+         is only used by render-hero.mjs for capturing the standalone MP4. */
+      background: transparent;
       font-family: 'DM Sans', system-ui, sans-serif;
       color: var(--ink);
     }
+    html.solid-bg, html.solid-bg body { background: var(--cream); }
 
     body {
       display: flex; justify-content: center; align-items: center;
@@ -46,19 +53,50 @@
       background: var(--cream);
       border-radius: 42px;
       border: 10px solid var(--ink);
-      box-shadow:
-        0 40px 80px rgba(28,21,16,0.22),
-        0 0 0 1px rgba(28,21,16,0.1),
-        inset 0 1px 0 rgba(255,255,255,0.6);
+      /* Only the subtle top highlight stays inside the iframe. The large
+         drop-shadow is applied by .hero-demo-frame on the landing page so it
+         can spill onto the landing bg instead of being clipped by the iframe. */
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
       overflow: hidden;
       display: flex; flex-direction: column;
       z-index: 2;
       transform-origin: center center;
     }
+    /* Standalone MP4 rendering re-enables the real drop-shadow so the captured
+       video matches how the phone looks when embedded on the landing page. */
+    html.solid-bg .phone-frame {
+      box-shadow:
+        0 40px 80px rgba(28,21,16,0.22),
+        0 0 0 1px rgba(28,21,16,0.1),
+        inset 0 1px 0 rgba(255,255,255,0.6);
+    }
     .phone-frame.morph-anim {
       animation: phoneMorph 20s infinite;
     }
     @keyframes phoneMorph {
+      0%, 64% {
+        border-radius: 42px;
+        border-width: 10px;
+        border-color: var(--ink);
+        transform: rotate(0deg) scale(1);
+      }
+      70%, 94% {
+        border-radius: 14px;
+        border-width: 2px;
+        border-color: rgba(28,21,16,0.28);
+        transform: rotate(-1deg) scale(0.97);
+      }
+      97%, 100% {
+        border-radius: 42px;
+        border-width: 10px;
+        border-color: var(--ink);
+        transform: rotate(0deg) scale(1);
+      }
+    }
+    html.solid-bg .phone-frame.morph-anim {
+      animation: phoneMorphSolid 20s infinite;
+    }
+    @keyframes phoneMorphSolid {
       0%, 64% {
         border-radius: 42px;
         border-width: 10px;

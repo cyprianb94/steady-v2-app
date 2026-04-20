@@ -100,6 +100,13 @@ async function renderFrames() {
     await page.evaluate(() => document.fonts?.ready);
     await new Promise((r) => setTimeout(r, 500));
 
+    // hero-demo.html defaults to transparent bg so it blends seamlessly when
+    // embedded as an iframe on the landing page. For the standalone MP4 we
+    // want a solid cream background, so opt into it before capturing.
+    await page.evaluate(() => {
+      document.documentElement.classList.add('solid-bg');
+    });
+
     // Start every element with a fresh animation clock.
     await page.evaluate(() => {
       document.querySelectorAll('*').forEach((el) => {
