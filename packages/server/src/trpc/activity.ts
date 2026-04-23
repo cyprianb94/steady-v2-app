@@ -31,6 +31,14 @@ const SaveRunDetailSchema = z.object({
 
 export function createActivityRouter(activityWorkflow: ActivityWorkflowService) {
   return router({
+    get: authedProcedure
+      .input(
+        z.object({
+          activityId: z.string().min(1),
+        }),
+      )
+      .query(({ ctx, input }) => activityWorkflow.getActivity(ctx.userId, input.activityId)),
+
     list: authedProcedure.query(({ ctx }) => activityWorkflow.listActivities(ctx.userId)),
 
     matchSession: authedProcedure

@@ -66,6 +66,7 @@ export default function WeekTab() {
   });
   const runDetailNavigation = useRunDetailNavigation({
     activityForSession: activityResolution.activityForSession,
+    activityIdForSession: activityResolution.activityIdForSession,
   });
 
   useEffect(() => {

@@ -18,6 +18,7 @@ export interface ActivityResolution {
   activityById: Map<string, Activity>;
   activityByMatchedSessionId: Map<string, Activity>;
   activityForSession: (session: SessionRef | PlannedSession | null) => Activity | undefined;
+  activityIdForSession: (session: SessionRef | PlannedSession | null) => string | null;
   isSessionComplete: (session: SessionRef | PlannedSession | null) => boolean;
   completionStatusForSession: (session: PlannedSession | null) => ActivityCompletionStatus | null;
   statusForDay: (
@@ -72,6 +73,14 @@ export function createActivityResolution(activities: readonly Activity[]): Activ
     }
 
     return activityByMatchedSessionId.get(session.id);
+  }
+
+  function activityIdForSession(session: SessionRef | PlannedSession | null): string | null {
+    if (!session) {
+      return null;
+    }
+
+    return session.actualActivityId ?? activityForSession(session)?.id ?? null;
   }
 
   function isSessionComplete(session: SessionRef | PlannedSession | null): boolean {
@@ -141,6 +150,7 @@ export function createActivityResolution(activities: readonly Activity[]): Activ
     activityById,
     activityByMatchedSessionId,
     activityForSession,
+    activityIdForSession,
     isSessionComplete,
     completionStatusForSession,
     statusForDay,

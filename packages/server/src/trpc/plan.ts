@@ -3,9 +3,11 @@ import { TRPCError } from '@trpc/server';
 import { router, authedProcedure } from './trpc';
 import { generatePlan, getDisplayWeekIndex, propagateChange } from '@steady/types';
 import type { TrainingPlan, TrainingPlanWithAnnotation, PlanWeek, PhaseConfig, PlannedSession } from '@steady/types';
+import type { ActivityRepo } from '../repos/activity-repo';
 import type { PlanRepo } from '../repos/plan-repo';
 import type { ProfileRepo } from '../repos/profile-repo';
 import { generateHomeAnnotations } from '../lib/annotation-engine';
+import { repairOrphanedActivityLinks } from '../services/orphaned-activity-link-repair';
 
 const PhaseConfigSchema = z.object({
   BASE: z.number().min(0),
@@ -95,12 +97,12 @@ function withHomeAnnotations(plan: TrainingPlan | null, today: string): Training
   };
 }
 
-export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo) {
+export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo, activityRepo: ActivityRepo) {
   return router({
     /** Get the user's active training plan. */
     get: authedProcedure.query(async ({ ctx }) => {
       const [plan, profile] = await Promise.all([
-        planRepo.getActive(ctx.userId),
+        repairOrphanedActivityLinks(ctx.userId, { planRepo, activityRepo }),
         profileRepo.getById(ctx.userId),
       ]);
 

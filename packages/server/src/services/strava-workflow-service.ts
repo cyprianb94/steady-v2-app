@@ -23,6 +23,7 @@ import type { IntegrationTokenRepo } from '../repos/integration-token-repo';
 import type { PlanRepo } from '../repos/plan-repo';
 import type { ProfileRepo } from '../repos/profile-repo';
 import type { ShoeRepo } from '../repos/shoe-repo';
+import { repairOrphanedActivityLinks } from './orphaned-activity-link-repair';
 
 /**
  * Workflow boundary for Strava connection and sync behavior.
@@ -260,8 +261,11 @@ async function syncStravaActivities(
   const now = deps.now ?? (() => new Date());
   const nowDate = now();
   const token = await deps.integrationTokenRepo.get(userId, 'strava');
-  const plan = await deps.planRepo.getActive(userId);
   const accessToken = await deps.tokenService.getValidToken(userId);
+  const plan = await repairOrphanedActivityLinks(userId, deps, {
+    plan: await deps.planRepo.getActive(userId),
+    strict: true,
+  });
 
   const after = token?.lastSyncedAt ?? getInitialSyncAfter(plan, nowDate);
   const fetchedActivities = await deps.stravaClient.getActivities(accessToken, after);

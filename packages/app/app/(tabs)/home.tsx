@@ -102,6 +102,7 @@ export default function HomeScreen() {
   });
   const runDetailNavigation = useRunDetailNavigation({
     activityForSession: activityResolution.activityForSession,
+    activityIdForSession: activityResolution.activityIdForSession,
   });
 
   if (authLoading || loading) {

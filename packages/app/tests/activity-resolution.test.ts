@@ -248,4 +248,15 @@ describe('createActivityResolution', () => {
       ]),
     ).toBe(20);
   });
+
+  it('keeps the linked activity id available for navigation while the activity snapshot has not loaded yet', () => {
+    const resolution = createActivityResolution([]);
+
+    expect(
+      resolution.activityIdForSession({
+        id: 'session-1',
+        actualActivityId: 'activity-1',
+      }),
+    ).toBe('activity-1');
+  });
 });

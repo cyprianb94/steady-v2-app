@@ -233,6 +233,95 @@ describe('strava workflow service — sync', () => {
     expect(token?.lastSyncedAt).toBe('2026-04-10T11:05:00.000Z');
   });
 
+  it('repairs orphaned plan links before matching newly synced runs', async () => {
+    await planRepo.save({
+      id: 'plan-orphan',
+      userId: 'user-1',
+      createdAt: '2026-04-01T00:00:00Z',
+      raceName: 'Spring Half',
+      raceDate: '2026-05-20',
+      raceDistance: 'Half Marathon',
+      targetTime: 'sub-1:40',
+      phases: { BASE: 1, BUILD: 1, RECOVERY: 0, PEAK: 0, TAPER: 0 },
+      progressionPct: 7,
+      templateWeek: [null, null, null, null, null, null, null],
+      weeks: [
+        {
+          weekNumber: 1,
+          phase: 'BASE',
+          plannedKm: 10,
+          sessions: [
+            {
+              id: 'session-1',
+              type: 'EASY',
+              date: '2026-04-08',
+              distance: 10,
+              pace: '5:00',
+              actualActivityId: 'missing-activity',
+            },
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+          ],
+        },
+      ],
+      activeInjury: null,
+    });
+
+    stravaClient = {
+      ...stravaClient,
+      getActivities: async () => [
+        {
+          id: 301,
+          sport_type: 'Run',
+          start_date: '2026-04-08T07:00:00Z',
+          distance: 10000,
+          moving_time: 3000,
+          elapsed_time: 3030,
+          splits_metric: [],
+        },
+      ],
+    };
+
+    const workflow = createStravaWorkflowService({
+      profileRepo,
+      planRepo,
+      activityRepo,
+      integrationTokenRepo,
+      shoeRepo,
+      stravaClient,
+      encryptionKey,
+      now: () => new Date('2026-04-10T11:05:00Z'),
+    });
+
+    const result = await workflow.sync('user-1');
+    const [activity] = await activityRepo.getByUserId('user-1');
+    const plan = await planRepo.getActive('user-1');
+
+    expect(result).toMatchObject({
+      new: 1,
+      matched: 1,
+      matchedSessions: [
+        {
+          sessionId: 'w1d0',
+          sessionType: 'EASY',
+          sessionDate: '2026-04-08',
+        },
+      ],
+    });
+    expect(activity).toMatchObject({
+      externalId: '301',
+      matchedSessionId: 'w1d0',
+    });
+    expect(plan?.weeks[0].sessions[0]).toMatchObject({
+      id: 'w1d0',
+      actualActivityId: activity.id,
+    });
+  });
+
   it('uses lastSyncedAt on subsequent syncs and skips duplicate external ids', async () => {
     await integrationTokenRepo.updateLastSyncedAt('user-1', 'strava', '2026-04-09T12:00:00Z');
     await activityRepo.save({
