@@ -21,6 +21,7 @@ interface SessionEditorProps {
   existing: Partial<PlannedSession> | null;
   onSave: (dayIndex: number, session: Partial<PlannedSession> | null) => void;
   onClose: () => void;
+  presentation?: 'sheet' | 'screen';
 }
 
 type ExpandedRow = 'distance' | 'warmup' | 'cooldown' | null;
@@ -94,7 +95,13 @@ function durationSpec(state: DurationState) {
     : undefined;
 }
 
-export function SessionEditor({ dayIndex, existing, onSave, onClose }: SessionEditorProps) {
+export function SessionEditor({
+  dayIndex,
+  existing,
+  onSave,
+  onClose,
+  presentation = 'sheet',
+}: SessionEditorProps) {
   const { units } = usePreferences();
   const init = existing?.type || 'EASY';
   const [type, setType] = useState<SessionType>(init);
@@ -251,35 +258,43 @@ export function SessionEditor({ dayIndex, existing, onSave, onClose }: SessionEd
     );
   }
 
-  return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={styles.sheet}>
-          <View style={styles.handleRow}>
-            <View style={styles.handle} />
-          </View>
+  const content = (
+    <View style={presentation === 'screen' ? styles.screen : styles.sheet}>
+      {presentation === 'sheet' ? (
+        <View style={styles.handleRow}>
+          <View style={styles.handle} />
+        </View>
+      ) : null}
 
-          <View style={styles.header}>
-            <Text style={styles.headerDay}>{DAYS[dayIndex]}</Text>
-            <Text style={[styles.headerTitle, { color: typeMeta.color }]}>
-              {isRest ? 'Rest day' : sessionLabel({ type, distance, reps, repDist, pace }, units)}
-            </Text>
-          </View>
+      <View style={[styles.header, presentation === 'screen' && styles.screenHeader]}>
+        {presentation === 'screen' ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onClose}
+            style={({ pressed }) => [styles.closeButton, pressed && styles.closeButtonPressed]}
+          >
+            <Text style={styles.closeButtonText}>Cancel</Text>
+          </Pressable>
+        ) : null}
+        <Text style={styles.headerDay}>{DAYS[dayIndex]}</Text>
+        <Text style={[styles.headerTitle, { color: typeMeta.color }]}>
+          {isRest ? 'Rest day' : sessionLabel({ type, distance, reps, repDist, pace }, units)}
+        </Text>
+      </View>
 
-          <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
-            <View style={styles.section}>
-              <SectionLabel>Session type</SectionLabel>
-              <ChipRow
-                chips={SESSION_TYPES.map((sessionType) => ({
-                  key: sessionType,
-                  label: typeChipLabel(sessionType),
-                  color: SESSION_TYPE[sessionType].color,
-                }))}
-                selected={type}
-                onSelect={(nextType) => changeType(nextType as SessionType)}
-              />
-            </View>
+      <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.section}>
+          <SectionLabel>Session type</SectionLabel>
+          <ChipRow
+            chips={SESSION_TYPES.map((sessionType) => ({
+              key: sessionType,
+              label: typeChipLabel(sessionType),
+              color: SESSION_TYPE[sessionType].color,
+            }))}
+            selected={type}
+            onSelect={(nextType) => changeType(nextType as SessionType)}
+          />
+        </View>
 
             {!isRest && isInterval ? (
               <View style={styles.section}>
@@ -448,20 +463,31 @@ export function SessionEditor({ dayIndex, existing, onSave, onClose }: SessionEd
                 )}
               </NotebookRow>
             </View>
-          </ScrollView>
+      </ScrollView>
 
-          <View style={styles.actions}>
-            <View style={styles.actionRow}>
-              <View style={styles.primaryAction}>
-                <Btn
-                  title={existing ? 'Update session' : 'Add session'}
-                  onPress={() => onSave(dayIndex, build())}
-                  fullWidth
-                />
-              </View>
-            </View>
+      <View style={styles.actions}>
+        <View style={styles.actionRow}>
+          <View style={styles.primaryAction}>
+            <Btn
+              title={existing ? 'Update session' : 'Add session'}
+              onPress={() => onSave(dayIndex, build())}
+              fullWidth
+            />
           </View>
         </View>
+      </View>
+    </View>
+  );
+
+  if (presentation === 'screen') {
+    return content;
+  }
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        <Pressable style={styles.backdrop} onPress={onClose} />
+        {content}
       </View>
     </Modal>
   );
@@ -482,6 +508,10 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 22,
     maxHeight: '90%',
   },
+  screen: {
+    flex: 1,
+    backgroundColor: C.surface,
+  },
   handleRow: {
     alignItems: 'center',
     paddingTop: 10,
@@ -500,6 +530,23 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: C.border,
   },
+  screenHeader: {
+    paddingTop: 14,
+  },
+  closeButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    marginLeft: -2,
+    marginBottom: 4,
+  },
+  closeButtonPressed: {
+    opacity: 0.6,
+  },
+  closeButtonText: {
+    fontFamily: FONTS.sansMedium,
+    fontSize: 14,
+    color: C.clay,
+  },
   headerDay: {
     fontFamily: FONTS.sans,
     fontSize: 12,
@@ -513,6 +560,9 @@ const styles = StyleSheet.create({
   },
   body: {
     paddingHorizontal: 20,
+  },
+  bodyContent: {
+    paddingBottom: 20,
   },
   section: {
     paddingVertical: 14,

@@ -4,8 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   mockRouterPush,
+  mockUseLocalSearchParams,
 } = vi.hoisted(() => ({
   mockRouterPush: vi.fn(),
+  mockUseLocalSearchParams: vi.fn(() => ({})),
 }));
 
 const mockAuth = {
@@ -31,6 +33,7 @@ vi.mock('expo-router', () => ({
   router: {
     push: mockRouterPush,
   },
+  useLocalSearchParams: mockUseLocalSearchParams,
 }));
 
 vi.mock('../lib/auth', () => ({
@@ -88,6 +91,8 @@ import BlockTab from '../app/(tabs)/block';
 describe('BlockTab', () => {
   beforeEach(() => {
     mockRouterPush.mockReset();
+    mockUseLocalSearchParams.mockReset();
+    mockUseLocalSearchParams.mockReturnValue({});
     mockAuth.session = null;
     mockAuth.isLoading = false;
     mockPlan.plan = null;

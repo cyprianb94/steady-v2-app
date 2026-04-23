@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -13,13 +13,12 @@ import {
   UIManager,
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { usePlan } from '../../hooks/usePlan';
 import { useStravaSync } from '../../hooks/useStravaSync';
 import { useTodayIso } from '../../hooks/useTodayIso';
 import { DragHandle } from '../../components/plan-builder/DragHandle';
 import { PropagateModal } from '../../components/plan-builder/PropagateModal';
-import { SessionEditor } from '../../components/plan-builder/SessionEditor';
 import { Btn } from '../../components/ui/Btn';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
@@ -221,11 +220,6 @@ interface PreservedRescheduleDraft {
   swapLog: SwapLogEntry[];
 }
 
-interface EditingDay {
-  weekIndex: number;
-  dayIndex: number;
-}
-
 interface PendingEdit {
   weekIndex: number;
   dayIndex: number;
@@ -290,8 +284,54 @@ function normalizeEditedDayIdentity(
   });
 }
 
+function firstRouteParamValue(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function parseEditSessionResult(value: string | string[] | undefined): PendingEdit | null {
+  const raw = firstRouteParamValue(value);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as {
+      weekIndex?: unknown;
+      dayIndex?: unknown;
+      updated?: Partial<PlannedSession> | null;
+    };
+
+    if (
+      typeof parsed.weekIndex !== 'number'
+      || typeof parsed.dayIndex !== 'number'
+      || parsed.weekIndex < 0
+      || parsed.dayIndex < 0
+      || parsed.dayIndex > 6
+    ) {
+      return null;
+    }
+
+    return {
+      weekIndex: parsed.weekIndex,
+      dayIndex: parsed.dayIndex,
+      updated: parsed.updated ?? null,
+      desc: '',
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default function BlockTab() {
   const { units } = usePreferences();
+  const routeParams = useLocalSearchParams<{
+    editSessionResult?: string | string[];
+    editSessionNonce?: string | string[];
+  }>();
   const { session, isLoading: authLoading } = useAuth();
   const { plan, loading, refreshing, currentWeekIndex, refresh, refreshWithIndicator } = usePlan();
   const isFocused = useIsFocused();
@@ -300,10 +340,10 @@ export default function BlockTab() {
   const [rescheduleWeekIndex, setRescheduleWeekIndex] = useState<number | null>(null);
   const [rescheduleScopeVisible, setRescheduleScopeVisible] = useState(false);
   const [isSavingRearrange, setIsSavingRearrange] = useState(false);
-  const [editingDay, setEditingDay] = useState<EditingDay | null>(null);
   const [pendingEdit, setPendingEdit] = useState<PendingEdit | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [preservedReschedule, setPreservedReschedule] = useState<PreservedRescheduleDraft | null>(null);
+  const processedEditNonceRef = useRef<string | null>(null);
   const today = useTodayIso();
 
   const activityResolution = useActivityResolution({
@@ -360,6 +400,24 @@ export default function BlockTab() {
       UIManager.setLayoutAnimationEnabledExperimental?.(true);
     }
   }, []);
+
+  useEffect(() => {
+    const nonce = firstRouteParamValue(routeParams.editSessionNonce);
+    if (!nonce || processedEditNonceRef.current === nonce) {
+      return;
+    }
+
+    const result = parseEditSessionResult(routeParams.editSessionResult);
+    if (!result) {
+      return;
+    }
+
+    processedEditNonceRef.current = nonce;
+    setPendingEdit({
+      ...result,
+      desc: buildEditDescription(result.dayIndex, result.updated, units),
+    });
+  }, [routeParams.editSessionNonce, routeParams.editSessionResult, units]);
 
   useEffect(() => {
     if (!isFocused) {
@@ -517,17 +575,13 @@ export default function BlockTab() {
     }
   }
 
-  function handleDayEditSave(
-    weekIndex: number,
-    dayIndex: number,
-    updated: Partial<PlannedSession> | null,
-  ) {
-    setEditingDay(null);
-    setPendingEdit({
-      weekIndex,
-      dayIndex,
-      updated,
-      desc: buildEditDescription(dayIndex, updated, units),
+  function openSessionEditor(weekIndex: number, dayIndex: number) {
+    router.push({
+      pathname: '/edit-session',
+      params: {
+        weekIndex: String(weekIndex),
+        dayIndex: String(dayIndex),
+      },
     });
   }
 
@@ -882,7 +936,7 @@ export default function BlockTab() {
                         <Pressable
                           testID={`block-day-${week.weekNumber}-${dayIndex}`}
                           disabled={!canEditDay}
-                          onPress={canEditDay ? () => setEditingDay({ weekIndex: i, dayIndex }) : undefined}
+                          onPress={canEditDay ? () => openSessionEditor(i, dayIndex) : undefined}
                           style={styles.dayRowPressable}
                         >
                           <View style={styles.dayMeta}>
@@ -1023,14 +1077,6 @@ export default function BlockTab() {
           }}
           onApply={applyPendingRearrange}
           onClose={() => setRescheduleScopeVisible(false)}
-        />
-      ) : null}
-      {editingDay ? (
-        <SessionEditor
-          dayIndex={editingDay.dayIndex}
-          existing={plan.weeks[editingDay.weekIndex]?.sessions[editingDay.dayIndex] ?? null}
-          onSave={(dayIndex, updated) => handleDayEditSave(editingDay.weekIndex, dayIndex, updated)}
-          onClose={() => setEditingDay(null)}
         />
       ) : null}
       {pendingEdit ? (

@@ -3,13 +3,16 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PlannedSession, TrainingPlanWithAnnotation } from '@steady/types';
 
-const { mockRefresh, mockUpdatePlanWeeks, mockActivityListQuery, planState, mockRouterPush, mockAuth } = vi.hoisted(() => ({
+const { mockRefresh, mockUpdatePlanWeeks, mockActivityListQuery, planState, routeParams, mockRouterPush, mockAuth } = vi.hoisted(() => ({
   mockRefresh: vi.fn(),
   mockUpdatePlanWeeks: vi.fn(),
   mockActivityListQuery: vi.fn(),
   planState: {
     current: null as TrainingPlanWithAnnotation | null,
     currentWeekIndex: 0,
+  },
+  routeParams: {
+    current: {} as Record<string, string>,
   },
   mockRouterPush: vi.fn(),
   mockAuth: {
@@ -26,6 +29,7 @@ vi.mock('expo-router', () => ({
   router: {
     push: mockRouterPush,
   },
+  useLocalSearchParams: () => routeParams.current,
 }));
 
 vi.mock('../lib/auth', () => ({
@@ -60,6 +64,19 @@ function dragHandle(testId: string, pageY: number) {
   fireEvent.mouseDown(handle, { clientY: 0 });
   fireEvent.mouseMove(handle, { clientY: pageY });
   fireEvent.mouseUp(handle);
+}
+
+function returnEditResult(
+  rerender: (ui: React.ReactElement) => void,
+  weekIndex: number,
+  dayIndex: number,
+  updated: Partial<PlannedSession> | null,
+) {
+  routeParams.current = {
+    editSessionResult: JSON.stringify({ weekIndex, dayIndex, updated }),
+    editSessionNonce: `${weekIndex}-${dayIndex}-${Date.now()}`,
+  };
+  rerender(<BlockTab />);
 }
 
 function session(id: string, type: PlannedSession['type'], overrides: Partial<PlannedSession> = {}): PlannedSession {
@@ -112,6 +129,7 @@ describe('BlockTab session rearrange', () => {
     mockUpdatePlanWeeks.mockReset();
     mockActivityListQuery.mockReset();
     mockRouterPush.mockReset();
+    routeParams.current = {};
     mockUpdatePlanWeeks.mockResolvedValue(null);
     mockActivityListQuery.mockResolvedValue([]);
     planState.currentWeekIndex = 0;
@@ -501,12 +519,15 @@ describe('BlockTab session rearrange', () => {
       ]),
     ]);
 
-    render(<BlockTab />);
+    const { rerender } = render(<BlockTab />);
 
     fireEvent.click(screen.getByText('W1'));
     fireEvent.click(screen.getByTestId('block-day-1-0'));
-    fireEvent.click(screen.getAllByText('Rest').at(-1)!);
-    fireEvent.click(screen.getByText('Update session'));
+    expect(mockRouterPush).toHaveBeenLastCalledWith({
+      pathname: '/edit-session',
+      params: { weekIndex: '0', dayIndex: '0' },
+    });
+    returnEditResult(rerender, 0, 0, null);
     fireEvent.click(screen.getByText('This week only'));
     fireEvent.click(screen.getByText('Apply change'));
 
@@ -518,11 +539,15 @@ describe('BlockTab session rearrange', () => {
   });
 
   it('lets the user add a session on an empty rest slot from the expanded week editor', async () => {
-    render(<BlockTab />);
+    const { rerender } = render(<BlockTab />);
 
     fireEvent.click(screen.getByText('W1'));
     fireEvent.click(screen.getByTestId('block-day-1-1'));
-    fireEvent.click(screen.getByText('Add session'));
+    expect(mockRouterPush).toHaveBeenLastCalledWith({
+      pathname: '/edit-session',
+      params: { weekIndex: '0', dayIndex: '1' },
+    });
+    returnEditResult(rerender, 0, 1, { type: 'EASY', distance: 8, pace: '5:20' });
     fireEvent.click(screen.getByText('This week only'));
     fireEvent.click(screen.getByText('Apply change'));
 
@@ -542,12 +567,11 @@ describe('BlockTab session rearrange', () => {
       makeWeek(4, [session('w4-easy', 'EASY'), null, null, null, null, null, null], 'PEAK'),
     ]);
 
-    render(<BlockTab />);
+    const { rerender } = render(<BlockTab />);
 
     fireEvent.click(screen.getByText('W2'));
     fireEvent.click(screen.getByTestId('block-day-2-0'));
-    fireEvent.click(screen.getAllByText('Rest').at(-1)!);
-    fireEvent.click(screen.getByText('Update session'));
+    returnEditResult(rerender, 1, 0, null);
 
     expect(screen.getByText('Build phase only')).toBeTruthy();
     expect(screen.getByText('2 build weeks in this plan')).toBeTruthy();
@@ -572,12 +596,11 @@ describe('BlockTab session rearrange', () => {
       makeWeek(5, [session('w5-easy', 'EASY'), null, null, null, null, null, null], 'TAPER'),
     ]);
 
-    render(<BlockTab />);
+    const { rerender } = render(<BlockTab />);
 
     fireEvent.click(screen.getByText('W4'));
     fireEvent.click(screen.getByTestId('block-day-4-0'));
-    fireEvent.click(screen.getAllByText('Rest').at(-1)!);
-    fireEvent.click(screen.getByText('Update session'));
+    returnEditResult(rerender, 3, 0, null);
 
     expect(screen.getByText('Peak phase only')).toBeTruthy();
     expect(screen.getByText('2 peak weeks in this plan')).toBeTruthy();
@@ -602,12 +625,11 @@ describe('BlockTab session rearrange', () => {
       makeWeek(4, [session('w4-easy', 'EASY'), null, null, null, null, null, null], 'BUILD'),
     ]);
 
-    render(<BlockTab />);
+    const { rerender } = render(<BlockTab />);
 
     fireEvent.click(screen.getByText('W3'));
     fireEvent.click(screen.getByTestId('block-day-3-0'));
-    fireEvent.click(screen.getAllByText('Rest').at(-1)!);
-    fireEvent.click(screen.getByText('Update session'));
+    returnEditResult(rerender, 2, 0, null);
 
     expect(screen.getByText('Recovery phase only')).toBeTruthy();
     expect(screen.getByText('2 recovery weeks in this plan')).toBeTruthy();
@@ -631,12 +653,11 @@ describe('BlockTab session rearrange', () => {
       makeWeek(4, [session('w4-easy', 'EASY'), null, null, null, null, null, null], 'TAPER'),
     ]);
 
-    render(<BlockTab />);
+    const { rerender } = render(<BlockTab />);
 
     fireEvent.click(screen.getByText('W4'));
     fireEvent.click(screen.getByTestId('block-day-4-0'));
-    fireEvent.click(screen.getAllByText('Rest').at(-1)!);
-    fireEvent.click(screen.getByText('Update session'));
+    returnEditResult(rerender, 3, 0, null);
 
     expect(screen.getByText('Taper phase only')).toBeTruthy();
     expect(screen.getByText('2 taper weeks in this plan')).toBeTruthy();
