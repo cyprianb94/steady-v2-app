@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Alert } from 'react-native';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { addDaysIso, dayIndexForIsoDate, startOfWeekIso, todayIsoLocal } from '../lib/plan-helpers';
@@ -8,15 +8,15 @@ const {
   mockRouterBack,
   mockRouterReplace,
   mockUseLocalSearchParams,
-  mockActivityList,
+  mockActivityGet,
   mockShoeList,
   mockSaveRunDetail,
   mockRefreshActivity,
 } = vi.hoisted(() => ({
   mockRouterBack: vi.fn(),
   mockRouterReplace: vi.fn(),
-  mockUseLocalSearchParams: vi.fn(() => ({ activityId: 'activity-1' })),
-  mockActivityList: vi.fn(),
+  mockUseLocalSearchParams: vi.fn<() => { activityId: string | string[] }>(() => ({ activityId: 'activity-1' })),
+  mockActivityGet: vi.fn(),
   mockShoeList: vi.fn(),
   mockSaveRunDetail: vi.fn(),
   mockRefreshActivity: vi.fn(),
@@ -62,8 +62,8 @@ vi.mock('../providers/preferences-context', () => ({
 vi.mock('../lib/trpc', () => ({
   trpc: {
     activity: {
-      list: {
-        query: mockActivityList,
+      get: {
+        query: mockActivityGet,
       },
       saveRunDetail: {
         mutate: mockSaveRunDetail,
@@ -90,7 +90,7 @@ describe('SyncRunDetailScreen', () => {
     mockRouterReplace.mockReset();
     mockUseLocalSearchParams.mockReset();
     mockUseLocalSearchParams.mockReturnValue({ activityId: 'activity-1' });
-    mockActivityList.mockReset();
+    mockActivityGet.mockReset();
     mockShoeList.mockReset();
     mockSaveRunDetail.mockReset();
     mockRefreshActivity.mockReset();
@@ -111,6 +111,17 @@ describe('SyncRunDetailScreen', () => {
     mockRefreshPlan.mockReset();
     mockRefreshPlan.mockResolvedValue(undefined);
     mockShoeList.mockResolvedValue([]);
+    mockActivityGet.mockResolvedValue({
+      id: 'activity-1',
+      source: 'strava',
+      startTime: '2026-04-15T07:15:00.000Z',
+      distance: 8.2,
+      duration: 2650,
+      avgPace: 323,
+      avgHR: 148,
+      splits: [],
+      matchedSessionId: null,
+    });
     mockSaveRunDetail.mockResolvedValue({
       activity: {
         id: 'activity-1',
@@ -143,20 +154,79 @@ describe('SyncRunDetailScreen', () => {
     vi.useRealTimers();
   });
 
+  it('normalizes array route params and loads the requested run once', async () => {
+    mockUseLocalSearchParams.mockImplementation(() => ({ activityId: ['activity-1'] }));
+    mockActivityGet.mockResolvedValue({
+      id: 'activity-1',
+      source: 'strava',
+      startTime: '2026-04-15T07:15:00.000Z',
+      distance: 8.2,
+      duration: 2650,
+      avgPace: 323,
+      avgHR: 148,
+      splits: [],
+      matchedSessionId: null,
+    });
+
+    render(<SyncRunDetailScreen />);
+
+    expect(await screen.findByText('Run detail')).toBeTruthy();
+    await waitFor(() => {
+      expect(mockActivityGet).toHaveBeenCalledTimes(1);
+      expect(mockShoeList).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.queryByText('This run is no longer available')).toBeNull();
+  });
+
+  it('fails out of the loading state when the run fetch hangs', async () => {
+    vi.useFakeTimers();
+    mockActivityGet.mockImplementation(() => new Promise(() => {}));
+
+    render(<SyncRunDetailScreen />);
+
+    await act(async () => {
+      vi.advanceTimersByTime(8000);
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText('This run is no longer available')).toBeTruthy();
+    expect(screen.getByText('We could not refresh this run. Try again or go back to the picker.')).toBeTruthy();
+  });
+
+  it('still renders the run when shoe loading fails', async () => {
+    mockActivityGet.mockResolvedValue({
+      id: 'activity-1',
+      source: 'strava',
+      startTime: '2026-04-15T07:15:00.000Z',
+      distance: 8.2,
+      duration: 2650,
+      avgPace: 323,
+      avgHR: 148,
+      splits: [],
+      matchedSessionId: null,
+      shoeId: 'shoe-1',
+    });
+    mockShoeList.mockRejectedValue(new Error('shoe list failed'));
+
+    render(<SyncRunDetailScreen />);
+
+    expect(await screen.findByText('Run detail')).toBeTruthy();
+    expect(screen.getByText('Not tracked')).toBeTruthy();
+    expect(screen.queryByText('This run is no longer available')).toBeNull();
+  });
+
   it('surfaces a stale match warning instead of silently keeping a dead selection', async () => {
-    mockActivityList.mockResolvedValue([
-      {
-        id: 'activity-1',
-        source: 'strava',
-        startTime: '2026-04-14T07:15:00.000Z',
-        distance: 8.2,
-        duration: 2650,
-        avgPace: 323,
-        avgHR: 148,
-        splits: [],
-        matchedSessionId: 'old-session',
-      },
-    ]);
+    mockActivityGet.mockResolvedValue({
+      id: 'activity-1',
+      source: 'strava',
+      startTime: '2026-04-14T07:15:00.000Z',
+      distance: 8.2,
+      duration: 2650,
+      avgPace: 323,
+      avgHR: 148,
+      splits: [],
+      matchedSessionId: 'old-session',
+    });
 
     render(<SyncRunDetailScreen />);
 
@@ -175,24 +245,63 @@ describe('SyncRunDetailScreen', () => {
       plannedKm: 12,
       sessions,
     };
-    mockActivityList.mockResolvedValue([
-      {
+    mockActivityGet.mockResolvedValue({
+      id: 'activity-1',
+      source: 'strava',
+      startTime: `${today}T07:15:00.000Z`,
+      distance: 12.01,
+      duration: 4300,
+      avgPace: 358,
+      avgHR: 148,
+      splits: [],
+      matchedSessionId: null,
+    });
+
+    render(<SyncRunDetailScreen />);
+
+    expect(await screen.findByText('EASY · MATCHED TO TODAY')).toBeTruthy();
+    expect(screen.getByText('8km Easy Run')).toBeTruthy();
+  });
+
+  it('treats a just-after-midnight local run as today even when its UTC date is still yesterday', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-19T23:30:00Z'));
+    const timezoneOffsetSpy = vi.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(-60);
+
+    try {
+      const today = todayIsoLocal();
+      const sessions = [null, null, null, null, null, null, null] as any[];
+      const index = dayIndexForIsoDate(today);
+      sessions[index] = { id: 'today-session', type: 'EASY', date: today, distance: 8, pace: '5:10' };
+      mockPlanState.currentWeek = {
+        weekNumber: 1,
+        phase: 'BASE',
+        plannedKm: 12,
+        sessions,
+      };
+      mockActivityGet.mockResolvedValue({
         id: 'activity-1',
         source: 'strava',
-        startTime: `${today}T07:15:00.000Z`,
+        startTime: '2026-04-19T23:15:00.000Z',
         distance: 12.01,
         duration: 4300,
         avgPace: 358,
         avgHR: 148,
         splits: [],
         matchedSessionId: null,
-      },
-    ]);
+      });
 
-    render(<SyncRunDetailScreen />);
+      render(<SyncRunDetailScreen />);
 
-    expect(await screen.findByText('EASY · MATCHED TO TODAY')).toBeTruthy();
-    expect(screen.getByText('8km Easy Run')).toBeTruthy();
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(screen.getByText('EASY · MATCHED TO TODAY')).toBeTruthy();
+      expect(screen.getByText('8km Easy Run')).toBeTruthy();
+    } finally {
+      timezoneOffsetSpy.mockRestore();
+    }
   });
 
   it('does not auto-match to today when that session is already linked to another run', async () => {
@@ -213,19 +322,17 @@ describe('SyncRunDetailScreen', () => {
       plannedKm: 12,
       sessions,
     };
-    mockActivityList.mockResolvedValue([
-      {
-        id: 'activity-1',
-        source: 'strava',
-        startTime: `${today}T07:15:00.000Z`,
-        distance: 12.01,
-        duration: 4300,
-        avgPace: 358,
-        avgHR: 148,
-        splits: [],
-        matchedSessionId: null,
-      },
-    ]);
+    mockActivityGet.mockResolvedValue({
+      id: 'activity-1',
+      source: 'strava',
+      startTime: `${today}T07:15:00.000Z`,
+      distance: 12.01,
+      duration: 4300,
+      avgPace: 358,
+      avgHR: 148,
+      splits: [],
+      matchedSessionId: null,
+    });
 
     render(<SyncRunDetailScreen />);
 
@@ -252,19 +359,17 @@ describe('SyncRunDetailScreen', () => {
       plannedKm: 30,
       sessions,
     };
-    mockActivityList.mockResolvedValue([
-      {
-        id: 'activity-1',
-        source: 'strava',
-        startTime: `${today}T07:15:00.000Z`,
-        distance: 13.5,
-        duration: 4300,
-        avgPace: 318,
-        avgHR: 148,
-        splits: [],
-        matchedSessionId: null,
-      },
-    ]);
+    mockActivityGet.mockResolvedValue({
+      id: 'activity-1',
+      source: 'strava',
+      startTime: `${today}T07:15:00.000Z`,
+      distance: 13.5,
+      duration: 4300,
+      avgPace: 318,
+      avgHR: 148,
+      splits: [],
+      matchedSessionId: null,
+    });
 
     render(<SyncRunDetailScreen />);
 
@@ -275,20 +380,18 @@ describe('SyncRunDetailScreen', () => {
   });
 
   it('keeps shoe selection below feel, removes the placeholder shoe art, and hides manual Strava re-sync', async () => {
-    mockActivityList.mockResolvedValue([
-      {
-        id: 'activity-1',
-        source: 'strava',
-        startTime: '2026-04-15T07:15:00.000Z',
-        distance: 8.2,
-        duration: 2650,
-        avgPace: 323,
-        avgHR: 148,
-        splits: [],
-        matchedSessionId: null,
-        shoeId: 'shoe-1',
-      },
-    ]);
+    mockActivityGet.mockResolvedValue({
+      id: 'activity-1',
+      source: 'strava',
+      startTime: '2026-04-15T07:15:00.000Z',
+      distance: 8.2,
+      duration: 2650,
+      avgPace: 323,
+      avgHR: 148,
+      splits: [],
+      matchedSessionId: null,
+      shoeId: 'shoe-1',
+    });
     mockShoeList.mockResolvedValue([
       {
         id: 'shoe-1',
@@ -321,20 +424,18 @@ describe('SyncRunDetailScreen', () => {
   });
 
   it('saves the staged shoe and niggles from the modal pickers', async () => {
-    mockActivityList.mockResolvedValue([
-      {
-        id: 'activity-1',
-        source: 'strava',
-        startTime: '2026-04-15T07:15:00.000Z',
-        distance: 8.2,
-        duration: 2650,
-        avgPace: 323,
-        avgHR: 148,
-        splits: [],
-        matchedSessionId: null,
-        niggles: [],
-      },
-    ]);
+    mockActivityGet.mockResolvedValue({
+      id: 'activity-1',
+      source: 'strava',
+      startTime: '2026-04-15T07:15:00.000Z',
+      distance: 8.2,
+      duration: 2650,
+      avgPace: 323,
+      avgHR: 148,
+      splits: [],
+      matchedSessionId: null,
+      niggles: [],
+    });
     mockShoeList.mockResolvedValue([
       {
         id: 'shoe-1',
@@ -380,20 +481,73 @@ describe('SyncRunDetailScreen', () => {
     });
   });
 
+  it('requires custom text for Other niggles and saves it once provided', async () => {
+    mockActivityGet.mockResolvedValue({
+      id: 'activity-1',
+      source: 'strava',
+      startTime: '2026-04-15T07:15:00.000Z',
+      distance: 8.2,
+      duration: 2650,
+      avgPace: 323,
+      avgHR: 148,
+      splits: [],
+      matchedSessionId: null,
+      niggles: [],
+    });
+
+    render(<SyncRunDetailScreen />);
+
+    await screen.findByText('Run detail');
+
+    fireEvent.click(screen.getByText('Flag a niggle'));
+    fireEvent.click(await screen.findByText('Other'));
+
+    expect(screen.getByPlaceholderText('e.g. Groin or upper calf')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Left'));
+    fireEvent.click(screen.getByText('Mild'));
+    fireEvent.click(screen.getByText('During'));
+    fireEvent.click(screen.getByText('Add niggle'));
+
+    expect(screen.getByPlaceholderText('e.g. Groin or upper calf')).toBeTruthy();
+
+    fireEvent.change(screen.getByPlaceholderText('e.g. Groin or upper calf'), {
+      target: { value: 'Upper calf' },
+    });
+    fireEvent.click(screen.getByText('Add niggle'));
+
+    fireEvent.click(screen.getByText('Fresh'));
+    fireEvent.click(screen.getByText('Easy'));
+    fireEvent.click(screen.getByText('Could go again'));
+    fireEvent.click(await screen.findByText('Save run'));
+
+    await waitFor(() => {
+      expect(mockSaveRunDetail).toHaveBeenCalledWith(expect.objectContaining({
+        niggles: [
+          {
+            bodyPart: 'other',
+            bodyPartOtherText: 'Upper calf',
+            side: 'left',
+            severity: 'mild',
+            when: 'during',
+          },
+        ],
+      }));
+    });
+  });
+
   it('navigates home after saving even when the follow-up plan refresh fails', async () => {
-    mockActivityList.mockResolvedValue([
-      {
-        id: 'activity-1',
-        source: 'strava',
-        startTime: '2026-04-15T07:15:00.000Z',
-        distance: 8.2,
-        duration: 2650,
-        avgPace: 323,
-        avgHR: 148,
-        splits: [],
-        matchedSessionId: null,
-      },
-    ]);
+    mockActivityGet.mockResolvedValue({
+      id: 'activity-1',
+      source: 'strava',
+      startTime: '2026-04-15T07:15:00.000Z',
+      distance: 8.2,
+      duration: 2650,
+      avgPace: 323,
+      avgHR: 148,
+      splits: [],
+      matchedSessionId: null,
+    });
     mockRefreshPlan.mockRejectedValue(new Error('refresh failed'));
 
     render(<SyncRunDetailScreen />);
@@ -416,7 +570,7 @@ describe('SyncRunDetailScreen', () => {
   });
 
   it('offers recovery when the requested run is missing', async () => {
-    mockActivityList.mockResolvedValue([]);
+    mockActivityGet.mockResolvedValue(null);
 
     render(<SyncRunDetailScreen />);
 

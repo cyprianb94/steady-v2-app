@@ -97,7 +97,13 @@ describe('matchActivity — already matched exclusion', () => {
 
 describe('matchActivity — type inference: INTERVAL', () => {
   it('infers INTERVAL from high pace variation + elevated HR', () => {
-    const intervalSession = makeSession({ type: 'INTERVAL', reps: 6, repDist: 800, warmup: 1.5, cooldown: 1 });
+    const intervalSession = makeSession({
+      type: 'INTERVAL',
+      reps: 6,
+      repDist: 800,
+      warmup: { unit: 'km', value: 1.5 },
+      cooldown: { unit: 'km', value: 1 },
+    });
     const easySession = makeSession({ type: 'EASY', distance: 7 });
     const week = weekWith(intervalSession, easySession);
 
@@ -119,7 +125,12 @@ describe('matchActivity — type inference: INTERVAL', () => {
 
 describe('matchActivity — type inference: TEMPO', () => {
   it('infers TEMPO from sustained high HR', () => {
-    const tempoSession = makeSession({ type: 'TEMPO', distance: 10, warmup: 2, cooldown: 1.5 });
+    const tempoSession = makeSession({
+      type: 'TEMPO',
+      distance: 10,
+      warmup: { unit: 'km', value: 2 },
+      cooldown: { unit: 'km', value: 1.5 },
+    });
     const easySession = makeSession({ type: 'EASY', distance: 10 });
     const week = weekWith(tempoSession, easySession);
 
@@ -134,7 +145,12 @@ describe('matchActivity — type inference: TEMPO', () => {
   });
 
   it('infers TEMPO from avgHR when no split HR data', () => {
-    const tempoSession = makeSession({ type: 'TEMPO', distance: 10, warmup: 2, cooldown: 1.5 });
+    const tempoSession = makeSession({
+      type: 'TEMPO',
+      distance: 10,
+      warmup: { unit: 'km', value: 2 },
+      cooldown: { unit: 'km', value: 1.5 },
+    });
     const easySession = makeSession({ type: 'EASY', distance: 10 });
     const week = weekWith(tempoSession, easySession);
 
@@ -179,9 +195,21 @@ describe('matchActivity — disambiguation by distance', () => {
   });
 
   it('disambiguates INTERVAL by expected distance (reps * repDist + wu + cd)', () => {
-    const s1 = makeSession({ type: 'INTERVAL', reps: 4, repDist: 400, warmup: 1.5, cooldown: 1 });
+    const s1 = makeSession({
+      type: 'INTERVAL',
+      reps: 4,
+      repDist: 400,
+      warmup: { unit: 'km', value: 1.5 },
+      cooldown: { unit: 'km', value: 1 },
+    });
     // expected: 4*0.4 + 1.5 + 1 = 4.1km
-    const s2 = makeSession({ type: 'INTERVAL', reps: 6, repDist: 1000, warmup: 2, cooldown: 1.5 });
+    const s2 = makeSession({
+      type: 'INTERVAL',
+      reps: 6,
+      repDist: 1000,
+      warmup: { unit: 'km', value: 2 },
+      cooldown: { unit: 'km', value: 1.5 },
+    });
     // expected: 6*1 + 2 + 1.5 = 9.5km
     const week = weekWith(s1, s2);
 

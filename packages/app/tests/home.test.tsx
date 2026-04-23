@@ -1,4 +1,5 @@
 import React from 'react';
+import { Alert } from 'react-native';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 
@@ -33,10 +34,14 @@ vi.mock('../hooks/usePlan', () => ({
 }));
 
 const mockActivityList = vi.hoisted(() => vi.fn());
+const mockActivityGet = vi.hoisted(() => vi.fn());
 
 vi.mock('../lib/trpc', () => ({
   trpc: {
     activity: {
+      get: {
+        query: mockActivityGet,
+      },
       list: {
         query: mockActivityList,
       },
@@ -67,7 +72,10 @@ describe('HomeScreen', () => {
     mockPlan.currentWeek = null;
     mockPlan.refresh = vi.fn();
     mockActivityList.mockReset();
+    mockActivityGet.mockReset();
     mockActivityList.mockReturnValue(new Promise(() => {}));
+    mockActivityGet.mockResolvedValue(null);
+    vi.spyOn(Alert, 'alert').mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -324,6 +332,77 @@ describe('HomeScreen', () => {
     expect(within(weeklyLoadCard).getByText('/ 50km')).toBeTruthy();
   });
 
+  it('ignores a future linked-only long run in the current week load and remaining-days status', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-22T12:00:00Z'));
+
+    const week = {
+      weekNumber: 2,
+      phase: 'BASE' as const,
+      sessions: [
+        { id: 'mon', type: 'EASY', date: '2026-04-20', distance: 8, pace: '5:20', actualActivityId: 'act-mon' },
+        { id: 'tue', type: 'TEMPO', date: '2026-04-21', distance: 10, pace: '4:20', actualActivityId: 'act-tue' },
+        null,
+        { id: 'thu', type: 'INTERVAL', date: '2026-04-23', reps: 6, repDist: 600, pace: '3:55', recovery: '90s' },
+        { id: 'fri', type: 'EASY', date: '2026-04-24', distance: 8, pace: '5:20' },
+        { id: 'sat', type: 'EASY', date: '2026-04-25', distance: 15, pace: '5:20' },
+        { id: 'sun', type: 'LONG', date: '2026-04-26', distance: 20, pace: '5:05', actualActivityId: 'act-sun' },
+      ],
+      plannedKm: 72,
+    };
+
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-11-22',
+      coachAnnotation: 'Keep the long run easy when it comes.',
+    };
+    mockPlan.currentWeek = week;
+    mockPlan.currentWeekIndex = 0;
+    mockActivityList.mockResolvedValue([
+      {
+        id: 'act-mon',
+        userId: '1',
+        source: 'strava',
+        externalId: 'strava-mon',
+        startTime: '2026-04-20T07:00:00.000Z',
+        distance: 8,
+        duration: 2580,
+        avgPace: 323,
+        splits: [],
+        matchedSessionId: 'mon',
+      },
+      {
+        id: 'act-tue',
+        userId: '1',
+        source: 'strava',
+        externalId: 'strava-tue',
+        startTime: '2026-04-21T07:00:00.000Z',
+        distance: 13.5,
+        duration: 3320,
+        avgPace: 246,
+        splits: [],
+        matchedSessionId: 'tue',
+      },
+    ]);
+
+    render(<HomeScreen />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const weeklyLoadCard = screen.getByTestId('weekly-load-card');
+    expect(within(weeklyLoadCard).getByText('21.5km')).toBeTruthy();
+    expect(within(weeklyLoadCard).queryByText('41.5km')).toBeNull();
+    expect(screen.getAllByTestId('day-row-check')).toHaveLength(1);
+    expect(screen.getAllByTestId('day-row-off-target')).toHaveLength(1);
+  });
+
   it('keeps linked runs visible on home before the activity snapshot catches up', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-18T12:00:00Z')); // Saturday
@@ -389,12 +468,30 @@ describe('HomeScreen', () => {
       weekNumber: 1,
       phase: 'BASE' as const,
       sessions: [
-        { id: 'mon-int', type: 'INTERVAL', date: '2026-04-16', reps: 6, repDist: 800, recovery: '90s', warmup: 1.5, cooldown: 1, pace: '3:50' },
+        {
+          id: 'mon-int',
+          type: 'INTERVAL',
+          date: '2026-04-16',
+          reps: 6,
+          repDist: 800,
+          recovery: '90s',
+          warmup: { unit: 'km', value: 1.5 },
+          cooldown: { unit: 'km', value: 1 },
+          pace: '3:50',
+        },
         null,
         { id: 'wed-easy', type: 'EASY', date: '2026-04-15', distance: 8, pace: '5:20' },
         null,
         { id: 'fri-easy', type: 'EASY', date: '2026-04-18', distance: 8, pace: '5:20' },
-        { id: 'sat-tempo', type: 'TEMPO', date: '2026-04-13', distance: 10, pace: '4:20', warmup: 2, cooldown: 1.5 },
+        {
+          id: 'sat-tempo',
+          type: 'TEMPO',
+          date: '2026-04-13',
+          distance: 10,
+          pace: '4:20',
+          warmup: { unit: 'km', value: 2 },
+          cooldown: { unit: 'km', value: 1.5 },
+        },
         { id: 'sun-long', type: 'LONG', date: '2026-04-19', distance: 20, pace: '5:05' },
       ],
       plannedKm: 58,
@@ -675,10 +772,13 @@ describe('HomeScreen', () => {
     mockActivityList.mockResolvedValue([
       {
         id: 'activity-1',
+        source: 'strava',
+        startTime: `${today}T07:15:00.000Z`,
         matchedSessionId: 'session-1',
         distance: 8.1,
         avgPace: 319,
         duration: 2580,
+        splits: [],
         subjectiveInput: {
           legs: 'heavy',
           breathing: 'controlled',
@@ -702,16 +802,16 @@ describe('HomeScreen', () => {
     const sessions = [null, null, null, null, null, null, null] as any[];
     sessions[slotIndexForIsoDate(today)] = {
       id: 'session-1',
-      type: 'LONG',
+      type: 'EASY',
       date: today,
-      distance: 20,
-      pace: '5:05',
+      distance: 8,
+      pace: '5:20',
     };
     const week = {
       weekNumber: 3,
       phase: 'BASE' as const,
       sessions,
-      plannedKm: 52,
+      plannedKm: 40,
     };
     mockAuth.isLoading = false;
     mockAuth.session = { user: { id: '1' } };
@@ -727,10 +827,13 @@ describe('HomeScreen', () => {
     mockActivityList.mockResolvedValue([
       {
         id: 'activity-1',
+        source: 'strava',
+        startTime: `${today}T07:15:00.000Z`,
         matchedSessionId: 'session-1',
-        distance: 12.01,
-        avgPace: 327,
-        duration: 3924,
+        distance: 12.4,
+        avgPace: 350,
+        duration: 4340,
+        avgHR: 146,
         splits: [],
       },
     ]);
@@ -742,6 +845,8 @@ describe('HomeScreen', () => {
     });
     expect(screen.queryByText('I just finished this run')).toBeNull();
     expect(screen.getByTestId('hero-review-run')).toBeTruthy();
+    expect(screen.getByText('Longer than planned')).toBeTruthy();
+    expect(screen.queryByText('Bonus effort')).toBeNull();
   });
 
   it('opens the saved sync-run detail from the Review run CTA', async () => {
@@ -774,6 +879,8 @@ describe('HomeScreen', () => {
     mockActivityList.mockResolvedValue([
       {
         id: 'activity-1',
+        source: 'strava',
+        startTime: `${today}T07:15:00.000Z`,
         matchedSessionId: 'session-1',
         distance: 8.1,
         avgPace: 319,
@@ -817,6 +924,18 @@ describe('HomeScreen', () => {
     };
     mockPlan.currentWeek = week;
     mockActivityList.mockResolvedValue([]);
+    mockActivityGet.mockResolvedValue({
+      id: 'activity-1',
+      userId: '1',
+      source: 'strava',
+      externalId: 'strava-1',
+      startTime: `${today}T07:15:00.000Z`,
+      distance: 8.1,
+      avgPace: 319,
+      duration: 2580,
+      splits: [],
+      matchedSessionId: 'session-1',
+    });
 
     render(<HomeScreen />);
 
@@ -825,7 +944,59 @@ describe('HomeScreen', () => {
     });
 
     fireEvent.click(screen.getByTestId('hero-review-run'));
-    expect(mockRouterPush).toHaveBeenCalledWith('/sync-run/activity-1');
+    await waitFor(() => {
+      expect(mockActivityGet).toHaveBeenCalledWith({ activityId: 'activity-1' });
+      expect(mockRouterPush).toHaveBeenCalledWith('/sync-run/activity-1');
+    });
+  });
+
+  it('does not route to a dead linked run from the home hero', async () => {
+    const today = currentLocalIsoDate();
+    const sessions = [null, null, null, null, null, null, null] as any[];
+    sessions[slotIndexForIsoDate(today)] = {
+      id: 'session-1',
+      type: 'EASY',
+      date: today,
+      distance: 8,
+      pace: '5:20',
+      actualActivityId: 'activity-1',
+    };
+    const week = {
+      weekNumber: 3,
+      phase: 'BASE' as const,
+      sessions,
+      plannedKm: 40,
+    };
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-07-15',
+      coachAnnotation: 'Nice work.',
+    };
+    mockPlan.currentWeek = week;
+    mockActivityList.mockResolvedValue([]);
+    mockActivityGet.mockResolvedValue(null);
+
+    render(<HomeScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('hero-completed')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByTestId('hero-review-run'));
+
+    await waitFor(() => {
+      expect(mockActivityGet).toHaveBeenCalledWith({ activityId: 'activity-1' });
+    });
+    expect(mockRouterPush).not.toHaveBeenCalled();
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Run unavailable',
+      'This linked run is no longer available. Pull to refresh if it was just synced.',
+    );
   });
 
   it('renders a niggle banner when the resolved activity carries niggles', async () => {
@@ -858,6 +1029,8 @@ describe('HomeScreen', () => {
     mockActivityList.mockResolvedValue([
       {
         id: 'activity-1',
+        source: 'strava',
+        startTime: `${today}T07:15:00.000Z`,
         matchedSessionId: 'session-1',
         distance: 8.1,
         avgPace: 319,
@@ -882,6 +1055,65 @@ describe('HomeScreen', () => {
 
     expect(await screen.findByText(/You flagged/i)).toBeTruthy();
     expect(screen.getByText(/Left Hamstring · Mild · During/i)).toBeTruthy();
+  });
+
+  it('renders custom Other niggle text in the banner summary', async () => {
+    const today = currentLocalIsoDate();
+    const sessions = [null, null, null, null, null, null, null] as any[];
+    sessions[slotIndexForIsoDate(today)] = {
+      id: 'session-1',
+      type: 'EASY',
+      date: today,
+      distance: 8,
+      pace: '5:20',
+    };
+    const week = {
+      weekNumber: 3,
+      phase: 'BASE' as const,
+      sessions,
+      plannedKm: 40,
+    };
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-07-15',
+      coachAnnotation: 'Nice work.',
+    };
+    mockPlan.currentWeek = week;
+    mockActivityList.mockResolvedValue([
+      {
+        id: 'activity-1',
+        source: 'strava',
+        startTime: `${today}T07:15:00.000Z`,
+        matchedSessionId: 'session-1',
+        distance: 8.1,
+        avgPace: 319,
+        duration: 2580,
+        splits: [],
+        niggles: [
+          {
+            id: 'niggle-1',
+            userId: '1',
+            activityId: 'activity-1',
+            bodyPart: 'other',
+            bodyPartOtherText: 'Upper calf',
+            side: 'left',
+            severity: 'mild',
+            when: 'during',
+            createdAt: '2026-04-15T08:00:00.000Z',
+          },
+        ],
+      },
+    ]);
+
+    render(<HomeScreen />);
+
+    expect(await screen.findByText(/You flagged/i)).toBeTruthy();
+    expect(screen.getByText(/Left Upper calf · Mild · During/i)).toBeTruthy();
   });
 
   it('opens the sync-run detail screen from the completed today hero', async () => {
@@ -917,6 +1149,8 @@ describe('HomeScreen', () => {
     mockActivityList.mockResolvedValue([
       {
         id: 'activity-1',
+        source: 'strava',
+        startTime: `${today}T07:15:00.000Z`,
         matchedSessionId: 'session-hero',
         distance: 8.1,
         avgPace: 319,

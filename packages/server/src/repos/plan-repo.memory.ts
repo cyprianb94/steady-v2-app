@@ -1,5 +1,5 @@
 import type { TrainingPlan, PlanWeek, Injury, InjuryUpdate } from '@steady/types';
-import { normalizeSessionIds } from '@steady/types';
+import { normalizeSessionIds, normalizePlanWeekSessionDurations, normalizeTrainingPlanSessionDurations } from '@steady/types';
 import type { PlanRepo } from './plan-repo';
 
 interface StoredPlan {
@@ -51,7 +51,10 @@ export class InMemoryPlanRepo implements PlanRepo {
       }
     }
 
-    const normalized = { ...plan, weeks: normalizeSessionIds(plan.weeks) };
+    const normalized = normalizeTrainingPlanSessionDurations({
+      ...plan,
+      weeks: normalizeSessionIds(plan.weeks),
+    });
     this.store.set(plan.id, { plan: clonePlan(normalized), isActive: true });
     return clonePlan(normalized);
   }
@@ -59,7 +62,7 @@ export class InMemoryPlanRepo implements PlanRepo {
   async updateWeeks(planId: string, weeks: PlanWeek[]): Promise<TrainingPlan | null> {
     const entry = this.store.get(planId);
     if (!entry) return null;
-    entry.plan.weeks = structuredClone(weeks);
+    entry.plan.weeks = structuredClone(weeks.map(normalizePlanWeekSessionDurations));
     return clonePlan(entry.plan);
   }
 

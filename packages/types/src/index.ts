@@ -1,13 +1,15 @@
 export type {
   SessionType,
   PlannedSession,
+  SessionDurationSpec,
+  SessionDurationUnit,
   RecoveryDuration,
   SubjectiveBreathing,
   SubjectiveInput,
   SubjectiveLegs,
   SubjectiveOverall,
 } from './session';
-export { RECOVERY_KM } from './session';
+export { RECOVERY_KM, normalizeSessionDuration, sessionDurationKm } from './session';
 
 export type {
   PhaseConfig,
@@ -27,9 +29,13 @@ export type {
 } from './injury';
 export { CROSS_TRAINING_TYPES } from './injury';
 export {
+  BODY_PART_LABELS,
   BODY_PARTS,
+  NIGGLE_OTHER_BODY_PART_MAX_LENGTH,
   NIGGLE_SEVERITIES,
   NIGGLE_WHEN_OPTIONS,
+  formatNiggleBodyPart,
+  formatNiggleSummary,
 } from './niggle';
 export type {
   BodyPart,
@@ -61,6 +67,11 @@ export type { User } from './user';
 // Shared pure functions (used by both server and app)
 export { sessionKm, expectedDistance, weekKm } from './lib/session-km';
 export { generatePlan, defaultPhases } from './lib/plan-generator';
+export {
+  normalizePlanWeekSessionDurations,
+  normalizeSessionDurations,
+  normalizeTrainingPlanSessionDurations,
+} from './lib/normalize-session-durations';
 export { propagateChange } from './lib/propagate-change';
 export type { PropagateScope } from './lib/propagate-change';
 export { getRtrProgression, RTR_STEPS } from './lib/rtr-progression';

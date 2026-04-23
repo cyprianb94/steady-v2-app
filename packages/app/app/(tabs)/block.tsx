@@ -28,8 +28,8 @@ import { SESSION_TYPE } from '../../constants/session-types';
 import { useDirectWeekReschedule } from '../../features/plan-builder/use-direct-week-reschedule';
 import { useAuth } from '../../lib/auth';
 import { createId } from '../../lib/id';
+import { updatePlanWeeks } from '../../lib/plan-api';
 import { addDaysIso, DAYS, inferWeekStartDate, sessionLabel, todayIsoLocal, weekKm } from '../../lib/plan-helpers';
-import { trpc } from '../../lib/trpc';
 import { usePreferences } from '../../providers/preferences-context';
 import { formatDistance, type DistanceUnits } from '../../lib/units';
 import {
@@ -38,8 +38,14 @@ import {
   preserveResolvedLockedWeeks,
   restoreResolvedSwapDraft,
 } from '../../features/run/block-week-resolution';
+import {
+  getBlockWeekGuide,
+  isEditableBlockWeek,
+  resolveBlockDayInteraction,
+} from '../../features/run/block-week-interactions';
 import { buildDisplayWeek } from '../../features/run/display-week';
 import { useActivityResolution } from '../../features/run/use-activity-resolution';
+import { useRunDetailNavigation } from '../../features/run/use-run-detail-navigation';
 import { useRecoveryData } from '../../features/recovery/use-recovery-data';
 import { getVisibleHistoricalInjury, MVP_RECOVERY_UI_ENABLED } from '../../features/recovery/recovery-ui-gate';
 import { usePlanRefreshCoordinator } from '../../features/sync/use-plan-refresh-coordinator';
@@ -305,7 +311,12 @@ export default function BlockTab() {
     isFocused,
     planId: plan?.id,
     syncRevision,
+    today,
     fetchErrorMessage: 'Failed to fetch activities for block view:',
+  });
+  const runDetailNavigation = useRunDetailNavigation({
+    activityForSession: activityResolution.activityForSession,
+    activityIdForSession: activityResolution.activityIdForSession,
   });
   const historicalInjury = getVisibleHistoricalInjury(plan);
   const injuryRange = plan ? getInjuryWeekRange(plan.weeks, historicalInjury, today) : null;
@@ -495,7 +506,7 @@ export default function BlockTab() {
 
     try {
       setIsSavingRearrange(true);
-      await trpc.plan.updateWeeks.mutate({ weeks: nextWeeks });
+      await updatePlanWeeks(nextWeeks);
       await refresh();
       setRescheduleScopeVisible(false);
       reschedule.reset();
@@ -555,7 +566,7 @@ export default function BlockTab() {
 
     try {
       setIsSavingEdit(true);
-      await trpc.plan.updateWeeks.mutate({ weeks: nextWeeks });
+      await updatePlanWeeks(nextWeeks);
       await refresh();
       if (preservedDraft && preservedDraft.weekNumber > 0) {
         setPreservedReschedule(preservedDraft);
@@ -669,6 +680,7 @@ export default function BlockTab() {
         const isCurrent = i === safeCurrentWeekIndex;
         const isPast = i < safeCurrentWeekIndex;
         const isFuture = i > safeCurrentWeekIndex;
+        const isEditableWeek = isEditableBlockWeek(i, safeCurrentWeekIndex);
         const injuryWeek = isInjuryWeek(i, injuryRange);
         const isExpanded = expandedWeekNumber === week.weekNumber;
         const isRescheduleWeek = rescheduleWeekIndex === i;
@@ -685,6 +697,12 @@ export default function BlockTab() {
         const volumeTone = getBlockVolumeTone(i, safeCurrentWeekIndex);
         const volumeSummary = getResolvedWeekVolumeSummary(displayWeek, volumeTone, activityResolution);
         const blockDayDetails = buildResolvedBlockWeekDayDetails(displayWeek, activityResolution);
+        const weekGuide = getBlockWeekGuide({
+          injuryWeek,
+          isEditableWeek,
+          isRescheduleWeek,
+          hasRescheduleChanges: reschedule.hasChanges,
+        });
 
         return (
           <View
@@ -797,13 +815,7 @@ export default function BlockTab() {
                   !isPast && styles.expandedWeekNoDivider,
                 ]}
               >
-                {!injuryWeek ? (
-                  <Text style={styles.weekGuide}>
-                    {reschedule.hasChanges && isRescheduleWeek
-                      ? 'Tap any unchanged row to edit it. Apply the reschedule when the new order looks right.'
-                      : 'Tap a day to adjust the session. Use the grip to reschedule it.'}
-                  </Text>
-                ) : null}
+                {weekGuide ? <Text style={styles.weekGuide}>{weekGuide}</Text> : null}
 
                 {blockDayDetails.map((detail, dayIndex) => {
                   const badge = getStatusBadge(detail.status);
@@ -818,15 +830,17 @@ export default function BlockTab() {
                     reschedule.dragState?.overIndex === dayIndex &&
                     reschedule.dragState.fromIndex !== dayIndex;
                   const invalidDropTarget = Boolean(dropTarget && !reschedule.canDropIndex(dayIndex));
-                  const canEditDay =
-                    !injuryWeek &&
-                    !locked &&
-                    (!reschedule.hasChanges || !moved);
-                  const canDragDay =
-                    !injuryWeek &&
-                    isExpanded &&
-                    isRescheduleWeek &&
-                    reschedule.canDragIndex(dayIndex);
+                  const { canEditDay, canDragDay, canReviewRun } = resolveBlockDayInteraction({
+                    injuryWeek,
+                    isEditableWeek,
+                    isExpanded,
+                    isRescheduleWeek,
+                    hasRescheduleChanges: reschedule.hasChanges,
+                    isMoved: moved,
+                    isLocked: locked,
+                    canDragIndex: reschedule.canDragIndex(dayIndex),
+                    hasRunDetail: runDetailNavigation.canOpenRunDetail(session),
+                  });
                   const distanceLabel = session?.type === 'INTERVAL'
                     ? detail.distanceLabel
                     : session?.distance != null
@@ -895,7 +909,18 @@ export default function BlockTab() {
                             <Text style={styles.dayDistance}>{distanceLabel}</Text>
                           ) : null}
                           {locked ? (
-                            <Text style={[styles.dayStatusChip, styles.dayStatusChipLocked]}>Logged</Text>
+                            canReviewRun ? (
+                              <Pressable
+                                accessibilityRole="button"
+                                testID={`block-review-run-${week.weekNumber}-${dayIndex}`}
+                                onPress={() => runDetailNavigation.openRunDetail(session)}
+                                style={({ pressed }) => pressed && styles.dayStatusChipPressed}
+                              >
+                                <Text style={[styles.dayStatusChip, styles.dayStatusChipLocked]}>Logged</Text>
+                              </Pressable>
+                            ) : (
+                              <Text style={[styles.dayStatusChip, styles.dayStatusChipLocked]}>Logged</Text>
+                            )
                           ) : null}
                           {badge && !locked ? (
                             <Text
@@ -1386,6 +1411,9 @@ const styles = StyleSheet.create({
     color: C.forest,
     backgroundColor: C.forestBg,
     borderColor: `${C.forest}35`,
+  },
+  dayStatusChipPressed: {
+    opacity: 0.75,
   },
   dayBadge: {
     minWidth: 16,

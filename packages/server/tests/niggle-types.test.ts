@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BODY_PARTS, type Niggle } from '@steady/types';
+import { BODY_PARTS, formatNiggleBodyPart, formatNiggleSummary, type Niggle } from '@steady/types';
 
 describe('niggle types', () => {
   it('exports the closed body-part list in the documented order', () => {
@@ -24,14 +24,17 @@ describe('niggle types', () => {
       id: 'n-1',
       userId: 'user-1',
       activityId: 'activity-1',
-      bodyPart: 'calf',
+      bodyPart: 'other',
+      bodyPartOtherText: 'Upper calf',
       severity: 'moderate',
       when: 'during',
       side: 'left',
       createdAt: '2026-04-10T10:00:00Z',
     };
 
-    expect(niggle.bodyPart).toBe('calf');
+    expect(niggle.bodyPart).toBe('other');
+    expect(formatNiggleBodyPart(niggle)).toBe('Upper calf');
+    expect(formatNiggleSummary(niggle)).toBe('Left Upper calf · Moderate · During');
     expect(niggle.when).toBe('during');
   });
 });

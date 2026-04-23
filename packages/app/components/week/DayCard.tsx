@@ -14,14 +14,22 @@ interface DayCardProps {
   isToday: boolean;
   onPress?: () => void;
   muted?: boolean;
+  completed?: boolean;
 }
 
-export function DayCard({ session, dayName, isToday, onPress, muted = false }: DayCardProps) {
+export function DayCard({
+  session,
+  dayName,
+  isToday,
+  onPress,
+  muted = false,
+  completed,
+}: DayCardProps) {
   const { units } = usePreferences();
   const isRest = !session || session.type === 'REST';
   const isOpenable = !isRest && typeof onPress === 'function';
   const tc = session ? SESSION_TYPE[session.type] : null;
-  const hasActual = !!session?.actualActivityId;
+  const showCompleted = completed ?? !!session?.actualActivityId;
 
   return (
     <Pressable
@@ -69,7 +77,7 @@ export function DayCard({ session, dayName, isToday, onPress, muted = false }: D
       </View>
 
       <View style={styles.right}>
-        {hasActual && <Text style={styles.checkmark}>✓</Text>}
+        {showCompleted && <Text style={styles.checkmark}>✓</Text>}
         {isOpenable && <Text style={styles.chevron}>›</Text>}
       </View>
     </Pressable>

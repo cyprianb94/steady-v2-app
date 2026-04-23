@@ -1,6 +1,7 @@
 import type { Activity, Niggle, PlannedSession, Shoe } from '@steady/types';
+import { activityLocalDate } from '../../lib/plan-helpers';
 
-export type EditableNiggle = Pick<Niggle, 'bodyPart' | 'severity' | 'when' | 'side'>;
+export type EditableNiggle = Pick<Niggle, 'bodyPart' | 'bodyPartOtherText' | 'severity' | 'when' | 'side'>;
 export type ShoeWearState = 'ok' | 'warn' | 'critical';
 
 export function isRunnableSession(session: PlannedSession | null): session is PlannedSession {
@@ -13,6 +14,10 @@ export function listRunnableSessions(sessions: readonly (PlannedSession | null)[
 
 export function isSessionSelectable(session: PlannedSession, activityId: string): boolean {
   return !session.actualActivityId || session.actualActivityId === activityId;
+}
+
+export function isActivityDateCompatibleWithSession(activity: Activity, session: PlannedSession): boolean {
+  return activityLocalDate(activity.startTime) === session.date;
 }
 
 export function resolveDefaultMatchSessionId({
@@ -32,14 +37,18 @@ export function resolveDefaultMatchSessionId({
 
   if (activity.matchedSessionId) {
     const matchedSession = sessionOptions.find((session) => session.id === activity.matchedSessionId);
-    if (matchedSession && isSessionSelectable(matchedSession, activity.id)) {
+    if (
+      matchedSession
+      && isSessionSelectable(matchedSession, activity.id)
+      && isActivityDateCompatibleWithSession(activity, matchedSession)
+    ) {
       return activity.matchedSessionId;
     }
   }
 
   if (
     todaySession
-    && activity.startTime.slice(0, 10) === today
+    && activityLocalDate(activity.startTime) === today
     && isSessionSelectable(todaySession, activity.id)
   ) {
     return todaySession.id;
@@ -51,6 +60,7 @@ export function resolveDefaultMatchSessionId({
 export function toEditableNiggles(niggles: readonly Niggle[] | undefined): EditableNiggle[] {
   return (niggles ?? []).map((niggle) => ({
     bodyPart: niggle.bodyPart,
+    bodyPartOtherText: niggle.bodyPartOtherText,
     severity: niggle.severity,
     when: niggle.when,
     side: niggle.side,

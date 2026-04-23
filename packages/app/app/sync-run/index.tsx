@@ -9,7 +9,7 @@ import { useAuth } from '../../lib/auth';
 import { trpc } from '../../lib/trpc';
 import { usePlan } from '../../hooks/usePlan';
 import { useStravaSync } from '../../hooks/useStravaSync';
-import { addDaysIso, findSessionForDateOrWeekday, startOfWeekIso, todayIsoLocal } from '../../lib/plan-helpers';
+import { activityLocalDate, addDaysIso, findSessionForDateOrWeekday, startOfWeekIso, todayIsoLocal } from '../../lib/plan-helpers';
 import { buildCurrentDisplayWeek } from '../../features/run/display-week';
 import { usePreferences } from '../../providers/preferences-context';
 import { formatDistance, formatPace } from '../../lib/units';
@@ -23,7 +23,7 @@ function formatDuration(seconds: number): string {
 
 function formatActivityTime(startTime: string, today: string): string {
   const value = new Date(startTime);
-  const datePart = startTime.slice(0, 10);
+  const datePart = activityLocalDate(startTime);
   const time = value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
   if (datePart === today) return time;
   const label = value.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -58,20 +58,20 @@ function pickCandidates(activities: Activity[], today: string, weekStart: string
   // still appear on Monday morning.
   const windowStart = addDaysIso(weekStart, -1);
   const weekActivities = activities.filter((a) => {
-    const date = a.startTime.slice(0, 10);
+    const date = activityLocalDate(a.startTime);
     return a.source === 'strava' && date >= windowStart && date <= today;
   });
 
   const unmatched = weekActivities.filter((a) => !a.matchedSessionId);
-  const todayUnmatched = unmatched.filter((a) => a.startTime.slice(0, 10) === today);
-  const olderUnmatched = unmatched.filter((a) => a.startTime.slice(0, 10) !== today);
+  const todayUnmatched = unmatched.filter((a) => activityLocalDate(a.startTime) === today);
+  const olderUnmatched = unmatched.filter((a) => activityLocalDate(a.startTime) !== today);
 
   // Build ordered list: today first, then older; limit to 3
   const ordered = [...todayUnmatched, ...olderUnmatched].slice(0, 3);
 
   // If nothing unmatched, fall back to same-day activities so user can still access them
   if (ordered.length === 0) {
-    return weekActivities.filter((a) => a.startTime.slice(0, 10) === today).slice(0, 3);
+    return weekActivities.filter((a) => activityLocalDate(a.startTime) === today).slice(0, 3);
   }
 
   return ordered;
@@ -135,7 +135,7 @@ export default function SyncRunPickerScreen() {
       if (matched) return matched.id;
     }
 
-    const sameDay = candidates.find((a) => a.startTime.slice(0, 10) === today);
+    const sameDay = candidates.find((a) => activityLocalDate(a.startTime) === today);
     return sameDay?.id ?? candidates[0]?.id ?? null;
   }, [candidates, today, todaySession?.id]);
   const hasCandidates = candidates.length > 0;

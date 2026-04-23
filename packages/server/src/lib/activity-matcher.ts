@@ -12,11 +12,10 @@ export function matchActivity(
   activity: Activity,
   planWeeks: PlanWeek[],
   alreadyMatchedIds: Set<string> = new Set(),
+  activityDate = activity.startTime.slice(0, 10),
 ): PlannedSession | null {
   // Skip very short activities (<20 min)
   if (activity.duration < 20 * 60) return null;
-
-  const activityDate = activity.startTime.slice(0, 10); // 'YYYY-MM-DD'
   const inferredType = inferType(activity);
 
   // Collect candidate sessions: same date, not REST, not already matched

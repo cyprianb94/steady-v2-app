@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import {
+  normalizeSessionDuration,
   summariseVsPlan,
   type Activity,
   type PlannedSession,
@@ -57,7 +58,7 @@ const COMPLETED_HEADLINES: Record<PvaHeadline, string> = {
   'crushed-it': 'Crushed it',
   'eased-in': 'Eased in',
   'cut-short': 'Cut short',
-  'bonus-effort': 'Bonus effort',
+  'bonus-effort': 'Longer than planned',
   'under-distance': 'Under distance',
   'over-pace': 'Went out hot',
   'hr-high': 'Heart rate high',
@@ -219,6 +220,8 @@ export function TodayHeroCard({
 
   const meta = SESSION_TYPE[session.type];
   const isInterval = session.type === 'INTERVAL';
+  const warmup = normalizeSessionDuration(session.warmup);
+  const cooldown = normalizeSessionDuration(session.cooldown);
   const completed = Boolean(session.actualActivityId || activity);
   const savedSubjectiveInput = activity?.subjectiveInput;
   const completedSummary = buildCompletedSummary(session, activity);
@@ -375,13 +378,13 @@ export function TodayHeroCard({
         </View>
       </View>
 
-      {(session.warmup || session.cooldown) && (
+      {(warmup || cooldown) && (
         <View style={styles.extras}>
-          {session.warmup ? (
-            <Text style={styles.extraText}>{formatWarmupCooldown(session.warmup, units, 'warmup')}</Text>
+          {warmup ? (
+            <Text style={styles.extraText}>{formatWarmupCooldown(warmup, units, 'warmup')}</Text>
           ) : null}
-          {session.cooldown ? (
-            <Text style={styles.extraText}>{formatWarmupCooldown(session.cooldown, units, 'cooldown')}</Text>
+          {cooldown ? (
+            <Text style={styles.extraText}>{formatWarmupCooldown(cooldown, units, 'cooldown')}</Text>
           ) : null}
         </View>
       )}

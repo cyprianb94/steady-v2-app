@@ -20,6 +20,14 @@ export interface SavePlanInput {
   weeks: PlanWeek[];
 }
 
+function validateWeeks(weeks: PlanWeek[]) {
+  for (const week of weeks) {
+    if (!week.sessions || week.sessions.length !== 7) {
+      throw new Error(`Week ${week.weekNumber} must have exactly 7 session slots`);
+    }
+  }
+}
+
 function rowToPlan(row: Record<string, unknown>): TrainingPlan {
   return {
     id: row.id as string,
@@ -60,11 +68,7 @@ function validateSaveInput(input: SavePlanInput) {
     throw new Error(`Phase sum (${phaseSum}) does not match week count (${input.weeks.length})`);
   }
 
-  for (const week of input.weeks) {
-    if (!week.sessions || week.sessions.length !== 7) {
-      throw new Error(`Week ${week.weekNumber} must have exactly 7 session slots`);
-    }
-  }
+  validateWeeks(input.weeks);
 }
 
 async function getPlanViaSupabase(): Promise<TrainingPlanWithAnnotation | null> {
@@ -159,6 +163,54 @@ async function savePlanViaSupabase(input: SavePlanInput): Promise<TrainingPlan> 
   return rowToPlan(data);
 }
 
+async function updatePlanWeeksViaSupabase(weeks: PlanWeek[]): Promise<TrainingPlan | null> {
+  validateWeeks(weeks);
+
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return trpc.plan.updateWeeks.mutate({ weeks });
+  }
+
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) {
+    throw sessionError;
+  }
+
+  const userId = sessionData.session?.user.id;
+  if (!userId) {
+    throw new Error('Not authenticated');
+  }
+
+  const { data: existing, error: existingError } = await supabase
+    .from('training_plans')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .limit(1)
+    .maybeSingle();
+
+  if (existingError) {
+    throw new Error(`Failed to load existing plan: ${existingError.message}`);
+  }
+
+  if (!existing) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('training_plans')
+    .update({ weeks })
+    .eq('id', existing.id as string)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to update plan weeks: ${error.message}`);
+  }
+
+  return rowToPlan(data);
+}
+
 export async function getPlan(): Promise<TrainingPlanWithAnnotation | null> {
   if (__DEV__) {
     return getPlanViaSupabase();
@@ -173,4 +225,12 @@ export async function savePlan(input: SavePlanInput): Promise<TrainingPlan> {
   }
 
   return trpc.plan.save.mutate(input);
+}
+
+export async function updatePlanWeeks(weeks: PlanWeek[]): Promise<TrainingPlan | null> {
+  if (__DEV__) {
+    return updatePlanWeeksViaSupabase(weeks);
+  }
+
+  return trpc.plan.updateWeeks.mutate({ weeks });
 }

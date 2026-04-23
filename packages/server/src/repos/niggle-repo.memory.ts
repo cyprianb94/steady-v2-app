@@ -19,6 +19,7 @@ export class InMemoryNiggleRepo implements NiggleRepo {
       userId: activity.userId,
       activityId,
       bodyPart: niggle.bodyPart,
+      bodyPartOtherText: niggle.bodyPart === 'other' ? niggle.bodyPartOtherText ?? null : undefined,
       severity: niggle.severity,
       when: niggle.when,
       side: niggle.side,

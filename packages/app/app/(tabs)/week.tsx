@@ -43,6 +43,7 @@ export default function WeekTab() {
     isFocused,
     planId: plan?.id,
     syncRevision,
+    today,
     fetchErrorMessage: 'Failed to fetch activities for week view:',
   });
   const recoveryScope = useMemo(
@@ -66,6 +67,7 @@ export default function WeekTab() {
   });
   const runDetailNavigation = useRunDetailNavigation({
     activityForSession: activityResolution.activityForSession,
+    activityIdForSession: activityResolution.activityIdForSession,
   });
 
   useEffect(() => {
@@ -226,6 +228,7 @@ export default function WeekTab() {
               session={session}
               dayName={DAYS[i]}
               isToday={isToday}
+              completed={activityResolution.isSessionComplete(session)}
               muted={!!activeInjury && !session?.actualActivityId}
               onPress={runDetailNavigation.canOpenRunDetail(session)
                 ? () => runDetailNavigation.openRunDetail(session)

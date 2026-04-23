@@ -24,7 +24,12 @@ describe('sessionKm', () => {
   });
 
   it('includes warmup and cooldown for TEMPO session', () => {
-    const s = session({ type: 'TEMPO', distance: 10, warmup: 2, cooldown: 1.5 });
+    const s = session({
+      type: 'TEMPO',
+      distance: 10,
+      warmup: { unit: 'km', value: 2 },
+      cooldown: { unit: 'km', value: 1.5 },
+    });
     expect(sessionKm(s)).toBe(13.5);
   });
 
@@ -34,8 +39,8 @@ describe('sessionKm', () => {
       reps: 6,
       repDist: 800,
       recovery: '90s',
-      warmup: 1.5,
-      cooldown: 1,
+      warmup: { unit: 'km', value: 1.5 },
+      cooldown: { unit: 'km', value: 1 },
     });
     // 6 * 800/1000 = 4.8km reps
     // 6 * 0.27 = 1.62km recovery jog
@@ -63,8 +68,8 @@ describe('sessionKm', () => {
       reps: 3,
       repDist: 1600,
       recovery: '5min',
-      warmup: 2,
-      cooldown: 1.5,
+      warmup: { unit: 'km', value: 2 },
+      cooldown: { unit: 'km', value: 1.5 },
     });
     // 3 * 1600/1000 = 4.8km reps
     // 3 * 0.91 = 2.73km recovery
@@ -76,6 +81,17 @@ describe('sessionKm', () => {
   it('returns distance without warmup/cooldown for EASY (no wu/cd fields)', () => {
     const s = session({ type: 'EASY', distance: 8 });
     expect(sessionKm(s)).toBe(8);
+  });
+
+  it('ignores minute-based warmup and cooldown in km totals', () => {
+    const s = session({
+      type: 'TEMPO',
+      distance: 10,
+      warmup: { unit: 'min', value: 15 },
+      cooldown: { unit: 'min', value: 10 },
+    });
+
+    expect(sessionKm(s)).toBe(10);
   });
 
   it('falls back to 8km for malformed session without distance or reps', () => {

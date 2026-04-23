@@ -8,7 +8,16 @@ function easy(distance = 8): PlannedSession {
 }
 
 function interval(reps = 6): PlannedSession {
-  return { id: 't-int', type: 'INTERVAL', date: '2026-01-01', reps, repDist: 800, recovery: '90s', warmup: 1.5, cooldown: 1 };
+  return {
+    id: 't-int',
+    type: 'INTERVAL',
+    date: '2026-01-01',
+    reps,
+    repDist: 800,
+    recovery: '90s',
+    warmup: { unit: 'km', value: 1.5 },
+    cooldown: { unit: 'km', value: 1 },
+  };
 }
 
 // Simple template: EASY 8km, INTERVAL 6x800, REST, EASY 10km

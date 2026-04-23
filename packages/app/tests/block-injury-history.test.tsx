@@ -66,12 +66,11 @@ vi.mock('../lib/trpc', () => ({
         query: mockGetForDateRange,
       },
     },
-    plan: {
-      updateWeeks: {
-        mutate: vi.fn(),
-      },
-    },
   },
+}));
+
+vi.mock('../lib/plan-api', () => ({
+  updatePlanWeeks: vi.fn(),
 }));
 
 import BlockTab from '../app/(tabs)/block';

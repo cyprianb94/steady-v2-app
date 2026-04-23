@@ -69,6 +69,7 @@ export default function HomeScreen() {
     isFocused,
     planId: plan?.id,
     syncRevision,
+    today,
     fetchErrorMessage: 'Failed to fetch activities for home view:',
   });
   const recoveryScope = useMemo(
@@ -102,6 +103,7 @@ export default function HomeScreen() {
   });
   const runDetailNavigation = useRunDetailNavigation({
     activityForSession: activityResolution.activityForSession,
+    activityIdForSession: activityResolution.activityIdForSession,
   });
 
   if (authLoading || loading) {
@@ -305,6 +307,7 @@ export default function HomeScreen() {
                 today={today}
                 weekStartDate={resolvedWeekStartDate}
                 activityForSession={activityResolution.activityForSession}
+                activityIdForSession={activityResolution.activityIdForSession}
                 statusForDay={activityResolution.statusForDay}
                 onSessionPress={runDetailNavigation.openRunDetail}
               />

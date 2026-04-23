@@ -1,4 +1,4 @@
-import type { PlannedSession, User } from '@steady/types';
+import { normalizeSessionDuration, type PlannedSession, type SessionDurationSpec, type User } from '@steady/types';
 
 export type DistanceUnits = User['units'];
 
@@ -128,11 +128,20 @@ export function formatSessionTitle(
 }
 
 export function formatWarmupCooldown(
-  distanceKm: number,
+  duration: SessionDurationSpec | number | null | undefined,
   units: DistanceUnits,
   label: 'warmup' | 'cooldown',
 ): string {
-  return `${formatDistance(distanceKm, units)} ${label}`;
+  const normalized = normalizeSessionDuration(duration);
+  if (!normalized) {
+    return label;
+  }
+
+  if (normalized.unit === 'min') {
+    return `${normalized.value} min ${label}`;
+  }
+
+  return `${formatDistance(normalized.value, units)} ${label}`;
 }
 
 export function formatSplitLabel(

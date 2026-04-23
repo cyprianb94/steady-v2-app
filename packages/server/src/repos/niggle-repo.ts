@@ -2,6 +2,7 @@ import type { Niggle, BodyPart, NiggleSeverity, NiggleWhen, NiggleSide } from '@
 
 export interface NiggleInput {
   bodyPart: BodyPart;
+  bodyPartOtherText?: string | null;
   severity: NiggleSeverity;
   when: NiggleWhen;
   side: NiggleSide;

@@ -1,6 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { TrainingPlan, PlanWeek, PhaseConfig, PlannedSession, Injury, InjuryUpdate } from '@steady/types';
-import { normalizeSessionIds } from '@steady/types';
+import {
+  normalizePlanWeekSessionDurations,
+  normalizeSessionIds,
+  normalizeTrainingPlanSessionDurations,
+} from '@steady/types';
 import type { PlanRepo } from './plan-repo';
 
 function createActiveInjury(name: string): Injury {
@@ -15,7 +19,7 @@ function createActiveInjury(name: string): Injury {
 
 function rowToPlan(row: Record<string, unknown>): TrainingPlan {
   const weeks = normalizeSessionIds(row.weeks as PlanWeek[]);
-  return {
+  return normalizeTrainingPlanSessionDurations({
     id: row.id as string,
     userId: row.user_id as string,
     createdAt: row.created_at as string,
@@ -28,23 +32,24 @@ function rowToPlan(row: Record<string, unknown>): TrainingPlan {
     templateWeek: row.template_week as (PlannedSession | null)[],
     weeks,
     activeInjury: (row.active_injury as Injury | null) ?? null,
-  };
+  });
 }
 
 function planToRow(plan: TrainingPlan, isActive: boolean): Record<string, unknown> {
+  const normalized = normalizeTrainingPlanSessionDurations(plan);
   return {
-    id: plan.id,
-    user_id: plan.userId,
-    created_at: plan.createdAt,
-    race_name: plan.raceName,
-    race_date: plan.raceDate,
-    race_distance: plan.raceDistance,
-    target_time: plan.targetTime,
-    phases: plan.phases,
-    progression_pct: plan.progressionPct,
-    template_week: plan.templateWeek,
-    weeks: plan.weeks,
-    active_injury: plan.activeInjury,
+    id: normalized.id,
+    user_id: normalized.userId,
+    created_at: normalized.createdAt,
+    race_name: normalized.raceName,
+    race_date: normalized.raceDate,
+    race_distance: normalized.raceDistance,
+    target_time: normalized.targetTime,
+    phases: normalized.phases,
+    progression_pct: normalized.progressionPct,
+    template_week: normalized.templateWeek,
+    weeks: normalized.weeks,
+    active_injury: normalized.activeInjury,
     is_active: isActive,
   };
 }
@@ -94,9 +99,10 @@ export class SupabasePlanRepo implements PlanRepo {
   }
 
   async updateWeeks(planId: string, weeks: PlanWeek[]): Promise<TrainingPlan | null> {
+    const normalizedWeeks = weeks.map(normalizePlanWeekSessionDurations);
     const { data, error } = await this.supabase
       .from('training_plans')
-      .update({ weeks })
+      .update({ weeks: normalizedWeeks })
       .eq('id', planId)
       .select()
       .single();

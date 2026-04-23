@@ -3,9 +3,12 @@ import { TRPCError } from '@trpc/server';
 import { router, authedProcedure } from './trpc';
 import { generatePlan, getDisplayWeekIndex, propagateChange } from '@steady/types';
 import type { TrainingPlan, TrainingPlanWithAnnotation, PlanWeek, PhaseConfig, PlannedSession } from '@steady/types';
+import type { ActivityRepo } from '../repos/activity-repo';
 import type { PlanRepo } from '../repos/plan-repo';
 import type { ProfileRepo } from '../repos/profile-repo';
 import { generateHomeAnnotations } from '../lib/annotation-engine';
+import { currentIsoDateInTimezone } from '../lib/iso-date';
+import { repairOrphanedActivityLinks } from '../services/orphaned-activity-link-repair';
 
 const PhaseConfigSchema = z.object({
   BASE: z.number().min(0),
@@ -23,6 +26,43 @@ const InjuryUpdateSchema = z.object({
 });
 
 const PhaseNameSchema = z.enum(['BASE', 'BUILD', 'RECOVERY', 'PEAK', 'TAPER']);
+const SessionTypeSchema = z.enum(['EASY', 'INTERVAL', 'TEMPO', 'LONG', 'REST']);
+const RecoveryDurationSchema = z.enum(['45s', '60s', '90s', '2min', '3min', '4min', '5min']);
+const SessionDurationSchema = z.object({
+  unit: z.enum(['km', 'min']),
+  value: z.number().positive(),
+});
+const SessionDurationInputSchema = z.union([z.number().positive(), SessionDurationSchema]);
+const SubjectiveInputSchema = z.object({
+  legs: z.enum(['fresh', 'normal', 'heavy', 'dead']),
+  breathing: z.enum(['easy', 'controlled', 'labored']),
+  overall: z.enum(['could-go-again', 'done', 'shattered']),
+});
+const PlannedSessionSchema = z.object({
+  id: z.string(),
+  type: SessionTypeSchema,
+  date: z.string(),
+  distance: z.number().optional(),
+  pace: z.string().optional(),
+  reps: z.number().int().optional(),
+  repDist: z.number().int().optional(),
+  recovery: RecoveryDurationSchema.optional(),
+  warmup: SessionDurationInputSchema.optional(),
+  cooldown: SessionDurationInputSchema.optional(),
+  actualActivityId: z.string().optional(),
+  subjectiveInput: SubjectiveInputSchema.optional(),
+  subjectiveInputDismissed: z.boolean().optional(),
+});
+const PlanWeekSchema = z.object({
+  weekNumber: z.number().int().min(1),
+  phase: PhaseNameSchema,
+  sessions: z.array(PlannedSessionSchema.nullable()).length(7),
+  plannedKm: z.number(),
+  swapLog: z.array(z.object({
+    from: z.number().int().min(0),
+    to: z.number().int().min(0),
+  })).optional(),
+});
 
 function addDays(date: string, days: number): string {
   const value = new Date(`${date}T00:00:00.000Z`);
@@ -33,28 +73,6 @@ function addDays(date: string, days: number): string {
 function dayIndexForDate(date: string): number {
   const day = new Date(`${date}T00:00:00.000Z`).getUTCDay();
   return day === 0 ? 6 : day - 1;
-}
-
-function currentIsoDateInTimezone(timezone: string, now: Date = new Date()): string {
-  try {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: timezone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).formatToParts(now);
-    const year = parts.find((part) => part.type === 'year')?.value;
-    const month = parts.find((part) => part.type === 'month')?.value;
-    const day = parts.find((part) => part.type === 'day')?.value;
-
-    if (year && month && day) {
-      return `${year}-${month}-${day}`;
-    }
-  } catch {
-    // Fall back to UTC ISO date if the stored timezone is invalid.
-  }
-
-  return now.toISOString().slice(0, 10);
 }
 
 function findSessionForDateOrWeekday(
@@ -95,12 +113,12 @@ function withHomeAnnotations(plan: TrainingPlan | null, today: string): Training
   };
 }
 
-export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo) {
+export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo, activityRepo: ActivityRepo) {
   return router({
     /** Get the user's active training plan. */
     get: authedProcedure.query(async ({ ctx }) => {
       const [plan, profile] = await Promise.all([
-        planRepo.getActive(ctx.userId),
+        repairOrphanedActivityLinks(ctx.userId, { planRepo, activityRepo }),
         profileRepo.getById(ctx.userId),
       ]);
 
@@ -218,7 +236,7 @@ export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo) {
     updateWeeks: authedProcedure
       .input(
         z.object({
-          weeks: z.array(z.any()),
+          weeks: z.array(PlanWeekSchema),
         }),
       )
       .mutation(async ({ ctx, input }) => {

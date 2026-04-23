@@ -153,6 +153,33 @@ describe('activity router', () => {
     });
   });
 
+  it('loads a single activity with its niggles for the authenticated user', async () => {
+    const activity = await activityRepo.save(makeActivity('user-1'));
+    await niggleRepo.setForActivity(activity.id, [
+      { bodyPart: 'hamstring', side: 'left', severity: 'mild', when: 'during' },
+    ]);
+    await activityRepo.save(makeActivity('user-2'));
+
+    await expect(caller.activity.get({ activityId: activity.id })).resolves.toMatchObject({
+      id: activity.id,
+      niggles: [
+        { bodyPart: 'hamstring', side: 'left', severity: 'mild', when: 'during' },
+      ],
+    });
+  });
+
+  it('clears orphaned plan links when the linked activity no longer exists', async () => {
+    await planRepo.save(makePlan('missing-activity'));
+
+    await expect(caller.activity.get({ activityId: 'missing-activity' })).resolves.toBeNull();
+
+    const plan = await planRepo.getActive('user-1');
+    expect(plan?.weeks[0].sessions[0]).toMatchObject({
+      id: 'w1d0',
+      actualActivityId: undefined,
+    });
+  });
+
   it('saveRunDetail persists subjective input, niggles, notes, and shoeId in one call', async () => {
     const activity = await activityRepo.save(makeActivity('user-1', { matchedSessionId: 'w1d0' }));
     await planRepo.save(makePlan(activity.id));
@@ -163,7 +190,7 @@ describe('activity router', () => {
       subjectiveInput: { legs: 'normal', breathing: 'controlled', overall: 'done' },
       niggles: [
         { bodyPart: 'calf', side: 'left', severity: 'mild', when: 'during' },
-        { bodyPart: 'hamstring', side: 'right', severity: 'niggle', when: 'after' },
+        { bodyPart: 'other', bodyPartOtherText: 'Upper calf', side: 'right', severity: 'niggle', when: 'after' },
       ],
       notes: 'Felt smooth after 5k',
       shoeId: shoe.id,
@@ -177,7 +204,7 @@ describe('activity router', () => {
     });
     expect(await niggleRepo.listByActivity(activity.id)).toMatchObject([
       { bodyPart: 'calf', side: 'left', severity: 'mild', when: 'during' },
-      { bodyPart: 'hamstring', side: 'right', severity: 'niggle', when: 'after' },
+      { bodyPart: 'other', bodyPartOtherText: 'Upper calf', side: 'right', severity: 'niggle', when: 'after' },
     ]);
   });
 
@@ -210,6 +237,22 @@ describe('activity router', () => {
   it('handles bonus to matched transitions atomically', async () => {
     const activity = await activityRepo.save(makeActivity('user-1'));
     await planRepo.save(makePlan());
+
+    await caller.activity.saveRunDetail({
+      activityId: activity.id,
+      subjectiveInput: { legs: 'normal', breathing: 'controlled', overall: 'done' },
+      niggles: [],
+      matchedSessionId: 'w1d0',
+    });
+
+    expect(await activityRepo.getById(activity.id)).toMatchObject({ matchedSessionId: 'w1d0' });
+    const plan = await planRepo.getActive('user-1');
+    expect(plan?.weeks[0].sessions[0]).toMatchObject({ id: 'w1d0', actualActivityId: activity.id });
+  });
+
+  it('repairs orphaned target-session links before rematching a run', async () => {
+    const activity = await activityRepo.save(makeActivity('user-1'));
+    await planRepo.save(makePlan('missing-activity'));
 
     await caller.activity.saveRunDetail({
       activityId: activity.id,

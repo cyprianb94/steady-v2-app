@@ -28,13 +28,16 @@ function hasResolvedLockedSwapPosition(
 
 export function buildResolvedBlockWeekDayDetails(
   week: PlanWeek,
-  resolution: Pick<ActivityResolution, 'completionStatusForSession'>,
+  resolution: Pick<ActivityResolution, 'completionStatusForSession' | 'isSessionComplete'>,
 ) {
   const baseDetails = buildBlockWeekDayDetails(week);
 
   return baseDetails.map((detail, index) => {
-    const completionStatus = resolution.completionStatusForSession(week.sessions[index] ?? null);
-    return completionStatus ? { ...detail, status: completionStatus } : detail;
+    const session = week.sessions[index] ?? null;
+    const completionStatus = resolution.completionStatusForSession(session);
+    const status = completionStatus ?? (resolution.isSessionComplete(session) ? 'completed' : 'upcoming');
+
+    return status === detail.status ? detail : { ...detail, status };
   });
 }
 

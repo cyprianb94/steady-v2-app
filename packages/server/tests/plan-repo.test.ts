@@ -87,7 +87,15 @@ function runPlanRepoTests(name: string, createRepo: () => PlanRepo) {
         weekNumber: 1,
         phase: 'BUILD' as const,
         sessions: [
-          { id: 's1', type: 'TEMPO' as const, date: '2026-03-23', distance: 10, pace: '4:20', warmup: 2, cooldown: 1.5 },
+          {
+            id: 's1',
+            type: 'TEMPO' as const,
+            date: '2026-03-23',
+            distance: 10,
+            pace: '4:20',
+            warmup: { unit: 'km', value: 2 },
+            cooldown: { unit: 'km', value: 1.5 },
+          },
           null, null, null, null, null, null,
         ],
         plannedKm: 13.5,
@@ -105,6 +113,33 @@ function runPlanRepoTests(name: string, createRepo: () => PlanRepo) {
 
     it('updateWeeks returns null for nonexistent plan', async () => {
       expect(await repo.updateWeeks('ghost', [])).toBeNull();
+    });
+
+    it('normalizes minute-based warmup and cooldown values on updateWeeks', async () => {
+      const plan = makePlan('user-1');
+      await repo.save(plan);
+
+      await repo.updateWeeks(plan.id, [{
+        weekNumber: 1,
+        phase: 'BUILD',
+        sessions: [
+          {
+            id: 's1',
+            type: 'TEMPO',
+            date: '2026-03-23',
+            distance: 10,
+            pace: '4:20',
+            warmup: { unit: 'min', value: 15 },
+            cooldown: { unit: 'min', value: 10 },
+          },
+          null, null, null, null, null, null,
+        ],
+        plannedKm: 10,
+      }]);
+
+      const retrieved = await repo.getActive('user-1');
+      expect(retrieved!.weeks[0].sessions[0]!.warmup).toEqual({ unit: 'min', value: 15 });
+      expect(retrieved!.weeks[0].sessions[0]!.cooldown).toEqual({ unit: 'min', value: 10 });
     });
 
     it('deactivate makes plan no longer active', async () => {

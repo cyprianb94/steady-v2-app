@@ -4,6 +4,7 @@ import type { SavePlanInput } from '../lib/plan-api';
 const mockGetSupabaseClient = vi.hoisted(() => vi.fn());
 const mockTrpcPlanGet = vi.hoisted(() => vi.fn());
 const mockTrpcPlanSave = vi.hoisted(() => vi.fn());
+const mockTrpcPlanUpdateWeeks = vi.hoisted(() => vi.fn());
 
 vi.mock('../lib/supabase', () => ({
   getSupabaseClient: mockGetSupabaseClient,
@@ -17,6 +18,9 @@ vi.mock('../lib/trpc', () => ({
       },
       save: {
         mutate: mockTrpcPlanSave,
+      },
+      updateWeeks: {
+        mutate: mockTrpcPlanUpdateWeeks,
       },
     },
   },
@@ -75,6 +79,7 @@ describe('plan api', () => {
     mockGetSupabaseClient.mockReset();
     mockTrpcPlanGet.mockReset();
     mockTrpcPlanSave.mockReset();
+    mockTrpcPlanUpdateWeeks.mockReset();
     Reflect.set(globalThis, '__DEV__', true);
   });
 
@@ -156,5 +161,65 @@ describe('plan api', () => {
 
     expect(mockTrpcPlanSave).toHaveBeenCalledWith(makeSaveInput());
     expect(result).toEqual({ id: 'plan-remote' });
+  });
+
+  it('updates active plan weeks directly in Supabase in dev', async () => {
+    const updatedRow = makeRow({
+      weeks: [
+        {
+          weekNumber: 1,
+          phase: 'BASE',
+          plannedKm: 48,
+          sessions: [null, null, null, null, null, null, null],
+        },
+      ],
+    });
+    const maybeSingle = vi.fn().mockResolvedValue({ data: makeRow(), error: null });
+    const limit = vi.fn(() => ({ maybeSingle }));
+    const eqIsActive = vi.fn(() => ({ limit }));
+    const eqUserId = vi.fn(() => ({ eq: eqIsActive }));
+    const selectExisting = vi.fn(() => ({ eq: eqUserId }));
+
+    const single = vi.fn().mockResolvedValue({ data: updatedRow, error: null });
+    const selectUpdated = vi.fn(() => ({ single }));
+    const eqPlanId = vi.fn(() => ({ select: selectUpdated }));
+    const update = vi.fn(() => ({ eq: eqPlanId }));
+
+    mockGetSupabaseClient.mockReturnValue({
+      auth: {
+        getSession: vi.fn().mockResolvedValue({
+          data: { session: { user: { id: 'user-1' } } },
+          error: null,
+        }),
+      },
+      from: vi.fn(() => ({
+        select: selectExisting,
+        update,
+      })),
+    });
+
+    const { updatePlanWeeks } = await import('../lib/plan-api');
+    const result = await updatePlanWeeks(updatedRow.weeks as SavePlanInput['weeks']);
+
+    expect(update).toHaveBeenCalledWith({ weeks: updatedRow.weeks });
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 'plan-1',
+        weeks: updatedRow.weeks,
+      }),
+    );
+    expect(mockTrpcPlanUpdateWeeks).not.toHaveBeenCalled();
+  });
+
+  it('uses tRPC for week updates in release builds', async () => {
+    Reflect.set(globalThis, '__DEV__', false);
+    const weeks = makeSaveInput().weeks;
+    mockTrpcPlanUpdateWeeks.mockResolvedValue({ id: 'plan-remote', weeks });
+
+    const { updatePlanWeeks } = await import('../lib/plan-api');
+    const result = await updatePlanWeeks(weeks);
+
+    expect(mockTrpcPlanUpdateWeeks).toHaveBeenCalledWith({ weeks });
+    expect(result).toEqual({ id: 'plan-remote', weeks });
   });
 });

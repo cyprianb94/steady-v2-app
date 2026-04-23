@@ -8,6 +8,7 @@ function rowToNiggle(row: Record<string, unknown>): Niggle {
     userId: row.user_id as string,
     activityId: row.activity_id as string,
     bodyPart: row.body_part as Niggle['bodyPart'],
+    bodyPartOtherText: (row.body_part_other_text as Niggle['bodyPartOtherText']) ?? undefined,
     severity: row.severity as Niggle['severity'],
     when: row.niggle_when as Niggle['when'],
     side: (row.side as Niggle['side']) ?? null,

@@ -56,6 +56,9 @@ vi.mock('../providers/preferences-context', () => ({
 vi.mock('../lib/trpc', () => ({
   trpc: {
     activity: {
+      get: {
+        query: vi.fn().mockResolvedValue(null),
+      },
       list: {
         query: vi.fn().mockResolvedValue([]),
       },
@@ -65,10 +68,11 @@ vi.mock('../lib/trpc', () => ({
         query: vi.fn().mockResolvedValue([]),
       },
     },
-    plan: {
-      updateWeeks: { mutate: vi.fn() },
-    },
   },
+}));
+
+vi.mock('../lib/plan-api', () => ({
+  updatePlanWeeks: vi.fn(),
 }));
 
 vi.mock('../components/plan-builder/PropagateModal', () => ({

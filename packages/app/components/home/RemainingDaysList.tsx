@@ -16,6 +16,7 @@ interface RemainingDaysListProps {
   today: string;
   weekStartDate: string;
   activityForSession: (session: PlannedSession | null) => { distance: number } | undefined;
+  activityIdForSession: (session: PlannedSession | null) => string | null;
   statusForDay: (
     session: PlannedSession | null,
     dayIndex: number,
@@ -47,6 +48,7 @@ export function RemainingDaysList({
   today,
   weekStartDate,
   activityForSession,
+  activityIdForSession,
   statusForDay,
   onSessionPress,
 }: RemainingDaysListProps) {
@@ -67,7 +69,7 @@ export function RemainingDaysList({
             session={session ?? null}
             status={statusForDay(session ?? null, index, todayIndex)}
             metricLabel={formatActualDistance(activity?.distance, units) ?? formatPlannedDistance(session, units)}
-            onPress={session && (session.actualActivityId || activity) ? () => onSessionPress?.(session) : undefined}
+            onPress={session && activityIdForSession(session) ? () => onSessionPress?.(session) : undefined}
           />
         );
       })}

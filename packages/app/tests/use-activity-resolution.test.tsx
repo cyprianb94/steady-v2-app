@@ -56,6 +56,7 @@ describe('useActivityResolution', () => {
         isFocused: true,
         planId,
         syncRevision: 0,
+        today: '2026-04-15',
         fetchErrorMessage: 'Failed to fetch activities:',
       },
     });
@@ -76,6 +77,7 @@ describe('useActivityResolution', () => {
         isFocused: true,
         planId,
         syncRevision: 1,
+        today: '2026-04-15',
         fetchErrorMessage: 'Failed to fetch activities:',
       },
     });
@@ -100,6 +102,7 @@ describe('useActivityResolution', () => {
         isFocused: true,
         planId,
         syncRevision: 0,
+        today: '2026-04-15',
         fetchErrorMessage: 'Failed to fetch activities:',
       },
     });
@@ -111,6 +114,7 @@ describe('useActivityResolution', () => {
       isFocused: false,
       planId,
       syncRevision: 0,
+      today: '2026-04-15',
       fetchErrorMessage: 'Failed to fetch activities:',
     });
 
@@ -128,6 +132,7 @@ describe('useActivityResolution', () => {
       isFocused: true,
       planId,
       syncRevision: 1,
+      today: '2026-04-15',
       fetchErrorMessage: 'Failed to fetch activities:',
     });
 
@@ -157,6 +162,7 @@ describe('useActivityResolution', () => {
           isFocused: true,
           planId,
           syncRevision: 0,
+          today: '2026-04-15',
           fetchErrorMessage: 'Failed to fetch activities:',
         },
       });

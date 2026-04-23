@@ -2,7 +2,17 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type DimensionValue } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { expectedDistance, type Activity, type PlannedSession, type Shoe, type SubjectiveBreathing, type SubjectiveInput, type SubjectiveLegs, type SubjectiveOverall } from '@steady/types';
+import {
+  expectedDistance,
+  formatNiggleSummary,
+  type Activity,
+  type PlannedSession,
+  type Shoe,
+  type SubjectiveBreathing,
+  type SubjectiveInput,
+  type SubjectiveLegs,
+  type SubjectiveOverall,
+} from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { trpc } from '../../lib/trpc';
@@ -10,7 +20,7 @@ import { usePlan } from '../../hooks/usePlan';
 import { findSessionForDateOrWeekday, todayIsoLocal } from '../../lib/plan-helpers';
 import { usePreferences } from '../../providers/preferences-context';
 import { formatDistance, formatPace, formatSessionTitle, formatSplitLabel, formatStoredPace } from '../../lib/units';
-import { type EditableNiggle, isRunnableSession, isSessionSelectable, listRunnableSessions, resolveDefaultMatchSessionId, shoeWearState, toEditableNiggles } from '../../features/sync/sync-run-detail';
+import { type EditableNiggle, isActivityDateCompatibleWithSession, isRunnableSession, isSessionSelectable, listRunnableSessions, resolveDefaultMatchSessionId, shoeWearState, toEditableNiggles } from '../../features/sync/sync-run-detail';
 import { buildCurrentDisplayWeek } from '../../features/run/display-week';
 import { MatchPickerModal } from '../../components/sync-run/MatchPickerModal';
 import { NigglePickerModal } from '../../components/sync-run/NigglePickerModal';
@@ -39,20 +49,16 @@ function paceBarWidth(splitPace: number, fastestPace: number, slowestPace: numbe
   return `${35 + ratio * 55}%`;
 }
 
-function titleCase(value: string): string {
-  return value
-    .split('-')
-    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
-    .join(' ');
-}
-
 function shoeLabel(shoe: Shoe): string {
   return `${shoe.brand} ${shoe.model}`;
 }
 
-function formatNiggleChip(niggle: EditableNiggle): string {
-  const side = niggle.side ? `${titleCase(niggle.side)} ` : '';
-  return `${side}${titleCase(niggle.bodyPart)} · ${titleCase(niggle.severity)} · ${titleCase(niggle.when)}`;
+function firstRouteParamValue(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
 const LEGS_OPTIONS: { value: SubjectiveLegs; label: string }[] = [
@@ -73,6 +79,27 @@ const OVERALL_OPTIONS: { value: SubjectiveOverall; label: string }[] = [
   { value: 'done', label: 'Done' },
   { value: 'shattered', label: 'Shattered' },
 ];
+
+const RUN_DETAIL_LOAD_TIMEOUT_MS = 8000;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
 
 function FeelRow<T extends string>({
   label,
@@ -107,11 +134,15 @@ function FeelRow<T extends string>({
 }
 
 export default function SyncRunDetailScreen() {
-  const { activityId } = useLocalSearchParams<{ activityId: string }>();
+  const { activityId: rawActivityId } = useLocalSearchParams<{ activityId?: string | string[] }>();
+  const activityId = useMemo(
+    () => firstRouteParamValue(rawActivityId),
+    [rawActivityId],
+  );
   const insets = useSafeAreaInsets();
   const { units } = usePreferences();
   const { currentWeek, refresh: refreshPlan } = usePlan();
-  const [activities, setActivities] = useState<Activity[]>([]);
+  const [activity, setActivity] = useState<Activity | null>(null);
   const [shoes, setShoes] = useState<Shoe[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -140,11 +171,6 @@ export default function SyncRunDetailScreen() {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [selectedShoeId, setSelectedShoeId] = useState<string | null>(null);
   const [niggles, setNiggles] = useState<EditableNiggle[]>([]);
-
-  const activity = useMemo(
-    () => activities.find((item) => item.id === activityId) ?? null,
-    [activities, activityId],
-  );
   const recommendedSessionId = useMemo(
     () => resolveDefaultMatchSessionId({
       activity,
@@ -161,7 +187,11 @@ export default function SyncRunDetailScreen() {
     : null;
   const hasStaleMatchedSession = Boolean(
     activity?.matchedSessionId
-      && (!matchedSession || !isSessionSelectable(matchedSession, activity.id)),
+      && (
+        !matchedSession
+        || !isSessionSelectable(matchedSession, activity.id)
+        || !isActivityDateCompatibleWithSession(activity, matchedSession)
+      ),
   );
   const splitPaces = activity?.splits.map((split) => split.pace) ?? [];
   const fastestPace = splitPaces.length ? Math.min(...splitPaces) : 0;
@@ -177,26 +207,51 @@ export default function SyncRunDetailScreen() {
   }, [activityId]);
 
   useEffect(() => {
+    if (!activityId) {
+      setActivity(null);
+      setShoes([]);
+      setLoadError('We could not find that run. Go back and open it again.');
+      setLoading(false);
+      return;
+    }
+
+    const resolvedActivityId = activityId;
     let cancelled = false;
 
     async function loadDetail() {
       try {
         setLoading(true);
         setLoadError(null);
-        const [nextActivities, nextShoes] = await Promise.all([
-          trpc.activity.list.query(),
-          trpc.shoe.list.query(),
-        ]);
+        setShoes([]);
+        const nextActivity = await withTimeout(
+          trpc.activity.get.query({ activityId: resolvedActivityId }),
+          RUN_DETAIL_LOAD_TIMEOUT_MS,
+          'sync-run detail activity fetch',
+        );
         if (cancelled) {
           return;
         }
-        setActivities(nextActivities);
-        setShoes(nextShoes);
+        setActivity(nextActivity);
+        void withTimeout(
+          trpc.shoe.list.query(),
+          RUN_DETAIL_LOAD_TIMEOUT_MS,
+          'sync-run detail shoe fetch',
+        )
+          .then((nextShoes) => {
+            if (!cancelled) {
+              setShoes(nextShoes);
+            }
+          })
+          .catch((error) => {
+            console.warn('Failed to load shoes for sync-run detail:', error);
+            if (!cancelled) {
+              setShoes([]);
+            }
+          });
       } catch (error) {
         console.warn('Failed to load sync-run detail activity:', error);
         if (!cancelled) {
-          setActivities([]);
-          setShoes([]);
+          setActivity(null);
           setLoadError('We could not refresh this run. Try again or go back to the picker.');
         }
       } finally {
@@ -231,19 +286,39 @@ export default function SyncRunDetailScreen() {
   }, [activity, draftSeedActivityId, recommendedSessionId]);
 
   async function reloadDetail() {
+    if (!activityId) {
+      setActivity(null);
+      setShoes([]);
+      setLoadError('We could not find that run. Go back and open it again.');
+      setLoading(false);
+      return;
+    }
+
+    const resolvedActivityId = activityId;
     try {
       setLoading(true);
       setLoadError(null);
-      const [nextActivities, nextShoes] = await Promise.all([
-        trpc.activity.list.query(),
+      const nextActivity = await withTimeout(
+        trpc.activity.get.query({ activityId: resolvedActivityId }),
+        RUN_DETAIL_LOAD_TIMEOUT_MS,
+        'sync-run detail activity fetch',
+      );
+      setActivity(nextActivity);
+      void withTimeout(
         trpc.shoe.list.query(),
-      ]);
-      setActivities(nextActivities);
-      setShoes(nextShoes);
+        RUN_DETAIL_LOAD_TIMEOUT_MS,
+        'sync-run detail shoe fetch',
+      )
+        .then((nextShoes) => {
+          setShoes(nextShoes);
+        })
+        .catch((error) => {
+          console.warn('Failed to reload shoes for sync-run detail:', error);
+          setShoes([]);
+        });
     } catch (error) {
       console.warn('Failed to load sync-run detail activity:', error);
-      setActivities([]);
-      setShoes([]);
+      setActivity(null);
       setLoadError('We could not refresh this run. Try again or go back to the picker.');
     } finally {
       setLoading(false);
@@ -273,9 +348,7 @@ export default function SyncRunDetailScreen() {
         matchedSessionId: selectedSessionId,
       });
 
-      setActivities((current) => current.map((item) => (
-        item.id === activity.id ? { ...item, ...result.activity, niggles: result.niggles } : item
-      )));
+      setActivity({ ...result.activity, niggles: result.niggles });
     } catch (error) {
       console.warn('Failed to save synced run:', error);
       setSaveError('Could not save this run yet. Your notes and selections are still here so you can retry.');
@@ -518,7 +591,7 @@ export default function SyncRunDetailScreen() {
             <View style={styles.niggleChips}>
               {niggles.map((niggle, index) => (
                 <View key={`${niggle.bodyPart}-${niggle.when}-${index}`} style={styles.niggleChip}>
-                  <Text style={styles.niggleChipText}>{formatNiggleChip(niggle)}</Text>
+                  <Text style={styles.niggleChipText}>{formatNiggleSummary(niggle)}</Text>
                   <Pressable onPress={() => setNiggles((current) => current.filter((_, currentIndex) => currentIndex !== index))}>
                     <Text style={styles.niggleChipRemove}>✕</Text>
                   </Pressable>

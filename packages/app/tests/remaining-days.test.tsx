@@ -35,6 +35,7 @@ function renderRemainingDaysList({
       today={today}
       weekStartDate={weekStartDate}
       activityForSession={resolution.activityForSession}
+      activityIdForSession={resolution.activityIdForSession}
       statusForDay={resolution.statusForDay}
     />,
   );

@@ -1,32 +1,8 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import type { Niggle } from '@steady/types';
+import { formatNiggleSummary, type Niggle } from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
-
-const BODY_PART_LABELS: Record<Niggle['bodyPart'], string> = {
-  calf: 'Calf',
-  knee: 'Knee',
-  hamstring: 'Hamstring',
-  quad: 'Quad',
-  hip: 'Hip',
-  glute: 'Glute',
-  foot: 'Foot',
-  shin: 'Shin',
-  ankle: 'Ankle',
-  achilles: 'Achilles',
-  back: 'Back',
-  other: 'Other',
-};
-
-function titleCase(value: string): string {
-  return value.slice(0, 1).toUpperCase() + value.slice(1);
-}
-
-function formatNiggle(niggle: Niggle): string {
-  const side = niggle.side ? `${titleCase(niggle.side)} ` : '';
-  return `${side}${BODY_PART_LABELS[niggle.bodyPart]} · ${titleCase(niggle.severity)} · ${titleCase(niggle.when)}`;
-}
 
 interface NiggleBannerProps {
   niggles: Niggle[];
@@ -40,8 +16,8 @@ export function NiggleBanner({ niggles }: NiggleBannerProps) {
   const lead = niggles[0]!;
   const extraCount = niggles.length - 1;
   const summary = extraCount > 0
-    ? `${formatNiggle(lead)} + ${extraCount} more`
-    : formatNiggle(lead);
+    ? `${formatNiggleSummary(lead)} + ${extraCount} more`
+    : formatNiggleSummary(lead);
 
   return (
     <View style={styles.banner}>

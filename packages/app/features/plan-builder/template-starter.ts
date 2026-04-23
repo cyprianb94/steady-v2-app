@@ -5,9 +5,23 @@ export type TemplateDay = Partial<PlannedSession> | null;
 
 export const STEADY_TEMPLATE: ReadonlyArray<TemplateDay> = [
   { type: 'EASY', distance: 8, pace: '5:20' },
-  { type: 'INTERVAL', reps: 6, repDist: 800, pace: '3:50', recovery: '90s', warmup: 1.5, cooldown: 1 },
+  {
+    type: 'INTERVAL',
+    reps: 6,
+    repDist: 800,
+    pace: '3:50',
+    recovery: '90s',
+    warmup: { unit: 'km', value: 1.5 },
+    cooldown: { unit: 'km', value: 1 },
+  },
   { type: 'EASY', distance: 8, pace: '5:30' },
-  { type: 'TEMPO', distance: 10, pace: '4:20', warmup: 2, cooldown: 1.5 },
+  {
+    type: 'TEMPO',
+    distance: 10,
+    pace: '4:20',
+    warmup: { unit: 'km', value: 2 },
+    cooldown: { unit: 'km', value: 1.5 },
+  },
   null,
   { type: 'EASY', distance: 12, pace: '5:20' },
   { type: 'LONG', distance: 20, pace: '5:10' },

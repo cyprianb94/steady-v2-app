@@ -5,10 +5,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const {
   mockRouterPush,
   mockActivityList,
+  mockActivityGet,
   mockCrossTrainingGetForWeek,
 } = vi.hoisted(() => ({
   mockRouterPush: vi.fn(),
   mockActivityList: vi.fn(),
+  mockActivityGet: vi.fn(),
   mockCrossTrainingGetForWeek: vi.fn(),
 }));
 
@@ -56,6 +58,9 @@ vi.mock('../hooks/useTodayIso', () => ({
 vi.mock('../lib/trpc', () => ({
   trpc: {
     activity: {
+      get: {
+        query: mockActivityGet,
+      },
       list: {
         query: mockActivityList,
       },
@@ -112,7 +117,9 @@ describe('WeekTab', () => {
   beforeEach(() => {
     mockRouterPush.mockReset();
     mockActivityList.mockReset();
+    mockActivityGet.mockReset();
     mockActivityList.mockResolvedValue([]);
+    mockActivityGet.mockResolvedValue(null);
     mockCrossTrainingGetForWeek.mockReset();
     mockCrossTrainingGetForWeek.mockResolvedValue([]);
     mockPlan.plan = null;

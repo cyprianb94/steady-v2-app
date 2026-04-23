@@ -1,25 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { BODY_PARTS, NIGGLE_SEVERITIES, NIGGLE_WHEN_OPTIONS, type BodyPart, type NiggleSeverity, type NiggleSide, type NiggleWhen } from '@steady/types';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  BODY_PART_LABELS,
+  BODY_PARTS,
+  NIGGLE_OTHER_BODY_PART_MAX_LENGTH,
+  NIGGLE_SEVERITIES,
+  NIGGLE_WHEN_OPTIONS,
+  type BodyPart,
+  type NiggleSeverity,
+  type NiggleSide,
+  type NiggleWhen,
+} from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import type { EditableNiggle } from '../../features/sync/sync-run-detail';
 import { SyncRunModalShell } from './SyncRunModalShell';
-
-const BODY_PART_LABELS: Record<BodyPart, string> = {
-  calf: 'Calf',
-  knee: 'Knee',
-  hamstring: 'Hamstring',
-  quad: 'Quad',
-  hip: 'Hip',
-  glute: 'Glute',
-  foot: 'Foot',
-  shin: 'Shin',
-  ankle: 'Ankle',
-  achilles: 'Achilles',
-  back: 'Back',
-  other: 'Other',
-};
 
 const SEVERITY_DESCRIPTIONS: Record<NiggleSeverity, string> = {
   niggle: 'noticed',
@@ -36,20 +31,23 @@ interface NigglePickerModalProps {
 
 export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModalProps) {
   const [bodyPart, setBodyPart] = useState<BodyPart | null>(null);
+  const [bodyPartOtherText, setBodyPartOtherText] = useState('');
   const [side, setSide] = useState<NiggleSide>(null);
   const [severity, setSeverity] = useState<NiggleSeverity | null>(null);
   const [when, setWhen] = useState<NiggleWhen | null>(null);
+  const trimmedOtherText = bodyPartOtherText.trim();
 
   useEffect(() => {
     if (!visible) {
       setBodyPart(null);
+      setBodyPartOtherText('');
       setSide(null);
       setSeverity(null);
       setWhen(null);
     }
   }, [visible]);
 
-  const canAdd = Boolean(bodyPart && severity && when);
+  const canAdd = Boolean(bodyPart && severity && when && (bodyPart !== 'other' || trimmedOtherText));
 
   return (
     <SyncRunModalShell
@@ -61,10 +59,16 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
         <View style={styles.bottomBar}>
           <Pressable
             onPress={() => {
-              if (!bodyPart || !severity || !when) {
+              if (!bodyPart || !severity || !when || (bodyPart === 'other' && !trimmedOtherText)) {
                 return;
               }
-              onAdd({ bodyPart, side, severity, when });
+              onAdd({
+                bodyPart,
+                bodyPartOtherText: bodyPart === 'other' ? trimmedOtherText : undefined,
+                side,
+                severity,
+                when,
+              });
             }}
             style={[styles.addButton, !canAdd && styles.addButtonDisabled]}
             disabled={!canAdd}
@@ -94,6 +98,20 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
             </Pressable>
           ))}
         </View>
+        {bodyPart === 'other' ? (
+          <View style={styles.otherInputWrap}>
+            <Text style={styles.otherInputLabel}>Where exactly?</Text>
+            <TextInput
+              value={bodyPartOtherText}
+              onChangeText={setBodyPartOtherText}
+              placeholder="e.g. Groin or upper calf"
+              placeholderTextColor={C.muted}
+              style={styles.otherInput}
+              maxLength={NIGGLE_OTHER_BODY_PART_MAX_LENGTH}
+              returnKeyType="done"
+            />
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.block}>
@@ -226,6 +244,26 @@ const styles = StyleSheet.create({
   },
   bodyPillTextSelected: {
     color: C.surface,
+  },
+  otherInputWrap: {
+    marginTop: 12,
+    gap: 8,
+  },
+  otherInputLabel: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 12,
+    color: C.ink2,
+  },
+  otherInput: {
+    borderWidth: 1.5,
+    borderColor: C.border,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    fontFamily: FONTS.sans,
+    fontSize: 14,
+    color: C.ink,
   },
   sideRow: {
     flexDirection: 'row',

@@ -5,6 +5,7 @@ import type { ActivityRepo } from '../repos/activity-repo';
 import type { NiggleInput, NiggleRepo } from '../repos/niggle-repo';
 import type { PlanRepo } from '../repos/plan-repo';
 import type { ShoeRepo } from '../repos/shoe-repo';
+import { repairOrphanedActivityLinks } from './orphaned-activity-link-repair';
 
 /**
  * Workflow boundary for activity save and manual match changes.
@@ -28,6 +29,7 @@ export interface SaveRunDetailInput {
 }
 
 export interface ActivityWorkflowService {
+  getActivity(userId: string, activityId: string): Promise<Activity | null>;
   listActivities(userId: string): Promise<Activity[]>;
   matchSession(userId: string, input: MatchSessionInput): Promise<{ activity: Activity; plan: TrainingPlan }>;
   saveRunDetail(userId: string, input: SaveRunDetailInput): Promise<{ activity: Activity; niggles: Niggle[] }>;
@@ -43,6 +45,7 @@ interface ActivityWorkflowServiceDeps {
 function stripNigglePersistenceFields(niggle: Niggle): NiggleInput {
   return {
     bodyPart: niggle.bodyPart,
+    bodyPartOtherText: niggle.bodyPartOtherText,
     severity: niggle.severity,
     when: niggle.when,
     side: niggle.side,
@@ -110,6 +113,19 @@ async function updatePlanWeeksOrThrow(
 
 export function createActivityWorkflowService(deps: ActivityWorkflowServiceDeps): ActivityWorkflowService {
   return {
+    async getActivity(userId: string, activityId: string): Promise<Activity | null> {
+      const activity = await deps.activityRepo.getById(activityId);
+      if (!activity || activity.userId !== userId) {
+        await repairOrphanedActivityLinks(userId, deps);
+        return null;
+      }
+
+      return {
+        ...activity,
+        niggles: await deps.niggleRepo.listByActivity(activity.id),
+      };
+    },
+
     async listActivities(userId: string): Promise<Activity[]> {
       const activities = await deps.activityRepo.getByUserId(userId);
       const activitiesWithNiggles = await Promise.all(
@@ -124,7 +140,10 @@ export function createActivityWorkflowService(deps: ActivityWorkflowServiceDeps)
 
     async matchSession(userId: string, input: MatchSessionInput): Promise<{ activity: Activity; plan: TrainingPlan }> {
       const activity = await getOwnedActivity(deps.activityRepo, userId, input.activityId);
-      const activePlan = await deps.planRepo.getActive(userId);
+      const activePlan = await repairOrphanedActivityLinks(userId, deps, {
+        plan: await deps.planRepo.getActive(userId),
+        strict: true,
+      });
       if (!activePlan) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'No plan found' });
       }
@@ -170,7 +189,12 @@ export function createActivityWorkflowService(deps: ActivityWorkflowServiceDeps)
       const previousActivity = structuredClone(existingActivity);
       const previousNiggles = await deps.niggleRepo.listByActivity(input.activityId);
       const shouldUpdateMatch = input.matchedSessionId !== undefined;
-      const activePlan = shouldUpdateMatch ? await deps.planRepo.getActive(userId) : null;
+      const activePlan = shouldUpdateMatch
+        ? await repairOrphanedActivityLinks(userId, deps, {
+          plan: await deps.planRepo.getActive(userId),
+          strict: true,
+        })
+        : null;
 
       if (shouldUpdateMatch && !activePlan) {
         throw new TRPCError({

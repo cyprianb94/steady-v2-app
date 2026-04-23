@@ -9,6 +9,7 @@ interface UseActivityResolutionOptions {
   isFocused: boolean;
   planId?: string | null;
   syncRevision: number;
+  today: string;
   fetchErrorMessage: string;
 }
 
@@ -23,6 +24,7 @@ export function useActivityResolution({
   isFocused,
   planId,
   syncRevision,
+  today,
   fetchErrorMessage,
 }: UseActivityResolutionOptions): ActivityResolution {
   const [activities, setActivities] = useState<Activity[]>(() => readCachedActivities(planId));
@@ -69,5 +71,5 @@ export function useActivityResolution({
     };
   }, [enabled, fetchErrorMessage, isFocused, planId, syncRevision]);
 
-  return useMemo(() => createActivityResolution(activities), [activities]);
+  return useMemo(() => createActivityResolution(activities, { today }), [activities, today]);
 }

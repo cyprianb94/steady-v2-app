@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   BODY_PARTS,
+  NIGGLE_OTHER_BODY_PART_MAX_LENGTH,
   NIGGLE_SEVERITIES,
   NIGGLE_WHEN_OPTIONS,
 } from '@steady/types';
@@ -15,9 +16,26 @@ const SubjectiveInputSchema = z.object({
 
 const NiggleInputSchema = z.object({
   bodyPart: z.enum(BODY_PARTS),
+  bodyPartOtherText: z.string().trim().min(1).max(NIGGLE_OTHER_BODY_PART_MAX_LENGTH).optional().nullable(),
   severity: z.enum(NIGGLE_SEVERITIES),
   when: z.enum(NIGGLE_WHEN_OPTIONS),
   side: z.enum(['left', 'right']).nullable(),
+}).superRefine((value, ctx) => {
+  if (value.bodyPart === 'other' && !value.bodyPartOtherText) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['bodyPartOtherText'],
+      message: 'Provide the body part when choosing Other',
+    });
+  }
+
+  if (value.bodyPart !== 'other' && value.bodyPartOtherText != null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['bodyPartOtherText'],
+      message: 'Custom body-part text is only allowed when choosing Other',
+    });
+  }
 });
 
 const SaveRunDetailSchema = z.object({
@@ -31,6 +49,14 @@ const SaveRunDetailSchema = z.object({
 
 export function createActivityRouter(activityWorkflow: ActivityWorkflowService) {
   return router({
+    get: authedProcedure
+      .input(
+        z.object({
+          activityId: z.string().min(1),
+        }),
+      )
+      .query(({ ctx, input }) => activityWorkflow.getActivity(ctx.userId, input.activityId)),
+
     list: authedProcedure.query(({ ctx }) => activityWorkflow.listActivities(ctx.userId)),
 
     matchSession: authedProcedure

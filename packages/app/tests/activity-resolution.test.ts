@@ -110,6 +110,39 @@ describe('createActivityResolution', () => {
     expect(resolution.statusForDay(session, 0, 0)).toBe('completed');
   });
 
+  it('ignores a loaded linked activity when its local date no longer matches the session date', () => {
+    const resolution = createActivityResolution([
+      {
+        id: 'activity-1',
+        userId: 'user-1',
+        source: 'strava',
+        externalId: 'strava-1',
+        startTime: '2026-04-12T16:04:00.000Z',
+        distance: 12,
+        duration: 4316,
+        avgPace: 359,
+        avgHR: 150,
+        splits: [],
+        matchedSessionId: 'session-1',
+      },
+    ]);
+    const session = {
+      id: 'session-1',
+      type: 'LONG' as const,
+      date: '2026-04-20',
+      distance: 20,
+      pace: '5:10',
+      actualActivityId: 'activity-1',
+    };
+
+    expect(resolution.activityForSession(session)).toBeUndefined();
+    expect(resolution.activityIdForSession(session)).toBeNull();
+    expect(resolution.isSessionComplete(session)).toBe(false);
+    expect(resolution.completionStatusForSession(session)).toBeNull();
+    expect(resolution.statusForDay(session, 0, 0)).toBe('today');
+    expect(resolution.weekActualKm([session])).toBe(0);
+  });
+
   it('keeps completed runs on target when distance lands exactly on the 5% boundary', () => {
     const resolution = createActivityResolution([
       {
@@ -247,5 +280,58 @@ describe('createActivityResolution', () => {
         },
       ]),
     ).toBe(20);
+  });
+
+  it('keeps the linked activity id available for navigation while the activity snapshot has not loaded yet', () => {
+    const resolution = createActivityResolution([]);
+
+    expect(
+      resolution.activityIdForSession({
+        id: 'session-1',
+        actualActivityId: 'activity-1',
+      }),
+    ).toBe('activity-1');
+  });
+
+  it('keeps future linked-only sessions upcoming until a date-valid activity is available', () => {
+    const resolution = createActivityResolution([], { today: '2026-04-16' });
+    const session = {
+      id: 'session-1',
+      type: 'LONG' as const,
+      date: '2026-04-19',
+      distance: 20,
+      pace: '5:05',
+      actualActivityId: 'activity-1',
+    };
+
+    expect(resolution.activityIdForSession(session)).toBeNull();
+    expect(resolution.isSessionComplete(session)).toBe(false);
+    expect(resolution.completionStatusForSession(session)).toBeNull();
+    expect(resolution.statusForDay(session, 6, 2)).toBe('upcoming');
+  });
+
+  it('does not count future linked-only sessions toward weekly actual load', () => {
+    const resolution = createActivityResolution([], { today: '2026-04-16' });
+
+    expect(
+      resolution.weekActualKm([
+        {
+          id: 'session-1',
+          type: 'EASY',
+          date: '2026-04-14',
+          distance: 8,
+          pace: '5:20',
+          actualActivityId: 'activity-1',
+        },
+        {
+          id: 'session-2',
+          type: 'LONG',
+          date: '2026-04-19',
+          distance: 20,
+          pace: '5:05',
+          actualActivityId: 'activity-2',
+        },
+      ]),
+    ).toBe(8);
   });
 });

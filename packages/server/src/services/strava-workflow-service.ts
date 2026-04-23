@@ -8,6 +8,7 @@ import type {
   TrainingPlan,
 } from '@steady/types';
 import { encrypt } from '../lib/encryption';
+import { isoDateInTimezone } from '../lib/iso-date';
 import { matchActivity } from '../lib/activity-matcher';
 import { mapStravaActivitySplits } from '../lib/strava-activity-splits';
 import type { StravaActivity, StravaClient, StravaGear } from '../lib/strava-client';
@@ -23,6 +24,7 @@ import type { IntegrationTokenRepo } from '../repos/integration-token-repo';
 import type { PlanRepo } from '../repos/plan-repo';
 import type { ProfileRepo } from '../repos/profile-repo';
 import type { ShoeRepo } from '../repos/shoe-repo';
+import { repairOrphanedActivityLinks } from './orphaned-activity-link-repair';
 
 /**
  * Workflow boundary for Strava connection and sync behavior.
@@ -59,6 +61,7 @@ interface SyncStravaActivitiesDeps {
   stravaClient: StravaClient;
   tokenService: StravaTokenService;
   now?: () => Date;
+  timezone?: string;
 }
 
 function requireConnectDeps(deps: StravaWorkflowServiceDeps): {
@@ -260,8 +263,11 @@ async function syncStravaActivities(
   const now = deps.now ?? (() => new Date());
   const nowDate = now();
   const token = await deps.integrationTokenRepo.get(userId, 'strava');
-  const plan = await deps.planRepo.getActive(userId);
   const accessToken = await deps.tokenService.getValidToken(userId);
+  const plan = await repairOrphanedActivityLinks(userId, deps, {
+    plan: await deps.planRepo.getActive(userId),
+    strict: true,
+  });
 
   const after = token?.lastSyncedAt ?? getInitialSyncAfter(plan, nowDate);
   const fetchedActivities = await deps.stravaClient.getActivities(accessToken, after);
@@ -289,13 +295,14 @@ async function syncStravaActivities(
     }
 
     const activity = mapActivity(userId, externalActivity);
+    const activityDate = isoDateInTimezone(activity.startTime, deps.timezone ?? 'UTC');
     const shoe = await resolveShoeForActivity(userId, accessToken, externalActivity, deps, gearCache);
     if (shoe) {
       activity.shoeId = shoe.id;
     }
 
     const matchedSession = currentPlan
-      ? matchActivity(activity, currentPlan.weeks, newlyMatchedSessionIds)
+      ? matchActivity(activity, currentPlan.weeks, newlyMatchedSessionIds, activityDate)
       : null;
 
     if (matchedSession) {
@@ -447,12 +454,14 @@ export function createStravaWorkflowService(deps: StravaWorkflowServiceDeps): St
     async sync(userId: string) {
       const syncDeps = requireSyncDeps(deps);
       const tokenService = createTokenService(syncDeps);
+      const profile = await deps.profileRepo.getById(userId);
 
       try {
         return await syncStravaActivities(userId, {
           ...syncDeps,
           tokenService,
           now,
+          timezone: profile?.timezone ?? 'UTC',
         });
       } catch (error) {
         if (error instanceof StravaAuthRevokedError) {

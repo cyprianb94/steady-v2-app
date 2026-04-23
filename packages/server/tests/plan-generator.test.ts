@@ -8,11 +8,28 @@ function easy(distance = 8): PlannedSession {
 }
 
 function interval(reps = 6): PlannedSession {
-  return { id: 't-int', type: 'INTERVAL', date: '2026-01-01', reps, repDist: 800, recovery: '90s', warmup: 1.5, cooldown: 1 };
+  return {
+    id: 't-int',
+    type: 'INTERVAL',
+    date: '2026-01-01',
+    reps,
+    repDist: 800,
+    recovery: '90s',
+    warmup: { unit: 'km', value: 1.5 },
+    cooldown: { unit: 'km', value: 1 },
+  };
 }
 
 function tempo(): PlannedSession {
-  return { id: 't-tempo', type: 'TEMPO', date: '2026-01-01', distance: 10, pace: '4:20', warmup: 2, cooldown: 1.5 };
+  return {
+    id: 't-tempo',
+    type: 'TEMPO',
+    date: '2026-01-01',
+    distance: 10,
+    pace: '4:20',
+    warmup: { unit: 'km', value: 2 },
+    cooldown: { unit: 'km', value: 1.5 },
+  };
 }
 
 function longRun(distance = 16): PlannedSession {

@@ -36,8 +36,8 @@ describe('TodayHeroCard', () => {
           repDist: 800,
           pace: '3:50',
           recovery: '90s',
-          warmup: 1.5,
-          cooldown: 1,
+          warmup: { unit: 'km', value: 1.5 },
+          cooldown: { unit: 'km', value: 1 },
         }}
       />,
     );
@@ -66,8 +66,8 @@ describe('TodayHeroCard', () => {
           date: '2026-04-09',
           distance: 10,
           pace: '4:20',
-          warmup: 2,
-          cooldown: 1.5,
+          warmup: { unit: 'km', value: 2 },
+          cooldown: { unit: 'km', value: 1.5 },
         }}
       />,
     );
@@ -76,6 +76,25 @@ describe('TodayHeroCard', () => {
     expect(screen.getByText('10km Tempo')).toBeTruthy();
     expect(screen.getByText(/2km warm/)).toBeTruthy();
     expect(screen.getByText(/1.5km cool/)).toBeTruthy();
+  });
+
+  it('shows minute-based warmup and cooldown labels', () => {
+    render(
+      <TodayHeroCard
+        session={{
+          id: 's3b',
+          type: 'TEMPO',
+          date: '2026-04-09',
+          distance: 10,
+          pace: '4:20',
+          warmup: { unit: 'min', value: 15 },
+          cooldown: { unit: 'min', value: 10 },
+        }}
+      />,
+    );
+
+    expect(screen.getByText(/15 min warm/)).toBeTruthy();
+    expect(screen.getByText(/10 min cool/)).toBeTruthy();
   });
 
   it('renders the planned tempo hero with a today badge, session title, and formatted date', () => {
@@ -87,8 +106,8 @@ describe('TodayHeroCard', () => {
           date: '2026-04-09',
           distance: 10,
           pace: '4:20',
-          warmup: 2,
-          cooldown: 1.5,
+          warmup: { unit: 'km', value: 2 },
+          cooldown: { unit: 'km', value: 1.5 },
         }}
       />,
     );
@@ -107,8 +126,8 @@ describe('TodayHeroCard', () => {
           date: '2026-04-09',
           distance: 10,
           pace: '4:20',
-          warmup: 2,
-          cooldown: 1.5,
+          warmup: { unit: 'km', value: 2 },
+          cooldown: { unit: 'km', value: 1.5 },
         }}
       />,
     );
@@ -195,6 +214,31 @@ describe('TodayHeroCard', () => {
     expect(screen.getByTestId('hero-completed')).toBeTruthy();
     expect(screen.getByText('Completed')).toBeTruthy();
     expect(screen.getAllByText(/8\.1/).length).toBeGreaterThan(0);
+  });
+
+  it('uses a neutral matched headline when the run goes longer than planned', () => {
+    render(
+      <TodayHeroCard
+        session={{
+          id: 's5',
+          type: 'EASY',
+          date: '2026-04-09',
+          distance: 8,
+          pace: '5:20',
+          actualActivityId: 'act-1',
+        }}
+        activity={{
+          id: 'act-1',
+          distance: 12.4,
+          avgPace: 350,
+          duration: 4340,
+          avgHR: 146,
+        }}
+      />,
+    );
+
+    expect(screen.getByText('Longer than planned')).toBeTruthy();
+    expect(screen.queryByText('Bonus effort')).toBeNull();
   });
 
   it('opens the Steady action when the planned hero is tapped', () => {

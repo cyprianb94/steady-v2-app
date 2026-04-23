@@ -25,8 +25,6 @@ export const REP_DISTS = [200, 400, 600, 800, 1000, 1200, 1600] as const;
 
 export const RECOVERY_OPTS = ['45s', '60s', '90s', '2min', '3min', '4min', '5min'] as const;
 
-export const WU_LIST = ['0', '0.5', '1', '1.5', '2', '2.5', '3'] as const;
-
 // Distance options: 3–42km
 export const KM_LIST = Array.from({ length: 40 }, (_, i) => String(i + 3));
 
@@ -40,8 +38,22 @@ for (let m = 3; m <= 8; m++) {
 
 export const TYPE_DEFAULTS: Record<SessionType, Partial<PlannedSession> & { type: SessionType }> = {
   EASY: { type: 'EASY', distance: 8, pace: '5:20' },
-  INTERVAL: { type: 'INTERVAL', reps: 6, repDist: 800, pace: '3:50', recovery: '90s', warmup: 1.5, cooldown: 1 },
-  TEMPO: { type: 'TEMPO', distance: 10, pace: '4:20', warmup: 2, cooldown: 1.5 },
+  INTERVAL: {
+    type: 'INTERVAL',
+    reps: 6,
+    repDist: 800,
+    pace: '3:50',
+    recovery: '90s',
+    warmup: { unit: 'km', value: 1.5 },
+    cooldown: { unit: 'km', value: 1 },
+  },
+  TEMPO: {
+    type: 'TEMPO',
+    distance: 10,
+    pace: '4:20',
+    warmup: { unit: 'km', value: 2 },
+    cooldown: { unit: 'km', value: 1.5 },
+  },
   LONG: { type: 'LONG', distance: 16, pace: '5:10' },
   REST: { type: 'REST' },
 };
@@ -53,6 +65,11 @@ export const RACE_TARGETS: Record<string, string[]> = {
   'Marathon': ['sub-2:45', 'sub-3:00', 'sub-3:15', 'sub-3:30', 'sub-3:45', 'sub-4:00'],
   Ultra: ['sub-10h', 'sub-12h', 'sub-15h', 'sub-20h'],
 };
+
+export function isoDateLocal(value: Date): string {
+  const timezoneOffsetMs = value.getTimezoneOffset() * 60_000;
+  return new Date(value.getTime() - timezoneOffsetMs).toISOString().slice(0, 10);
+}
 
 export function sessionLabel(
   s: Partial<PlannedSession> | null,
@@ -67,8 +84,15 @@ export function sessionLabel(
 }
 
 export function todayIsoLocal(now: Date = new Date()): string {
-  const timezoneOffsetMs = now.getTimezoneOffset() * 60_000;
-  return new Date(now.getTime() - timezoneOffsetMs).toISOString().slice(0, 10);
+  return isoDateLocal(now);
+}
+
+export function activityLocalDate(startTime: string): string {
+  const value = new Date(startTime);
+  if (Number.isNaN(value.getTime())) {
+    return startTime.slice(0, 10);
+  }
+  return isoDateLocal(value);
 }
 
 export function dayIndexForIsoDate(date: string): number {
