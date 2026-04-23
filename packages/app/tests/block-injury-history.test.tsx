@@ -3,10 +3,11 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PlannedSession, TrainingPlanWithAnnotation } from '@steady/types';
 
-const { mockGetForDateRange, mockRefresh, mockRouterPush, mockAuth, planState } = vi.hoisted(() => ({
+const { mockGetForDateRange, mockRefresh, mockRouterPush, mockUseLocalSearchParams, mockAuth, planState } = vi.hoisted(() => ({
   mockGetForDateRange: vi.fn(),
   mockRefresh: vi.fn(),
   mockRouterPush: vi.fn(),
+  mockUseLocalSearchParams: vi.fn(() => ({})),
   mockAuth: {
     session: { user: { id: 'runner-1' } },
     isLoading: false,
@@ -25,6 +26,7 @@ vi.mock('expo-router', () => ({
   router: {
     push: mockRouterPush,
   },
+  useLocalSearchParams: mockUseLocalSearchParams,
 }));
 
 vi.mock('../lib/auth', () => ({
@@ -111,6 +113,8 @@ function withNormalizedText(expected: string) {
 
 describe('BlockTab injury history', () => {
   beforeEach(() => {
+    mockUseLocalSearchParams.mockReset();
+    mockUseLocalSearchParams.mockReturnValue({});
     mockGetForDateRange.mockReset();
     mockGetForDateRange.mockResolvedValue([
       {
