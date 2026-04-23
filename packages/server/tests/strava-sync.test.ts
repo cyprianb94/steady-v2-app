@@ -430,7 +430,6 @@ describe('strava workflow service — sync', () => {
       actualActivityId: activity.id,
     });
   });
-
   it('uses lastSyncedAt on subsequent syncs and skips duplicate external ids', async () => {
     await integrationTokenRepo.updateLastSyncedAt('user-1', 'strava', '2026-04-09T12:00:00Z');
     await activityRepo.save({

@@ -292,7 +292,6 @@ describe('createActivityResolution', () => {
       }),
     ).toBe('activity-1');
   });
-
   it('keeps future linked-only sessions upcoming until a date-valid activity is available', () => {
     const resolution = createActivityResolution([], { today: '2026-04-16' });
     const session = {

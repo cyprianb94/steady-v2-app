@@ -243,7 +243,7 @@ describe('HomeScreen', () => {
 
   it('refreshes the today card when the tab stays open across midnight', () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-04-09T21:59:30Z'));
+    vi.setSystemTime(new Date(2026, 3, 9, 23, 59, 30));
 
     const week = {
       weekNumber: 1,
