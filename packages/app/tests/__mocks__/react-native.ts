@@ -95,6 +95,8 @@ export const TextInput = React.forwardRef(function MockTextInput(
     onSubmitEditing,
     onFocus,
     onBlur,
+    keyboardType: _keyboardType,
+    selectTextOnFocus: _selectTextOnFocus,
     selectionColor: _selectionColor,
     placeholderTextColor: _placeholderTextColor,
     returnKeyType: _returnKeyType,
@@ -128,12 +130,13 @@ export const TextInput = React.forwardRef(function MockTextInput(
 });
 
 export const ScrollView = React.forwardRef(function MockScrollView(
-  { testID, children, style, contentContainerStyle: _contentContainerStyle, showsVerticalScrollIndicator: _showsVerticalScrollIndicator, snapToInterval: _snapToInterval, decelerationRate: _decelerationRate, nestedScrollEnabled: _nestedScrollEnabled, scrollEnabled: _scrollEnabled, onMomentumScrollEnd: _onMomentumScrollEnd, refreshControl: _refreshControl, ...props }: any,
+  { testID, children, style, contentContainerStyle: _contentContainerStyle, showsVerticalScrollIndicator: _showsVerticalScrollIndicator, snapToInterval: _snapToInterval, decelerationRate: _decelerationRate, nestedScrollEnabled: _nestedScrollEnabled, scrollEnabled: _scrollEnabled, keyboardDismissMode: _keyboardDismissMode, keyboardShouldPersistTaps: _keyboardShouldPersistTaps, onMomentumScrollEnd: _onMomentumScrollEnd, refreshControl: _refreshControl, ...props }: any,
   ref: any,
 ) {
   const resolved = style ? resolveStyle(style) : undefined;
   React.useImperativeHandle(ref, () => ({
     scrollTo: () => {},
+    scrollToEnd: () => {},
   }));
 
   return React.createElement(

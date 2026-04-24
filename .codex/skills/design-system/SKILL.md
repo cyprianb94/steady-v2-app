@@ -179,6 +179,19 @@ Session type tags (e.g. "INTERVAL"):
 Phase tags (e.g. "BUILD"):
 - Same pattern, colour from phase system
 
+### Editable chip strips
+
+Use `EditableChipStrip` from `packages/app/components/ui/EditableChipStrip.tsx` for preset numeric choices with a custom value option. Do not add a separate input row below a chip group.
+
+Pattern:
+- Presets and custom value live in the same bordered chip strip card.
+- `Custom...` is a chip. When tapped, that chip becomes the input itself.
+- The input chip keeps the selected active colour, uses Space Mono, and shows the unit suffix inside the pill (`km`, `min`, `/km`).
+- Once a custom value is valid, the same custom chip displays the value (for example `2.5 km` or `3:42 /km`).
+- Selecting a preset exits custom editing and makes the preset chip active.
+
+Use this pattern for plan-builder distance, target pace, warm-up, cool-down, progression percentages, or any similar compact preset-plus-custom control.
+
 ### Session dots
 
 The universal visual shorthand for session types in grids and timelines:
