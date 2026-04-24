@@ -1,5 +1,34 @@
-import type { PlannedSession, RecoveryDuration } from '../session';
-import { RECOVERY_KM, sessionDurationKm } from '../session';
+import type { IntervalRecovery, PlannedSession, RecoveryDuration, SessionDurationSpec } from '../session';
+import { RECOVERY_KM, RECOVERY_KM_PER_MIN, sessionDurationKm } from '../session';
+
+function paceToSeconds(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const match = value.trim().match(/^(\d{1,2}):([0-5]\d)$/);
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function durationKm(value: SessionDurationSpec | null | undefined, pace: string | null | undefined): number {
+  if (!value || value.value <= 0) return 0;
+  if (value.unit === 'km') return value.value;
+
+  const paceSeconds = paceToSeconds(pace);
+  if (!paceSeconds) return 0;
+  return value.value / (paceSeconds / 60);
+}
+
+function intervalRepKm(session: PlannedSession): number {
+  const fromDuration = durationKm(session.repDuration, session.pace);
+  if (fromDuration > 0) return fromDuration;
+  return session.repDist ? session.repDist / 1000 : 0;
+}
+
+function recoveryKm(value: IntervalRecovery | null | undefined): number {
+  if (!value) return 0;
+  if (typeof value === 'string') return RECOVERY_KM[value as RecoveryDuration] ?? 0;
+  if (value.unit === 'km') return value.value;
+  return value.value * RECOVERY_KM_PER_MIN;
+}
 
 /**
  * Calculates total km for a session including warmup, cooldown, and recovery jogs.
@@ -12,13 +41,11 @@ export function sessionKm(session: PlannedSession | null): number {
 
   const warmup = sessionDurationKm(session.warmup);
   const cooldown = sessionDurationKm(session.cooldown);
-  const recoveryJogKm = session.recovery
-    ? (RECOVERY_KM[session.recovery as RecoveryDuration] ?? 0) * (session.reps ?? 1)
-    : 0;
+  const recoveryJogKm = recoveryKm(session.recovery) * (session.reps ?? 1);
 
-  if (session.type === 'INTERVAL' && session.reps && session.repDist) {
+  if (session.type === 'INTERVAL' && session.reps && (session.repDist || session.repDuration)) {
     return Math.round(
-      (session.reps * session.repDist / 1000 + recoveryJogKm + warmup + cooldown) * 10
+      (session.reps * intervalRepKm(session) + recoveryJogKm + warmup + cooldown) * 10
     ) / 10;
   }
 
@@ -33,8 +60,8 @@ export function sessionKm(session: PlannedSession | null): number {
  * Expected distance for a planned session (for matching/comparison).
  */
 export function expectedDistance(session: PlannedSession): number {
-  if (session.type === 'INTERVAL' && session.reps && session.repDist) {
-    return session.reps * session.repDist / 1000 + sessionDurationKm(session.warmup) + sessionDurationKm(session.cooldown);
+  if (session.type === 'INTERVAL' && session.reps && (session.repDist || session.repDuration)) {
+    return session.reps * intervalRepKm(session) + sessionDurationKm(session.warmup) + sessionDurationKm(session.cooldown);
   }
   return (session.distance ?? 8) + sessionDurationKm(session.warmup) + sessionDurationKm(session.cooldown);
 }

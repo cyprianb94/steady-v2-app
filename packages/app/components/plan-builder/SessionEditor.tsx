@@ -9,7 +9,14 @@ import {
   Text,
   View,
 } from 'react-native';
-import { normalizeSessionDuration, type PlannedSession, type SessionDurationUnit, type SessionType } from '@steady/types';
+import {
+  normalizeSessionDuration,
+  type IntervalRecovery,
+  type PlannedSession,
+  type RecoveryDuration,
+  type SessionDurationUnit,
+  type SessionType,
+} from '@steady/types';
 import { C } from '../../constants/colours';
 import { SESSION_TYPE } from '../../constants/session-types';
 import { FONTS } from '../../constants/typography';
@@ -22,9 +29,8 @@ import { NotebookRowValue } from '../ui/NotebookRowValue';
 import { RepStepper } from '../ui/RepStepper';
 import { SectionLabel } from '../ui/SectionLabel';
 import { UnitTogglePill } from '../ui/UnitTogglePill';
-import { DAYS, REP_DISTS, RECOVERY_OPTS, TYPE_DEFAULTS, sessionLabel } from '../../lib/plan-helpers';
+import { DAYS, TYPE_DEFAULTS, sessionLabel } from '../../lib/plan-helpers';
 import { usePreferences } from '../../providers/preferences-context';
-import { formatDistance } from '../../lib/units';
 
 interface SessionEditorProps {
   dayIndex: number;
@@ -34,7 +40,7 @@ interface SessionEditorProps {
   presentation?: 'sheet' | 'screen';
 }
 
-type ExpandedRow = 'distance' | 'pace' | 'warmup' | 'cooldown' | null;
+type ExpandedRow = 'distance' | 'repetitions' | 'pace' | 'recovery' | 'warmup' | 'cooldown' | null;
 type CustomField = Exclude<ExpandedRow, null> | null;
 
 interface DurationState {
@@ -43,6 +49,10 @@ interface DurationState {
 }
 
 const DISTANCE_PRESETS = [5, 8, 10, 12, 15];
+const REP_DURATION_KM_PRESETS = [0.2, 0.4, 0.6, 0.8, 1, 1.2, 1.6];
+const REP_DURATION_MIN_PRESETS = [1, 2, 3, 4, 5, 6, 8, 10];
+const RECOVERY_KM_PRESETS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.8, 1];
+const RECOVERY_MIN_PRESETS = [0.75, 1, 1.5, 2, 3, 4, 5];
 const WARMUP_KM_PRESETS = [0, 1, 1.5, 2, 3];
 const WARMUP_MIN_PRESETS = [5, 10, 15, 20];
 const COOLDOWN_KM_PRESETS = [0, 0.5, 1, 1.5, 2];
@@ -51,6 +61,15 @@ const SESSION_TYPES: SessionType[] = ['EASY', 'INTERVAL', 'TEMPO', 'LONG', 'REST
 const PACE_PRESET_OFFSETS = [-15, -10, -5, 0, 5, 10, 15];
 const MIN_TARGET_PACE_SECONDS = 150;
 const MAX_TARGET_PACE_SECONDS = 720;
+const LEGACY_RECOVERY_MINUTES: Record<RecoveryDuration, number> = {
+  '45s': 0.75,
+  '60s': 1,
+  '90s': 1.5,
+  '2min': 2,
+  '3min': 3,
+  '4min': 4,
+  '5min': 5,
+};
 
 function formatValue(value: number): string {
   return Number.isInteger(value) ? String(value) : String(value);
@@ -72,11 +91,49 @@ function typeChipLabel(type: SessionType): string {
   }
 }
 
+function targetPaceCaption(type: SessionType): string {
+  switch (type) {
+    case 'INTERVAL':
+      return 'Per rep';
+    case 'LONG':
+      return 'Long effort';
+    case 'TEMPO':
+      return 'Tempo effort';
+    case 'EASY':
+    default:
+      return 'Easy effort';
+  }
+}
+
 function buildDurationState(value: Partial<PlannedSession>['warmup']): DurationState {
   const normalized = normalizeSessionDuration(value);
   return {
     unit: normalized?.unit ?? 'km',
     value: normalized?.value ?? null,
+  };
+}
+
+function buildRepDurationState(session: Partial<PlannedSession> | null): DurationState {
+  const normalized = normalizeSessionDuration(session?.repDuration);
+  if (normalized) {
+    return normalized;
+  }
+
+  return {
+    unit: 'km',
+    value: session?.repDist ? session.repDist / 1000 : 0.8,
+  };
+}
+
+function buildRecoveryState(value: IntervalRecovery | null | undefined): DurationState {
+  if (typeof value === 'string') {
+    return { unit: 'min', value: LEGACY_RECOVERY_MINUTES[value] ?? 1.5 };
+  }
+
+  const normalized = normalizeSessionDuration(value);
+  return {
+    unit: normalized?.unit ?? 'min',
+    value: normalized?.value ?? 1.5,
   };
 }
 
@@ -86,6 +143,29 @@ function durationPresets(field: 'warmup' | 'cooldown', unit: SessionDurationUnit
   }
 
   return unit === 'km' ? COOLDOWN_KM_PRESETS : COOLDOWN_MIN_PRESETS;
+}
+
+function repDurationPresets(unit: SessionDurationUnit): number[] {
+  return unit === 'km' ? REP_DURATION_KM_PRESETS : REP_DURATION_MIN_PRESETS;
+}
+
+function recoveryPresets(unit: SessionDurationUnit): number[] {
+  return unit === 'km' ? RECOVERY_KM_PRESETS : RECOVERY_MIN_PRESETS;
+}
+
+function formatRepLength(state: DurationState): string {
+  if (state.value == null) {
+    return '—';
+  }
+
+  if (state.unit === 'km') {
+    const metres = state.value * 1000;
+    return Number.isInteger(metres) && metres < 1000
+      ? `${metres}m`
+      : `${formatValue(state.value)} km`;
+  }
+
+  return `${formatValue(state.value)} min`;
 }
 
 function paceToSeconds(value: string | null | undefined): number | null {
@@ -181,13 +261,16 @@ export function SessionEditor({
   const [distance, setDistance] = useState(existing?.distance ?? 8);
   const [reps, setReps] = useState(existing?.reps || 6);
   const [repDist, setRepDist] = useState(existing?.repDist || 800);
+  const [repDuration, setRepDuration] = useState<DurationState>(() => buildRepDurationState(existing));
   const [pace, setPace] = useState(existing?.pace || TYPE_DEFAULTS[init].pace || '4:30');
-  const [recovery, setRecovery] = useState(existing?.recovery || '90s');
+  const [recovery, setRecovery] = useState<DurationState>(() => buildRecoveryState(existing?.recovery));
   const [warmup, setWarmup] = useState<DurationState>(() => buildDurationState(existing?.warmup));
   const [cooldown, setCooldown] = useState<DurationState>(() => buildDurationState(existing?.cooldown));
   const [expandedRow, setExpandedRow] = useState<ExpandedRow>(null);
   const [customField, setCustomField] = useState<CustomField>(null);
   const [customDistance, setCustomDistance] = useState('');
+  const [customRepDuration, setCustomRepDuration] = useState('');
+  const [customRecovery, setCustomRecovery] = useState('');
   const [customPace, setCustomPace] = useState('');
   const [customPaceSelected, setCustomPaceSelected] = useState(false);
   const [customWarmup, setCustomWarmup] = useState('');
@@ -195,7 +278,7 @@ export function SessionEditor({
 
   const isInterval = type === 'INTERVAL';
   const isRest = type === 'REST';
-  const canEditPace = type === 'INTERVAL' || type === 'TEMPO';
+  const canEditPace = !isRest;
   const typeMeta = SESSION_TYPE[type];
   const pacePresetValues = pacePresets(pace, type);
   const visiblePacePresets = customPaceSelected
@@ -215,7 +298,21 @@ export function SessionEditor({
     };
 
     if (isInterval) {
-      Object.assign(session, { reps, repDist, recovery });
+      const repDurationSpec = durationSpec(repDuration);
+      const recoverySpec = durationSpec(recovery);
+      const intervalFields: Partial<PlannedSession> = {
+        reps,
+        repDuration: repDurationSpec,
+        recovery: recoverySpec,
+      };
+
+      if (repDuration.unit === 'km' && repDuration.value != null) {
+        intervalFields.repDist = Math.round(repDuration.value * 1000);
+      } else if (!repDurationSpec) {
+        intervalFields.repDist = repDist;
+      }
+
+      Object.assign(session, intervalFields);
     } else {
       Object.assign(session, { distance });
     }
@@ -241,7 +338,8 @@ export function SessionEditor({
     if (nextType === 'INTERVAL') {
       setReps(defaults.reps ?? 6);
       setRepDist(defaults.repDist ?? 800);
-      setRecovery(defaults.recovery ?? '90s');
+      setRepDuration(buildRepDurationState(defaults));
+      setRecovery(buildRecoveryState(defaults.recovery));
     } else if (nextType !== 'REST') {
       setDistance(defaults.distance ?? distance);
     }
@@ -275,6 +373,29 @@ export function SessionEditor({
     setCooldown((current) => ({ ...current, value }));
   }
 
+  function setRepDurationValue(value: number | null) {
+    setRepDuration((current) => ({ ...current, value }));
+    if (repDuration.unit === 'km' && value != null) {
+      setRepDist(Math.round(value * 1000));
+    }
+  }
+
+  function setRecoveryValue(value: number | null) {
+    setRecovery((current) => ({ ...current, value }));
+  }
+
+  function setRepDurationUnit(unit: SessionDurationUnit) {
+    setRepDuration({ unit, value: unit === 'km' ? repDist / 1000 : null });
+    setExpandedRow('repetitions');
+    setCustomField(null);
+  }
+
+  function setRecoveryUnit(unit: SessionDurationUnit) {
+    setRecovery({ unit, value: null });
+    setExpandedRow('recovery');
+    setCustomField(null);
+  }
+
   function setDurationUnit(field: 'warmup' | 'cooldown', unit: SessionDurationUnit) {
     if (field === 'warmup') {
       setWarmup({ unit, value: null });
@@ -288,10 +409,12 @@ export function SessionEditor({
 
   function keepCustomFieldVisible(field: Exclude<CustomField, null>) {
     const scrollTargets: Record<Exclude<CustomField, null>, number> = {
-      distance: 120,
-      pace: 420,
-      warmup: 540,
-      cooldown: 660,
+      distance: 80,
+      repetitions: 80,
+      pace: 120,
+      recovery: 180,
+      warmup: 280,
+      cooldown: 340,
     };
     const y = scrollTargets[field];
     scrollRef.current?.scrollTo({ y, animated: true });
@@ -299,6 +422,12 @@ export function SessionEditor({
       scrollRef.current?.scrollTo({ y, animated: true });
     }, 120);
   }
+
+  const customKeyboardPaddingStyle = customField
+    ? !isInterval && (customField === 'warmup' || customField === 'cooldown')
+      ? styles.bodyContentWithNonIntervalDurationKeyboard
+      : styles.bodyContentWithCompactKeyboard
+    : null;
 
   function openCustomField(field: Exclude<CustomField, null>) {
     setCustomField(field);
@@ -318,6 +447,24 @@ export function SessionEditor({
       const parsed = parseCustomValue(text, true);
       if (parsed != null) {
         setDistance(parsed);
+      }
+      return;
+    }
+
+    if (field === 'repetitions') {
+      setCustomRepDuration(text);
+      const parsed = parseCustomValue(text, true);
+      if (parsed != null) {
+        setRepDurationValue(parsed === 0 ? null : parsed);
+      }
+      return;
+    }
+
+    if (field === 'recovery') {
+      setCustomRecovery(text);
+      const parsed = parseCustomValue(text, true);
+      if (parsed != null) {
+        setRecoveryValue(parsed === 0 ? null : parsed);
       }
       return;
     }
@@ -356,7 +503,7 @@ export function SessionEditor({
         ) : null}
         <Text style={styles.headerDay}>{DAYS[dayIndex]}</Text>
         <Text style={[styles.headerTitle, { color: typeMeta.color }]}>
-          {isRest ? 'Rest day' : sessionLabel({ type, distance, reps, repDist, pace }, units)}
+          {isRest ? 'Rest day' : sessionLabel({ type, distance, reps, repDist, repDuration: durationSpec(repDuration), pace }, units)}
         </Text>
       </View>
 
@@ -365,7 +512,7 @@ export function SessionEditor({
         style={styles.body}
         contentContainerStyle={[
           styles.bodyContent,
-          customField ? styles.bodyContentWithKeyboard : null,
+          customKeyboardPaddingStyle,
         ]}
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         keyboardShouldPersistTaps="handled"
@@ -384,89 +531,94 @@ export function SessionEditor({
           />
         </View>
 
-            {!isRest && isInterval ? (
-              <View style={styles.section}>
-                <SectionLabel>Repetitions</SectionLabel>
-                <View style={styles.repsRow}>
-                  <RepStepper value={reps} min={2} max={20} onChange={setReps} />
-                  <Text style={styles.repsLabel}>reps</Text>
-                </View>
-
-                <SectionLabel>Rep distance</SectionLabel>
-                <ChipRow
-                  chips={REP_DISTS.map((value) => ({
-                    key: String(value),
-                    label: `${value}m`,
-                    color: C.clay,
-                  }))}
-                  selected={String(repDist)}
-                  onSelect={(value) => setRepDist(Number(value))}
-                />
-
-                <View style={styles.repSummary}>
-                  <Text style={styles.repSummaryValue}>
-                    {reps}×{repDist}m
-                  </Text>
-                  <Text style={styles.repSummaryNote}>
-                    ≈{formatDistance((reps * repDist) / 1000, units)} reps
-                  </Text>
-                </View>
-
-                <View style={styles.recoverySection}>
-                  <SectionLabel>Recovery between reps</SectionLabel>
-                  <ChipRow
-                    chips={RECOVERY_OPTS.map((value) => ({ key: value, label: value, color: C.clay }))}
-                    selected={recovery}
-                    onSelect={(value) => setRecovery(value as typeof recovery)}
-                  />
-                </View>
-              </View>
-            ) : null}
-
-            <View style={styles.stack}>
-              <NotebookRow
-                first
-                label="Distance"
-                onTap={!isRest && !isInterval ? () => toggleRow('distance') : undefined}
-                expanded={expandedRow === 'distance'}
-                editor={
-                  expandedRow === 'distance' && !isRest && !isInterval ? (
-                    <View style={styles.editorBlock}>
-                      <ChipStripEditor
-                        presets={DISTANCE_PRESETS}
-                        unit="km"
-                        value={distance}
-                        onSelect={(value) => {
-                          setDistance(value);
-                          closeCustomField('distance');
-                        }}
-                        customEditing={customField === 'distance'}
-                        customValue={customDistance}
-                        onCustomPress={() => {
-                          openCustomField('distance');
-                          setCustomDistance(distance ? formatValue(distance) : '');
-                        }}
-                        onCustomChangeText={(text) => handleCustomNumberChange('distance', text)}
-                        onCustomBlur={() => closeCustomField('distance')}
-                      />
-                    </View>
-                  ) : undefined
-                }
-              >
-                {isRest ? (
-                  <NotebookRowValue value="—" muted />
-                ) : isInterval ? (
+        <View style={styles.stack}>
+              {isInterval ? (
+                <NotebookRow
+                  first
+                  label="Repetitions"
+                  trailing={(
+                    <UnitTogglePill
+                      value={repDuration.unit}
+                      onChange={setRepDurationUnit}
+                      disabled={isRest}
+                    />
+                  )}
+                  onTap={() => toggleRow('repetitions')}
+                  expanded={expandedRow === 'repetitions'}
+                  editor={
+                    expandedRow === 'repetitions' ? (
+                      <View style={styles.editorBlock}>
+                        <View style={styles.repsRow}>
+                          <RepStepper value={reps} min={2} max={20} onChange={setReps} />
+                          <Text style={styles.repsLabel}>reps</Text>
+                        </View>
+                        <ChipStripEditor
+                          presets={repDurationPresets(repDuration.unit)}
+                          unit={repDuration.unit}
+                          value={repDuration.value}
+                          onSelect={(value) => {
+                            setRepDurationValue(value === 0 ? null : value);
+                            closeCustomField('repetitions');
+                          }}
+                          customEditing={customField === 'repetitions'}
+                          customValue={customRepDuration}
+                          onCustomPress={() => {
+                            openCustomField('repetitions');
+                            setCustomRepDuration(repDuration.value != null ? formatValue(repDuration.value) : '');
+                          }}
+                          onCustomChangeText={(text) => handleCustomNumberChange('repetitions', text)}
+                          onCustomBlur={() => closeCustomField('repetitions')}
+                          onCustomFocus={() => keepCustomFieldVisible('repetitions')}
+                        />
+                      </View>
+                    ) : undefined
+                  }
+                >
                   <View style={styles.rowCopy}>
-                    <NotebookRowValue value={`${reps}×${repDist}m`} />
-                    <Text style={styles.rowCaption}>Reps and distance stay above.</Text>
+                    <NotebookRowValue value={`${reps}×${formatRepLength(repDuration)}`} />
+                    <Text style={styles.rowCaption}>Main set</Text>
                   </View>
-                ) : (
-                  <NotebookRowValue value={formatValue(distance)} unit="km" />
-                )}
-              </NotebookRow>
+                </NotebookRow>
+              ) : (
+                <NotebookRow
+                  first
+                  label="Distance"
+                  onTap={!isRest ? () => toggleRow('distance') : undefined}
+                  expanded={expandedRow === 'distance'}
+                  editor={
+                    expandedRow === 'distance' && !isRest ? (
+                      <View style={styles.editorBlock}>
+                        <ChipStripEditor
+                          presets={DISTANCE_PRESETS}
+                          unit="km"
+                          value={distance}
+                          onSelect={(value) => {
+                            setDistance(value);
+                            closeCustomField('distance');
+                          }}
+                          customEditing={customField === 'distance'}
+                          customValue={customDistance}
+                          onCustomPress={() => {
+                            openCustomField('distance');
+                            setCustomDistance(distance ? formatValue(distance) : '');
+                          }}
+                          onCustomChangeText={(text) => handleCustomNumberChange('distance', text)}
+                          onCustomBlur={() => closeCustomField('distance')}
+                        />
+                      </View>
+                    ) : undefined
+                  }
+                >
+                  {isRest ? (
+                    <NotebookRowValue value="—" muted />
+                  ) : (
+                    <NotebookRowValue value={formatValue(distance)} unit="km" />
+                  )}
+                </NotebookRow>
+              )}
 
               <NotebookRow
-                label="Target pace"
+                label={isInterval ? 'Rep target pace' : 'Target pace'}
                 onTap={canEditPace ? () => toggleRow('pace') : undefined}
                 expanded={expandedRow === 'pace'}
                 disabled={isRest}
@@ -505,6 +657,7 @@ export function SessionEditor({
                           }
                         }}
                         onCustomBlur={() => closeCustomField('pace')}
+                        onCustomFocus={() => keepCustomFieldVisible('pace')}
                       />
                     </View>
                   ) : undefined
@@ -516,11 +669,59 @@ export function SessionEditor({
                   <View style={styles.rowCopy}>
                     <NotebookRowValue value={pace || '—'} unit="/km" />
                     {canEditPace ? (
-                      <Text style={styles.rowCaption}>{isInterval ? 'Per rep' : 'Tempo effort'}</Text>
+                      <Text style={styles.rowCaption}>{targetPaceCaption(type)}</Text>
                     ) : null}
                   </View>
                 )}
               </NotebookRow>
+
+              {isInterval ? (
+                <NotebookRow
+                  label="Recovery between reps"
+                  trailing={(
+                    <UnitTogglePill
+                      value={recovery.unit}
+                      onChange={setRecoveryUnit}
+                      disabled={isRest}
+                    />
+                  )}
+                  onTap={() => toggleRow('recovery')}
+                  expanded={expandedRow === 'recovery'}
+                  editor={
+                    expandedRow === 'recovery' ? (
+                      <View style={styles.editorBlock}>
+                        <ChipStripEditor
+                          presets={recoveryPresets(recovery.unit)}
+                          unit={recovery.unit}
+                          value={recovery.value}
+                          onSelect={(value) => {
+                            setRecoveryValue(value === 0 ? null : value);
+                            closeCustomField('recovery');
+                          }}
+                          customEditing={customField === 'recovery'}
+                          customValue={customRecovery}
+                          onCustomPress={() => {
+                            openCustomField('recovery');
+                            setCustomRecovery(recovery.value != null ? formatValue(recovery.value) : '');
+                          }}
+                          onCustomChangeText={(text) => handleCustomNumberChange('recovery', text)}
+                          onCustomBlur={() => closeCustomField('recovery')}
+                          onCustomFocus={() => keepCustomFieldVisible('recovery')}
+                        />
+                      </View>
+                    ) : undefined
+                  }
+                >
+                  {recovery.value != null ? (
+                    <View style={styles.rowCopy}>
+                      <NotebookRowValue value={formatValue(recovery.value)} unit={recovery.unit} />
+                      <Text style={styles.rowCaption}>Between reps</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.rowPrompt}>Tap to set</Text>
+                  )}
+                </NotebookRow>
+              ) : null}
 
               <NotebookRow
                 label="Warm-up"
@@ -619,7 +820,7 @@ export function SessionEditor({
                   <Text style={styles.rowPrompt}>Tap to set</Text>
                 )}
               </NotebookRow>
-            </View>
+        </View>
       </ScrollView>
 
       <View style={styles.actions}>
@@ -742,8 +943,11 @@ const styles = StyleSheet.create({
   bodyContent: {
     paddingBottom: 20,
   },
-  bodyContentWithKeyboard: {
-    paddingBottom: 160,
+  bodyContentWithCompactKeyboard: {
+    paddingBottom: 44,
+  },
+  bodyContentWithNonIntervalDurationKeyboard: {
+    paddingBottom: 72,
   },
   section: {
     paddingVertical: 14,

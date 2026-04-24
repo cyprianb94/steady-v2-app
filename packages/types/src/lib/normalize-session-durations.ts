@@ -10,6 +10,10 @@ export function normalizeSessionDurations(
 
   return {
     ...session,
+    repDuration: normalizeSessionDuration(session.repDuration),
+    recovery: typeof session.recovery === 'string'
+      ? session.recovery
+      : normalizeSessionDuration(session.recovery),
     warmup: normalizeSessionDuration(session.warmup),
     cooldown: normalizeSessionDuration(session.cooldown),
   };

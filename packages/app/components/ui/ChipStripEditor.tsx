@@ -49,7 +49,7 @@ export function ChipStripEditor({
       customLabel={isCustomValue && value != null ? formatValueLabel(value, unit) : 'Custom...'}
       customValue={customValue}
       customUnit={unit}
-      customKeyboardType={unit === 'km' ? 'decimal-pad' : 'number-pad'}
+      customKeyboardType="decimal-pad"
       onSelect={(key) => onSelect(Number(key))}
       onCustomPress={onCustomPress}
       onCustomChangeText={onCustomChangeText}

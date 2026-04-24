@@ -76,13 +76,28 @@ export function formatStoredPace(
   return formatPace(seconds, units, options);
 }
 
+export function formatIntervalRepLength(session: Partial<PlannedSession>): string {
+  if (session.repDuration) {
+    if (session.repDuration.unit === 'km') {
+      const metres = session.repDuration.value * 1000;
+      return Number.isInteger(metres) && metres < 1000
+        ? `${metres}m`
+        : `${formatRounded(session.repDuration.value, 1, true)}km`;
+    }
+
+    return `${formatRounded(session.repDuration.value, 2, true)}min`;
+  }
+
+  return `${session.repDist ?? 800}m`;
+}
+
 export function formatSessionLabel(
   session: Partial<PlannedSession> | null,
   units: DistanceUnits,
 ): string {
   if (!session || session.type === 'REST') return 'Rest';
   if (session.type === 'INTERVAL') {
-    return `${session.reps ?? 6}×${session.repDist ?? 800}m @ ${formatStoredPace(session.pace, units)}`;
+    return `${session.reps ?? 6}×${formatIntervalRepLength(session)} @ ${formatStoredPace(session.pace, units)}`;
   }
 
   const distanceLabel = session.distance != null ? formatDistance(session.distance, units) : '?';
@@ -97,8 +112,8 @@ export function formatCompactSessionLabel(
 
   switch (session.type) {
     case 'INTERVAL':
-      return session.reps && session.repDist
-        ? `${session.reps}×${session.repDist}m Intervals`
+      return session.reps && (session.repDist || session.repDuration)
+        ? `${session.reps}×${formatIntervalRepLength(session)} Intervals`
         : 'Intervals';
     case 'TEMPO':
       return `Tempo ${formatDistance(session.distance ?? 0, units, { compactMetric: true })}`;
@@ -115,7 +130,7 @@ export function formatSessionTitle(
   units: DistanceUnits,
 ): string {
   if (session.type === 'INTERVAL') {
-    return `${session.reps}×${session.repDist}m Intervals`;
+    return `${session.reps}×${formatIntervalRepLength(session)} Intervals`;
   }
 
   const typeTitle = session.type === 'TEMPO'

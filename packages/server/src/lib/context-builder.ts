@@ -224,13 +224,28 @@ function buildConversationFrame(
 function formatSession(s: PlannedSession): string {
   if (s.type === 'REST') return 'REST';
   if (s.type === 'INTERVAL') {
-    let desc = `INTERVAL ${s.reps ?? 6}×${s.repDist ?? 800}m`;
+    let desc = `INTERVAL ${s.reps ?? 6}×${formatIntervalRepLength(s)}`;
     if (s.pace) desc += ` @ ${s.pace}`;
     return desc;
   }
   let desc = `${s.type} ${s.distance ?? '?'}km`;
   if (s.pace) desc += ` @ ${s.pace}`;
   return desc;
+}
+
+function formatIntervalRepLength(session: PlannedSession): string {
+  if (session.repDuration) {
+    if (session.repDuration.unit === 'km') {
+      const metres = session.repDuration.value * 1000;
+      return Number.isInteger(metres) && metres < 1000
+        ? `${metres}m`
+        : `${Number(session.repDuration.value.toFixed(1))}km`;
+    }
+
+    return `${Number(session.repDuration.value.toFixed(2))}min`;
+  }
+
+  return `${session.repDist ?? 800}m`;
 }
 
 function formatDuration(seconds: number): string {

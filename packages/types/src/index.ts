@@ -4,12 +4,13 @@ export type {
   SessionDurationSpec,
   SessionDurationUnit,
   RecoveryDuration,
+  IntervalRecovery,
   SubjectiveBreathing,
   SubjectiveInput,
   SubjectiveLegs,
   SubjectiveOverall,
 } from './session';
-export { RECOVERY_KM, normalizeSessionDuration, sessionDurationKm } from './session';
+export { RECOVERY_KM, RECOVERY_KM_PER_MIN, normalizeSessionDuration, sessionDurationKm } from './session';
 
 export type {
   PhaseConfig,

@@ -8,7 +8,7 @@ import {
   type SessionType,
   type PlanWeek,
 } from '@steady/types';
-import { formatDistance, formatStoredPace, type DistanceUnits } from './units';
+import { formatDistance, formatIntervalRepLength, formatStoredPace, type DistanceUnits } from './units';
 
 // Re-export shared functions from types so existing app imports keep working
 export {
@@ -77,7 +77,7 @@ export function sessionLabel(
 ): string {
   if (!s || s.type === 'REST') return 'Rest';
   if (s.type === 'INTERVAL') {
-    return `${s.reps ?? 6}×${s.repDist ?? 800}m @ ${formatStoredPace(s.pace, units)}`;
+    return `${s.reps ?? 6}×${formatIntervalRepLength(s)} @ ${formatStoredPace(s.pace, units)}`;
   }
   const distanceLabel = s.distance != null ? formatDistance(s.distance, units) : '?';
   return `${distanceLabel} @ ${formatStoredPace(s.pace, units)}`;

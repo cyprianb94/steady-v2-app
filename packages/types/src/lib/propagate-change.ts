@@ -50,6 +50,8 @@ export function propagateChange(
           ...d,
           reps: Math.max(2, (d.reps ?? 6) + dr),
           repDist: updated.repDist ?? d.repDist,
+          repDuration: updated.repDuration ?? d.repDuration,
+          recovery: updated.recovery ?? d.recovery,
         };
       }
 

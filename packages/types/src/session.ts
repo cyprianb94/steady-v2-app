@@ -27,7 +27,8 @@ export interface PlannedSession {
   // INTERVAL
   reps?: number;
   repDist?: number; // metres e.g. 800
-  recovery?: RecoveryDuration;
+  repDuration?: SessionDurationSpec;
+  recovery?: IntervalRecovery;
 
   // Optional easy-effort volume before/after the main set.
   warmup?: SessionDurationSpec;
@@ -42,6 +43,7 @@ export interface PlannedSession {
 }
 
 export type RecoveryDuration = '45s' | '60s' | '90s' | '2min' | '3min' | '4min' | '5min';
+export type IntervalRecovery = RecoveryDuration | SessionDurationSpec;
 
 export function normalizeSessionDuration(
   value: SessionDurationSpec | number | null | undefined,
@@ -80,3 +82,5 @@ export const RECOVERY_KM: Record<RecoveryDuration, number> = {
   '4min': 0.73,
   '5min': 0.91,
 };
+
+export const RECOVERY_KM_PER_MIN = 0.18;

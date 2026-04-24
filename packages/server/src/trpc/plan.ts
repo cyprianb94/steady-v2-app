@@ -32,6 +32,7 @@ const SessionDurationSchema = z.object({
   unit: z.enum(['km', 'min']),
   value: z.number().positive(),
 });
+const IntervalRecoverySchema = z.union([RecoveryDurationSchema, SessionDurationSchema]);
 const SessionDurationInputSchema = z.union([z.number().positive(), SessionDurationSchema]);
 const SubjectiveInputSchema = z.object({
   legs: z.enum(['fresh', 'normal', 'heavy', 'dead']),
@@ -46,7 +47,8 @@ const PlannedSessionSchema = z.object({
   pace: z.string().optional(),
   reps: z.number().int().optional(),
   repDist: z.number().int().optional(),
-  recovery: RecoveryDurationSchema.optional(),
+  repDuration: SessionDurationSchema.optional(),
+  recovery: IntervalRecoverySchema.optional(),
   warmup: SessionDurationInputSchema.optional(),
   cooldown: SessionDurationInputSchema.optional(),
   actualActivityId: z.string().optional(),

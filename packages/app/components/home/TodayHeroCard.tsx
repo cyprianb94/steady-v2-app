@@ -17,6 +17,7 @@ import { C } from '../../constants/colours';
 import { usePreferences } from '../../providers/preferences-context';
 import {
   formatDistance,
+  formatIntervalRepLength,
   formatPace,
   formatSessionLabel,
   formatSessionTitle,
@@ -364,7 +365,7 @@ export function TodayHeroCard({
       <View style={styles.metricGrid}>
         <View style={styles.metricCard}>
           <Text style={styles.metricValue}>
-            {isInterval ? `${session.reps}×${session.repDist}m` : formatDistance(session.distance ?? 0, units)}
+            {isInterval ? `${session.reps}×${formatIntervalRepLength(session)}` : formatDistance(session.distance ?? 0, units)}
           </Text>
           <Text style={styles.metricLabel}>{isInterval ? 'session' : 'distance'}</Text>
         </View>

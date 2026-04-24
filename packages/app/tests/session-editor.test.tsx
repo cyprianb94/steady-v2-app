@@ -93,7 +93,7 @@ describe('SessionEditor target pace editing', () => {
       />,
     );
 
-    fireEvent.click(screen.getByText('Target pace'));
+    fireEvent.click(screen.getByText('Rep target pace'));
     fireEvent.click(screen.getByText('Custom...'));
     expect(screen.queryByPlaceholderText('Custom pace')).toBeNull();
     const customInput = screen.getByPlaceholderText('Custom');
@@ -109,8 +109,82 @@ describe('SessionEditor target pace editing', () => {
       type: 'INTERVAL',
       reps: 6,
       repDist: 800,
-      recovery: '90s',
+      repDuration: { unit: 'km', value: 0.8 },
+      recovery: { unit: 'min', value: 1.5 },
       pace: '3:42',
+    }));
+  });
+
+  it.each([
+    { type: 'EASY' as const, distance: 8, pace: '5:20', nextPace: '5:15' },
+    { type: 'LONG' as const, distance: 16, pace: '5:10', nextPace: '5:05' },
+  ])('saves a changed target pace for $type sessions', ({ type, distance, pace, nextPace }) => {
+    const onSave = vi.fn();
+
+    render(
+      <SessionEditor
+        dayIndex={0}
+        existing={{ type, distance, pace }}
+        onSave={onSave}
+        onClose={vi.fn()}
+        presentation="screen"
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Target pace'));
+    fireEvent.click(screen.getByText(`${nextPace} /km`));
+    fireEvent.click(screen.getByText('Update session'));
+
+    expect(onSave).toHaveBeenCalledWith(0, expect.objectContaining({
+      type,
+      distance,
+      pace: nextPace,
+    }));
+  });
+});
+
+describe('SessionEditor interval notebook rows', () => {
+  it('saves custom repetition duration and recovery without the old rep distance section', () => {
+    const onSave = vi.fn();
+
+    render(
+      <SessionEditor
+        dayIndex={1}
+        existing={{
+          type: 'INTERVAL',
+          reps: 6,
+          repDist: 800,
+          recovery: '90s',
+          pace: '3:50',
+        }}
+        onSave={onSave}
+        onClose={vi.fn()}
+        presentation="screen"
+      />,
+    );
+
+    expect(screen.queryByText('Rep distance')).toBeNull();
+
+    fireEvent.click(screen.getByText('Repetitions'));
+    fireEvent.click(screen.getAllByText('MIN')[0]);
+    fireEvent.click(screen.getByText('4 min'));
+
+    fireEvent.click(screen.getByText('Recovery between reps'));
+    fireEvent.click(screen.getByText('Custom...'));
+    const customInput = screen.getByPlaceholderText('Custom');
+    fireEvent.change(customInput, {
+      target: { value: '2.5' },
+    });
+    fireEvent.blur(customInput);
+
+    fireEvent.click(screen.getByText('Update session'));
+
+    expect(onSave).toHaveBeenCalledWith(1, expect.objectContaining({
+      type: 'INTERVAL',
+      reps: 6,
+      repDuration: { unit: 'min', value: 4 },
+      recovery: { unit: 'min', value: 2.5 },
+      pace: '3:50',
     }));
   });
 });

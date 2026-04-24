@@ -15,6 +15,21 @@ export interface BlockWeekDayDetail {
   sessionType: PlannedSession['type'];
 }
 
+function formatIntervalRepLength(session: PlannedSession): string {
+  if (session.repDuration) {
+    if (session.repDuration.unit === 'km') {
+      const metres = session.repDuration.value * 1000;
+      return Number.isInteger(metres) && metres < 1000
+        ? `${metres}m`
+        : `${Number(session.repDuration.value.toFixed(1))}km`;
+    }
+
+    return `${Number(session.repDuration.value.toFixed(2))}min`;
+  }
+
+  return `${session.repDist ?? 800}m`;
+}
+
 function getSessionLabel(session: PlannedSession | null): string {
   if (!session || session.type === 'REST') return 'Rest';
 
@@ -35,8 +50,8 @@ function getSessionLabel(session: PlannedSession | null): string {
 function getDistanceLabel(session: PlannedSession | null): string | null {
   if (!session || session.type === 'REST') return null;
   if (session.type === 'INTERVAL') {
-    if (session.reps && session.repDist) {
-      return `${session.reps}×${session.repDist}m`;
+    if (session.reps && (session.repDist || session.repDuration)) {
+      return `${session.reps}×${formatIntervalRepLength(session)}`;
     }
     return null;
   }
