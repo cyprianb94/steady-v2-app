@@ -29,7 +29,7 @@ Then load the area-specific skills:
 - screen or navigation work: `screens`
 - onboarding or plan-builder work: `plan-builder`
 - cross-screen state, orchestration, or shared logic: `interface-design`, `deep-modules`
-- AI coach or conversational UX: `ai-coach`
+- Steady AI or conversational UX: `ai-coach`
 - deliberate cleanup or debt paydown: `improve-codebase-architecture`
 
 ## Guardrails

@@ -7,12 +7,28 @@ import { PHASE_COLOR } from '../../../constants/phase-meta';
 import { FONTS } from '../../../constants/typography';
 import { Btn } from '../../../components/ui/Btn';
 import { SessionDot } from '../../../components/ui/SessionDot';
-import { SessionRow } from '../../../components/plan-builder/SessionRow';
+import { PropagateModal } from '../../../components/plan-builder/PropagateModal';
+import { SessionEditorScreen } from '../../../components/plan-builder/SessionEditorScreen';
 import { generatePlan, propagateChange, assignDates } from '@steady/types';
-import type { PlannedSession, PhaseConfig, PlanWeek } from '@steady/types';
+import type { PhaseConfig, PlannedSession, PlanWeek, PropagateScope } from '@steady/types';
+import {
+  buildSessionEditDescription,
+  materializeEditedSession,
+} from '../../../features/plan-builder/session-editing';
 import { savePlan } from '../../../lib/plan-api';
 import { usePreferences } from '../../../providers/preferences-context';
 import { formatDistance } from '../../../lib/units';
+import { DAYS, sessionLabel } from '../../../lib/plan-helpers';
+
+interface EditingSession {
+  weekIndex: number;
+  dayIndex: number;
+}
+
+interface PendingEdit extends EditingSession {
+  updated: Partial<PlannedSession> | null;
+  desc: string;
+}
 
 export default function StepPlan() {
   const { units } = usePreferences();
@@ -36,30 +52,63 @@ export default function StepPlan() {
   const [customPct, setCustomPct] = useState('7');
   const [showCustom, setShowCustom] = useState(false);
   const [expanded, setExpanded] = useState<number | null>(null);
+  const [editing, setEditing] = useState<EditingSession | null>(null);
+  const [pendingEdit, setPendingEdit] = useState<PendingEdit | null>(null);
 
   const accept = (pct: number) => {
     setPlan(generatePlan(template, weeks, pct, phases));
     setProgState(pct);
   };
 
-  const applyChange = (
-    weekIndex: number,
-    dayIndex: number,
-    updated: Partial<PlannedSession> | null,
-    scope: 'this' | 'remaining' | 'build',
-  ) => {
-    setPlan((prev) =>
-      propagateChange(
+  function openSessionEditor(weekIndex: number, dayIndex: number) {
+    setEditing({ weekIndex, dayIndex });
+  }
+
+  function handleEditorSave(dayIndex: number, updated: Partial<PlannedSession> | null) {
+    if (!editing) {
+      return;
+    }
+
+    setPendingEdit({
+      weekIndex: editing.weekIndex,
+      dayIndex,
+      updated,
+      desc: buildSessionEditDescription(dayIndex, updated, units),
+    });
+    setEditing(null);
+  }
+
+  function applyPendingEdit(scope: PropagateScope) {
+    if (!pendingEdit) {
+      return;
+    }
+
+    setPlan((prev) => {
+      const sourceWeek = prev[pendingEdit.weekIndex];
+      if (!sourceWeek) {
+        return prev;
+      }
+
+      const existing = sourceWeek.sessions[pendingEdit.dayIndex] ?? null;
+      const updatedSession = materializeEditedSession(existing, pendingEdit.updated, {
+        id: existing?.id ?? `preview-w${pendingEdit.weekIndex + 1}d${pendingEdit.dayIndex}`,
+        date: existing?.date ?? 'preview',
+        type: existing?.type ?? 'EASY',
+      });
+
+      return propagateChange(
         prev,
-        weekIndex,
-        dayIndex,
-        updated as PlannedSession | null,
+        pendingEdit.weekIndex,
+        pendingEdit.dayIndex,
+        updatedSession,
         scope,
         template,
-        prev[weekIndex]?.phase,
-      ),
-    );
-  };
+        sourceWeek.phase,
+      );
+    });
+
+    setPendingEdit(null);
+  }
 
   const maxKm = Math.max(...plan.map((w) => w.plannedKm), 1);
 
@@ -93,6 +142,17 @@ export default function StepPlan() {
       setSaving(false);
     }
   };
+
+  if (editing) {
+    return (
+      <SessionEditorScreen
+        dayIndex={editing.dayIndex}
+        existing={plan[editing.weekIndex]?.sessions[editing.dayIndex] ?? null}
+        onSave={handleEditorSave}
+        onClose={() => setEditing(null)}
+      />
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -239,16 +299,31 @@ export default function StepPlan() {
                     Edit sessions · any change will ask where to apply
                   </Text>
                   {w.sessions.map((d, di) => (
-                    <SessionRow
+                    <Pressable
                       key={di}
-                      sess={d}
-                      dayIndex={di}
-                      weekIndex={wi}
-                      totalWeeks={plan.length}
-                      phaseName={w.phase}
-                      phaseWeekCount={plan.filter((week) => week.phase === w.phase).length}
-                      onChanged={(dayIdx, updated, scope) => applyChange(wi, dayIdx, updated, scope)}
-                    />
+                      testID={`plan-week-${wi + 1}-day-${di}`}
+                      onPress={() => openSessionEditor(wi, di)}
+                      style={({ pressed }) => [
+                        styles.sessionEditRow,
+                        pressed && styles.sessionEditRowPressed,
+                      ]}
+                    >
+                      <View style={styles.sessionEditDay}>
+                        <Text style={styles.sessionEditDayLabel}>{DAYS[di]}</Text>
+                      </View>
+                      <View style={styles.sessionEditMain}>
+                        <SessionDot type={d?.type || 'REST'} size={8} />
+                        <View style={styles.sessionEditCopy}>
+                          <Text style={styles.sessionEditTitle} numberOfLines={1}>
+                            {d && d.type !== 'REST' ? sessionLabel(d, units) : 'Rest day'}
+                          </Text>
+                          <Text style={styles.sessionEditMeta} numberOfLines={1}>
+                            {d && d.type !== 'REST' ? SESSION_TYPE[d.type].label : 'Recovery'}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.sessionEditChevron}>›</Text>
+                    </Pressable>
                   ))}
                 </View>
               )}
@@ -261,6 +336,18 @@ export default function StepPlan() {
       <View style={styles.footer}>
         <Btn title={saving ? "Saving..." : "Save plan and start training →"} onPress={handleDone} fullWidth disabled={saving} />
       </View>
+
+      {pendingEdit ? (
+        <PropagateModal
+          changeDesc={pendingEdit.desc}
+          weekIndex={pendingEdit.weekIndex}
+          totalWeeks={plan.length}
+          phaseName={plan[pendingEdit.weekIndex]?.phase ?? 'BUILD'}
+          phaseWeekCount={plan.filter((week) => week.phase === plan[pendingEdit.weekIndex]?.phase).length}
+          onApply={applyPendingEdit}
+          onClose={() => setPendingEdit(null)}
+        />
+      ) : null}
     </View>
   );
 }
@@ -476,6 +563,53 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginTop: 8,
     marginBottom: 6,
+  },
+  sessionEditRow: {
+    minHeight: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 9,
+    borderTopWidth: 1,
+    borderTopColor: C.border,
+  },
+  sessionEditRowPressed: {
+    opacity: 0.7,
+  },
+  sessionEditDay: {
+    width: 34,
+  },
+  sessionEditDayLabel: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 11,
+    color: C.muted,
+  },
+  sessionEditMain: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sessionEditCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  sessionEditTitle: {
+    fontFamily: FONTS.sansMedium,
+    fontSize: 12.5,
+    color: C.ink,
+  },
+  sessionEditMeta: {
+    fontFamily: FONTS.sans,
+    fontSize: 10.5,
+    color: C.muted,
+    marginTop: 1,
+  },
+  sessionEditChevron: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 16,
+    color: C.muted,
   },
   // Footer
   footer: {

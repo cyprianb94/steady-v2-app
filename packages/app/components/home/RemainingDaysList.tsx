@@ -7,6 +7,7 @@ import { addDaysIso, dayIndexForIsoDate } from '../../lib/plan-helpers';
 import { usePreferences } from '../../providers/preferences-context';
 import { formatDistance } from '../../lib/units';
 import type { ActivityDayStatus } from '../../features/run/activity-resolution';
+import { canOpenHomeSessionRow } from '../../features/home/resolve-session';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
@@ -22,7 +23,7 @@ interface RemainingDaysListProps {
     dayIndex: number,
     todayIndex: number,
   ) => ActivityDayStatus;
-  onSessionPress?: (session: PlannedSession) => void;
+  onSessionPress?: (session: PlannedSession, status: ActivityDayStatus) => void;
 }
 
 function formatShortDate(date: string): string {
@@ -60,6 +61,13 @@ export function RemainingDaysList({
       <SectionLabel>This week</SectionLabel>
       {sessions.map((session, index) => {
         const activity = activityForSession(session);
+        const status = statusForDay(session ?? null, index, todayIndex);
+        const hasRunDetail = session ? Boolean(activityIdForSession(session)) : false;
+        const isPressable = canOpenHomeSessionRow({
+          session: session ?? null,
+          status,
+          hasRunDetail,
+        });
 
         return (
           <CompactDayRow
@@ -67,9 +75,9 @@ export function RemainingDaysList({
             dayName={DAYS[index]}
             dateLabel={formatShortDate(addDaysIso(weekStartDate, index))}
             session={session ?? null}
-            status={statusForDay(session ?? null, index, todayIndex)}
+            status={status}
             metricLabel={formatActualDistance(activity?.distance, units) ?? formatPlannedDistance(session, units)}
-            onPress={session && activityIdForSession(session) ? () => onSessionPress?.(session) : undefined}
+            onPress={session && isPressable ? () => onSessionPress?.(session, status) : undefined}
           />
         );
       })}

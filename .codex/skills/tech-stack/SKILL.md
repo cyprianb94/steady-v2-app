@@ -73,12 +73,11 @@ steady-v2-app/
 │
 ├── components/
 │   ├── plan-builder/
-│   │   ├── ScrollPicker.tsx      # Drum scroll picker
-│   │   ├── SessionEditor.tsx     # Bottom sheet session editor
+│   │   ├── ScrollPicker.tsx      # Drum picker where explicitly needed
+│   │   ├── SessionEditor.tsx     # Notebook-row session editor
+│   │   ├── SessionEditorScreen.tsx # Full-screen editor shell shared by Block + plan builder
 │   │   ├── PhaseEditor.tsx       # Phase bar + steppers
-│   │   ├── PropagateModal.tsx    # Scope selection modal
-│   │   ├── SessionRow.tsx        # Inline session editor in week rows
-│   │   └── TypeStrip.tsx         # Session type chip row
+│   │   └── PropagateModal.tsx    # Scope selection modal
 │   ├── week/
 │   │   ├── WeekHeader.tsx
 │   │   ├── LoadBar.tsx
@@ -99,8 +98,12 @@ steady-v2-app/
 │   │   └── WeekRow.tsx
 │   └── ui/
 │       ├── ChipRow.tsx
+│       ├── ChipStripEditor.tsx
+│       ├── EditableChipStrip.tsx
+│       ├── NotebookRow.tsx
 │       ├── RepStepper.tsx
 │       ├── SectionLabel.tsx
+│       ├── UnitTogglePill.tsx
 │       ├── Btn.tsx
 │       └── SessionDot.tsx
 │
@@ -164,17 +167,17 @@ steady-v2-app/
 
 This is the highest priority UI feature. Build it first so you have data to populate everything else.
 
-1. `ScrollPicker` component — get this right before anything else. It's used everywhere.
+1. Base editor primitives: `EditableChipStrip`, `ChipStripEditor`, `NotebookRow`, `UnitTogglePill`, `RepStepper`
 2. `StepGoal` screen with `PhaseEditor`
-3. `SessionEditor` bottom sheet — all session types, all fields
+3. `SessionEditor` — notebook-row controls for all session types and all fields
 4. `StepTemplate` screen
 5. `generatePlan()` function in `lib/plan-generator.ts`
 6. `PropagateModal`
-7. `SessionRow` with `TypeStrip`
+7. `SessionEditorScreen` for Block and plan-builder edit flows
 8. `StepPlan` screen with accordion week list
 9. Plan persistence to Supabase
 
-**Reference:** `steady-plan-builder.jsx` is the complete working prototype. Replicate its behaviour exactly in React Native.
+**Reference:** `packages/app/components/plan-builder/SessionEditor.tsx` is the current source of truth for session editing. Do not reintroduce the older separate interval controls or scroll drums inside the session editor.
 
 ### Phase 3 — Core App Screens (Week 5–6)
 
@@ -299,7 +302,7 @@ Never commit any of these. Use `.env` locally and Fly.io secrets in production.
 - App cold start to Week tab ready: <2 seconds
 - Session sheet open: <200ms
 - Plan builder step transitions: <150ms
-- Coach message response (Claude API): <4 seconds (show typing indicator)
+- Steady AI response (Claude API): <4 seconds (show typing indicator)
 - Strava sync to debrief notification: <15 minutes after run ends
 
 ---

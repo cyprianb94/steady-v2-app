@@ -17,9 +17,15 @@
     "typecheck": "npm run build:types && tsc --noEmit -p packages/server/tsconfig.json && tsc --noEmit -p packages/app/tsconfig.json"
   },
   "overrides": {
-    "react": "19.1.0"
+    "react": "19.1.0",
+    "react-native-reanimated": "4.1.1",
+    "react-native-worklets": "0.5.1"
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "react-native-reanimated": "4.1.1",
+    "react-native-worklets": "0.5.1"
   }
 }

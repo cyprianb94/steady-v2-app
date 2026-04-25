@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sessionKm } from '../src/lib/session-km';
+import { expectedDistance, sessionKm } from '../src/lib/session-km';
 import type { PlannedSession } from '@steady/types';
 
 function session(overrides: Partial<PlannedSession> & { type: PlannedSession['type'] }): PlannedSession {
@@ -21,6 +21,21 @@ describe('sessionKm', () => {
 
   it('returns distance for LONG session', () => {
     expect(sessionKm(session({ type: 'LONG', distance: 22 }))).toBe(22);
+  });
+
+  it.each([
+    { type: 'EASY' as const, distance: 8 },
+    { type: 'LONG' as const, distance: 22 },
+  ])('ignores legacy warmup and cooldown fields for $type sessions', ({ type, distance }) => {
+    const s = session({
+      type,
+      distance,
+      warmup: { unit: 'km', value: 1.5 },
+      cooldown: { unit: 'km', value: 1 },
+    });
+
+    expect(sessionKm(s)).toBe(distance);
+    expect(expectedDistance(s)).toBe(distance);
   });
 
   it('includes warmup and cooldown for TEMPO session', () => {

@@ -1,6 +1,9 @@
+import 'react-native-gesture-handler';
 import React from 'react';
 import { Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '../lib/auth';
 import { ToastProvider } from '../providers/ToastProvider';
@@ -19,20 +22,24 @@ export default function RootLayout() {
   });
 
   return (
-    <SafeAreaProvider>
-      <AuthProvider>
-        <PreferencesProvider>
-          <ToastProvider>
-            <StravaSyncProvider>
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="onboarding" />
-                <Stack.Screen name="edit-session" />
-              </Stack>
-            </StravaSyncProvider>
-          </ToastProvider>
-        </PreferencesProvider>
-      </AuthProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <PreferencesProvider>
+            <ToastProvider>
+              <StravaSyncProvider>
+                <BottomSheetModalProvider>
+                  <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="(tabs)" />
+                    <Stack.Screen name="onboarding" />
+                    <Stack.Screen name="edit-session" />
+                  </Stack>
+                </BottomSheetModalProvider>
+              </StravaSyncProvider>
+            </ToastProvider>
+          </PreferencesProvider>
+        </AuthProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

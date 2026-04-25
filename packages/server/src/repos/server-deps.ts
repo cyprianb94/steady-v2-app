@@ -1,6 +1,6 @@
 import type { RouterDeps } from '../trpc/router';
 import { createStravaClient, type StravaClient } from '../lib/strava-client';
-import { getSupabaseAdminClient } from '../lib/supabase-admin';
+import { getSupabaseAdminClient, getSupabaseServiceKey } from '../lib/supabase-admin';
 import { InMemoryActivityRepo } from './activity-repo.memory';
 import { InMemoryConversationRepo } from './conversation-repo.memory';
 import { InMemoryCrossTrainingRepo } from './cross-training-repo.memory';
@@ -20,7 +20,7 @@ import { SupabaseProfileRepo } from './profile-repo.supabase';
 import { SupabaseShoeRepo } from './shoe-repo.supabase';
 
 function hasSupabaseConfig(): boolean {
-  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY);
+  return Boolean(process.env.SUPABASE_URL && getSupabaseServiceKey());
 }
 
 export interface ServerDeps extends RouterDeps {

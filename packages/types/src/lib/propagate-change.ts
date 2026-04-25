@@ -4,6 +4,14 @@ import { sessionKm } from './session-km';
 
 export type PropagateScope = 'this' | 'remaining' | 'build';
 
+interface PropagateChangeOptions {
+  shouldPreserveSession?: (
+    session: PlannedSession,
+    weekIndex: number,
+    dayIndex: number,
+  ) => boolean;
+}
+
 /**
  * Apply a session edit across a plan, respecting scope.
  *
@@ -22,8 +30,12 @@ export function propagateChange(
   scope: PropagateScope,
   template: (PlannedSession | null)[],
   targetPhase?: PhaseName,
+  options: PropagateChangeOptions = {},
 ): PlanWeek[] {
   const phaseScope = targetPhase ?? plan[weekIndex]?.phase ?? 'BUILD';
+  const shouldPreserveSession =
+    options.shouldPreserveSession
+    ?? ((session: PlannedSession) => Boolean(session.actualActivityId));
 
   return plan.map((w, wi) => {
     let apply = false;
@@ -35,7 +47,7 @@ export function propagateChange(
 
     const sessions = w.sessions.map((d, di) => {
       if (di !== dayIndex) return d;
-      if (d?.actualActivityId) return d;
+      if (d && shouldPreserveSession(d, wi, di)) return d;
 
       // Target week gets the exact updated session
       if (wi === weekIndex) return updated;

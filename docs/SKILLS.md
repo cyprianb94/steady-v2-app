@@ -22,20 +22,22 @@ This file is not a skill itself. It explains:
 For most product and implementation work, use this order:
 
 1. `/product`
-2. `/frontend-design` and `/design-system`
-3. One or more domain skills: `/screens`, `/plan-builder`, `/ai-coach`, `/data-model`, `/tech-stack`
-4. `/engineering`
-5. `/branching-workflow`
-6. Planning skills if the work is still being shaped: `/grill-me`, `/write-a-prd`, `/prd-to-issues`
-7. Implementation and quality skills while building: `/tdd`, `/tests`, `/mocking`, `/interface-design`, `/deep-modules`, `/refactoring`, `/reference`, `/improve-codebase-architecture`
-8. `/testflight` when preparing a release build or distribution
+2. `/brand-and-content` when naming, tone, copy, or brand metaphor is involved
+3. `/frontend-design` and `/design-system`
+4. One or more domain skills: `/screens`, `/plan-builder`, `/ai-coach`, `/data-model`, `/tech-stack`
+5. `/engineering`
+6. `/branching-workflow`
+7. Planning skills if the work is still being shaped: `/grill-me`, `/write-a-prd`, `/prd-to-issues`
+8. Implementation and quality skills while building: `/tdd`, `/tests`, `/mocking`, `/interface-design`, `/deep-modules`, `/refactoring`, `/reference`, `/improve-codebase-architecture`
+9. `/testflight` when preparing a release build or distribution
 
 ## Quick Rules
 
 - Do not load every skill by default. Start with the smallest relevant set.
-- For UI work, always start with `/frontend-design` and `/design-system`.
+- For naming, tone, product copy, empty states, notification text, marketing copy, or the Steady metaphor, add `/brand-and-content`.
+- For UI work, always start with `/brand-and-content`, `/frontend-design`, and `/design-system` when there is any user-facing copy or brand expression.
 - For onboarding and training-plan creation flows, add `/plan-builder`.
-- For anything involving Steady AI tone or proactive coaching behavior, add `/ai-coach`.
+- For anything involving Steady AI tone or proactive behaviour, add both `/brand-and-content` and `/ai-coach`.
 - For feature planning, use `/grill-me` before `/write-a-prd`, then `/prd-to-issues`.
 - For implementation, `/tdd` is the primary execution skill and the test-related skills support it.
 - For repo workflow, `/branching-workflow` applies before making changes.
@@ -46,6 +48,9 @@ For most product and implementation work, use this order:
 
 `/product`
 - Use for product context, user needs, feature boundaries, prioritization, and the overall point of Steady.
+
+`/brand-and-content`
+- Use for naming, voice, tone, vocabulary, product copy, beta-scope wording, brand positioning, and the notebook-plus-timing-display metaphor.
 
 `/frontend-design`
 - Use for high-quality UI direction, visual hierarchy, bold aesthetic choices, and polished frontend implementation.
@@ -121,30 +126,33 @@ For most product and implementation work, use this order:
 ### UI Feature
 
 1. `/product`
-2. `/frontend-design`
-3. `/design-system`
-4. `/screens` or `/plan-builder`
-5. `/branching-workflow`
-6. `/tdd`
-7. `/tests`, `/interface-design`, `/refactoring` as needed
+2. `/brand-and-content`
+3. `/frontend-design`
+4. `/design-system`
+5. `/screens` or `/plan-builder`
+6. `/branching-workflow`
+7. `/tdd`
+8. `/tests`, `/interface-design`, `/refactoring` as needed
 
 ### AI Feature
 
 1. `/product`
-2. `/ai-coach`
-3. `/data-model`
-4. `/tech-stack`
-5. `/branching-workflow`
-6. `/tdd`
-7. `/tests`, `/mocking`, `/reference`
+2. `/brand-and-content`
+3. `/ai-coach`
+4. `/data-model`
+5. `/tech-stack`
+6. `/branching-workflow`
+7. `/tdd`
+8. `/tests`, `/mocking`, `/reference`
 
 ### New Feature Definition
 
 1. `/product`
-2. `/grill-me`
-3. Any relevant domain skill, such as `/screens`, `/plan-builder`, `/ai-coach`, or `/data-model`
-4. `/write-a-prd`
-5. `/prd-to-issues`
+2. `/brand-and-content` if naming, tone, copy, or brand promise is involved
+3. `/grill-me`
+4. Any relevant domain skill, such as `/screens`, `/plan-builder`, `/ai-coach`, or `/data-model`
+5. `/write-a-prd`
+6. `/prd-to-issues`
 
 ### Refactor Or Architecture Pass
 
@@ -160,6 +168,7 @@ For most product and implementation work, use this order:
 Every doc except this file and [`README.MD`](/Users/cyprianbrytan/Projects/steady-v2-app/docs/README.MD) is mirrored as a skill:
 
 - `AI_COACH.md` -> `/ai-coach`
+- `BRAND_AND_CONTENT.md` -> `/brand-and-content`
 - `BRANCHING_WORKFLOW.md` -> `/branching-workflow`
 - `DATA_MODEL.md` -> `/data-model`
 - `DESIGN_SYSTEM.md` -> `/design-system`

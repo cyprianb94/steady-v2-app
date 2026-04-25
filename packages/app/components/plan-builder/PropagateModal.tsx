@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import type { PhaseName } from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { Btn } from '../ui/Btn';
+import { GorhomSheet } from '../ui/GorhomSheet';
 
 interface PropagateModalProps {
   changeDesc?: string | null;
@@ -56,98 +57,72 @@ export function PropagateModal({
   };
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-          {/* Handle */}
-          <View style={styles.handleRow}>
-            <View style={styles.handle} />
-          </View>
+    <GorhomSheet open onDismiss={onClose} backgroundColor={C.surface} backdropOpacity={0.65}>
+      <View style={styles.sheet}>
+        <View style={styles.header}>
+          <Text style={styles.title}>{title}</Text>
+          {changeDesc ? <Text style={styles.changeDesc}>{changeDesc}</Text> : null}
+          {body ? <Text style={styles.body}>{body}</Text> : null}
+        </View>
 
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>{title}</Text>
-            {changeDesc ? <Text style={styles.changeDesc}>{changeDesc}</Text> : null}
-            {body ? <Text style={styles.body}>{body}</Text> : null}
-          </View>
-
-          {/* Options */}
-          <View style={styles.options}>
-            {OPTIONS.map((o) => {
-              const active = scope === o.key;
-              const optionLabel =
-                scopeLabels?.[o.key] ??
-                (o.key === 'build' ? `${phaseDisplay} phase only` : o.label);
-              return (
-                <Pressable
-                  key={o.key}
-                  onPress={() => setScope(o.key)}
+        <View style={styles.options}>
+          {OPTIONS.map((o) => {
+            const active = scope === o.key;
+            const optionLabel =
+              scopeLabels?.[o.key] ??
+              (o.key === 'build' ? `${phaseDisplay} phase only` : o.label);
+            return (
+              <Pressable
+                key={o.key}
+                onPress={() => setScope(o.key)}
+                style={[
+                  styles.option,
+                  {
+                    borderColor: active ? C.clay : C.border,
+                    backgroundColor: active ? C.clayBg : C.cream,
+                  },
+                ]}
+              >
+                <View style={styles.optionText}>
+                  <Text
+                    style={[
+                      styles.optionLabel,
+                      { fontWeight: active ? '600' : '400' },
+                    ]}
+                  >
+                    {optionLabel}
+                  </Text>
+                  <Text style={styles.optionSub}>{subs[o.key]}</Text>
+                </View>
+                <View
                   style={[
-                    styles.option,
+                    styles.radio,
                     {
                       borderColor: active ? C.clay : C.border,
-                      backgroundColor: active ? C.clayBg : C.cream,
+                      backgroundColor: active ? C.clay : 'transparent',
                     },
                   ]}
                 >
-                  <View style={styles.optionText}>
-                    <Text
-                      style={[
-                        styles.optionLabel,
-                        { fontWeight: active ? '600' : '400' },
-                      ]}
-                    >
-                      {optionLabel}
-                    </Text>
-                    <Text style={styles.optionSub}>{subs[o.key]}</Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.radio,
-                      {
-                        borderColor: active ? C.clay : C.border,
-                        backgroundColor: active ? C.clay : 'transparent',
-                      },
-                    ]}
-                  >
-                    {active && <View style={styles.radioInner} />}
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
+                  {active && <View style={styles.radioInner} />}
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
 
-          {/* Apply button */}
-          <View style={styles.footer}>
-            <Btn title={applyLabel} onPress={() => onApply(scope)} fullWidth />
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
+        <View style={styles.footer}>
+          <Btn title={applyLabel} onPress={() => onApply(scope)} fullWidth />
+        </View>
+      </View>
+    </GorhomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(28,21,16,0.65)',
-    justifyContent: 'flex-end',
-  },
   sheet: {
     backgroundColor: C.surface,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
-  },
-  handleRow: {
-    alignItems: 'center',
-    paddingTop: 10,
-    paddingBottom: 4,
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: C.border,
   },
   header: {
     paddingHorizontal: 20,

@@ -341,6 +341,9 @@ describe('SyncRunDetailScreen', () => {
   });
 
   it('shows the slot-corrected weekday for stale session dates in the match picker', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-26T12:00:00.000Z'));
+    const timezoneOffsetSpy = vi.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(0);
     const today = todayIsoLocal();
     const todayIndex = dayIndexForIsoDate(today);
     const weekStart = startOfWeekIso(today);
@@ -371,12 +374,70 @@ describe('SyncRunDetailScreen', () => {
       matchedSessionId: null,
     });
 
-    render(<SyncRunDetailScreen />);
+    try {
+      render(<SyncRunDetailScreen />);
 
-    fireEvent.click(await screen.findByText('LONG · MATCHED TO TODAY'));
+      await act(async () => {
+        await Promise.resolve();
+      });
 
-    expect(await screen.findByText(`${expectedDay} · 10km Tempo`)).toBeTruthy();
-    expect(screen.queryByText(`${staleDay} · 10km Tempo`)).toBeNull();
+      fireEvent.click(screen.getByText('LONG · MATCHED TO TODAY'));
+
+      expect(screen.getByText(`${expectedDay} · 10km Tempo`)).toBeTruthy();
+      expect(screen.queryByText(`${staleDay} · 10km Tempo`)).toBeNull();
+    } finally {
+      timezoneOffsetSpy.mockRestore();
+    }
+  });
+
+  it('does not offer future planned sessions when matching a completed run', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-24T12:00:00.000Z'));
+    const timezoneOffsetSpy = vi.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(0);
+
+    try {
+      mockPlanState.currentWeek = {
+        weekNumber: 1,
+        phase: 'BASE',
+        plannedKm: 64,
+        sessions: [
+          { id: 'mon', type: 'EASY', date: '2026-04-20', distance: 8, pace: '5:20' },
+          { id: 'tue', type: 'TEMPO', date: '2026-04-21', distance: 10, pace: '4:20' },
+          null,
+          { id: 'thu', type: 'INTERVAL', date: '2026-04-23', reps: 5, repDist: 800, pace: '4:00' },
+          { id: 'fri', type: 'EASY', date: '2026-04-24', distance: 8, pace: '6:00' },
+          { id: 'sat', type: 'EASY', date: '2026-04-25', distance: 10, pace: '5:20' },
+          { id: 'sun', type: 'LONG', date: '2026-04-26', distance: 20, pace: '5:10' },
+        ] as any[],
+      };
+      mockActivityGet.mockResolvedValue({
+        id: 'activity-1',
+        source: 'strava',
+        startTime: '2026-04-24T07:15:00.000Z',
+        distance: 10.3,
+        duration: 3529,
+        avgPace: 343,
+        avgHR: 147,
+        splits: [],
+        matchedSessionId: null,
+      });
+
+      render(<SyncRunDetailScreen />);
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      fireEvent.click(screen.getByText('EASY · MATCHED TO TODAY'));
+
+      expect(screen.getByText('Today · 8km Easy Run')).toBeTruthy();
+      expect(screen.getByText('Mon · 8km Easy Run')).toBeTruthy();
+      expect(screen.getByText('Thu · 5×800m Intervals')).toBeTruthy();
+      expect(screen.queryByText('Sat · 10km Easy Run')).toBeNull();
+      expect(screen.queryByText('Sun · 20km Long Run')).toBeNull();
+    } finally {
+      timezoneOffsetSpy.mockRestore();
+    }
   });
 
   it('keeps shoe selection below feel, removes the placeholder shoe art, and hides manual Strava re-sync', async () => {

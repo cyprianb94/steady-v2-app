@@ -27,6 +27,8 @@ function createMockComponent(tag: string) {
     const resolved = style ? resolveStyle(style) : undefined;
     const {
       accessibilityRole: _accessibilityRole,
+      accessibilityLabel: _accessibilityLabel,
+      accessibilityIgnoresInvertColors: _accessibilityIgnoresInvertColors,
       delayLongPress: _delayLongPress,
       numberOfLines: _numberOfLines,
       onLayout: _onLayout,
@@ -73,6 +75,7 @@ export const View = createMockComponent('View');
 export const Text = createMockComponent('Text');
 export const ActivityIndicator = createMockComponent('ActivityIndicator');
 export const RefreshControl = createMockComponent('RefreshControl');
+export const Image = createMockComponent('Image');
 export const TouchableOpacity = createMockComponent('TouchableOpacity');
 export const TouchableHighlight = createMockComponent('TouchableHighlight');
 export const TouchableWithoutFeedback = createMockComponent('TouchableWithoutFeedback');

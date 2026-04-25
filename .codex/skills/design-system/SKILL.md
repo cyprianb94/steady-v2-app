@@ -5,25 +5,23 @@ description: Use when working with Steady UI primitives, colours, spacing, typog
 
 # Steady — Design System
 
-> Before any UI work, read `/frontend-design/SKILL.md` in the project skills folder. Every decision below is consistent with that skill. Do not override these tokens.
+> Before any UI work, read `/brand-and-content` and `/frontend-design`. Every decision below implements the Steady brand direction and should not override it.
 
 ---
 
-## Aesthetic direction
+## Scope
 
-**The metaphor:** A coach's training notebook meets a sports timing display. Warm, physical, precise. The feeling of a well-worn Moleskine annotated in biro, combined with the authority of a Casio stopwatch.
+This skill owns Steady's visual implementation rules: colour tokens, typography, spacing, component patterns, layout rules, and session-editor interaction patterns.
 
-**Reject:**
-- Dark mode neon dashboards (Garmin, Whoop)
-- Generic white SaaS minimalism (TrainingPeaks, Strava)
-- Aggressive fitness-brand energy (any app with a bolt of lightning)
-- Chart-heavy data dumps (Intervals.icu)
+Current implementation sources to check before changing UI:
+- `packages/app/constants/colours.ts`
+- `packages/app/constants/typography.ts`
+- `packages/app/constants/session-types.ts`
+- `packages/app/components/ui/`
+- `packages/app/components/plan-builder/SessionEditor.tsx`
+- `packages/types/src/session.ts`
 
-**Embrace:**
-- Warm parchment tones — not white, not grey
-- Editorial information density — clear hierarchy without visual noise
-- Monospace data — all numbers look like split sheets
-- Colour as semantic signal only — every colour use has a meaning
+Brand, product naming, voice, vocabulary, emoji rules, and the high-level aesthetic metaphor live in `/brand-and-content`.
 
 ---
 
@@ -35,7 +33,7 @@ These are the exact hex values used in both prototype files. Do not approximate.
 // Backgrounds
 cream:    #F4EFE6   // App background. Warm parchment. Primary surface.
 surface:  #FDFAF5   // Card background. Slightly lighter.
-card:     #F0EAE0   // Coach message background. Warmest tone.
+card:     #F0EAE0   // Steady message background. Warmest tone.
 
 // Text
 ink:      #1C1510   // Primary text. Very dark warm black.
@@ -74,11 +72,20 @@ TAPER:    forest  #2A5C45
 
 ```
 completed:  forest  #2A5C45
-off-target: amber   #D4882A
-missed:     clay    #C4522A
+varied / off-target: amber   #D4882A
+missed / unfinished: clay    #C4522A
 upcoming:   border  #E5DDD0
 today:      clay    #C4522A  (with elevated shadow)
 ```
+
+### Run status symbols
+
+Weekly run-list status indicators use the hand-authored run status icon set, not text glyphs or icon-library replacements.
+
+- `completed` uses the forest ring/check icon.
+- `off-target` is displayed as `varied`: a forest partial ring/check with an amber accent dot.
+- `missed` uses the clay unfinished icon.
+- Source assets live in `packages/app/assets/run-status/`; render them through `packages/app/components/run/RunStatusIcon.tsx`.
 
 ---
 
@@ -87,7 +94,7 @@ today:      clay    #C4522A  (with elevated shadow)
 Three font families. Each has a specific job. Never mix them up.
 
 ### Playfair Display (serif)
-- Use for: screen titles, week labels, session names in detail views, coach name
+- Use for: screen titles, week labels, session names in detail views, Steady avatar/name
 - Weights: 400, 600, 700
 - Never use for: data values, UI labels, body copy at small sizes
 - Import: `https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700`
@@ -103,6 +110,10 @@ Three font families. Each has a specific job. Never mix them up.
 - Use for: everything else — labels, descriptions, buttons, body copy, metadata
 - Weights: 300, 400, 500, 600
 - Import: `https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600`
+
+### Font loading
+
+The app registers local font files through Expo in `packages/app/app/_layout.tsx`. Web prototypes and marketing surfaces may use the Google Fonts imports above. Do not substitute Inter, Roboto, SF Pro, Arial, or system fonts as primary fonts.
 
 ### Type scale
 
@@ -127,6 +138,60 @@ Metadata:         DM Sans 400, 10–11px, muted colour
 - Bottom tab bar height: 70px (including safe area)
 - Status bar height: 44px
 - Sheet drag handle: 36×4px pill, 10px padding above
+- Max content width on landing/web pages: 720px centred
+- Editorial density: tight vertical rhythm, small labels, 9–11px metadata, no roomy SaaS spacing
+
+---
+
+## Visual rules
+
+### Surface
+
+- Surface is always parchment: `C.cream` for app background, `C.surface` for cards, `C.card` for the warmest Steady message tier.
+- Never use `#FFFFFF` or `#000000` as app backgrounds.
+- Every colour use must mean something. Clay = INTERVAL + primary CTA + TODAY + unfinished. Amber = TEMPO + varied/off-target accent + plan-edit proposals. Forest = EASY + completed + connected. Navy = LONG + target time. Slate = REST.
+
+### Corners
+
+- Cards: 12px.
+- Buttons: 22px pill for primary/secondary actions; 8px rounded for tighter contexts.
+- Chips/tags: 20px pill.
+- Bottom sheets: 22px 22px 0 0.
+- Input fields: 22px pill.
+- Avatars and dots: 50%.
+
+### Borders and shadows
+
+- Every card has a border: `1.5px solid C.border`, or session type colour at about 35% opacity when contextual.
+- Dividers inside cards: `1px solid C.border`.
+- Elevation is communicated through border and background, not shadow.
+- Exceptions: today's session card uses `0 2px 10px rgba(196,82,42,0.20)`; bottom sheets and modals may use a large soft shadow plus the warm ink overlay.
+- No neumorphism. No inner shadows on inputs. No button halo glows.
+
+### Backgrounds and imagery
+
+- No photographs, illustrations, full-bleed imagery, textures, grain, or repeating patterns inside the app.
+- The app's warmth comes from the parchment palette and serif headlines.
+- Marketing/landing visuals should use real app UI in a phone frame. Do not use abstract SVG illustrations as the main visual.
+
+### Motion and transparency
+
+- Motion is minimal and functional, never decorative.
+- Landing scroll reveals may use opacity `0 → 1`, `translateY(20px → 0)`, `0.6s ease`, triggered once per section.
+- Hover on primary buttons: opacity `0.9`. Secondary buttons: border darkens one notch. Links: underline appears.
+- Press/active states stay quiet: no shrink, no dramatic colour shift.
+- Focus ring: border switches to `C.clay`, never browser blue.
+- Frosted glass appears only on the sticky landing header: `rgba(244,239,230,0.92)` plus `blur(12px)`.
+- Modal backdrop: `rgba(28,21,16,0.60)` — warm ink, never black.
+- No glassmorphism in cards. No translucent panels.
+
+### Layout
+
+- Fixed elements: status bar at top, tab bar at bottom. Everything else scrolls.
+- Bottom tab bar has 3 visible tabs: Home, Block, Settings.
+- Steady AI is reached from Settings or from a Steady nudge. Do not add a visible Coach tab.
+- No hamburger menus. No deep nesting. Everything reachable in at most 2 taps.
+- Default home is the Home tab.
 
 ---
 
@@ -149,6 +214,13 @@ All bottom sheets (session detail, session editor, propagate modal):
 - `maxHeight: '88–90%'` of screen
 - Background overlay: `rgba(28,21,16,0.60)`
 - Close on overlay tap
+
+### Chat bubbles (Steady AI)
+
+- Steady message, left: `background: C.card`, `borderRadius: 5px 14px 14px 14px`.
+- Runner message, right: `background: C.surface`, `borderRadius: 14px 5px 14px 14px`.
+- No borders on bubbles. No tail SVGs. The asymmetric corner is the tail.
+- Text: DM Sans 13–13.5px, line height about 1.58. Timestamp: DM Sans 9.5px muted.
 
 ### Buttons
 
@@ -190,7 +262,37 @@ Pattern:
 - Once a custom value is valid, the same custom chip displays the value (for example `2.5 km` or `3:42 /km`).
 - Selecting a preset exits custom editing and makes the preset chip active.
 
-Use this pattern for plan-builder distance, target pace, warm-up, cool-down, progression percentages, or any similar compact preset-plus-custom control.
+Use this pattern for session-editor distance, repetitions, recovery, target pace, warm-up, cool-down, progression percentages, or any similar compact preset-plus-custom control.
+
+### Notebook-row session editor
+
+Source of truth:
+- `packages/app/components/plan-builder/SessionEditor.tsx`
+- `packages/app/components/ui/ChipStripEditor.tsx`
+- `packages/app/lib/units.ts`
+- `packages/types/src/session.ts`
+
+All non-rest session editor fields use notebook-row expandable controls. Do not reintroduce separate above-row interval controls, standalone rep-distance strips, or scroll drums inside the current session editor.
+
+Interval sessions use this exact row order:
+`Session type → Repetitions → Rep target pace → Recovery between reps → Warm-up → Cool-down`
+
+Easy, long, and tempo sessions use this exact row order:
+`Session type → Distance → Target pace → Warm-up → Cool-down`
+
+Session editor field patterns:
+- `Repetitions` uses `RepStepper`, a `km`/`min` `UnitTogglePill`, and `ChipStripEditor` with inline `Custom...`.
+- `Recovery between reps` uses the same `km`/`min` `UnitTogglePill` and `ChipStripEditor` custom pattern.
+- `Rep target pace` and all non-rest `Target pace` rows use `EditableChipStrip`.
+- `Warm-up` and `Cool-down` use `UnitTogglePill` plus `ChipStripEditor` with inline `Custom...`.
+- Target pace is editable for every non-rest session type.
+- Rest disables the metric rows and shows muted placeholders.
+
+Keyboard and custom-field behaviour:
+- Custom scroll targets: distance 80, repetitions 80, pace 120, recovery 180, warmup 280, cooldown 340.
+- Compact custom keyboard padding: 44.
+- Non-interval warm-up/cool-down custom padding: 72, because those forms have less content than interval and need extra scrollable space.
+- `ChipStripEditor` uses `decimal-pad` for custom numeric inputs.
 
 ### Session dots
 
@@ -202,7 +304,7 @@ The universal visual shorthand for session types in grids and timelines:
 
 ### Scroll drum picker
 
-Used for pace and distance selection. This component exists in `steady-plan-builder.jsx` as `ScrollPicker`. Key characteristics:
+Used only where the current app still explicitly uses a wheel/drum picker. Do not use it in the current session editor, which uses notebook rows and chip strips. Key characteristics:
 - 5 visible items, centre item highlighted
 - `scrollSnapType: 'y mandatory'`
 - Centre highlight band: `background: ${activeColor}12, border-top/bottom: 1.5px solid ${activeColor}40`
@@ -217,7 +319,7 @@ Used for pace and distance selection. This component exists in `steady-plan-buil
 
 ## Iconography
 
-Icons are SVG-only, inline. No icon library. The 4 tab bar icons are defined in `steady-app.jsx` as `TabIcon`. Active state uses `C.clay`, inactive uses `C.muted`.
+Icons are hand-authored, inline, and drawn for the app. No icon library, icon font, Lucide, or Heroicons import. Stroke weight is 1.5px with rounded caps and joins. Tab icons are defined in `packages/app/components/ui/TabIcon.tsx`. Active state uses `C.clay`, inactive uses `C.muted`.
 
 Session type emoji indicators (used in compact contexts):
 ```
@@ -238,3 +340,5 @@ REST:     —
 - Add drop shadows except on modals and the today session card
 - Use colour decoratively — every colour must mean something
 - Make buttons rectangular — always pill-shaped (22px radius) or rounded (8–12px)
+- Reintroduce separate above-row interval controls in the session editor
+- Replace inline `Custom...` chips with standalone input rows below chip groups

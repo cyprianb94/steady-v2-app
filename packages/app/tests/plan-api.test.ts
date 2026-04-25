@@ -87,10 +87,17 @@ describe('plan api', () => {
     const row = makeRow();
     const maybeSingle = vi.fn().mockResolvedValue({ data: row, error: null });
     const limit = vi.fn(() => ({ maybeSingle }));
-    const eq = vi.fn(() => ({ limit }));
-    const select = vi.fn(() => ({ eq }));
+    const eqIsActive = vi.fn(() => ({ limit }));
+    const eqUserId = vi.fn(() => ({ eq: eqIsActive }));
+    const select = vi.fn(() => ({ eq: eqUserId }));
 
     mockGetSupabaseClient.mockReturnValue({
+      auth: {
+        getSession: vi.fn().mockResolvedValue({
+          data: { session: { user: { id: 'user-1' } } },
+          error: null,
+        }),
+      },
       from: vi.fn(() => ({ select })),
     });
 
@@ -105,6 +112,8 @@ describe('plan api', () => {
         coachAnnotation: null,
       }),
     );
+    expect(eqUserId).toHaveBeenCalledWith('user_id', 'user-1');
+    expect(eqIsActive).toHaveBeenCalledWith('is_active', true);
     expect(mockTrpcPlanGet).not.toHaveBeenCalled();
   });
 

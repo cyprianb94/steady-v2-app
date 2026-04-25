@@ -5,6 +5,8 @@ description: Use when you need Steady product context, target users, core value 
 
 # Steady — Product
 
+Use `/brand-and-content` alongside this skill when product decisions affect public positioning, naming, tone, vocabulary, or user-facing copy.
+
 ## What Steady is
 
 Steady is a free training plan manager for runners who already have a plan. The core app is free forever. No trial timers, no feature gates on the things that matter.

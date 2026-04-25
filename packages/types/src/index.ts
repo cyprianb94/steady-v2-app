@@ -9,8 +9,16 @@ export type {
   SubjectiveInput,
   SubjectiveLegs,
   SubjectiveOverall,
+  SkippedSession,
+  SkippedSessionReason,
 } from './session';
-export { RECOVERY_KM, RECOVERY_KM_PER_MIN, normalizeSessionDuration, sessionDurationKm } from './session';
+export {
+  RECOVERY_KM,
+  RECOVERY_KM_PER_MIN,
+  normalizeSessionDuration,
+  sessionDurationKm,
+  sessionSupportsWarmupCooldown,
+} from './session';
 
 export type {
   PhaseConfig,

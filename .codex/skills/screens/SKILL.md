@@ -5,6 +5,8 @@ description: Use when implementing navigation, screen structure, information arc
 
 # Steady — Screens & Information Architecture
 
+Use `/brand-and-content` alongside this skill when screen work touches labels, hierarchy copy, empty states, CTA text, notification text, or Steady AI naming. Use `/design-system` alongside this skill for visual implementation.
+
 ---
 
 ## Navigation model
@@ -112,14 +114,14 @@ Launch
 - Vertical compact list (day-row pattern)
 - Each day row: day name + date (left), type dot + session name (centre), status + km (right)
 - Today card: highlighted with amber background and shadow
-- Status indicator: `✓` (completed, forest), `⚠` (off-target, amber)
+- Status indicator: custom run-status icon from `RunStatusIcon`: completed (forest ring/check), varied/off-target (forest partial ring/check with amber accent), unfinished/missed (clay icon)
 - For completed sessions: key metric in Space Mono — e.g. "10.2km"
 - Rest days: muted, no metrics
 
 **Status badge logic:**
 - `completed` — session synced, hit targets within 5%
-- `off-target` — session synced, missed target by >5%
-- `missed` — planned session date passed, no sync
+- `off-target` — session synced, missed target by >5%; render as the `varied` run-status icon
+- `missed` — planned session date passed, no sync; render as the unfinished run-status icon
 - `today` — today's date, no sync yet
 - `upcoming` — future dates
 
@@ -199,7 +201,7 @@ Launch
 
 **Access:** From Settings > Steady AI, or by tapping the nudge on the Home tab, or via push notification deep link.
 
-**Prototype reference:** `CoachTab` in `steady-app.jsx`. See also `AI_COACH.md` for full specification.
+**Prototype reference:** `CoachTab` in `steady-app.jsx` for the conversation UI only. In the current app, Steady AI is not a visible tab; it is reached from Settings, a Steady nudge, or a notification deep link. See also `AI_COACH.md` for full specification.
 
 **Key components:**
 

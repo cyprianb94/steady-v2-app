@@ -4,6 +4,21 @@ description: Create distinctive, production-grade frontend interfaces with high 
 license: Complete terms in LICENSE.txt
 ---
 
+## Steady-specific override
+
+For Steady product UI, the project design system overrides the generic frontend-design advice below. Read `/brand-and-content` and `/design-system`, then preserve the established Steady aesthetic: parchment surfaces, Playfair Display titles, Space Mono numbers, DM Sans UI copy, semantic session colours, tight editorial density, and minimal functional motion.
+
+Use `/brand-and-content` whenever UI work touches naming, tone, screen copy, empty states, notification text, marketing copy, or the notebook-plus-timing-display metaphor.
+
+Do not add decorative gradients, glass cards, illustration-heavy empty states, stock imagery, noisy motion, generic SaaS spacing, or icon libraries. The app should feel like a coach's training notebook meets a sports timing display.
+
+Session editor work must preserve the current notebook-row pattern from `packages/app/components/plan-builder/SessionEditor.tsx`:
+- Interval: `Session type → Repetitions → Rep target pace → Recovery between reps → Warm-up → Cool-down`.
+- Easy, tempo, long: `Session type → Distance → Target pace → Warm-up → Cool-down`.
+- `Repetitions`, `Recovery between reps`, `Warm-up`, and `Cool-down` use `UnitTogglePill` plus `ChipStripEditor` with an inline `Custom...` chip.
+- Target pace uses `EditableChipStrip` for every non-rest session type.
+- Do not reintroduce separate above-row interval controls or standalone custom input rows below chip groups.
+
 This skill guides creation of distinctive, production-grade frontend interfaces that avoid generic "AI slop" aesthetics. Implement real working code with exceptional attention to aesthetic details and creative choices.
 
 The user provides frontend requirements: a component, page, application, or interface to build. They may include context about the purpose, audience, or technical constraints.

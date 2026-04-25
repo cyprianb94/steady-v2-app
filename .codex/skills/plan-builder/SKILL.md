@@ -5,6 +5,8 @@ description: Use when working on onboarding, plan creation, phase editing, templ
 
 # Steady — Plan Builder
 
+Use `/brand-and-content` alongside this skill when changing onboarding wording, plan-builder microcopy, CTA labels, helper text, or the tone of Steady hints. Use `/design-system` for the visual/editor control patterns.
+
 The plan builder is a 3-step onboarding flow that creates the user's training plan. It is the most complex UI in the app. A complete working prototype exists in `steady-plan-builder.jsx` — read it fully before implementing.
 
 The three steps:
@@ -107,11 +109,10 @@ Small card at bottom: "TEMPLATE VOLUME" label + `~{totalKm}km / week` in Space M
 
 **Volume calculation** — uses `sessionKm(session)` function:
 ```javascript
-RECOVERY_KM = { '45s':0.14, '60s':0.18, '90s':0.27, '2min':0.36, '3min':0.55, '4min':0.73, '5min':0.91 }
-
 sessionKm(d) = {
-  INTERVAL: (reps × repDist / 1000) + (RECOVERY_KM[recovery] × reps) + warmup + cooldown
-  EASY/TEMPO/LONG: distance + warmup + cooldown
+  INTERVAL: (reps × intervalRepKm(d)) + (recoveryKm(recovery) × reps) + sessionDurationKm(warmup) + sessionDurationKm(cooldown)
+  TEMPO: distance + sessionDurationKm(warmup) + sessionDurationKm(cooldown)
+  EASY/LONG: distance
 }
 ```
 
@@ -120,42 +121,90 @@ sessionKm(d) = {
 
 ---
 
-## SessionEditor (bottom sheet)
+## SessionEditor
 
-**Component:** `SessionEditor` in `steady-plan-builder.jsx`
+**Source of truth:** `packages/app/components/plan-builder/SessionEditor.tsx`, `packages/app/components/ui/ChipStripEditor.tsx`, `packages/app/lib/units.ts`, `packages/types/src/session.ts`.
 
-Full-height bottom sheet (max 90% screen). Drag handle. Header shows day name + live session label that updates as fields change.
+`SessionEditor` can render as a bottom sheet in the plan builder or as the full-screen `/edit-session` route from Block. The field model and control patterns are the same in both presentations. Header shows day name plus a live session label from the current field state.
 
-### Sections (top to bottom)
+All non-rest fields use notebook-row expandable controls. Do not reintroduce separate above-row interval controls, standalone rep-distance strips, or scroll drums inside the current session editor.
 
-**Session type** — 5-button grid: ○E ▲I ◆T ◉L —R. Tapping changes type. Grid uses `TYPE` metadata for colour/bg/emoji. Active button: type colour bg and border.
+### Shared top section
 
-**Distance / reps** (varies by type):
+**Session type** — `ChipRow` with five session chips: `EASY`, `INTERVAL`, `TEMPO`, `LONG`, `REST`. Active chip uses the session type colour. Changing type applies `TYPE_DEFAULTS`, carries useful pace/distance where appropriate, closes expanded rows, and clears custom editing.
 
-*INTERVAL:*
-- Repetitions: `RepStepper` (−/n/+) with "reps" label. Min 2, max 20.
-- Rep distance: chip row — `200 300 400 500 600 800 1000 1200 1600 2000` metres. One tap selects.
-- Summary card: `{reps}×{repDist}m ≈ {totalKm}km reps` in clay bg card.
+### Interval sessions
 
-*EASY / TEMPO / LONG:*
-- Distance: `ScrollPicker` drum — 2–40km in 1km increments. Centre item highlighted in type colour. Suffix " km".
+Exact row order:
 
-**Target pace** (all non-REST types):
-- `ScrollPicker` drum — 3:00 to 7:00/km in 5-second increments (49 options)
-- Suffix " /km". Colour matches session type.
-- Sub-label describes effort: "per rep effort" / "sustained tempo, Zone 4" / "easy long effort, Zone 2" / "conversational, Zone 2"
+`Session type → Repetitions → Rep target pace → Recovery between reps → Warm-up → Cool-down`
 
-**Recovery between reps** (INTERVAL only):
-- Chip row: `45s · 60s · 90s · 2min · 3min · 4min · 5min`
+**Repetitions**
+- Notebook row label: `Repetitions`.
+- Summary value: `{reps}×{rep length}`.
+- Expanded editor uses `RepStepper` with min 2, max 20.
+- Trailing `UnitTogglePill` switches rep length between `km` and `min`.
+- Rep length presets render through `ChipStripEditor`.
+- Custom rep length is the inline `Custom...` chip, not a separate input row.
 
-**Warm-up & cool-down** (INTERVAL and TEMPO only):
-- Two side-by-side `ScrollPicker` drums in a `0 0 48%` flex layout
-- Options: `0.5 1 1.5 2 2.5 3 4 5` km
-- Labels: "Warm-up" / "Cool-down", sub-label: "Before main set" / "After main set"
+**Rep target pace**
+- Notebook row label: `Rep target pace`.
+- Expanded editor uses `EditableChipStrip`.
+- Preset pace chips are generated from the current pace and session type.
+- Custom pace is the inline `Custom...` chip with `/km` inside the pill.
 
-**Actions:**
-- "Remove" button (destructive, left) — only shows if session exists already
-- "Add session" / "Update session" (primary, right, full-width)
+**Recovery between reps**
+- Notebook row label: `Recovery between reps`.
+- Trailing `UnitTogglePill` switches recovery between `km` and `min`.
+- Expanded editor uses `ChipStripEditor`.
+- Custom recovery is the inline `Custom...` chip.
+
+**Warm-up and Cool-down**
+- Each is its own notebook row.
+- Each has a trailing `UnitTogglePill` for `km`/`min`.
+- Expanded editor uses `ChipStripEditor`.
+- `0` means off. Custom values stay inside the chip strip.
+
+### Easy and long sessions
+
+Exact row order:
+
+`Session type → Distance → Target pace`
+
+Easy and long runs do not expose warm-up or cool-down rows. Their planned distance is the run.
+
+### Tempo sessions
+
+Exact row order:
+
+`Session type → Distance → Target pace → Warm-up → Cool-down`
+
+**Distance**
+- Notebook row label: `Distance`.
+- Summary value uses the current app distance units for display.
+- Expanded editor uses `ChipStripEditor`.
+- Custom distance is the inline `Custom...` chip.
+
+**Target pace**
+- Editable for all non-rest session types: easy, tempo, long, and interval.
+- Expanded editor uses `EditableChipStrip`.
+- Custom pace is the inline `Custom...` chip with `/km` inside the pill.
+
+**Warm-up and Cool-down**
+- Same pattern as interval sessions: `UnitTogglePill` plus `ChipStripEditor`.
+- These fields are available for tempo sessions as optional easy-effort volume before/after the main run.
+
+### Rest sessions
+
+Rest disables metric rows and shows muted placeholders. Saving a rest session returns `{ type: 'REST' }`.
+
+### Keyboard and custom-field behaviour
+
+- Custom scroll targets are fixed: distance 80, repetitions 80, pace 120, recovery 180, warmup 280, cooldown 340.
+- Compact custom keyboard padding is 44.
+- Non-interval warm-up/cool-down custom padding is 72 because those forms have less content than interval and need extra scrollable space.
+- `ChipStripEditor` uses `decimal-pad` for custom numeric inputs.
+- Selecting a preset closes the matching custom field.
 
 ---
 
@@ -188,7 +237,7 @@ Once a choice is made, the card collapses to a green confirmation bar: "✓ +7% 
    - PEAK: 110% of template volume (highest load)
    - TAPER week 1: 80% of template volume
    - TAPER week 2+: 60% of template volume
-4. All km counts use `sessionKm()` including warmup, cooldown, recovery jogs
+4. All km counts use `sessionKm()`: interval/tempo bookends are counted, easy/long bookends are stripped or ignored, interval recovery jogs are counted
 
 ### Week list
 
@@ -205,37 +254,19 @@ All weeks rendered as rows. Not paginated — all visible in a scrollable list.
 - Row header stays visible with clay border
 - Below header: `border: 1.5px solid C.clay, borderTop: none, borderRadius: 0 0 12px 12px`
 - Sub-header label: "Edit sessions — any change will ask where to apply it"
-- 7 `SessionRow` components stacked
+- 7 compact day rows stacked. Tapping any row opens the shared full-screen `SessionEditorScreen`.
 
-### SessionRow (inline editor)
+### Full-plan session editing
 
-**Component:** `SessionRow` in `steady-plan-builder.jsx`
+**Source of truth:** `packages/app/components/plan-builder/SessionEditorScreen.tsx` wrapping `SessionEditor` with `presentation="screen"`.
 
-Each row within an expanded week. Shows ALL days including REST.
+Full-plan review uses the same editor presentation as the Block screen. Do not reintroduce a separate inline editor, `SessionRow`, `TypeStrip`, above-row interval controls, or compact +/- distance controls.
 
-**Type strip** — always visible at top of each row:
-5 small chip buttons: ○E ▲I ◆T ◉L —R. Active chip highlighted in type colour. Tapping a different type:
-- Fires `PropagateModal` with description "Change {day} to {TypeLabel}"
-- Applies smart defaults for the new type (see `TYPE_DEFAULTS` in source)
-- Carries over distance and pace where they make sense
-
-**Volume controls** (non-REST only):
-
-*INTERVAL:*
-- Rep stepper (−/value reps/+)
-- Rep distance chips (same as SessionEditor)
-
-*EASY / TEMPO / LONG:*
-- `[−2][−1]{n}km[+1][+2]` button row
-
-**Pace override:**
-- "Pace: {value} /km ▼" toggle button in type colour
-- Expanding shows inline `ScrollPicker` drum labelled "Override pace for week {n}"
-- Pace changes always apply to `'this'` week only (no propagation prompt)
+After `SessionEditor` saves, Step 3 stages the edit and shows `PropagateModal` so the runner chooses where to apply it.
 
 ### PropagateModal
 
-Fired whenever a volume or type change is made in a week row.
+Fired after a full-screen session edit is saved from a week row.
 
 Title: "Apply change where?" with the change description in `Space Mono clay` below.
 
@@ -257,7 +288,7 @@ Propagation logic:
 
 ## ScrollPicker implementation notes
 
-The `ScrollPicker` component is critical and must work well on mobile. Key implementation details from the prototype:
+Use `ScrollPicker` only where the current codebase still explicitly calls for a wheel/drum picker. Do not use it in the current `SessionEditor`, which uses notebook rows, `EditableChipStrip`, and `ChipStripEditor`. Key implementation details from the prototype:
 
 ```javascript
 ITEM_H = 38         // px per item

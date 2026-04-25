@@ -77,9 +77,20 @@ async function getPlanViaSupabase(): Promise<TrainingPlanWithAnnotation | null> 
     return trpc.plan.get.query();
   }
 
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) {
+    throw sessionError;
+  }
+
+  const userId = sessionData.session?.user.id;
+  if (!userId) {
+    throw new Error('Not authenticated');
+  }
+
   const { data, error } = await supabase
     .from('training_plans')
     .select('*')
+    .eq('user_id', userId)
     .eq('is_active', true)
     .limit(1)
     .maybeSingle();

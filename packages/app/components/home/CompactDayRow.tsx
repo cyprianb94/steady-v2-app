@@ -6,36 +6,28 @@ import { FONTS } from '../../constants/typography';
 import { C } from '../../constants/colours';
 import { usePreferences } from '../../providers/preferences-context';
 import { formatCompactSessionLabel } from '../../lib/units';
+import { RunStatusIcon, type RunStatusIconStatus } from '../run/RunStatusIcon';
 
 interface CompactDayRowProps {
   dayName: string;
   dateLabel?: string;
   session: PlannedSession | null;
-  status?: 'completed' | 'off-target' | 'missed' | 'today' | 'upcoming' | 'rest';
+  status?: 'completed' | 'off-target' | 'missed' | 'skipped' | 'today' | 'upcoming' | 'rest';
   metricLabel?: string | null;
   onPress?: () => void;
 }
 
 function StatusIcon({ status }: { status: 'completed' | 'off-target' | 'missed' }) {
-  if (status === 'completed' || status === 'off-target') {
-    const isOffTarget = status === 'off-target';
+  const iconStatus: RunStatusIconStatus =
+    status === 'off-target' ? 'varied' : status;
+  const testID =
+    status === 'off-target'
+      ? 'day-row-off-target'
+      : status === 'missed'
+        ? 'day-row-warning'
+        : 'day-row-check';
 
-    return (
-      <View
-        style={[styles.checkBadge, isOffTarget && styles.checkBadgeOffTarget]}
-        testID={isOffTarget ? 'day-row-off-target' : 'day-row-check'}
-      >
-        <Text style={[styles.checkGlyph, isOffTarget && styles.checkGlyphOffTarget]}>✓</Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.warningWrap} testID="day-row-warning">
-      <View style={styles.warningTriangle} />
-      <Text style={styles.warningGlyph}>!</Text>
-    </View>
-  );
+  return <RunStatusIcon status={iconStatus} size={18} testID={testID} />;
 }
 
 export function CompactDayRow({ dayName, dateLabel, session, status, metricLabel, onPress }: CompactDayRowProps) {
@@ -73,6 +65,9 @@ export function CompactDayRow({ dayName, dateLabel, session, status, metricLabel
         {(rowStatus === 'completed' || rowStatus === 'off-target' || rowStatus === 'missed') && (
           <StatusIcon status={rowStatus} />
         )}
+        {rowStatus === 'skipped' ? (
+          <Text style={styles.skippedLabel}>Skipped</Text>
+        ) : null}
       </View>
     </View>
   );
@@ -151,58 +146,14 @@ const styles = StyleSheet.create({
     color: C.muted,
   },
   metricLabelOffTarget: {
+    color: C.amber,
+  },
+  skippedLabel: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 11,
     color: C.clay,
   },
   muted: {
     color: C.muted,
-  },
-  checkBadge: {
-    width: 16,
-    height: 16,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(42,92,69,0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(42,92,69,0.08)',
-  },
-  checkBadgeOffTarget: {
-    borderColor: `${C.clay}35`,
-    backgroundColor: C.clayBg,
-  },
-  checkGlyph: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 10,
-    color: C.forest,
-    lineHeight: 10,
-  },
-  checkGlyphOffTarget: {
-    color: C.clay,
-  },
-  warningWrap: {
-    width: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  warningTriangle: {
-    position: 'absolute',
-    width: 0,
-    height: 0,
-    borderLeftWidth: 8,
-    borderRightWidth: 8,
-    borderBottomWidth: 14,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderBottomColor: 'rgba(196,82,42,0.22)',
-    top: 1,
-  },
-  warningGlyph: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 10,
-    color: C.clay,
-    lineHeight: 10,
-    marginTop: 2,
   },
 });

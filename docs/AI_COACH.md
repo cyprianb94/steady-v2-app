@@ -196,9 +196,9 @@ Do not send the full plan verbatim — token budget is limited. Send a compact f
 
 ```
 Week 14 (current, BUILD):
-  Mon: EASY 10km @ 5:20 ✓ (actual: 10.2km @ 5:32, HR 138)
-  Tue: INTERVAL 6×800m @ 3:52 ⚠ (actual: 12.8km, avg rep 3:58, HR 174)
-  Wed: EASY 8km @ 5:30 ✓ (actual: 7.9km @ 5:41, HR 132)
+  Mon: EASY 10km @ 5:20 [completed] (actual: 10.2km @ 5:32, HR 138)
+  Tue: INTERVAL 6×800m @ 3:52 [varied] (actual: 12.8km, avg rep 3:58, HR 174)
+  Wed: EASY 8km @ 5:30 [completed] (actual: 7.9km @ 5:41, HR 132)
   Thu: TEMPO 12km @ 4:10–4:20 [today, no sync]
   Fri: REST
   Sat: EASY 14km @ 5:20

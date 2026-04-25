@@ -1,7 +1,9 @@
 import React, { type ReactNode } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
+import { GorhomSheet } from '../ui/GorhomSheet';
 
 interface SyncRunModalShellProps {
   visible: boolean;
@@ -31,63 +33,41 @@ export function SyncRunModalShell({
   }
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={styles.sheet}>
-          <View style={styles.handle} />
-          <View style={styles.navBar}>
-            <Pressable onPress={onClose} style={styles.navEdge}>
-              <Text style={styles.navAction}>{leftActionLabel}</Text>
-            </Pressable>
-            <Text style={styles.navTitle}>{title}</Text>
-            <Pressable
-              disabled={!rightActionLabel || rightActionDisabled}
-              onPress={onRightAction}
-              style={styles.navEdge}
+    <GorhomSheet open={visible} onDismiss={onClose} backgroundColor={C.surface} wrapContent={false}>
+      <View style={styles.sheet}>
+        <View style={styles.navBar}>
+          <Pressable onPress={onClose} style={styles.navEdge}>
+            <Text style={styles.navAction}>{leftActionLabel}</Text>
+          </Pressable>
+          <Text style={styles.navTitle}>{title}</Text>
+          <Pressable
+            disabled={!rightActionLabel || rightActionDisabled}
+            onPress={onRightAction}
+            style={styles.navEdge}
+          >
+            <Text
+              style={[
+                styles.navAction,
+                styles.navActionPrimary,
+                (!rightActionLabel || rightActionDisabled) && styles.navActionDisabled,
+              ]}
             >
-              <Text
-                style={[
-                  styles.navAction,
-                  styles.navActionPrimary,
-                  (!rightActionLabel || rightActionDisabled) && styles.navActionDisabled,
-                ]}
-              >
-                {rightActionLabel ?? ''}
-              </Text>
-            </Pressable>
-          </View>
-          <ScrollView contentContainerStyle={styles.scrollContent}>{children}</ScrollView>
-          {bottomBar}
+              {rightActionLabel ?? ''}
+            </Text>
+          </Pressable>
         </View>
+        <BottomSheetScrollView contentContainerStyle={styles.scrollContent}>{children}</BottomSheetScrollView>
+        {bottomBar}
       </View>
-    </Modal>
+    </GorhomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(28,21,16,0.60)',
-  },
-  backdrop: {
-    flex: 1,
-  },
   sheet: {
     backgroundColor: C.surface,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
-    maxHeight: '90%',
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: C.border,
-    alignSelf: 'center',
-    marginTop: 10,
-    marginBottom: 8,
   },
   navBar: {
     flexDirection: 'row',

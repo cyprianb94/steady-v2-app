@@ -19,18 +19,24 @@ import { useStravaSync } from '../../hooks/useStravaSync';
 import { useTodayIso } from '../../hooks/useTodayIso';
 import { DragHandle } from '../../components/plan-builder/DragHandle';
 import { PropagateModal } from '../../components/plan-builder/PropagateModal';
+import { RunStatusIcon, type RunStatusIconStatus } from '../../components/run/RunStatusIcon';
 import { Btn } from '../../components/ui/Btn';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { PHASE_COLOR } from '../../constants/phase-meta';
 import { SESSION_TYPE } from '../../constants/session-types';
+import {
+  buildSessionEditDescription,
+  materializeEditedSession,
+} from '../../features/plan-builder/session-editing';
+import { consumeSessionEditReturn } from '../../features/plan-builder/session-edit-return';
 import { useDirectWeekReschedule } from '../../features/plan-builder/use-direct-week-reschedule';
 import { useAuth } from '../../lib/auth';
 import { createId } from '../../lib/id';
 import { updatePlanWeeks } from '../../lib/plan-api';
-import { addDaysIso, DAYS, inferWeekStartDate, sessionLabel, todayIsoLocal, weekKm } from '../../lib/plan-helpers';
+import { addDaysIso, inferWeekStartDate, todayIsoLocal, weekKm } from '../../lib/plan-helpers';
 import { usePreferences } from '../../providers/preferences-context';
-import { formatDistance, type DistanceUnits } from '../../lib/units';
+import { formatDistance } from '../../lib/units';
 import {
   buildResolvedBlockWeekDayDetails,
   getResolvedWeekVolumeSummary,
@@ -76,6 +82,13 @@ const COMPACT_PHASE_LABEL: Record<BlockPhaseSegment['name'], string> = {
 };
 
 const EMPTY_WEEK_SESSIONS: (PlannedSession | null)[] = [null, null, null, null, null, null, null];
+
+const WEEK_EXPANSION_LAYOUT_ANIMATION = {
+  duration: 180,
+  update: {
+    type: 'easeInEaseOut',
+  },
+} as const;
 
 const INACTIVE_PHASE_BACKGROUND: Record<PlanWeek['phase'], string> = {
   BASE: `${C.navy}59`,
@@ -202,14 +215,16 @@ function formatShortDate(date: string | null): string {
   });
 }
 
-function getStatusBadge(status: ReturnType<typeof buildResolvedBlockWeekDayDetails>[number]['status']): string | null {
+function getStatusIconStatus(
+  status: ReturnType<typeof buildResolvedBlockWeekDayDetails>[number]['status'],
+): RunStatusIconStatus | null {
   switch (status) {
     case 'completed':
-      return '✓';
+      return 'completed';
     case 'off-target':
-      return '⚠';
+      return 'varied';
     case 'missed':
-      return '—';
+      return 'missed';
     default:
       return null;
   }
@@ -225,14 +240,7 @@ interface PendingEdit {
   dayIndex: number;
   updated: Partial<PlannedSession> | null;
   desc: string;
-}
-
-function buildEditDescription(
-  dayIndex: number,
-  updated: Partial<PlannedSession> | null,
-  units: DistanceUnits,
-): string {
-  return updated ? `${DAYS[dayIndex]} → ${sessionLabel(updated, units)}` : `${DAYS[dayIndex]} → Rest`;
+  nonce?: string;
 }
 
 function materializeSessionForWeek(
@@ -240,16 +248,12 @@ function materializeSessionForWeek(
   dayIndex: number,
   updated: Partial<PlannedSession> | null,
 ): PlannedSession | null {
-  if (!updated || updated.type === 'REST') return null;
-
   const existing = week.sessions[dayIndex];
-  return {
-    ...existing,
-    ...updated,
-    type: updated.type ?? existing?.type ?? 'EASY',
+  return materializeEditedSession(existing, updated, {
     id: existing?.id ?? createId(),
-    date: addDaysIso(getWeekStartDate(week), dayIndex),
-  };
+    date: existing?.date ?? addDaysIso(getWeekStartDate(week), dayIndex),
+    type: existing?.type ?? 'EASY',
+  });
 }
 
 function normalizeEditedDayIdentity(
@@ -292,7 +296,9 @@ function firstRouteParamValue(value: string | string[] | undefined): string | nu
   return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
-function parseEditSessionResult(value: string | string[] | undefined): PendingEdit | null {
+type ParsedEditSessionResult = Omit<PendingEdit, 'desc'>;
+
+function parseEditSessionResult(value: string | string[] | undefined): ParsedEditSessionResult | null {
   const raw = firstRouteParamValue(value);
   if (!raw) {
     return null;
@@ -319,7 +325,6 @@ function parseEditSessionResult(value: string | string[] | undefined): PendingEd
       weekIndex: parsed.weekIndex,
       dayIndex: parsed.dayIndex,
       updated: parsed.updated ?? null,
-      desc: '',
     };
   } catch {
     return null;
@@ -402,22 +407,33 @@ export default function BlockTab() {
   }, []);
 
   useEffect(() => {
-    const nonce = firstRouteParamValue(routeParams.editSessionNonce);
-    if (!nonce || processedEditNonceRef.current === nonce) {
+    if (!isFocused) {
       return;
     }
 
-    const result = parseEditSessionResult(routeParams.editSessionResult);
-    if (!result) {
+    if (!plan) {
       return;
     }
 
-    processedEditNonceRef.current = nonce;
+    const storedResult = consumeSessionEditReturn();
+    const routeNonce = firstRouteParamValue(routeParams.editSessionNonce);
+    const routeResult = parseEditSessionResult(routeParams.editSessionResult);
+    const result = storedResult ?? (routeNonce && routeResult ? { ...routeResult, nonce: routeNonce } : null);
+
+    if (!result || processedEditNonceRef.current === result.nonce) {
+      return;
+    }
+
+    const editedWeekNumber = plan?.weeks[result.weekIndex]?.weekNumber;
+    processedEditNonceRef.current = result.nonce;
+    if (editedWeekNumber != null) {
+      setExpandedWeekNumber(editedWeekNumber);
+    }
     setPendingEdit({
       ...result,
-      desc: buildEditDescription(result.dayIndex, result.updated, units),
+      desc: buildSessionEditDescription(result.dayIndex, result.updated, units),
     });
-  }, [routeParams.editSessionNonce, routeParams.editSessionResult, units]);
+  }, [isFocused, plan, routeParams.editSessionNonce, routeParams.editSessionResult, units]);
 
   useEffect(() => {
     if (!isFocused) {
@@ -533,14 +549,33 @@ export default function BlockTab() {
     : plan.weeks[safeCurrentWeekIndex]?.phase ?? 'BUILD';
   const isHistoricalCurrentInjury = currentPhase === 'INJURY' && historicalInjury?.status === 'resolved';
   const maxKm = Math.max(...plan.weeks.map(weekKm), 1);
+  const pendingEditWeekNumber = pendingEdit
+    ? plan.weeks[pendingEdit.weekIndex]?.weekNumber ?? null
+    : null;
+  const visibleExpandedWeekNumber = pendingEditWeekNumber ?? expandedWeekNumber;
 
   function toggleWeek(weekNumber: number) {
+    if (!plan) {
+      return;
+    }
+
     if (reschedule.hasChanges) {
       return;
     }
 
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpandedWeekNumber((current) => (current === weekNumber ? null : weekNumber));
+    const nextExpandedWeekNumber = expandedWeekNumber === weekNumber ? null : weekNumber;
+    LayoutAnimation.configureNext(WEEK_EXPANSION_LAYOUT_ANIMATION);
+    setExpandedWeekNumber(nextExpandedWeekNumber);
+
+    if (nextExpandedWeekNumber == null) {
+      setRescheduleWeekIndex(null);
+      return;
+    }
+
+    const nextIndex = plan.weeks.findIndex((nextWeek) => nextWeek.weekNumber === nextExpandedWeekNumber);
+    if (nextIndex !== -1) {
+      setRescheduleWeekIndex(nextIndex);
+    }
   }
 
   async function applyPendingRearrange(scope: PropagateScope) {
@@ -614,6 +649,10 @@ export default function BlockTab() {
         scope,
         plan.templateWeek,
         sourceWeek.phase,
+        {
+          shouldPreserveSession: (sessionToCheck) =>
+            activityResolution.isSessionComplete(sessionToCheck),
+        },
       ),
       pendingEdit.dayIndex,
     );
@@ -625,6 +664,7 @@ export default function BlockTab() {
       if (preservedDraft && preservedDraft.weekNumber > 0) {
         setPreservedReschedule(preservedDraft);
       }
+      setExpandedWeekNumber(sourceWeek.weekNumber);
       setPendingEdit(null);
     } catch (error) {
       console.error('Failed to edit session:', error);
@@ -736,10 +776,14 @@ export default function BlockTab() {
         const isFuture = i > safeCurrentWeekIndex;
         const isEditableWeek = isEditableBlockWeek(i, safeCurrentWeekIndex);
         const injuryWeek = isInjuryWeek(i, injuryRange);
-        const isExpanded = expandedWeekNumber === week.weekNumber;
+        const isExpanded = visibleExpandedWeekNumber === week.weekNumber;
         const isRescheduleWeek = rescheduleWeekIndex === i;
+        const shouldUseRescheduleDraft =
+          isExpanded
+          && isRescheduleWeek
+          && (reschedule.hasChanges || reschedule.sessions === week.sessions);
         const baseDisplayWeek =
-          isExpanded && isRescheduleWeek
+          shouldUseRescheduleDraft
             ? {
                 ...week,
                 sessions: reschedule.sessions,
@@ -872,18 +916,21 @@ export default function BlockTab() {
                 {weekGuide ? <Text style={styles.weekGuide}>{weekGuide}</Text> : null}
 
                 {blockDayDetails.map((detail, dayIndex) => {
-                  const badge = getStatusBadge(detail.status);
+                  const statusIcon = getStatusIconStatus(detail.status);
                   const session = displayWeek.sessions[dayIndex] ?? null;
                   const locked = activityResolution.isSessionComplete(session);
                   const moved = isRescheduleWeek && reschedule.movedDayIndexes.has(dayIndex);
                   const dragging =
-                    isExpanded && isRescheduleWeek && reschedule.dragState?.fromIndex === dayIndex;
+                    shouldUseRescheduleDraft
+                    && reschedule.dragState?.fromIndex === dayIndex;
                   const dropTarget =
-                    isExpanded &&
-                    isRescheduleWeek &&
+                    shouldUseRescheduleDraft &&
                     reschedule.dragState?.overIndex === dayIndex &&
                     reschedule.dragState.fromIndex !== dayIndex;
                   const invalidDropTarget = Boolean(dropTarget && !reschedule.canDropIndex(dayIndex));
+                  const canDragVisibleDay = shouldUseRescheduleDraft
+                    ? reschedule.canDragIndex(dayIndex)
+                    : !locked;
                   const { canEditDay, canDragDay, canReviewRun } = resolveBlockDayInteraction({
                     injuryWeek,
                     isEditableWeek,
@@ -892,7 +939,7 @@ export default function BlockTab() {
                     hasRescheduleChanges: reschedule.hasChanges,
                     isMoved: moved,
                     isLocked: locked,
-                    canDragIndex: reschedule.canDragIndex(dayIndex),
+                    canDragIndex: canDragVisibleDay,
                     hasRunDetail: runDetailNavigation.canOpenRunDetail(session),
                   });
                   const distanceLabel = session?.type === 'INTERVAL'
@@ -976,17 +1023,12 @@ export default function BlockTab() {
                               <Text style={[styles.dayStatusChip, styles.dayStatusChipLocked]}>Logged</Text>
                             )
                           ) : null}
-                          {badge && !locked ? (
-                            <Text
-                              style={[
-                                styles.dayBadge,
-                                detail.status === 'completed' && styles.dayBadgeComplete,
-                                detail.status === 'off-target' && styles.dayBadgeWarning,
-                                detail.status === 'missed' && styles.dayBadgeMissed,
-                              ]}
-                            >
-                              {badge}
-                            </Text>
+                          {statusIcon && !locked ? (
+                            <RunStatusIcon
+                              status={statusIcon}
+                              size={18}
+                              testID={`block-day-status-${week.weekNumber}-${dayIndex}`}
+                            />
                           ) : null}
                           {!injuryWeek ? (
                             <DragHandle
@@ -1460,21 +1502,6 @@ const styles = StyleSheet.create({
   },
   dayStatusChipPressed: {
     opacity: 0.75,
-  },
-  dayBadge: {
-    minWidth: 16,
-    textAlign: 'center',
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 12,
-  },
-  dayBadgeComplete: {
-    color: C.forest,
-  },
-  dayBadgeWarning: {
-    color: C.amber,
-  },
-  dayBadgeMissed: {
-    color: C.muted,
   },
   pendingStrip: {
     marginTop: 8,

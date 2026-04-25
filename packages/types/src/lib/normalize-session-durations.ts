@@ -1,5 +1,5 @@
 import type { TrainingPlan, PlanWeek } from '../plan';
-import { normalizeSessionDuration, type PlannedSession } from '../session';
+import { normalizeSessionDuration, sessionSupportsWarmupCooldown, type PlannedSession } from '../session';
 
 export function normalizeSessionDurations(
   session: PlannedSession | null,
@@ -8,15 +8,21 @@ export function normalizeSessionDurations(
     return null;
   }
 
-  return {
-    ...session,
+  const { warmup, cooldown, ...rest } = session;
+  const normalizedSession: PlannedSession = {
+    ...rest,
     repDuration: normalizeSessionDuration(session.repDuration),
     recovery: typeof session.recovery === 'string'
       ? session.recovery
       : normalizeSessionDuration(session.recovery),
-    warmup: normalizeSessionDuration(session.warmup),
-    cooldown: normalizeSessionDuration(session.cooldown),
   };
+
+  if (sessionSupportsWarmupCooldown(session.type)) {
+    normalizedSession.warmup = normalizeSessionDuration(warmup);
+    normalizedSession.cooldown = normalizeSessionDuration(cooldown);
+  }
+
+  return normalizedSession;
 }
 
 export function normalizePlanWeekSessionDurations(week: PlanWeek): PlanWeek {

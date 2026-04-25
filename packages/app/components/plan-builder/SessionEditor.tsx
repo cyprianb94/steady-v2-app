@@ -1,7 +1,6 @@
 import React, { useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -11,6 +10,7 @@ import {
 } from 'react-native';
 import {
   normalizeSessionDuration,
+  sessionSupportsWarmupCooldown,
   type IntervalRecovery,
   type PlannedSession,
   type RecoveryDuration,
@@ -29,6 +29,7 @@ import { NotebookRowValue } from '../ui/NotebookRowValue';
 import { RepStepper } from '../ui/RepStepper';
 import { SectionLabel } from '../ui/SectionLabel';
 import { UnitTogglePill } from '../ui/UnitTogglePill';
+import { GorhomSheet } from '../ui/GorhomSheet';
 import { DAYS, TYPE_DEFAULTS, sessionLabel } from '../../lib/plan-helpers';
 import { usePreferences } from '../../providers/preferences-context';
 
@@ -49,6 +50,7 @@ interface DurationState {
 }
 
 const DISTANCE_PRESETS = [5, 8, 10, 12, 15];
+const LONG_DISTANCE_PRESETS = [12, 15, 18, 20, 22];
 const REP_DURATION_KM_PRESETS = [0.2, 0.4, 0.6, 0.8, 1, 1.2, 1.6];
 const REP_DURATION_MIN_PRESETS = [1, 2, 3, 4, 5, 6, 8, 10];
 const RECOVERY_KM_PRESETS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.8, 1];
@@ -151,6 +153,10 @@ function repDurationPresets(unit: SessionDurationUnit): number[] {
 
 function recoveryPresets(unit: SessionDurationUnit): number[] {
   return unit === 'km' ? RECOVERY_KM_PRESETS : RECOVERY_MIN_PRESETS;
+}
+
+function distancePresets(type: SessionType): number[] {
+  return type === 'LONG' ? LONG_DISTANCE_PRESETS : DISTANCE_PRESETS;
 }
 
 function formatRepLength(state: DurationState): string {
@@ -278,6 +284,7 @@ export function SessionEditor({
 
   const isInterval = type === 'INTERVAL';
   const isRest = type === 'REST';
+  const supportsWarmupCooldown = sessionSupportsWarmupCooldown(type);
   const canEditPace = !isRest;
   const typeMeta = SESSION_TYPE[type];
   const pacePresetValues = pacePresets(pace, type);
@@ -293,9 +300,20 @@ export function SessionEditor({
     const session: Partial<PlannedSession> = {
       type,
       pace,
-      warmup: durationSpec(warmup),
-      cooldown: durationSpec(cooldown),
     };
+
+    if (supportsWarmupCooldown) {
+      const warmupSpec = durationSpec(warmup);
+      const cooldownSpec = durationSpec(cooldown);
+
+      if (warmupSpec) {
+        session.warmup = warmupSpec;
+      }
+
+      if (cooldownSpec) {
+        session.cooldown = cooldownSpec;
+      }
+    }
 
     if (isInterval) {
       const repDurationSpec = durationSpec(repDuration);
@@ -344,7 +362,7 @@ export function SessionEditor({
       setDistance(defaults.distance ?? distance);
     }
 
-    if (nextType === 'REST') {
+    if (!sessionSupportsWarmupCooldown(nextType)) {
       setWarmup((current) => ({ ...current, value: null }));
       setCooldown((current) => ({ ...current, value: null }));
       return;
@@ -485,12 +503,6 @@ export function SessionEditor({
 
   const content = (
     <View style={presentation === 'screen' ? styles.screen : styles.sheet}>
-      {presentation === 'sheet' ? (
-        <View style={styles.handleRow}>
-          <View style={styles.handle} />
-        </View>
-      ) : null}
-
       <View style={[styles.header, presentation === 'screen' && styles.screenHeader]}>
         {presentation === 'screen' ? (
           <Pressable
@@ -589,7 +601,7 @@ export function SessionEditor({
                     expandedRow === 'distance' && !isRest ? (
                       <View style={styles.editorBlock}>
                         <ChipStripEditor
-                          presets={DISTANCE_PRESETS}
+                          presets={distancePresets(type)}
                           unit="km"
                           value={distance}
                           onSelect={(value) => {
@@ -604,6 +616,7 @@ export function SessionEditor({
                           }}
                           onCustomChangeText={(text) => handleCustomNumberChange('distance', text)}
                           onCustomBlur={() => closeCustomField('distance')}
+                          onCustomFocus={() => keepCustomFieldVisible('distance')}
                         />
                       </View>
                     ) : undefined
@@ -723,103 +736,99 @@ export function SessionEditor({
                 </NotebookRow>
               ) : null}
 
-              <NotebookRow
-                label="Warm-up"
-                trailing={(
-                  <UnitTogglePill
-                    value={warmup.unit}
-                    onChange={(unit) => setDurationUnit('warmup', unit)}
-                    disabled={isRest}
-                  />
-                )}
-                onTap={!isRest ? () => toggleRow('warmup') : undefined}
-                expanded={expandedRow === 'warmup'}
-                disabled={isRest}
-                editor={
-                  expandedRow === 'warmup' && !isRest ? (
-                    <View style={styles.editorBlock}>
-                      <ChipStripEditor
-                        presets={durationPresets('warmup', warmup.unit)}
-                        unit={warmup.unit}
-                        value={warmup.value}
-                        onSelect={(value) => {
-                          setDurationValue('warmup', value === 0 ? null : value);
-                          closeCustomField('warmup');
-                        }}
-                        customEditing={customField === 'warmup'}
-                        customValue={customWarmup}
-                        onCustomPress={() => {
-                          openCustomField('warmup');
-                          setCustomWarmup(warmup.value != null ? formatValue(warmup.value) : '');
-                        }}
-                        onCustomChangeText={(text) => handleCustomNumberChange('warmup', text)}
-                        onCustomBlur={() => closeCustomField('warmup')}
-                        onCustomFocus={() => keepCustomFieldVisible('warmup')}
+              {supportsWarmupCooldown ? (
+                <>
+                  <NotebookRow
+                    label="Warm-up"
+                    trailing={(
+                      <UnitTogglePill
+                        value={warmup.unit}
+                        onChange={(unit) => setDurationUnit('warmup', unit)}
                       />
-                    </View>
-                  ) : undefined
-                }
-              >
-                {isRest ? (
-                  <NotebookRowValue value="—" muted />
-                ) : warmup.value != null ? (
-                  <View style={styles.rowCopy}>
-                    <NotebookRowValue value={formatValue(warmup.value)} unit={warmup.unit} />
-                    <Text style={styles.rowCaption}>Easy</Text>
-                  </View>
-                ) : (
-                  <Text style={styles.rowPrompt}>Tap to set</Text>
-                )}
-              </NotebookRow>
+                    )}
+                    onTap={() => toggleRow('warmup')}
+                    expanded={expandedRow === 'warmup'}
+                    editor={
+                      expandedRow === 'warmup' ? (
+                        <View style={styles.editorBlock}>
+                          <ChipStripEditor
+                            presets={durationPresets('warmup', warmup.unit)}
+                            unit={warmup.unit}
+                            value={warmup.value}
+                            onSelect={(value) => {
+                              setDurationValue('warmup', value === 0 ? null : value);
+                              closeCustomField('warmup');
+                            }}
+                            customEditing={customField === 'warmup'}
+                            customValue={customWarmup}
+                            onCustomPress={() => {
+                              openCustomField('warmup');
+                              setCustomWarmup(warmup.value != null ? formatValue(warmup.value) : '');
+                            }}
+                            onCustomChangeText={(text) => handleCustomNumberChange('warmup', text)}
+                            onCustomBlur={() => closeCustomField('warmup')}
+                            onCustomFocus={() => keepCustomFieldVisible('warmup')}
+                          />
+                        </View>
+                      ) : undefined
+                    }
+                  >
+                    {warmup.value != null ? (
+                      <View style={styles.rowCopy}>
+                        <NotebookRowValue value={formatValue(warmup.value)} unit={warmup.unit} />
+                        <Text style={styles.rowCaption}>Easy</Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.rowPrompt}>Tap to set</Text>
+                    )}
+                  </NotebookRow>
 
-              <NotebookRow
-                label="Cool-down"
-                trailing={(
-                  <UnitTogglePill
-                    value={cooldown.unit}
-                    onChange={(unit) => setDurationUnit('cooldown', unit)}
-                    disabled={isRest}
-                  />
-                )}
-                onTap={!isRest ? () => toggleRow('cooldown') : undefined}
-                expanded={expandedRow === 'cooldown'}
-                disabled={isRest}
-                editor={
-                  expandedRow === 'cooldown' && !isRest ? (
-                    <View style={styles.editorBlock}>
-                      <ChipStripEditor
-                        presets={durationPresets('cooldown', cooldown.unit)}
-                        unit={cooldown.unit}
-                        value={cooldown.value}
-                        onSelect={(value) => {
-                          setDurationValue('cooldown', value === 0 ? null : value);
-                          closeCustomField('cooldown');
-                        }}
-                        customEditing={customField === 'cooldown'}
-                        customValue={customCooldown}
-                        onCustomPress={() => {
-                          openCustomField('cooldown');
-                          setCustomCooldown(cooldown.value != null ? formatValue(cooldown.value) : '');
-                        }}
-                        onCustomChangeText={(text) => handleCustomNumberChange('cooldown', text)}
-                        onCustomBlur={() => closeCustomField('cooldown')}
-                        onCustomFocus={() => keepCustomFieldVisible('cooldown')}
+                  <NotebookRow
+                    label="Cool-down"
+                    trailing={(
+                      <UnitTogglePill
+                        value={cooldown.unit}
+                        onChange={(unit) => setDurationUnit('cooldown', unit)}
                       />
-                    </View>
-                  ) : undefined
-                }
-              >
-                {isRest ? (
-                  <NotebookRowValue value="—" muted />
-                ) : cooldown.value != null ? (
-                  <View style={styles.rowCopy}>
-                    <NotebookRowValue value={formatValue(cooldown.value)} unit={cooldown.unit} />
-                    <Text style={styles.rowCaption}>Easy</Text>
-                  </View>
-                ) : (
-                  <Text style={styles.rowPrompt}>Tap to set</Text>
-                )}
-              </NotebookRow>
+                    )}
+                    onTap={() => toggleRow('cooldown')}
+                    expanded={expandedRow === 'cooldown'}
+                    editor={
+                      expandedRow === 'cooldown' ? (
+                        <View style={styles.editorBlock}>
+                          <ChipStripEditor
+                            presets={durationPresets('cooldown', cooldown.unit)}
+                            unit={cooldown.unit}
+                            value={cooldown.value}
+                            onSelect={(value) => {
+                              setDurationValue('cooldown', value === 0 ? null : value);
+                              closeCustomField('cooldown');
+                            }}
+                            customEditing={customField === 'cooldown'}
+                            customValue={customCooldown}
+                            onCustomPress={() => {
+                              openCustomField('cooldown');
+                              setCustomCooldown(cooldown.value != null ? formatValue(cooldown.value) : '');
+                            }}
+                            onCustomChangeText={(text) => handleCustomNumberChange('cooldown', text)}
+                            onCustomBlur={() => closeCustomField('cooldown')}
+                            onCustomFocus={() => keepCustomFieldVisible('cooldown')}
+                          />
+                        </View>
+                      ) : undefined
+                    }
+                  >
+                    {cooldown.value != null ? (
+                      <View style={styles.rowCopy}>
+                        <NotebookRowValue value={formatValue(cooldown.value)} unit={cooldown.unit} />
+                        <Text style={styles.rowCaption}>Easy</Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.rowPrompt}>Tap to set</Text>
+                    )}
+                  </NotebookRow>
+                </>
+              ) : null}
         </View>
       </ScrollView>
 
@@ -850,33 +859,21 @@ export function SessionEditor({
   }
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
-        <KeyboardAvoidingView
-          testID="session-editor-keyboard-frame"
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.sheetKeyboardFrame}
-        >
-          {content}
-        </KeyboardAvoidingView>
-      </View>
-    </Modal>
+    <GorhomSheet open onDismiss={onClose} backgroundColor={C.surface}>
+      <KeyboardAvoidingView
+        testID="session-editor-keyboard-frame"
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.sheetKeyboardFrame}
+      >
+        {content}
+      </KeyboardAvoidingView>
+    </GorhomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(28,21,16,0.6)',
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-  },
   sheetKeyboardFrame: {
-    flex: 1,
-    justifyContent: 'flex-end',
+    width: '100%',
   },
   screenKeyboardFrame: {
     flex: 1,
@@ -890,17 +887,6 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: C.surface,
-  },
-  handleRow: {
-    alignItems: 'center',
-    paddingTop: 10,
-    paddingBottom: 4,
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: C.border,
   },
   header: {
     paddingHorizontal: 20,

@@ -12,6 +12,13 @@ export function listRunnableSessions(sessions: readonly (PlannedSession | null)[
   return sessions.filter(isRunnableSession);
 }
 
+export function listMatchableSessions(
+  sessions: readonly (PlannedSession | null)[],
+  today: string,
+): PlannedSession[] {
+  return listRunnableSessions(sessions).filter((session) => session.date <= today);
+}
+
 export function isSessionSelectable(session: PlannedSession, activityId: string): boolean {
   return !session.actualActivityId || session.actualActivityId === activityId;
 }
@@ -22,11 +29,13 @@ export function isActivityDateCompatibleWithSession(activity: Activity, session:
 
 export function resolveDefaultMatchSessionId({
   activity,
+  preferredSession,
   today,
   todaySession,
   sessionOptions,
 }: {
   activity: Activity | null;
+  preferredSession?: PlannedSession | null;
   today: string;
   todaySession: PlannedSession | null;
   sessionOptions: readonly PlannedSession[];
@@ -44,6 +53,15 @@ export function resolveDefaultMatchSessionId({
     ) {
       return activity.matchedSessionId;
     }
+  }
+
+  if (
+    preferredSession
+    && sessionOptions.some((session) => session.id === preferredSession.id)
+    && isSessionSelectable(preferredSession, activity.id)
+    && isActivityDateCompatibleWithSession(activity, preferredSession)
+  ) {
+    return preferredSession.id;
   }
 
   if (

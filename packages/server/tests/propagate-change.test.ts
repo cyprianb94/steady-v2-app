@@ -127,6 +127,31 @@ describe('propagateChange — scope: remaining', () => {
     expect(result[3].sessions[0]).toEqual(completed);
     expect(result[4].sessions[0]!.distance).toBe(12);
   });
+
+  it('allows callers to decide which linked sessions are locked', () => {
+    const plan = makePlan();
+    const linkedButEditable = { ...plan[2].sessions[0]!, actualActivityId: 'future-activity' };
+    const linkedAndLocked = { ...plan[3].sessions[0]!, actualActivityId: 'completed-activity' };
+    plan[2] = { ...plan[2], sessions: [linkedButEditable, ...plan[2].sessions.slice(1)] };
+    plan[3] = { ...plan[3], sessions: [linkedAndLocked, ...plan[3].sessions.slice(1)] };
+
+    const result = propagateChange(
+      plan,
+      2,
+      0,
+      null,
+      'remaining',
+      TEMPLATE,
+      undefined,
+      {
+        shouldPreserveSession: (session) => session.actualActivityId === 'completed-activity',
+      },
+    );
+
+    expect(result[2].sessions[0]).toBeNull();
+    expect(result[3].sessions[0]).toEqual(linkedAndLocked);
+    expect(result[4].sessions[0]).toBeNull();
+  });
 });
 
 describe('propagateChange — scope: build', () => {

@@ -49,6 +49,41 @@ describe('SessionEditor keyboard-safe custom duration editing', () => {
   });
 });
 
+describe('SessionEditor warmup and cooldown availability', () => {
+  it.each([
+    { type: 'EASY' as const, distance: 8, pace: '5:20' },
+    { type: 'LONG' as const, distance: 16, pace: '5:10' },
+  ])('hides and strips workout bookends for $type sessions', ({ type, distance, pace }) => {
+    const onSave = vi.fn();
+
+    render(
+      <SessionEditor
+        dayIndex={0}
+        existing={{
+          type,
+          distance,
+          pace,
+          warmup: { unit: 'km', value: 1.5 },
+          cooldown: { unit: 'km', value: 1 },
+        }}
+        onSave={onSave}
+        onClose={vi.fn()}
+        presentation="screen"
+      />,
+    );
+
+    expect(screen.queryByText('Warm-up')).toBeNull();
+    expect(screen.queryByText('Cool-down')).toBeNull();
+
+    fireEvent.click(screen.getByText('Update session'));
+
+    const saved = onSave.mock.calls[0][1];
+    expect(saved).toMatchObject({ type, distance, pace });
+    expect(saved).not.toHaveProperty('warmup');
+    expect(saved).not.toHaveProperty('cooldown');
+  });
+});
+
 describe('SessionEditor target pace editing', () => {
   it('saves a changed target pace for tempo sessions', () => {
     const onSave = vi.fn();
@@ -139,6 +174,41 @@ describe('SessionEditor target pace editing', () => {
       type,
       distance,
       pace: nextPace,
+    }));
+  });
+});
+
+describe('SessionEditor distance editing', () => {
+  it('keeps a visible custom distance option for default long runs', () => {
+    const onSave = vi.fn();
+
+    render(
+      <SessionEditor
+        dayIndex={6}
+        existing={{ type: 'LONG', distance: 20, pace: '5:10' }}
+        onSave={onSave}
+        onClose={vi.fn()}
+        presentation="screen"
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Distance'));
+
+    expect(screen.getByText('20 km')).toBeTruthy();
+    fireEvent.click(screen.getByText('Custom...'));
+    const customInput = screen.getByPlaceholderText('Custom');
+    fireEvent.change(customInput, {
+      target: { value: '21' },
+    });
+    fireEvent.blur(customInput);
+
+    expect(screen.getByText('21 km')).toBeTruthy();
+    fireEvent.click(screen.getByText('Update session'));
+
+    expect(onSave).toHaveBeenCalledWith(6, expect.objectContaining({
+      type: 'LONG',
+      distance: 21,
+      pace: '5:10',
     }));
   });
 });

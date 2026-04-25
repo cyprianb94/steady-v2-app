@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import {
   normalizeSessionDuration,
+  sessionSupportsWarmupCooldown,
   summariseVsPlan,
   type Activity,
   type PlannedSession,
@@ -221,8 +222,9 @@ export function TodayHeroCard({
 
   const meta = SESSION_TYPE[session.type];
   const isInterval = session.type === 'INTERVAL';
-  const warmup = normalizeSessionDuration(session.warmup);
-  const cooldown = normalizeSessionDuration(session.cooldown);
+  const supportsWarmupCooldown = sessionSupportsWarmupCooldown(session.type);
+  const warmup = supportsWarmupCooldown ? normalizeSessionDuration(session.warmup) : undefined;
+  const cooldown = supportsWarmupCooldown ? normalizeSessionDuration(session.cooldown) : undefined;
   const completed = Boolean(session.actualActivityId || activity);
   const savedSubjectiveInput = activity?.subjectiveInput;
   const completedSummary = buildCompletedSummary(session, activity);

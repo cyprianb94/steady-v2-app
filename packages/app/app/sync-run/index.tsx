@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Activity, PlannedSession } from '@steady/types';
 import { C } from '../../constants/colours';
@@ -12,7 +12,7 @@ import { useStravaSync } from '../../hooks/useStravaSync';
 import { activityLocalDate, addDaysIso, findSessionForDateOrWeekday, startOfWeekIso, todayIsoLocal } from '../../lib/plan-helpers';
 import { buildCurrentDisplayWeek } from '../../features/run/display-week';
 import { usePreferences } from '../../providers/preferences-context';
-import { formatDistance, formatPace } from '../../lib/units';
+import { formatDistance, formatPace, formatSessionTitle } from '../../lib/units';
 
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -43,15 +43,20 @@ function isRunnableSession(session: PlannedSession | null): session is PlannedSe
   return session != null && session.type !== 'REST';
 }
 
+function firstRouteParamValue(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
 /**
  * Returns up to 3 candidate activities for the "I just finished a run" picker.
  *
  * Priority:
- * 1. Same-day unmatched runs (most recent first)
+ * 1. Same-day runs, even if they were auto-matched (most recent first)
  * 2. Recent unmatched runs from this week (most recent first)
- *
- * If everything in the week is already matched, we still show same-day
- * runs so the user can review them.
  */
 function pickCandidates(activities: Activity[], today: string, weekStart: string): Activity[] {
   // Look back one day before week start so runs just before midnight on Sunday
@@ -62,22 +67,34 @@ function pickCandidates(activities: Activity[], today: string, weekStart: string
     return a.source === 'strava' && date >= windowStart && date <= today;
   });
 
-  const unmatched = weekActivities.filter((a) => !a.matchedSessionId);
-  const todayUnmatched = unmatched.filter((a) => activityLocalDate(a.startTime) === today);
-  const olderUnmatched = unmatched.filter((a) => activityLocalDate(a.startTime) !== today);
+  const mostRecentFirst = (left: Activity, right: Activity) => right.startTime.localeCompare(left.startTime);
+  const todayActivities = weekActivities
+    .filter((a) => activityLocalDate(a.startTime) === today)
+    .sort(mostRecentFirst);
+  const olderUnmatched = weekActivities
+    .filter((a) => activityLocalDate(a.startTime) !== today && !a.matchedSessionId)
+    .sort(mostRecentFirst);
 
-  // Build ordered list: today first, then older; limit to 3
-  const ordered = [...todayUnmatched, ...olderUnmatched].slice(0, 3);
+  return [...todayActivities, ...olderUnmatched].slice(0, 3);
+}
 
-  // If nothing unmatched, fall back to same-day activities so user can still access them
-  if (ordered.length === 0) {
-    return weekActivities.filter((a) => activityLocalDate(a.startTime) === today).slice(0, 3);
-  }
-
-  return ordered;
+function pickCandidatesForSession(activities: Activity[], session: PlannedSession): Activity[] {
+  return activities
+    .filter((activity) => (
+      activity.source === 'strava'
+      && (!activity.matchedSessionId || activity.matchedSessionId === session.id)
+      && activityLocalDate(activity.startTime) === session.date
+    ))
+    .sort((left, right) => right.startTime.localeCompare(left.startTime))
+    .slice(0, 3);
 }
 
 export default function SyncRunPickerScreen() {
+  const { sessionId: rawSessionId } = useLocalSearchParams<{ sessionId?: string | string[] }>();
+  const requestedSessionId = useMemo(
+    () => firstRouteParamValue(rawSessionId),
+    [rawSessionId],
+  );
   const insets = useSafeAreaInsets();
   const { session, isLoading: authLoading } = useAuth();
   const { units } = usePreferences();
@@ -92,6 +109,10 @@ export default function SyncRunPickerScreen() {
     [currentWeek, today],
   );
   const todaySession = findSessionForDateOrWeekday(displayWeek?.sessions ?? [], today);
+  const requestedSession = useMemo(
+    () => (displayWeek?.sessions ?? []).find((candidate) => candidate?.id === requestedSessionId) ?? null,
+    [displayWeek?.sessions, requestedSessionId],
+  );
 
   async function loadActivities(runSync = false) {
     if (!session) {
@@ -123,12 +144,19 @@ export default function SyncRunPickerScreen() {
   }, [session]);
 
   const candidates = useMemo(
-    () => pickCandidates(allActivities, today, weekStart),
-    [allActivities, today, weekStart],
+    () => (isRunnableSession(requestedSession)
+      ? pickCandidatesForSession(allActivities, requestedSession)
+      : pickCandidates(allActivities, today, weekStart)),
+    [allActivities, requestedSession, today, weekStart],
   );
 
   const recommendedActivityId = useMemo(() => {
     if (!candidates.length) return null;
+
+    if (requestedSession?.id) {
+      const matched = candidates.find((activity) => activity.matchedSessionId === requestedSession.id);
+      if (matched) return matched.id;
+    }
 
     if (todaySession?.id) {
       const matched = candidates.find((a) => a.matchedSessionId === todaySession.id);
@@ -137,7 +165,7 @@ export default function SyncRunPickerScreen() {
 
     const sameDay = candidates.find((a) => activityLocalDate(a.startTime) === today);
     return sameDay?.id ?? candidates[0]?.id ?? null;
-  }, [candidates, today, todaySession?.id]);
+  }, [candidates, requestedSession?.id, today, todaySession?.id]);
   const hasCandidates = candidates.length > 0;
 
   function isRunnableSession(session: PlannedSession | null): session is PlannedSession {
@@ -194,21 +222,30 @@ export default function SyncRunPickerScreen() {
           />
         }
       >
-        <Text style={styles.screenTitle}>Which run did you just finish?</Text>
+        <Text style={styles.screenTitle}>
+          {isRunnableSession(requestedSession) ? 'Which run matches this session?' : 'Which run did you just finish?'}
+        </Text>
         <Text style={styles.screenSub}>
-          {candidates.length > 0
-            ? 'We found recent runs in Strava. Tap the one you want to review and save.'
-            : 'No fresh runs found yet. Pull to refresh after your next Strava sync.'}
+          {isRunnableSession(requestedSession)
+            ? `Pick a synced run for ${formatSessionTitle(requestedSession, units)}.`
+            : candidates.length > 0
+              ? 'We found recent runs in Strava. Tap the one you want to review and save.'
+              : 'No fresh runs found yet. Pull to refresh after your next Strava sync.'}
         </Text>
 
         {candidates.map((activity) => {
           const recommended = activity.id === recommendedActivityId;
+          const matchesRequestedSession = requestedSession?.id && activity.matchedSessionId === requestedSession.id;
           const matchesToday = todaySession?.id && activity.matchedSessionId === todaySession.id;
 
           return (
             <Pressable
               key={activity.id}
-              onPress={() => router.push(`/sync-run/${activity.id}`)}
+              onPress={() => router.push(
+                requestedSession
+                  ? `/sync-run/${activity.id}?sessionId=${encodeURIComponent(requestedSession.id)}`
+                  : `/sync-run/${activity.id}`,
+              )}
               style={[styles.runCard, recommended && styles.runCardRecommended]}
             >
               <View style={[styles.runIcon, recommended && styles.runIconRecommended]}>
@@ -224,8 +261,8 @@ export default function SyncRunPickerScreen() {
                   {formatDistance(activity.distance, units, { spaced: true })} · {formatDuration(activity.duration)} · {formatPace(activity.avgPace, units, { withUnit: true })}
                 </Text>
                 <View style={styles.runSubRow}>
-                  <Text style={[styles.runTag, matchesToday ? styles.runTagMatch : styles.runTagNoMatch]}>
-                    {matchesToday ? 'MATCHES TODAY' : 'NO PLAN MATCH YET'}
+                  <Text style={[styles.runTag, (matchesRequestedSession || matchesToday) ? styles.runTagMatch : styles.runTagNoMatch]}>
+                    {matchesRequestedSession ? 'MATCHES SESSION' : matchesToday ? 'MATCHES TODAY' : 'NO PLAN MATCH YET'}
                   </Text>
                   {activity.avgHR ? <Text style={styles.runSubText}>{activity.avgHR} bpm avg</Text> : null}
                 </View>

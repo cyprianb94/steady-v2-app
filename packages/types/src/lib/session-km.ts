@@ -1,5 +1,5 @@
 import type { IntervalRecovery, PlannedSession, RecoveryDuration, SessionDurationSpec } from '../session';
-import { RECOVERY_KM, RECOVERY_KM_PER_MIN, sessionDurationKm } from '../session';
+import { RECOVERY_KM, RECOVERY_KM_PER_MIN, sessionDurationKm, sessionSupportsWarmupCooldown } from '../session';
 
 function paceToSeconds(value: string | null | undefined): number | null {
   if (!value) return null;
@@ -31,7 +31,7 @@ function recoveryKm(value: IntervalRecovery | null | undefined): number {
 }
 
 /**
- * Calculates total km for a session including warmup, cooldown, and recovery jogs.
+ * Calculates total km for a session including workout bookends and recovery jogs.
  *
  * This is the canonical volume calculator — used everywhere km counts appear:
  * plan display, load bars, week totals, progression calculations.
@@ -39,8 +39,9 @@ function recoveryKm(value: IntervalRecovery | null | undefined): number {
 export function sessionKm(session: PlannedSession | null): number {
   if (!session || session.type === 'REST') return 0;
 
-  const warmup = sessionDurationKm(session.warmup);
-  const cooldown = sessionDurationKm(session.cooldown);
+  const usesBookends = sessionSupportsWarmupCooldown(session.type);
+  const warmup = usesBookends ? sessionDurationKm(session.warmup) : 0;
+  const cooldown = usesBookends ? sessionDurationKm(session.cooldown) : 0;
   const recoveryJogKm = recoveryKm(session.recovery) * (session.reps ?? 1);
 
   if (session.type === 'INTERVAL' && session.reps && (session.repDist || session.repDuration)) {
@@ -60,10 +61,14 @@ export function sessionKm(session: PlannedSession | null): number {
  * Expected distance for a planned session (for matching/comparison).
  */
 export function expectedDistance(session: PlannedSession): number {
+  const usesBookends = sessionSupportsWarmupCooldown(session.type);
+  const warmup = usesBookends ? sessionDurationKm(session.warmup) : 0;
+  const cooldown = usesBookends ? sessionDurationKm(session.cooldown) : 0;
+
   if (session.type === 'INTERVAL' && session.reps && (session.repDist || session.repDuration)) {
-    return session.reps * intervalRepKm(session) + sessionDurationKm(session.warmup) + sessionDurationKm(session.cooldown);
+    return session.reps * intervalRepKm(session) + warmup + cooldown;
   }
-  return (session.distance ?? 8) + sessionDurationKm(session.warmup) + sessionDurationKm(session.cooldown);
+  return (session.distance ?? 8) + warmup + cooldown;
 }
 
 import type { PlanWeek } from '../plan';

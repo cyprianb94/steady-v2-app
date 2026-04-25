@@ -65,6 +65,7 @@ describe('StepTemplate starter choice', () => {
     expect(router.push).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByText('Mon'));
+    expect(screen.getByText('Cancel')).toBeTruthy();
     fireEvent.click(screen.getByText('Add session'));
     fireEvent.click(screen.getByText('Generate 8-week plan →'));
 

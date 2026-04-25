@@ -142,6 +142,44 @@ function runPlanRepoTests(name: string, createRepo: () => PlanRepo) {
       expect(retrieved!.weeks[0].sessions[0]!.cooldown).toEqual({ unit: 'min', value: 10 });
     });
 
+    it('strips warmup and cooldown values from easy and long runs on updateWeeks', async () => {
+      const plan = makePlan('user-1');
+      await repo.save(plan);
+
+      await repo.updateWeeks(plan.id, [{
+        weekNumber: 1,
+        phase: 'BUILD',
+        sessions: [
+          {
+            id: 's1',
+            type: 'EASY',
+            date: '2026-03-23',
+            distance: 8,
+            pace: '5:20',
+            warmup: { unit: 'km', value: 1.5 },
+            cooldown: { unit: 'km', value: 1 },
+          },
+          {
+            id: 's2',
+            type: 'LONG',
+            date: '2026-03-24',
+            distance: 22,
+            pace: '5:10',
+            warmup: { unit: 'km', value: 2 },
+            cooldown: { unit: 'km', value: 1.5 },
+          },
+          null, null, null, null, null,
+        ],
+        plannedKm: 30,
+      }]);
+
+      const retrieved = await repo.getActive('user-1');
+      expect(retrieved!.weeks[0].sessions[0]).not.toHaveProperty('warmup');
+      expect(retrieved!.weeks[0].sessions[0]).not.toHaveProperty('cooldown');
+      expect(retrieved!.weeks[0].sessions[1]).not.toHaveProperty('warmup');
+      expect(retrieved!.weeks[0].sessions[1]).not.toHaveProperty('cooldown');
+    });
+
     it('deactivate makes plan no longer active', async () => {
       const plan = makePlan('user-1');
       await repo.save(plan);

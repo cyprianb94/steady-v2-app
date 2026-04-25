@@ -12,7 +12,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { sessionKm, type PlannedSession } from '@steady/types';
 import { Btn } from '../../../components/ui/Btn';
 import { DragHandle } from '../../../components/plan-builder/DragHandle';
-import { SessionEditor } from '../../../components/plan-builder/SessionEditor';
+import { SessionEditorScreen } from '../../../components/plan-builder/SessionEditorScreen';
 import { StarterChoiceCards } from '../../../components/plan-builder/StarterChoiceCards';
 import { StarterSummaryStrip } from '../../../components/plan-builder/StarterSummaryStrip';
 import { C } from '../../../constants/colours';
@@ -223,6 +223,17 @@ export default function StepTemplate() {
 
     const { nextMode } = pendingStarterPreviewReset;
     applyStarterMode(nextMode);
+  }
+
+  if (editing !== null) {
+    return (
+      <SessionEditorScreen
+        dayIndex={editing}
+        existing={visibleSessions[editing]}
+        onSave={handleSave}
+        onClose={() => setEditing(null)}
+      />
+    );
   }
 
   return (
@@ -455,15 +466,6 @@ export default function StepTemplate() {
             <Text style={styles.footerHelper}>Add your first session to continue.</Text>
           ) : null}
         </View>
-      ) : null}
-
-      {editing !== null ? (
-        <SessionEditor
-          dayIndex={editing}
-          existing={visibleSessions[editing]}
-          onSave={handleSave}
-          onClose={() => setEditing(null)}
-        />
       ) : null}
 
       {starterPickerVisible ? (

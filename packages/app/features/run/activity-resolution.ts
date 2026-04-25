@@ -6,7 +6,7 @@ import {
 } from '@steady/types';
 import { activityLocalDate } from '../../lib/plan-helpers';
 
-export type ActivityDayStatus = 'completed' | 'off-target' | 'missed' | 'today' | 'upcoming' | 'rest';
+export type ActivityDayStatus = 'completed' | 'off-target' | 'missed' | 'skipped' | 'today' | 'upcoming' | 'rest';
 export type ActivityCompletionStatus = Extract<ActivityDayStatus, 'completed' | 'off-target'>;
 
 interface SessionRef {
@@ -184,6 +184,10 @@ export function createActivityResolution(
   ): ActivityDayStatus {
     if (!session || session.type === 'REST') {
       return 'rest';
+    }
+
+    if (session.skipped) {
+      return 'skipped';
     }
 
     const completionStatus = completionStatusForSession(session);

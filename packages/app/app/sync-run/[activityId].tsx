@@ -20,7 +20,7 @@ import { usePlan } from '../../hooks/usePlan';
 import { findSessionForDateOrWeekday, todayIsoLocal } from '../../lib/plan-helpers';
 import { usePreferences } from '../../providers/preferences-context';
 import { formatDistance, formatPace, formatSessionTitle, formatSplitLabel, formatStoredPace } from '../../lib/units';
-import { type EditableNiggle, isActivityDateCompatibleWithSession, isRunnableSession, isSessionSelectable, listRunnableSessions, resolveDefaultMatchSessionId, shoeWearState, toEditableNiggles } from '../../features/sync/sync-run-detail';
+import { type EditableNiggle, isActivityDateCompatibleWithSession, isRunnableSession, isSessionSelectable, listMatchableSessions, resolveDefaultMatchSessionId, shoeWearState, toEditableNiggles } from '../../features/sync/sync-run-detail';
 import { buildCurrentDisplayWeek } from '../../features/run/display-week';
 import { MatchPickerModal } from '../../components/sync-run/MatchPickerModal';
 import { NigglePickerModal } from '../../components/sync-run/NigglePickerModal';
@@ -134,10 +134,17 @@ function FeelRow<T extends string>({
 }
 
 export default function SyncRunDetailScreen() {
-  const { activityId: rawActivityId } = useLocalSearchParams<{ activityId?: string | string[] }>();
+  const { activityId: rawActivityId, sessionId: rawSessionId } = useLocalSearchParams<{
+    activityId?: string | string[];
+    sessionId?: string | string[];
+  }>();
   const activityId = useMemo(
     () => firstRouteParamValue(rawActivityId),
     [rawActivityId],
+  );
+  const requestedSessionId = useMemo(
+    () => firstRouteParamValue(rawSessionId),
+    [rawSessionId],
   );
   const insets = useSafeAreaInsets();
   const { units } = usePreferences();
@@ -160,8 +167,12 @@ export default function SyncRunDetailScreen() {
   );
   const todaySession = findSessionForDateOrWeekday(displayWeek?.sessions ?? [], today);
   const sessionOptions = useMemo(
-    () => listRunnableSessions(displayWeek?.sessions ?? []),
-    [displayWeek?.sessions],
+    () => listMatchableSessions(displayWeek?.sessions ?? [], today),
+    [displayWeek?.sessions, today],
+  );
+  const requestedSession = useMemo(
+    () => sessionOptions.find((session) => session.id === requestedSessionId) ?? null,
+    [requestedSessionId, sessionOptions],
   );
 
   const [legs, setLegs] = useState<SubjectiveLegs | null>(null);
@@ -174,11 +185,12 @@ export default function SyncRunDetailScreen() {
   const recommendedSessionId = useMemo(
     () => resolveDefaultMatchSessionId({
       activity,
+      preferredSession: requestedSession,
       today,
       todaySession: isRunnableSession(todaySession) ? todaySession : null,
       sessionOptions,
     }),
-    [activity, sessionOptions, today, todaySession],
+    [activity, requestedSession, sessionOptions, today, todaySession],
   );
   const selectedSession = sessionOptions.find((session) => session.id === selectedSessionId) ?? null;
   const selectedShoe = shoes.find((shoe) => shoe.id === selectedShoeId) ?? null;

@@ -2,6 +2,10 @@
 
 ---
 
+Source of truth for session shape: `packages/types/src/session.ts`. Source of truth for session volume: `packages/types/src/lib/session-km.ts`.
+
+---
+
 ## Session types
 
 Every session in the plan has one of five types. These are the core primitive of the data model. Everything — colours, controls, AI context, volume calculation — derives from session type.
@@ -13,8 +17,8 @@ type SessionType = 'EASY' | 'INTERVAL' | 'TEMPO' | 'LONG' | 'REST'
 | Type | Meaning | Has pace | Has distance | Has reps | Has warmup/cooldown | Has recovery |
 |---|---|---|---|---|---|---|
 | EASY | Easy aerobic run | ✓ | ✓ | ✗ | ✗ | ✗ |
-| INTERVAL | Repetition session | ✓ (per rep) | ✗ | ✓ | ✓ | ✓ |
-| TEMPO | Sustained threshold run | ✓ | ✓ | ✗ | ✓ | ✗ |
+| INTERVAL | Repetition session | ✓ (per rep) | ✗ | ✓ | optional | ✓ |
+| TEMPO | Sustained threshold run | ✓ | ✓ | ✗ | optional | ✗ |
 | LONG | Long slow run | ✓ | ✓ | ✗ | ✗ | ✗ |
 | REST | Rest or cross-train day | ✗ | ✗ | ✗ | ✗ | ✗ |
 
@@ -23,6 +27,22 @@ type SessionType = 'EASY' | 'INTERVAL' | 'TEMPO' | 'LONG' | 'REST'
 ## Session object
 
 ```typescript
+type SessionDurationUnit = 'km' | 'min'
+
+interface SessionDurationSpec {
+  unit: SessionDurationUnit
+  value: number
+}
+
+type RecoveryDuration = '45s' | '60s' | '90s' | '2min' | '3min' | '4min' | '5min'
+type IntervalRecovery = RecoveryDuration | SessionDurationSpec
+
+interface SubjectiveInput {
+  legs: 'fresh' | 'normal' | 'heavy' | 'dead'
+  breathing: 'easy' | 'controlled' | 'labored'
+  overall: 'could-go-again' | 'done' | 'shattered'
+}
+
 interface PlannedSession {
   id: string
   type: SessionType
@@ -34,20 +54,24 @@ interface PlannedSession {
   
   // INTERVAL
   reps?: number                   // count
-  repDist?: number                // metres e.g. 800
-  recovery?: string               // '45s' | '60s' | '90s' | '2min' | '3min' | '4min' | '5min'
+  repDist?: number                // legacy/default metres e.g. 800
+  repDuration?: SessionDurationSpec // current editor source of truth for rep length
+  recovery?: IntervalRecovery     // preset string or custom km/min duration
   
-  // INTERVAL + TEMPO
-  warmup?: number                 // km e.g. 1.5
-  cooldown?: number               // km e.g. 1.0
-  
-  // Computed — do not store, calculate on read
-  estimatedKm?: number            // from sessionKm() function
+  // Optional easy-effort volume before/after workout sessions.
+  warmup?: SessionDurationSpec
+  cooldown?: SessionDurationSpec
   
   // Linked actual activity
   actualActivityId?: string       // FK to Activity
+
+  // Post-session subjective check-in
+  subjectiveInput?: SubjectiveInput
+  subjectiveInputDismissed?: boolean
 }
 ```
+
+`normalizeSessionDuration()` accepts legacy numeric warm-up/cool-down values and normalises them to `{ unit: 'km', value }`. New UI writes `SessionDurationSpec` objects. Warm-up/cool-down are workout bookends for interval and tempo sessions only; easy and long runs should not carry, display, or count those fields.
 
 ---
 
@@ -162,7 +186,7 @@ interface CoachMessage {
 interface PlanEdit {
   id: string
   conversationId: string
-  messageId: string               // the coach message that proposed this
+  messageId: string               // the Steady AI message that proposed this
   
   sessionId: string               // which planned session
   
@@ -293,7 +317,7 @@ All tables: `user_id = auth.uid()`. Users can only read and write their own data
 
 `sessionKm` is a **pure in-process function** — no I/O, no dependencies to inject. Test it directly. It is the canonical volume calculator; use it everywhere km counts appear: plan display, load bars, week totals, progression calculations.
 
-The `sessionKm` function is the canonical volume calculator. Use it everywhere — plan display, totals, progress bars.
+Current source of truth: `packages/types/src/lib/session-km.ts`.
 
 ```javascript
 const RECOVERY_KM = {
@@ -301,18 +325,39 @@ const RECOVERY_KM = {
   '2min': 0.36, '3min': 0.55, '4min': 0.73, '5min': 0.91
 }
 
+const RECOVERY_KM_PER_MIN = 0.18
+
+function durationKm(value, pace) {
+  if (!value || value.value <= 0) return 0
+  if (value.unit === 'km') return value.value
+  const paceSeconds = paceToSeconds(pace)
+  return paceSeconds ? value.value / (paceSeconds / 60) : 0
+}
+
+function intervalRepKm(session) {
+  const fromDuration = durationKm(session.repDuration, session.pace)
+  if (fromDuration > 0) return fromDuration
+  return session.repDist ? session.repDist / 1000 : 0
+}
+
+function recoveryKm(value) {
+  if (!value) return 0
+  if (typeof value === 'string') return RECOVERY_KM[value] || 0
+  if (value.unit === 'km') return value.value
+  return value.value * RECOVERY_KM_PER_MIN
+}
+
 function sessionKm(session) {
   if (!session || session.type === 'REST') return 0
-  
-  const warmup   = session.warmup   ? Number(session.warmup)   : 0
-  const cooldown = session.cooldown ? Number(session.cooldown) : 0
-  const recKm    = session.recovery
-    ? (RECOVERY_KM[session.recovery] || 0) * (session.reps || 1)
-    : 0
 
-  if (session.type === 'INTERVAL' && session.reps && session.repDist) {
+  const usesBookends = session.type === 'INTERVAL' || session.type === 'TEMPO'
+  const warmup = usesBookends ? sessionDurationKm(session.warmup) : 0
+  const cooldown = usesBookends ? sessionDurationKm(session.cooldown) : 0
+  const recoveryJogKm = recoveryKm(session.recovery) * (session.reps || 1)
+
+  if (session.type === 'INTERVAL' && session.reps && (session.repDist || session.repDuration)) {
     return Math.round(
-      (session.reps * session.repDist / 1000 + recKm + warmup + cooldown) * 10
+      (session.reps * intervalRepKm(session) + recoveryJogKm + warmup + cooldown) * 10
     ) / 10
   }
 

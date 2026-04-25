@@ -25,6 +25,29 @@ describe('TodayHeroCard', () => {
     expect(screen.getByText('5:20')).toBeTruthy();
   });
 
+  it.each([
+    { type: 'EASY' as const, title: '8km Easy Run', distance: 8, pace: '5:20' },
+    { type: 'LONG' as const, title: '16km Long Run', distance: 16, pace: '5:10' },
+  ])('does not show warmup or cooldown extras for $type runs', ({ type, title, distance, pace }) => {
+    render(
+      <TodayHeroCard
+        session={{
+          id: 'legacy-bookends',
+          type,
+          date: '2026-04-09',
+          distance,
+          pace,
+          warmup: { unit: 'km', value: 1.5 },
+          cooldown: { unit: 'km', value: 1 },
+        }}
+      />,
+    );
+
+    expect(screen.getByText(title)).toBeTruthy();
+    expect(screen.queryByText(/warm/)).toBeNull();
+    expect(screen.queryByText(/cool/)).toBeNull();
+  });
+
   it('shows reps, rep distance, and recovery for an interval session', () => {
     render(
       <TodayHeroCard

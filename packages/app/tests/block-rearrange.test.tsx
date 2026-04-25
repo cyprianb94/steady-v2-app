@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PlannedSession, TrainingPlanWithAnnotation } from '@steady/types';
 
-const { mockRefresh, mockUpdatePlanWeeks, mockActivityListQuery, planState, routeParams, mockRouterPush, mockAuth } = vi.hoisted(() => ({
+const { mockRefresh, mockUpdatePlanWeeks, mockActivityListQuery, planState, routeParams, mockRouterPush, mockAuth, focusState } = vi.hoisted(() => ({
   mockRefresh: vi.fn(),
   mockUpdatePlanWeeks: vi.fn(),
   mockActivityListQuery: vi.fn(),
@@ -19,10 +19,13 @@ const { mockRefresh, mockUpdatePlanWeeks, mockActivityListQuery, planState, rout
     session: { user: { id: 'runner-1' } },
     isLoading: false,
   },
+  focusState: {
+    current: true,
+  },
 }));
 
 vi.mock('@react-navigation/native', () => ({
-  useIsFocused: () => true,
+  useIsFocused: () => focusState.current,
 }));
 
 vi.mock('expo-router', () => ({
@@ -58,6 +61,10 @@ vi.mock('../lib/plan-api', () => ({
 }));
 
 import BlockTab from '../app/(tabs)/block';
+import {
+  consumeSessionEditReturn,
+  stashSessionEditReturn,
+} from '../features/plan-builder/session-edit-return';
 
 function dragHandle(testId: string, pageY: number) {
   const handle = screen.getByTestId(testId);
@@ -130,9 +137,11 @@ describe('BlockTab session rearrange', () => {
     mockActivityListQuery.mockReset();
     mockRouterPush.mockReset();
     routeParams.current = {};
+    consumeSessionEditReturn();
     mockUpdatePlanWeeks.mockResolvedValue(null);
     mockActivityListQuery.mockResolvedValue([]);
     planState.currentWeekIndex = 0;
+    focusState.current = true;
     planState.current = makePlan([
       makeWeek(1, [
         session('w1-easy', 'EASY', { distance: 8 }),
@@ -538,6 +547,52 @@ describe('BlockTab session rearrange', () => {
     expect(input[1].sessions[0]?.type).toBe('INTERVAL');
   });
 
+  it('applies a returned rest edit even when native tab params are unavailable', async () => {
+    planState.current = makePlan([
+      makeWeek(1, [
+        session('w1-easy', 'EASY', { distance: 8 }),
+        null,
+        session('w1-linked-future-long', 'LONG', {
+          date: '2099-04-26',
+          distance: 16,
+          actualActivityId: 'act-future-long',
+        }),
+        null,
+        null,
+        null,
+        null,
+      ]),
+      makeWeek(2, [
+        session('w2-easy', 'EASY', { distance: 8 }),
+        null,
+        session('w2-long', 'LONG', { distance: 16 }),
+        null,
+        null,
+        null,
+        null,
+      ]),
+    ]);
+    focusState.current = false;
+    const { rerender } = render(<BlockTab />);
+
+    stashSessionEditReturn({
+      weekIndex: 0,
+      dayIndex: 2,
+      updated: { type: 'REST' },
+    });
+    focusState.current = true;
+    rerender(<BlockTab />);
+
+    await waitFor(() => expect(screen.getByText('Apply change where?')).toBeTruthy());
+    fireEvent.click(screen.getByText('This week only'));
+    fireEvent.click(screen.getByText('Apply change'));
+
+    await waitFor(() => expect(mockUpdatePlanWeeks).toHaveBeenCalledTimes(1));
+    const input = mockUpdatePlanWeeks.mock.calls[0][0];
+    expect(input[0].sessions[2]).toBeNull();
+    expect(input[1].sessions[2]?.type).toBe('LONG');
+  });
+
   it('lets the user add a session on an empty rest slot from the expanded week editor', async () => {
     const { rerender } = render(<BlockTab />);
 
@@ -557,6 +612,67 @@ describe('BlockTab session rearrange', () => {
     expect(input[0].sessions[1]?.id).toBeTruthy();
     expect(input[0].sessions[1]?.date).toBe('2026-04-07');
     expect(input[1].sessions[1]).toBeNull();
+  });
+
+  it('expands the edited future week while choosing where to apply the change', async () => {
+    planState.current = makePlan([
+      makeWeek(1, [session('w1-easy', 'EASY'), null, null, null, null, null, null]),
+      makeWeek(2, [session('w2-easy', 'EASY'), null, null, null, null, null, null]),
+      makeWeek(3, [session('w3-easy', 'EASY'), null, null, null, null, null, null]),
+    ]);
+
+    const { rerender } = render(<BlockTab />);
+
+    fireEvent.click(screen.getByText('W2'));
+    expect(screen.getByTestId('block-day-2-0')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('W3'));
+    fireEvent.click(screen.getByTestId('block-day-3-0'));
+    returnEditResult(rerender, 2, 0, { type: 'EASY', distance: 10, pace: '5:20' });
+
+    expect(screen.getByText('Apply change where?')).toBeTruthy();
+    expect(screen.queryByTestId('block-day-2-0')).toBeNull();
+    expect(screen.getByTestId('block-day-3-0')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('This week only'));
+    fireEvent.click(screen.getByText('Apply change'));
+
+    await waitFor(() => expect(mockUpdatePlanWeeks).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId('block-day-2-0')).toBeNull();
+    expect(screen.getByTestId('block-day-3-0')).toBeTruthy();
+  });
+
+  it('waits for the block tab to refocus before opening the apply-change sheet', () => {
+    planState.current = makePlan([
+      makeWeek(1, [session('w1-easy', 'EASY'), null, null, null, null, null, null]),
+      makeWeek(2, [session('w2-easy', 'EASY'), null, null, null, null, null, null]),
+      makeWeek(3, [session('w3-easy', 'EASY'), null, null, null, null, null, null]),
+    ]);
+
+    const { rerender } = render(<BlockTab />);
+
+    fireEvent.click(screen.getByText('W3'));
+    expect(screen.getByTestId('block-day-3-0')).toBeTruthy();
+
+    focusState.current = false;
+    routeParams.current = {
+      editSessionResult: JSON.stringify({
+        weekIndex: 2,
+        dayIndex: 0,
+        updated: { type: 'EASY', distance: 8, pace: '5:45' },
+      }),
+      editSessionNonce: 'week-3-returning-before-focus',
+    };
+    rerender(<BlockTab />);
+
+    expect(screen.queryByText('Apply change where?')).toBeNull();
+    expect(screen.queryByTestId('block-day-3-0')).toBeNull();
+
+    focusState.current = true;
+    rerender(<BlockTab />);
+
+    expect(screen.getByText('Apply change where?')).toBeTruthy();
+    expect(screen.getByTestId('block-day-3-0')).toBeTruthy();
   });
 
   it('applies a build-phase edit across every build week only', async () => {

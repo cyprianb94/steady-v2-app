@@ -122,6 +122,35 @@ describe('generatePlan', () => {
     }
   });
 
+  it('strips warmup and cooldown from EASY and LONG template sessions', () => {
+    const templateWithLegacyBookends: (PlannedSession | null)[] = [
+      {
+        ...easy(8),
+        warmup: { unit: 'km', value: 1.5 },
+        cooldown: { unit: 'km', value: 1 },
+      },
+      {
+        ...longRun(16),
+        warmup: { unit: 'km', value: 2 },
+        cooldown: { unit: 'km', value: 1.5 },
+      },
+    ];
+
+    const plan = generatePlan(templateWithLegacyBookends, 1, 0, {
+      BASE: 1,
+      BUILD: 0,
+      RECOVERY: 0,
+      PEAK: 0,
+      TAPER: 0,
+    });
+
+    expect(plan[0].sessions[0]).not.toHaveProperty('warmup');
+    expect(plan[0].sessions[0]).not.toHaveProperty('cooldown');
+    expect(plan[0].sessions[1]).not.toHaveProperty('warmup');
+    expect(plan[0].sessions[1]).not.toHaveProperty('cooldown');
+    expect(plan[0].plannedKm).toBe(24);
+  });
+
   it('computes plannedKm for each week', () => {
     const plan = generatePlan(TEMPLATE, 11, 0, phases);
     for (const week of plan) {

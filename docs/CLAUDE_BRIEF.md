@@ -2,7 +2,7 @@
 
 ## What this is
 
-Steady is an iOS plan manager for runners with their own plans replacing multiple tools in one app. It recognises that training isn't always going to plan, niggles and injuries happen and lets runners easily adapt to that. Whether you manage your plan on your own, or with a real coach or AI - it supports all these scenarios as well as helps your physio visits be more efficient through customised injury timeline reports. It sits in the gap between Strava (tracking only, no planning) and Runna (AI-generated plans, no flexibility). The core premise: the user already has a plan they trust — from a book, a coach, or an LLM — and Steady helps them execute it, track it against reality, and adapt it with an AI coach named Steady.
+Steady is an iOS plan manager for runners with their own plans replacing multiple tools in one app. It recognises that training isn't always going to plan, niggles and injuries happen and lets runners easily adapt to that. Whether you manage your plan on your own, with a real coach, or with Steady AI, it supports those scenarios and helps physio visits be more efficient through customised injury timeline reports. It sits in the gap between Strava (tracking only, no planning) and Runna (AI-generated plans, no flexibility). The core premise: the user already has a plan they trust — from a book, a coach, or an LLM — and Steady helps them execute it, track it against reality, and adapt it with Steady AI.
 
 This is v2. A previous attempt exists. This is a clean rebuild with a clearer product vision, a fully designed UI system, and a working React prototype of the two most complex flows already built.
 
@@ -13,13 +13,14 @@ This is v2. A previous attempt exists. This is a clean rebuild with a clearer pr
 Read them in this order before writing a single line of code:
 
 1. `PRODUCT.md` — why this exists, who it's for, what problem it solves
-2. `DESIGN_SYSTEM.md` — colours, typography, component patterns. Do not deviate.
-3. `SCREENS.md` — information architecture, navigation, all screens
-4. `PLAN_BUILDER.md` — the 3-step plan creation flow (most complex UI in the app)
-5. `AI_COACH.md` — the Steady coach, conversation design, plan edit proposals
-6. `DATA_MODEL.md` — data structures, session types, plan schema
-7. `TECH_STACK.md` — stack, folder structure, build order, integrations
-8. `BRANCHING_WORKFLOW.md` — how to work safely with feature branches, PRs, and merge cleanup
+2. `BRAND_AND_CONTENT.md` — naming, tone, vocabulary, product copy, and brand metaphor
+3. `DESIGN_SYSTEM.md` — colours, typography, component patterns. Do not deviate.
+4. `SCREENS.md` — information architecture, navigation, all screens
+5. `PLAN_BUILDER.md` — the 3-step plan creation flow (most complex UI in the app)
+6. `AI_COACH.md` — Steady AI behaviour, conversation design, plan edit proposals
+7. `DATA_MODEL.md` — data structures, session types, plan schema
+8. `TECH_STACK.md` — stack, folder structure, build order, integrations
+9. `BRANCHING_WORKFLOW.md` — how to work safely with feature branches, PRs, and merge cleanup
 
 ---
 
@@ -106,26 +107,26 @@ Do not finish a work session with code changes only. Leave the project-managemen
 
 Two working React prototypes exist in this project. Read them before building anything.
 
-**`steady-app.jsx`** — The main app shell with 4 tabs:
+**`steady-app.jsx`** — The prototype main app shell. The current React Native app has 3 visible tabs:
 - `WeekTab` — current week view with session grid, load bar, AI nudge
 - `BlockTab` — full training block with phase strip and all weeks
-- `CoachTab` — AI coach conversation with plan edit proposal cards
 - `SettingsTab` — integrations, plan management, subscription
+- Steady AI conversation is reached from Settings or a Steady nudge, not as a visible tab
 - `app/sync-run/[activityId].tsx` — shared full-screen run detail for matched/saved runs
 - `PaceTrace` — SVG component overlaying planned vs actual pace splits
 
 **`steady-plan-builder.jsx`** — The 3-step plan creation flow:
 - `StepGoal` — race distance, time target, weeks, phase customisation
 - `StepTemplate` — 7-day template week builder with full session editor
-- `StepPlan` — 16-week plan review with per-week inline editing
-- `ScrollPicker` — iOS-style scroll drum for pace and distance selection
-- `SessionEditor` — full bottom sheet session editor with all fields
+- `StepPlan` — 16-week plan review; expanded day rows open the shared full-screen session editor
+- `ScrollPicker` — legacy/prototype iOS-style scroll drum for flows that still explicitly need it
+- `SessionEditor` — current React Native source of truth is `packages/app/components/plan-builder/SessionEditor.tsx`; it uses expandable notebook rows, `EditableChipStrip`, `ChipStripEditor`, `UnitTogglePill`, and inline `Custom...` chips
+- `SessionEditorScreen` — full-screen shell shared by Block and plan-builder edit flows
 - `PhaseEditor` — visual phase bar with per-phase steppers
 - `PropagateModal` — scope selection for applying changes across weeks
-- `SessionRow` — inline session editor within expanded week rows
 - `generatePlan()` — plan generation logic with progression and phase support
 
-These prototypes are the design source of truth. The actual React Native implementation must faithfully reproduce what they show.
+The prototypes are still useful references, but current React Native source wins when it differs. In particular, do not reintroduce separate above-row interval controls, inline `SessionRow`/`TypeStrip` editing, or scroll drums inside the session editor.
 
 ---
 
@@ -140,4 +141,4 @@ These prototypes are the design source of truth. The actual React Native impleme
 
 ## The one thing that must never be compromised
 
-The app name is Steady. The AI coach is also called Steady. The coach initiates conversations — it does not wait to be asked. After every run it sends a debrief. Every Monday it sends a week preview. This proactive behaviour is the entire emotional differentiator of the product. If the coach feels passive or generic, the product fails.
+The app name is Steady. The AI feature is Steady AI, and its conversational persona is called Steady. Steady AI initiates conversations — it does not wait to be asked. After every run it sends a debrief. Every Monday it sends a week preview. This proactive behaviour is the entire emotional differentiator of the product. If Steady AI feels passive or generic, the product fails.

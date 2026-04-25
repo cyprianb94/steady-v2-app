@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
+  Alert,
   View,
   Text,
   ScrollView,
@@ -11,9 +12,11 @@ import {
 import { useIsFocused } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { PlannedSession, SkippedSessionReason } from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { useAuth } from '../../lib/auth';
+import { trpc } from '../../lib/trpc';
 import { usePlan } from '../../hooks/usePlan';
 import { useStravaSync } from '../../hooks/useStravaSync';
 import { useTodayIso } from '../../hooks/useTodayIso';
@@ -25,18 +28,25 @@ import { CoachAnnotationCard } from '../../components/home/CoachAnnotationCard';
 import { FinishedRunCta } from '../../components/home/FinishedRunCta';
 import { NiggleBanner } from '../../components/home/NiggleBanner';
 import { WeeklyLoadCard } from '../../components/home/WeeklyLoadCard';
+import { ResolveSessionSheet } from '../../components/home/ResolveSessionSheet';
 import { InjuryBanner } from '../../components/recovery/InjuryBanner';
 import { CrossTrainingLog } from '../../components/recovery/CrossTrainingLog';
 import { ReturnToRunning } from '../../components/recovery/ReturnToRunning';
 import { RecoveryFlowModal } from '../../components/recovery/RecoveryFlowModal';
 import { addDaysIso, findSessionForDateOrWeekday } from '../../lib/plan-helpers';
 import { useActivityResolution } from '../../features/run/use-activity-resolution';
+import type { ActivityDayStatus } from '../../features/run/activity-resolution';
 import { useRunDetailNavigation } from '../../features/run/use-run-detail-navigation';
 import { useRecoveryData } from '../../features/recovery/use-recovery-data';
 import { useRecoveryActionController } from '../../features/recovery/use-recovery-action-controller';
 import { getVisibleActiveInjury, MVP_RECOVERY_UI_ENABLED } from '../../features/recovery/recovery-ui-gate';
 import { usePlanRefreshCoordinator } from '../../features/sync/use-plan-refresh-coordinator';
 import { buildCurrentDisplayWeek, resolveDisplayWeekStartDate } from '../../features/run/display-week';
+import {
+  canOpenResolveSessionSheet,
+  markSessionSkippedInWeeks,
+  possibleActivityMatchesForSession,
+} from '../../features/home/resolve-session';
 
 const HOME_SCROLL_TOP_PADDING = 14;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
@@ -61,6 +71,8 @@ export default function HomeScreen() {
   const { forceSync, syncRevision, syncing } = useStravaSync();
   const [recoveryModalMode, setRecoveryModalMode] = useState<'mark' | 'resume' | null>(null);
   const [resumeFlowKind, setResumeFlowKind] = useState<'manual' | 'complete-step'>('manual');
+  const [resolvingSession, setResolvingSession] = useState<PlannedSession | null>(null);
+  const [resolveSessionBusy, setResolveSessionBusy] = useState(false);
   const today = useTodayIso();
   const weekStartDate = currentWeek ? resolveDisplayWeekStartDate(currentWeek, today) : null;
   const activeInjury = getVisibleActiveInjury(plan);
@@ -105,6 +117,12 @@ export default function HomeScreen() {
     activityForSession: activityResolution.activityForSession,
     activityIdForSession: activityResolution.activityIdForSession,
   });
+  const possibleResolveMatches = useMemo(
+    () => (resolvingSession
+      ? possibleActivityMatchesForSession(resolvingSession, activityResolution.activities)
+      : []),
+    [activityResolution.activities, resolvingSession],
+  );
 
   if (authLoading || loading) {
     return (
@@ -182,6 +200,79 @@ export default function HomeScreen() {
   const handleReviewRunPress = runDetailNavigation.canOpenRunDetail(todaySession)
     ? () => runDetailNavigation.openRunDetail(todaySession)
     : undefined;
+
+  function handleHomeSessionPress(session: PlannedSession, status: ActivityDayStatus) {
+    if (runDetailNavigation.canOpenRunDetail(session)) {
+      void runDetailNavigation.openRunDetail(session);
+      return;
+    }
+
+    if (canOpenResolveSessionSheet(session, status)) {
+      setResolvingSession(session);
+    }
+  }
+
+  function handleOpenSessionLog(sessionToLog: PlannedSession) {
+    setResolvingSession(null);
+    router.push(`/sync-run?sessionId=${encodeURIComponent(sessionToLog.id)}`);
+  }
+
+  async function handleAttachActivityToSession(sessionToResolve: PlannedSession, activityId: string) {
+    try {
+      setResolveSessionBusy(true);
+      await trpc.activity.matchSession.mutate({
+        activityId,
+        sessionId: sessionToResolve.id,
+      });
+      setResolvingSession(null);
+      await refresh();
+    } catch (error) {
+      console.warn('Failed to attach activity to planned session from Home:', error);
+      Alert.alert('Could not log run', 'Please try again in a moment.');
+    } finally {
+      setResolveSessionBusy(false);
+    }
+  }
+
+  async function markSessionSkipped(sessionToSkip: PlannedSession, reason: SkippedSessionReason) {
+    if (!plan) {
+      return;
+    }
+
+    try {
+      setResolveSessionBusy(true);
+      await trpc.plan.updateWeeks.mutate({
+        weeks: markSessionSkippedInWeeks({
+          weeks: plan.weeks,
+          sessionId: sessionToSkip.id,
+          reason,
+          markedAt: new Date().toISOString(),
+        }),
+      });
+      setResolvingSession(null);
+      await refresh();
+    } catch (error) {
+      console.warn('Failed to mark planned session skipped from Home:', error);
+      Alert.alert('Could not mark skipped', 'Please try again in a moment.');
+    } finally {
+      setResolveSessionBusy(false);
+    }
+  }
+
+  function handleMarkSkipped(sessionToSkip: PlannedSession) {
+    Alert.alert(
+      'Mark skipped?',
+      'Choose the closest reason. You can still log the run later if this changes.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Tired', onPress: () => { void markSessionSkipped(sessionToSkip, 'tired'); } },
+        { text: 'Ill', onPress: () => { void markSessionSkipped(sessionToSkip, 'ill'); } },
+        { text: 'Busy', onPress: () => { void markSessionSkipped(sessionToSkip, 'busy'); } },
+        { text: 'Sore', onPress: () => { void markSessionSkipped(sessionToSkip, 'sore'); } },
+        { text: 'Other', onPress: () => { void markSessionSkipped(sessionToSkip, 'other'); } },
+      ],
+    );
+  }
 
   async function handleMarkRtrStepComplete() {
     const result = await recoveryController.advanceReturnToRun();
@@ -309,11 +400,21 @@ export default function HomeScreen() {
                 activityForSession={activityResolution.activityForSession}
                 activityIdForSession={activityResolution.activityIdForSession}
                 statusForDay={activityResolution.statusForDay}
-                onSessionPress={runDetailNavigation.openRunDetail}
+                onSessionPress={handleHomeSessionPress}
               />
             </>
           )}
         </ScrollView>
+        <ResolveSessionSheet
+          open={Boolean(resolvingSession)}
+          session={resolvingSession}
+          possibleMatches={possibleResolveMatches}
+          busy={resolveSessionBusy}
+          onDismiss={() => setResolvingSession(null)}
+          onLogSession={handleOpenSessionLog}
+          onMarkSkipped={handleMarkSkipped}
+          onAttachMatch={handleAttachActivityToSession}
+        />
         {MVP_RECOVERY_UI_ENABLED ? (
           <RecoveryFlowModal
             visible={recoveryModalMode !== null}

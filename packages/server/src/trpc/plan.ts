@@ -39,6 +39,10 @@ const SubjectiveInputSchema = z.object({
   breathing: z.enum(['easy', 'controlled', 'labored']),
   overall: z.enum(['could-go-again', 'done', 'shattered']),
 });
+const SkippedSessionSchema = z.object({
+  reason: z.enum(['tired', 'ill', 'busy', 'sore', 'other']),
+  markedAt: z.string(),
+});
 const PlannedSessionSchema = z.object({
   id: z.string(),
   type: SessionTypeSchema,
@@ -54,6 +58,7 @@ const PlannedSessionSchema = z.object({
   actualActivityId: z.string().optional(),
   subjectiveInput: SubjectiveInputSchema.optional(),
   subjectiveInputDismissed: z.boolean().optional(),
+  skipped: SkippedSessionSchema.optional(),
 });
 const PlanWeekSchema = z.object({
   weekNumber: z.number().int().min(1),

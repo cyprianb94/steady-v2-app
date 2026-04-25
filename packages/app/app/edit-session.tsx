@@ -3,9 +3,10 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { PlannedSession } from '@steady/types';
-import { SessionEditor } from '../components/plan-builder/SessionEditor';
+import { SessionEditorScreen } from '../components/plan-builder/SessionEditorScreen';
 import { C } from '../constants/colours';
 import { FONTS } from '../constants/typography';
+import { stashSessionEditReturn } from '../features/plan-builder/session-edit-return';
 import { usePlan } from '../hooks/usePlan';
 
 function firstRouteParamValue(value: string | string[] | undefined): string | null {
@@ -49,6 +50,12 @@ export default function EditSessionScreen() {
       return;
     }
 
+    const returnPayload = stashSessionEditReturn({
+      weekIndex,
+      dayIndex,
+      updated,
+    });
+
     router.replace({
       pathname: '/(tabs)/block',
       params: {
@@ -57,7 +64,7 @@ export default function EditSessionScreen() {
           dayIndex,
           updated,
         }),
-        editSessionNonce: String(Date.now()),
+        editSessionNonce: returnPayload.nonce,
       },
     });
   }
@@ -79,24 +86,10 @@ export default function EditSessionScreen() {
     );
   }
 
-  return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      <SessionEditor
-        dayIndex={dayIndex}
-        existing={existing}
-        onSave={save}
-        onClose={close}
-        presentation="screen"
-      />
-    </View>
-  );
+  return <SessionEditorScreen dayIndex={dayIndex} existing={existing} onSave={save} onClose={close} />;
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: C.surface,
-  },
   centered: {
     flex: 1,
     alignItems: 'center',

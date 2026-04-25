@@ -3,6 +3,7 @@ export type SubjectiveLegs = 'fresh' | 'normal' | 'heavy' | 'dead';
 export type SubjectiveBreathing = 'easy' | 'controlled' | 'labored';
 export type SubjectiveOverall = 'could-go-again' | 'done' | 'shattered';
 export type SessionDurationUnit = 'km' | 'min';
+export type SkippedSessionReason = 'tired' | 'ill' | 'busy' | 'sore' | 'other';
 
 export interface SessionDurationSpec {
   unit: SessionDurationUnit;
@@ -13,6 +14,11 @@ export interface SubjectiveInput {
   legs: SubjectiveLegs;
   breathing: SubjectiveBreathing;
   overall: SubjectiveOverall;
+}
+
+export interface SkippedSession {
+  reason: SkippedSessionReason;
+  markedAt: string;
 }
 
 export interface PlannedSession {
@@ -30,7 +36,7 @@ export interface PlannedSession {
   repDuration?: SessionDurationSpec;
   recovery?: IntervalRecovery;
 
-  // Optional easy-effort volume before/after the main set.
+  // Optional easy-effort volume before/after workout sessions.
   warmup?: SessionDurationSpec;
   cooldown?: SessionDurationSpec;
 
@@ -40,6 +46,9 @@ export interface PlannedSession {
   // Post-session subjective check-in
   subjectiveInput?: SubjectiveInput;
   subjectiveInputDismissed?: boolean;
+
+  // Runner explicitly marked a planned session as skipped.
+  skipped?: SkippedSession;
 }
 
 export type RecoveryDuration = '45s' | '60s' | '90s' | '2min' | '3min' | '4min' | '5min';
@@ -71,6 +80,10 @@ export function sessionDurationKm(
 ): number {
   const normalized = normalizeSessionDuration(value);
   return normalized?.unit === 'km' ? normalized.value : 0;
+}
+
+export function sessionSupportsWarmupCooldown(type: SessionType): boolean {
+  return type === 'INTERVAL' || type === 'TEMPO';
 }
 
 export const RECOVERY_KM: Record<RecoveryDuration, number> = {

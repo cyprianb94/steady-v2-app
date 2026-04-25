@@ -1,4 +1,4 @@
-import type { PlannedSession } from '../session';
+import { sessionSupportsWarmupCooldown, type PlannedSession } from '../session';
 import type { PhaseConfig, PhaseName, PlanWeek } from '../plan';
 import { sessionKm } from './session-km';
 import { normalizeSessionIds } from './normalize-session-ids';
@@ -85,6 +85,11 @@ export function generatePlan(
     const sessions: (PlannedSession | null)[] = template.map((s) => {
       if (!s || s.type === 'REST') return null;
       const out: PlannedSession = { ...s };
+
+      if (!sessionSupportsWarmupCooldown(out.type)) {
+        delete out.warmup;
+        delete out.cooldown;
+      }
 
       // Progressive overload (BASE, BUILD, PEAK)
       if (progressionPct > 0 && !isTaper && !isRecov) {

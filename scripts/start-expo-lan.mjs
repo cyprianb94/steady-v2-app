@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '..');
+const apiPort = Number(process.env.PORT) || 3000;
+const apiHealthTimeoutMs = Number(process.env.STEADY_DEV_API_HEALTH_TIMEOUT_MS) || 30_000;
 
 const preferredInterfacePatterns = [
   /^en0$/i,
@@ -84,7 +86,8 @@ function getLanIp() {
 
 const args = process.argv.slice(2);
 const shouldPrint = args.includes('--print');
-const forwardedArgs = args.filter((arg) => arg !== '--print');
+const shouldSkipServer = args.includes('--no-server') || process.env.STEADY_DEV_SKIP_SERVER === '1';
+const forwardedArgs = args.filter((arg) => arg !== '--print' && arg !== '--no-server');
 const lanIp = getLanIp();
 
 if (!lanIp) {
@@ -94,36 +97,119 @@ if (!lanIp) {
   process.exit(1);
 }
 
-const apiUrl = `http://${lanIp}:3000`;
+const apiUrl = `http://${lanIp}:${apiPort}`;
 
 if (shouldPrint) {
   console.log(apiUrl);
   process.exit(0);
 }
 
-console.log(`Starting Expo in LAN mode with EXPO_PUBLIC_API_URL=${apiUrl}`);
-
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-const child = spawn(
-  npmCommand,
-  ['run', 'start', '-w', 'packages/app', '--', '--host', 'lan', ...forwardedArgs],
-  {
+
+function delay(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function isApiHealthy() {
+  try {
+    const response = await fetch(`${apiUrl}/health`, { signal: AbortSignal.timeout(1_000) });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function waitForApiHealth(serverChild) {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < apiHealthTimeoutMs) {
+    if (await isApiHealthy()) {
+      return;
+    }
+
+    if (serverChild?.exitCode !== null) {
+      throw new Error('Fastify API exited before it became reachable.');
+    }
+
+    await delay(500);
+  }
+
+  throw new Error(
+    `Fastify API did not become reachable at ${apiUrl}/health within ${apiHealthTimeoutMs}ms.`,
+  );
+}
+
+function spawnChild(command, args, env = process.env) {
+  return spawn(command, args, {
     cwd: repoRoot,
-    env: {
+    env,
+    stdio: 'inherit',
+  });
+}
+
+let serverChild = null;
+let expoChild = null;
+let shuttingDown = false;
+
+function shutdown(code = 0) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+
+  if (expoChild && expoChild.exitCode === null) {
+    expoChild.kill('SIGTERM');
+  }
+  if (serverChild && serverChild.exitCode === null) {
+    serverChild.kill('SIGTERM');
+  }
+
+  process.exit(code);
+}
+
+async function main() {
+  if (!shouldSkipServer && !(await isApiHealthy())) {
+    console.log(`Starting Fastify API for Expo at ${apiUrl}`);
+    serverChild = spawnChild(npmCommand, ['run', 'dev:server']);
+  }
+
+  if (!shouldSkipServer) {
+    await waitForApiHealth(serverChild);
+    console.log(`Fastify API is reachable at ${apiUrl}`);
+  }
+
+  console.log(`Starting Expo in LAN mode with EXPO_PUBLIC_API_URL=${apiUrl}`);
+  expoChild = spawnChild(
+    npmCommand,
+    ['run', 'start', '-w', 'packages/app', '--', '--host', 'lan', ...forwardedArgs],
+    {
       ...process.env,
       EXPO_PUBLIC_API_URL: apiUrl,
       REACT_NATIVE_PACKAGER_HOSTNAME: lanIp,
       STEADY_DEV_LAN_IP: lanIp,
     },
-    stdio: 'inherit',
-  },
-);
+  );
 
-child.on('exit', (code, signal) => {
-  if (signal) {
-    process.kill(process.pid, signal);
-    return;
-  }
+  expoChild.on('exit', (code, signal) => {
+    if (signal && !shuttingDown) {
+      console.log(`Expo exited from ${signal}.`);
+    }
+    shutdown(code ?? 0);
+  });
 
-  process.exit(code ?? 0);
+  serverChild?.on('exit', (code, signal) => {
+    if (shuttingDown) return;
+
+    const reason = signal ? `signal ${signal}` : `code ${code ?? 0}`;
+    console.error(`Fastify API exited unexpectedly with ${reason}. Stopping Expo.`);
+    shutdown(code ?? 1);
+  });
+}
+
+process.on('SIGINT', () => shutdown(0));
+process.on('SIGTERM', () => shutdown(0));
+
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : error);
+  shutdown(1);
 });

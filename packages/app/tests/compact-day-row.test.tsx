@@ -79,6 +79,30 @@ describe('CompactDayRow', () => {
     expect(screen.getByTestId('day-row-warning')).toBeTruthy();
   });
 
+  it('shows skipped state for an explicitly skipped session', () => {
+    render(
+      <CompactDayRow
+        dayName="Wed"
+        status="skipped"
+        session={{
+          id: 's-skipped',
+          type: 'INTERVAL',
+          date: '2026-04-08',
+          reps: 5,
+          repDuration: { unit: 'min', value: 8 },
+          pace: '4:10',
+          skipped: {
+            reason: 'busy',
+            markedAt: '2026-04-09T10:00:00.000Z',
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText('Skipped')).toBeTruthy();
+    expect(screen.queryByTestId('day-row-warning')).toBeNull();
+  });
+
   it('shows a completed-style badge for off-target completed sessions', () => {
     render(
       <CompactDayRow

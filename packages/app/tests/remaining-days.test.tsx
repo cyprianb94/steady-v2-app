@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { vi, describe, it, expect } from 'vitest';
 import type { PlannedSession } from '@steady/types';
 import { createActivityResolution } from '../features/run/activity-resolution';
@@ -21,11 +21,13 @@ function renderRemainingDaysList({
   today,
   weekStartDate,
   activities = [],
+  onSessionPress,
 }: {
   sessions: (PlannedSession | null)[];
   today: string;
   weekStartDate: string;
   activities?: any[];
+  onSessionPress?: (session: PlannedSession, status: any) => void;
 }) {
   const resolution = createActivityResolution(activities);
 
@@ -37,6 +39,7 @@ function renderRemainingDaysList({
       activityForSession={resolution.activityForSession}
       activityIdForSession={resolution.activityIdForSession}
       statusForDay={resolution.statusForDay}
+      onSessionPress={onSessionPress}
     />,
   );
 }
@@ -234,5 +237,22 @@ describe('RemainingDaysList', () => {
     expect(screen.getAllByText('8k').length).toBeGreaterThan(0);
     expect(screen.getByText('10k')).toBeTruthy();
     expect(screen.getByText('12k')).toBeTruthy();
+  });
+
+  it('makes past unlogged planned rows pressable so Home can open the resolve sheet', () => {
+    const onSessionPress = vi.fn();
+    const sessions = DAYS.map((_, i) =>
+      makeSession(`2026-04-${String(6 + i).padStart(2, '0')}`),
+    );
+
+    renderRemainingDaysList({
+      sessions,
+      today: '2026-04-09',
+      weekStartDate: '2026-04-06',
+      onSessionPress,
+    });
+
+    fireEvent.click(screen.getAllByTestId('compact-day-row-pressable')[0]);
+    expect(onSessionPress).toHaveBeenCalledWith(sessions[0], 'missed');
   });
 });

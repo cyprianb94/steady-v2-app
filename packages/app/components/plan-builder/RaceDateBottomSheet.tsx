@@ -1,19 +1,18 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  Dimensions,
-  Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import DateTimePicker, {
   type DatePickerBaseProps,
   type DateType,
   useDefaultStyles,
 } from 'react-native-ui-datepicker';
 import { Btn } from '../ui/Btn';
+import { GorhomSheet } from '../ui/GorhomSheet';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import {
@@ -48,7 +47,6 @@ export function RaceDateBottomSheet({
   const startYear = parseIsoDate(minDate).year;
   const endYear = startYear + 5;
   const previewWeeks = weeksToRace(todayIso, draftDate);
-  const maxSheetHeight = Math.floor(Dimensions.get('window').height * 0.88);
   const datePickerTestProps = { testID: 'race-date-calendar' } as const;
 
   const calendarStyles = useMemo<NonNullable<DatePickerBaseProps['styles']>>(() => ({
@@ -158,89 +156,73 @@ export function RaceDateBottomSheet({
   }
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={handleDismiss}>
-      <Pressable style={styles.overlay} onPress={handleDismiss}>
-        <Pressable style={[styles.sheet, { maxHeight: maxSheetHeight }]} onPress={(event) => event.stopPropagation()}>
-          <View style={styles.handleRow}>
-            <View style={styles.handleIndicator} />
+    <GorhomSheet
+      open={open}
+      onDismiss={handleDismiss}
+      backgroundColor={C.cream}
+      maxHeightRatio={0.88}
+      wrapContent={false}
+    >
+      <View style={styles.sheet}>
+        <BottomSheetScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.title}>Pick race date</Text>
+          <View style={styles.metaRow}>
+            <View style={styles.metaCopy}>
+              <Text style={styles.subtitle}>{formatShortDate(draftDate)}</Text>
+              <Text style={styles.hint}>Tap any date and the plan length updates automatically.</Text>
+            </View>
+            <View style={styles.previewPill}>
+              <Text style={styles.previewPillText}>{previewWeeks} wks</Text>
+            </View>
           </View>
 
-          <ScrollView
-            contentContainerStyle={styles.content}
-            showsVerticalScrollIndicator={false}
-          >
-            <Text style={styles.title}>Pick race date</Text>
-            <View style={styles.metaRow}>
-              <View style={styles.metaCopy}>
-                <Text style={styles.subtitle}>{formatShortDate(draftDate)}</Text>
-                <Text style={styles.hint}>Tap any date and the plan length updates automatically.</Text>
-              </View>
-              <View style={styles.previewPill}>
-                <Text style={styles.previewPillText}>{previewWeeks} wks</Text>
-              </View>
-            </View>
+          <View style={styles.calendarCard}>
+            <DateTimePicker
+              date={isoDateToLocalDate(draftDate)}
+              endYear={endYear}
+              firstDayOfWeek={FIRST_DAY_OF_WEEK}
+              minDate={isoDateToLocalDate(minDate)}
+              mode="single"
+              monthCaptionFormat="full"
+              onChange={handleDateChange}
+              startYear={startYear}
+              styles={calendarStyles}
+              weekdaysFormat="short"
+              {...(datePickerTestProps as any)}
+            />
+          </View>
 
-            <View style={styles.calendarCard}>
-              <DateTimePicker
-                date={isoDateToLocalDate(draftDate)}
-                endYear={endYear}
-                firstDayOfWeek={FIRST_DAY_OF_WEEK}
-                minDate={isoDateToLocalDate(minDate)}
-                mode="single"
-                monthCaptionFormat="full"
-                onChange={handleDateChange}
-                startYear={startYear}
-                styles={calendarStyles}
-                weekdaysFormat="short"
-                {...(datePickerTestProps as any)}
-              />
+          <View style={styles.actions}>
+            <Pressable
+              onPress={handleDismiss}
+              style={styles.secondaryAction}
+              testID="race-date-cancel"
+            >
+              <Text style={styles.secondaryActionText}>Cancel</Text>
+            </Pressable>
+            <View style={styles.primaryAction}>
+              <Btn title="Done" onPress={handleConfirm} fullWidth />
             </View>
-
-            <View style={styles.actions}>
-              <Pressable
-                onPress={handleDismiss}
-                style={styles.secondaryAction}
-                testID="race-date-cancel"
-              >
-                <Text style={styles.secondaryActionText}>Cancel</Text>
-              </Pressable>
-              <View style={styles.primaryAction}>
-                <Btn title="Done" onPress={handleConfirm} fullWidth />
-              </View>
-            </View>
-          </ScrollView>
-        </Pressable>
-      </Pressable>
-    </Modal>
+          </View>
+        </BottomSheetScrollView>
+      </View>
+    </GorhomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(28,21,16,0.60)',
-  },
   sheet: {
     backgroundColor: C.cream,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
   },
-  handleRow: {
-    alignItems: 'center',
-    paddingTop: 10,
-    paddingBottom: 4,
-  },
   content: {
     paddingHorizontal: 18,
     paddingTop: 4,
     paddingBottom: 24,
-  },
-  handleIndicator: {
-    backgroundColor: C.border,
-    width: 38,
-    height: 4,
-    borderRadius: 999,
   },
   title: {
     color: C.ink,
