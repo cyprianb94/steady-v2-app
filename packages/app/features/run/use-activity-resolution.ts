@@ -3,6 +3,10 @@ import type { Activity } from '@steady/types';
 import { trpc } from '../../lib/trpc';
 import { logNonNetworkError } from '../../lib/network-errors';
 import { createActivityResolution, type ActivityResolution } from './activity-resolution';
+import {
+  getScreenshotDemoActivities,
+  isScreenshotDemoMode,
+} from '../../demo/screenshot-demo';
 
 interface UseActivityResolutionOptions {
   enabled: boolean;
@@ -27,6 +31,10 @@ export function useActivityResolution({
   today,
   fetchErrorMessage,
 }: UseActivityResolutionOptions): ActivityResolution {
+  if (isScreenshotDemoMode()) {
+    return createActivityResolution(getScreenshotDemoActivities(), { today });
+  }
+
   const [activities, setActivities] = useState<Activity[]>(() => readCachedActivities(planId));
 
   useEffect(() => {

@@ -2,9 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef, type ReactNode } from '
 import { Dimensions, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import {
   BottomSheetBackdrop,
+  BottomSheetFooter,
   BottomSheetModal,
   BottomSheetView,
   type BottomSheetBackdropProps,
+  type BottomSheetFooterProps,
 } from '@gorhom/bottom-sheet';
 import { C } from '../../constants/colours';
 
@@ -19,6 +21,7 @@ interface GorhomSheetProps {
   enablePanDownToClose?: boolean;
   keyboardBehavior?: 'extend' | 'fillParent' | 'interactive';
   wrapContent?: boolean;
+  footer?: ReactNode;
 }
 
 export function GorhomSheet({
@@ -32,6 +35,7 @@ export function GorhomSheet({
   enablePanDownToClose = true,
   keyboardBehavior = 'interactive',
   wrapContent = true,
+  footer,
 }: GorhomSheetProps) {
   const sheetRef = useRef<BottomSheetModal>(null);
   const maxDynamicContentSize = useMemo(
@@ -58,6 +62,12 @@ export function GorhomSheet({
     ),
     [backdropOpacity],
   );
+  const renderFooter = useCallback(
+    (props: BottomSheetFooterProps) => (
+      <BottomSheetFooter {...props}>{footer}</BottomSheetFooter>
+    ),
+    [footer],
+  );
 
   if (!open) {
     return null;
@@ -74,6 +84,7 @@ export function GorhomSheet({
       handleStyle={styles.handle}
       keyboardBehavior={keyboardBehavior}
       keyboardBlurBehavior="restore"
+      footerComponent={footer ? renderFooter : undefined}
       maxDynamicContentSize={maxDynamicContentSize}
       onDismiss={onDismiss}
     >

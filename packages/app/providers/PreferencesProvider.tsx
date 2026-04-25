@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../lib/auth';
 import { isLikelyNetworkError } from '../lib/network-errors';
 import { PreferencesContext, type Units } from './preferences-context';
+import { isScreenshotDemoMode } from '../demo/screenshot-demo';
 
 const UNITS_STORAGE_KEY = 'steady.preferences.units';
 
@@ -11,6 +12,21 @@ function isUnits(value: string | null): value is Units {
 }
 
 export function PreferencesProvider({ children }: React.PropsWithChildren) {
+  if (isScreenshotDemoMode()) {
+    return (
+      <PreferencesContext.Provider
+        value={{
+          units: 'metric',
+          loading: false,
+          updatingUnits: false,
+          setUnits: async () => {},
+        }}
+      >
+        {children}
+      </PreferencesContext.Provider>
+    );
+  }
+
   const { session } = useAuth();
   const [units, setUnitsState] = useState<Units>('metric');
   const [loading, setLoading] = useState(false);

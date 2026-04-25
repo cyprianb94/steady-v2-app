@@ -124,6 +124,10 @@ vi.mock('expo-linear-gradient', () => ({
     React.createElement(React.Fragment, null, children),
 }));
 
+vi.mock('expo-haptics', () => ({
+  selectionAsync: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock('@react-navigation/native', () => ({
   useIsFocused: () => appTestHarness.useIsFocused(),
 }));

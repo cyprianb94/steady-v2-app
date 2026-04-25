@@ -1,4 +1,11 @@
-import type { Activity, Niggle, PlannedSession, Shoe } from '@steady/types';
+import {
+  normalizeNiggleWhen,
+  shoeLifetimeKm,
+  type Activity,
+  type Niggle,
+  type PlannedSession,
+  type Shoe,
+} from '@steady/types';
 import { activityLocalDate } from '../../lib/plan-helpers';
 
 export type EditableNiggle = Pick<Niggle, 'bodyPart' | 'bodyPartOtherText' | 'severity' | 'when' | 'side'>;
@@ -80,7 +87,7 @@ export function toEditableNiggles(niggles: readonly Niggle[] | undefined): Edita
     bodyPart: niggle.bodyPart,
     bodyPartOtherText: niggle.bodyPartOtherText,
     severity: niggle.severity,
-    when: niggle.when,
+    when: normalizeNiggleWhen(niggle.when),
     side: niggle.side,
   }));
 }
@@ -90,7 +97,7 @@ export function shoeWearState(shoe: Shoe): ShoeWearState {
     return 'ok';
   }
 
-  const wearRatio = shoe.totalKm / shoe.retireAtKm;
+  const wearRatio = shoeLifetimeKm(shoe) / shoe.retireAtKm;
   if (wearRatio >= 0.85) {
     return 'critical';
   }

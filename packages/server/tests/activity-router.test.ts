@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { Activity, PlannedSession, Shoe, TrainingPlan } from '@steady/types';
+import type { Activity, PlannedSession, RunFuelEvent, Shoe, TrainingPlan } from '@steady/types';
 import { createAppRouter } from '../src/trpc/router';
 import { InMemoryActivityRepo } from '../src/repos/activity-repo.memory';
 import { InMemoryConversationRepo } from '../src/repos/conversation-repo.memory';
@@ -34,6 +34,27 @@ function makeShoe(userId: string, overrides: Partial<Shoe> = {}): Omit<Shoe, 'to
     retired: false,
     createdAt: '2026-04-01T00:00:00Z',
     updatedAt: '2026-04-01T00:00:00Z',
+    ...overrides,
+  };
+}
+
+function makeFuelEvent(overrides: Partial<RunFuelEvent> = {}): RunFuelEvent {
+  return {
+    id: `fuel-${crypto.randomUUID()}`,
+    minute: 42,
+    gel: {
+      id: 'precision-fuel-and-hydration-pf-30-gel-original',
+      brand: 'Precision Fuel & Hydration',
+      name: 'PF 30 Gel',
+      flavour: 'Original',
+      caloriesKcal: 120,
+      carbsG: 30,
+      caffeineMg: 0,
+      sodiumMg: 0,
+      potassiumMg: 0,
+      magnesiumMg: 0,
+      imageUrl: null,
+    },
     ...overrides,
   };
 }
@@ -102,6 +123,23 @@ class FlakyNiggleRepo extends InMemoryNiggleRepo {
   }
 }
 
+class FuelColumnMissingActivityRepo extends InMemoryActivityRepo {
+  private failRollbackSave = false;
+
+  override async updateFuelEvents() {
+    this.failRollbackSave = true;
+    throw new Error('Failed to update fuel events: column activities.fuel_events does not exist');
+  }
+
+  override async save(activity: Activity) {
+    if (this.failRollbackSave) {
+      throw new Error('rollback failed because fuel_events is missing');
+    }
+
+    return super.save(activity);
+  }
+}
+
 describe('activity router', () => {
   let activityRepo: InMemoryActivityRepo;
   let planRepo: InMemoryPlanRepo;
@@ -148,7 +186,7 @@ describe('activity router', () => {
     expect(listedActivity).toMatchObject({
       id: activity.id,
       niggles: [
-        { bodyPart: 'hamstring', side: 'left', severity: 'mild', when: 'during' },
+        { bodyPart: 'hamstring', side: 'left', severity: 'mild', when: ['during'] },
       ],
     });
   });
@@ -163,7 +201,7 @@ describe('activity router', () => {
     await expect(caller.activity.get({ activityId: activity.id })).resolves.toMatchObject({
       id: activity.id,
       niggles: [
-        { bodyPart: 'hamstring', side: 'left', severity: 'mild', when: 'during' },
+        { bodyPart: 'hamstring', side: 'left', severity: 'mild', when: ['during'] },
       ],
     });
   });
@@ -180,32 +218,57 @@ describe('activity router', () => {
     });
   });
 
-  it('saveRunDetail persists subjective input, niggles, notes, and shoeId in one call', async () => {
+  it('saveRunDetail persists subjective input, niggles, notes, shoeId, and fuel events in one call', async () => {
     const activity = await activityRepo.save(makeActivity('user-1', { matchedSessionId: 'w1d0' }));
     await planRepo.save(makePlan(activity.id));
     const shoe = await shoeRepo.save(makeShoe('user-1'));
+    const fuelEvents = [
+      makeFuelEvent({ id: 'fuel-later', minute: 58 }),
+      makeFuelEvent({ id: 'fuel-earlier', minute: 24 }),
+    ];
 
     await caller.activity.saveRunDetail({
       activityId: activity.id,
       subjectiveInput: { legs: 'normal', breathing: 'controlled', overall: 'done' },
       niggles: [
-        { bodyPart: 'calf', side: 'left', severity: 'mild', when: 'during' },
+        { bodyPart: 'calf', side: 'left', severity: 'mild', when: ['before', 'during'] },
         { bodyPart: 'other', bodyPartOtherText: 'Upper calf', side: 'right', severity: 'niggle', when: 'after' },
       ],
       notes: 'Felt smooth after 5k',
       shoeId: shoe.id,
+      fuelEvents,
     });
 
     expect(await activityRepo.getById(activity.id)).toMatchObject({
       subjectiveInput: { legs: 'normal', breathing: 'controlled', overall: 'done' },
       notes: 'Felt smooth after 5k',
       shoeId: shoe.id,
+      fuelEvents: [
+        { id: 'fuel-earlier', minute: 24 },
+        { id: 'fuel-later', minute: 58 },
+      ],
       matchedSessionId: 'w1d0',
     });
     expect(await niggleRepo.listByActivity(activity.id)).toMatchObject([
-      { bodyPart: 'calf', side: 'left', severity: 'mild', when: 'during' },
-      { bodyPart: 'other', bodyPartOtherText: 'Upper calf', side: 'right', severity: 'niggle', when: 'after' },
+      { bodyPart: 'calf', side: 'left', severity: 'mild', when: ['before', 'during'] },
+      { bodyPart: 'other', bodyPartOtherText: 'Upper calf', side: 'right', severity: 'niggle', when: ['after'] },
     ]);
+  });
+
+  it('rejects fuel events outside the run duration', async () => {
+    const activity = await activityRepo.save(makeActivity('user-1', { duration: 3600 }));
+
+    await expect(caller.activity.saveRunDetail({
+      activityId: activity.id,
+      subjectiveInput: { legs: 'normal', breathing: 'controlled', overall: 'done' },
+      niggles: [],
+      fuelEvents: [
+        makeFuelEvent({ minute: 61 }),
+      ],
+    })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+      message: 'Fuel event minute is outside the run duration',
+    });
   });
 
   it('replaces the niggle set on each save', async () => {
@@ -230,7 +293,7 @@ describe('activity router', () => {
       bodyPart: 'ankle',
       side: null,
       severity: 'moderate',
-      when: 'after',
+      when: ['after'],
     });
   });
 
@@ -299,8 +362,11 @@ describe('activity router', () => {
     expect(plan?.weeks[0].sessions[0]).toMatchObject({ id: 'w1d0', actualActivityId: undefined });
   });
 
-  it('does not change the current match when matchedSessionId is omitted', async () => {
-    const activity = await activityRepo.save(makeActivity('user-1', { matchedSessionId: 'w1d0' }));
+  it('does not change the current match or fuel events when those fields are omitted', async () => {
+    const activity = await activityRepo.save(makeActivity('user-1', {
+      matchedSessionId: 'w1d0',
+      fuelEvents: [makeFuelEvent({ id: 'fuel-existing', minute: 36 })],
+    }));
     await planRepo.save(makePlan(activity.id));
 
     await caller.activity.saveRunDetail({
@@ -310,7 +376,10 @@ describe('activity router', () => {
       notes: 'Still the same run',
     });
 
-    expect(await activityRepo.getById(activity.id)).toMatchObject({ matchedSessionId: 'w1d0' });
+    expect(await activityRepo.getById(activity.id)).toMatchObject({
+      matchedSessionId: 'w1d0',
+      fuelEvents: [{ id: 'fuel-existing', minute: 36 }],
+    });
     const plan = await planRepo.getActive('user-1');
     expect(plan?.weeks[0].sessions[0]).toMatchObject({ id: 'w1d0', actualActivityId: activity.id });
   });
@@ -335,6 +404,7 @@ describe('activity router', () => {
       subjectiveInput: { legs: 'fresh', breathing: 'easy', overall: 'could-go-again' },
       notes: 'before',
       shoeId: beforeShoe.id,
+      fuelEvents: [makeFuelEvent({ id: 'fuel-before', minute: 20 })],
     }));
     await planRepo.save(makePlan(activity.id));
     await failingNiggleRepo.setForActivity(activity.id, [
@@ -349,6 +419,7 @@ describe('activity router', () => {
         niggles: [{ bodyPart: 'ankle', side: null, severity: 'stop', when: 'after' }],
         notes: 'after',
         shoeId: afterShoe.id,
+        fuelEvents: [makeFuelEvent({ id: 'fuel-after', minute: 30 })],
         matchedSessionId: 'w1d1',
       }),
     ).rejects.toThrow(/simulated niggle persistence failure/i);
@@ -358,12 +429,36 @@ describe('activity router', () => {
       subjectiveInput: { legs: 'fresh', breathing: 'easy', overall: 'could-go-again' },
       notes: 'before',
       shoeId: beforeShoe.id,
+      fuelEvents: [{ id: 'fuel-before', minute: 20 }],
     });
     expect(await failingNiggleRepo.listByActivity(activity.id)).toMatchObject([
-      { bodyPart: 'calf', side: 'left', severity: 'mild', when: 'during' },
+      { bodyPart: 'calf', side: 'left', severity: 'mild', when: ['during'] },
     ]);
     const plan = await planRepo.getActive('user-1');
     expect(plan?.weeks[0].sessions[0]).toMatchObject({ id: 'w1d0', actualActivityId: activity.id });
     expect(plan?.weeks[0].sessions[1]).toMatchObject({ id: 'w1d1', actualActivityId: undefined });
+  });
+
+  it('preserves the fuelling persistence error when rollback also fails', async () => {
+    const failingActivityRepo = new FuelColumnMissingActivityRepo();
+    const rollbackNiggleRepo = new InMemoryNiggleRepo(failingActivityRepo);
+    const rollbackRouter = createAppRouter({
+      profileRepo: new InMemoryProfileRepo(),
+      planRepo: new InMemoryPlanRepo(),
+      activityRepo: failingActivityRepo,
+      niggleRepo: rollbackNiggleRepo,
+      shoeRepo: new InMemoryShoeRepo(failingActivityRepo),
+      conversationRepo: new InMemoryConversationRepo(),
+      crossTrainingRepo: new InMemoryCrossTrainingRepo(),
+    });
+    const rollbackCaller = rollbackRouter.createCaller({ userId: 'user-1' });
+    const activity = await failingActivityRepo.save(makeActivity('user-1'));
+
+    await expect(rollbackCaller.activity.saveRunDetail({
+      activityId: activity.id,
+      subjectiveInput: { legs: 'normal', breathing: 'controlled', overall: 'done' },
+      niggles: [],
+      fuelEvents: [makeFuelEvent({ id: 'fuel-after', minute: 30 })],
+    })).rejects.toThrow(/column activities\.fuel_events does not exist/i);
   });
 });

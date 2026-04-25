@@ -31,6 +31,7 @@ export class InMemoryShoeRepo implements ShoeRepo {
     const stored: StoredShoe = {
       ...shoe,
       id: existing?.id ?? shoe.id,
+      stravaDistanceKm: shoe.stravaDistanceKm ?? existing?.stravaDistanceKm,
       createdAt: existing?.createdAt ?? shoe.createdAt,
     };
 

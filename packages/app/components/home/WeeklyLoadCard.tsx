@@ -4,6 +4,11 @@ import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { usePreferences } from '../../providers/preferences-context';
 import { formatDistance } from '../../lib/units';
+import { AnimatedProgressFill } from '../ui/AnimatedProgressFill';
+
+const WEEKLY_LOAD_ACCENT = C.forest;
+const WEEKLY_LOAD_BORDER = C.border;
+const WEEKLY_LOAD_SURFACE = C.surface;
 
 interface WeeklyLoadCardProps {
   actualKm: number;
@@ -24,7 +29,7 @@ export function WeeklyLoadCard({ actualKm, plannedKm }: WeeklyLoadCardProps) {
         </View>
       </View>
       <View style={styles.track}>
-        <View style={[styles.fill, { width: `${pct * 100}%` }]} />
+        <AnimatedProgressFill progress={pct} fillStyle={styles.fill} />
       </View>
     </View>
   );
@@ -32,14 +37,21 @@ export function WeeklyLoadCard({ actualKm, plannedKm }: WeeklyLoadCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    marginTop: 6,
-    marginBottom: 20,
+    marginTop: 4,
+    marginBottom: 16,
+    backgroundColor: WEEKLY_LOAD_SURFACE,
+    borderColor: WEEKLY_LOAD_BORDER,
+    borderWidth: 1.5,
+    borderRadius: 18,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
   },
   labelRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    gap: 12,
+    marginBottom: 12,
   },
   label: {
     fontFamily: FONTS.sansSemiBold,
@@ -47,21 +59,27 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     textTransform: 'uppercase',
     color: C.muted,
+    flexShrink: 0,
   },
   valueRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
+    justifyContent: 'flex-end',
+    flexShrink: 1,
+    minWidth: 0,
   },
   actual: {
     fontFamily: FONTS.monoBold,
     fontSize: 15,
-    color: C.forest,
+    color: WEEKLY_LOAD_ACCENT,
+    flexShrink: 1,
   },
   planned: {
     fontFamily: FONTS.mono,
     fontSize: 15,
     color: C.muted,
     marginLeft: 2,
+    flexShrink: 1,
   },
   track: {
     height: 5,
@@ -72,6 +90,6 @@ const styles = StyleSheet.create({
   fill: {
     height: '100%',
     borderRadius: 999,
-    backgroundColor: C.forest,
+    backgroundColor: WEEKLY_LOAD_ACCENT,
   },
 });

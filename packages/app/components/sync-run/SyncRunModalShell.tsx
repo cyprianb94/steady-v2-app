@@ -33,7 +33,13 @@ export function SyncRunModalShell({
   }
 
   return (
-    <GorhomSheet open={visible} onDismiss={onClose} backgroundColor={C.surface} wrapContent={false}>
+    <GorhomSheet
+      open={visible}
+      onDismiss={onClose}
+      backgroundColor={C.surface}
+      wrapContent={false}
+      footer={bottomBar}
+    >
       <View style={styles.sheet}>
         <View style={styles.navBar}>
           <Pressable onPress={onClose} style={styles.navEdge}>
@@ -56,8 +62,14 @@ export function SyncRunModalShell({
             </Text>
           </Pressable>
         </View>
-        <BottomSheetScrollView contentContainerStyle={styles.scrollContent}>{children}</BottomSheetScrollView>
-        {bottomBar}
+        <BottomSheetScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            bottomBar ? styles.scrollContentWithBottomBar : null,
+          ]}
+        >
+          {children}
+        </BottomSheetScrollView>
       </View>
     </GorhomSheet>
   );
@@ -102,5 +114,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 40,
+  },
+  scrollContentWithBottomBar: {
+    paddingBottom: 136,
   },
 });

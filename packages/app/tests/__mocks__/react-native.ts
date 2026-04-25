@@ -1,17 +1,23 @@
 import React from 'react';
 
 function resolveStyle(style: any): any {
+  if (typeof style?.value === 'number') return style.value;
   if (typeof style === 'function') return resolveStyle(style({ pressed: false }));
   if (Array.isArray(style)) return Object.assign({}, ...style.filter(Boolean).map(resolveStyle));
   if (!style) return {};
+  if (typeof style !== 'object') return style;
   if (Array.isArray(style.transform)) {
     return {
       ...style,
       transform: style.transform
         .map((part: any) => {
           if ('translateY' in part) {
-            const value = typeof part.translateY?.value === 'number' ? part.translateY.value : part.translateY;
+            const value = resolveStyle(part.translateY);
             return `translateY(${Number(value) || 0}px)`;
+          }
+          if ('scaleX' in part) {
+            const value = resolveStyle(part.scaleX);
+            return `scaleX(${Number(value) || 0})`;
           }
           return '';
         })
@@ -19,7 +25,9 @@ function resolveStyle(style: any): any {
         .join(' '),
     };
   }
-  return style;
+  return Object.fromEntries(
+    Object.entries(style).map(([key, value]) => [key, resolveStyle(value)]),
+  );
 }
 
 function createMockComponent(tag: string) {
@@ -68,6 +76,20 @@ class AnimatedValue {
 
   setValue(value: number) {
     this.value = value;
+  }
+
+  stopAnimation() {}
+
+  interpolate({ inputRange, outputRange }: { inputRange: number[]; outputRange: any[] }) {
+    const [inputStart, inputEnd] = inputRange;
+    const [outputStart, outputEnd] = outputRange;
+    const ratio = inputEnd === inputStart ? 0 : (this.value - inputStart) / (inputEnd - inputStart);
+
+    if (typeof outputStart === 'number' && typeof outputEnd === 'number') {
+      return { value: outputStart + ((outputEnd - outputStart) * ratio) };
+    }
+
+    return { value: ratio >= 1 ? outputEnd : outputStart };
   }
 }
 
@@ -156,6 +178,17 @@ export const ScrollView = React.forwardRef(function MockScrollView(
 export const Animated = {
   Value: AnimatedValue,
   View: createMockComponent('Animated.View'),
+  timing: (value: AnimatedValue, config: { toValue: number }) => ({
+    start: (callback?: (result: { finished: boolean }) => void) => {
+      value.setValue(config.toValue);
+      callback?.({ finished: true });
+    },
+  }),
+};
+export const Easing = {
+  cubic: (value: number) => value,
+  out: (fn: (value: number) => number) => fn,
+  in: (fn: (value: number) => number) => fn,
 };
 export const NativeModules = {
   BlobModule: {},
@@ -199,6 +232,12 @@ export const Dimensions = {
 };
 export const AppState = {
   currentState: 'active',
+  addEventListener: () => ({
+    remove: () => {},
+  }),
+};
+export const AccessibilityInfo = {
+  isReduceMotionEnabled: () => Promise.resolve(false),
   addEventListener: () => ({
     remove: () => {},
   }),

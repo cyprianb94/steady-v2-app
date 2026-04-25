@@ -5,6 +5,10 @@ import * as Linking from 'expo-linking';
 import type { AppRouter } from '@steady/server/contracts';
 import { NativeModules } from 'react-native';
 import { getAccessToken } from './auth-session';
+import {
+  isScreenshotDemoMode,
+  screenshotDemoTrpc,
+} from '../demo/screenshot-demo';
 
 type ExpoConstantsShape = {
   linkingUri?: string;
@@ -373,6 +377,10 @@ function getTrpcClient(): AppTrpcClient {
 // until the first real tRPC call.
 export const trpc = new Proxy({} as AppTrpcClient, {
   get(_target, property) {
+    if (isScreenshotDemoMode()) {
+      return Reflect.get(screenshotDemoTrpc, property);
+    }
+
     return Reflect.get(getTrpcClient(), property);
   },
 });

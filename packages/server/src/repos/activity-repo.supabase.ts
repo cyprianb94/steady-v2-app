@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Activity, SubjectiveInput } from '@steady/types';
+import type { Activity, RunFuelEvent, SubjectiveInput } from '@steady/types';
 import type { ActivityRepo } from './activity-repo';
 
 function rowToActivity(row: Record<string, unknown>): Activity {
@@ -20,11 +20,12 @@ function rowToActivity(row: Record<string, unknown>): Activity {
     matchedSessionId: (row.matched_session_id as string) ?? undefined,
     shoeId: (row.shoe_id as string) ?? undefined,
     notes: (row.notes as string) ?? undefined,
+    fuelEvents: (row.fuel_events as RunFuelEvent[]) ?? undefined,
   };
 }
 
 function activityToRow(activity: Activity): Record<string, unknown> {
-  return {
+  const row: Record<string, unknown> = {
     id: activity.id,
     user_id: activity.userId,
     source: activity.source,
@@ -42,6 +43,12 @@ function activityToRow(activity: Activity): Record<string, unknown> {
     shoe_id: activity.shoeId ?? null,
     notes: activity.notes ?? null,
   };
+
+  if (activity.fuelEvents !== undefined) {
+    row.fuel_events = activity.fuelEvents;
+  }
+
+  return row;
 }
 
 export class SupabaseActivityRepo implements ActivityRepo {
@@ -65,7 +72,8 @@ export class SupabaseActivityRepo implements ActivityRepo {
       .eq('id', activityId)
       .maybeSingle();
 
-    if (error || !data) return null;
+    if (error) throw new Error(`Failed to update fuel events: ${error.message}`);
+    if (!data) return null;
     return rowToActivity(data);
   }
 
@@ -132,6 +140,18 @@ export class SupabaseActivityRepo implements ActivityRepo {
     const { data, error } = await this.supabase
       .from('activities')
       .update({ shoe_id: shoeId })
+      .eq('id', activityId)
+      .select()
+      .single();
+
+    if (error || !data) return null;
+    return rowToActivity(data);
+  }
+
+  async updateFuelEvents(activityId: string, fuelEvents: RunFuelEvent[]): Promise<Activity | null> {
+    const { data, error } = await this.supabase
+      .from('activities')
+      .update({ fuel_events: fuelEvents })
       .eq('id', activityId)
       .select()
       .single();

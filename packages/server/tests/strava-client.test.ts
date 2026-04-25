@@ -178,6 +178,7 @@ describe('StravaClient', () => {
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
       id: 'gear-1',
       name: 'Daily',
+      distance: 388206,
       brand_name: 'Nike',
       model_name: 'Pegasus',
       retired: false,
@@ -197,6 +198,7 @@ describe('StravaClient', () => {
       name: 'Daily',
       brand: 'Nike',
       model: 'Pegasus',
+      distanceMeters: 388206,
       retired: false,
     });
     expect(fetchImpl).toHaveBeenCalledWith(

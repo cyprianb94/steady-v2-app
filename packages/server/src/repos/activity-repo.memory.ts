@@ -1,4 +1,4 @@
-import type { Activity, SubjectiveInput } from '@steady/types';
+import type { Activity, RunFuelEvent, SubjectiveInput } from '@steady/types';
 import type { ActivityRepo } from './activity-repo';
 
 export class InMemoryActivityRepo implements ActivityRepo {
@@ -53,6 +53,13 @@ export class InMemoryActivityRepo implements ActivityRepo {
     const activity = this.store.get(activityId);
     if (!activity) return null;
     activity.shoeId = shoeId ?? undefined;
+    return { ...activity };
+  }
+
+  async updateFuelEvents(activityId: string, fuelEvents: RunFuelEvent[]): Promise<Activity | null> {
+    const activity = this.store.get(activityId);
+    if (!activity) return null;
+    activity.fuelEvents = fuelEvents.length ? fuelEvents.map((event) => ({ ...event, gel: { ...event.gel } })) : undefined;
     return { ...activity };
   }
 

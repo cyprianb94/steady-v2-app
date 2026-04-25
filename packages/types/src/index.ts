@@ -44,7 +44,9 @@ export {
   NIGGLE_SEVERITIES,
   NIGGLE_WHEN_OPTIONS,
   formatNiggleBodyPart,
+  formatNiggleWhen,
   formatNiggleSummary,
+  normalizeNiggleWhen,
 } from './niggle';
 export type {
   BodyPart,
@@ -52,13 +54,17 @@ export type {
   NiggleSeverity,
   NiggleSide,
   NiggleWhen,
+  NiggleWhenValue,
 } from './niggle';
 
 export type {
   Activity,
   ActivitySplit,
+  RunFuelEvent,
+  RunFuelGel,
 } from './activity';
 export type { Shoe } from './shoe';
+export { shoeLifetimeKm } from './shoe';
 
 export type { IntegrationToken } from './integration-token';
 export type { StravaSyncMatchSummary, StravaSyncResult } from './strava';

@@ -32,7 +32,7 @@ export function getBlockWeekGuide({
   }
 
   if (!isEditableWeek) {
-    return 'Past weeks are locked. Tap Logged to review synced run details.';
+    return 'Past weeks are locked. Tap a logged session to review synced run details.';
   }
 
   if (hasRescheduleChanges && isRescheduleWeek) {

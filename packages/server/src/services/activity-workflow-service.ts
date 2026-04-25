@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import type { Activity, Niggle, SubjectiveInput, TrainingPlan } from '@steady/types';
+import type { Activity, Niggle, RunFuelEvent, SubjectiveInput, TrainingPlan } from '@steady/types';
 import { applyActivityMatchToPlan } from '../lib/activity-match-assignment';
 import type { ActivityRepo } from '../repos/activity-repo';
 import type { NiggleInput, NiggleRepo } from '../repos/niggle-repo';
@@ -25,6 +25,7 @@ export interface SaveRunDetailInput {
   niggles: NiggleInput[];
   notes?: string;
   shoeId?: string | null;
+  fuelEvents?: RunFuelEvent[];
   matchedSessionId?: string | null;
 }
 
@@ -96,6 +97,43 @@ async function validateShoeOwnership(
       message: 'Selected shoe does not belong to the authenticated user',
     });
   }
+}
+
+function normalizeFuelEvents(activity: Activity, fuelEvents: RunFuelEvent[] | undefined): RunFuelEvent[] {
+  if (!fuelEvents?.length) {
+    return [];
+  }
+
+  const maxMinute = Math.ceil(activity.duration / 60);
+  const seenIds = new Set<string>();
+
+  return fuelEvents
+    .map((event, index) => ({ event, index }))
+    .sort((a, b) => a.event.minute - b.event.minute || a.index - b.index)
+    .map(({ event }) => {
+      if (seenIds.has(event.id)) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Fuel event ids must be unique for a run',
+        });
+      }
+      seenIds.add(event.id);
+
+      if (event.minute > maxMinute) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Fuel event minute is outside the run duration',
+        });
+      }
+
+      return {
+        ...event,
+        gel: {
+          ...event.gel,
+          notes: event.gel.notes?.trim() || undefined,
+        },
+      };
+    });
 }
 
 async function updatePlanWeeksOrThrow(
@@ -216,6 +254,10 @@ export function createActivityWorkflowService(deps: ActivityWorkflowServiceDeps)
 
       try {
         const notes = input.notes?.trim() ? input.notes.trim() : null;
+        const shouldUpdateFuelEvents = input.fuelEvents !== undefined;
+        const fuelEvents = shouldUpdateFuelEvents
+          ? normalizeFuelEvents(existingActivity, input.fuelEvents)
+          : [];
 
         const afterSubjective = await deps.activityRepo.updateSubjectiveInput(input.activityId, input.subjectiveInput);
         if (!afterSubjective) {
@@ -230,6 +272,13 @@ export function createActivityWorkflowService(deps: ActivityWorkflowServiceDeps)
         const afterShoe = await deps.activityRepo.setShoe(input.activityId, input.shoeId ?? null);
         if (!afterShoe) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Activity not found during shoe update' });
+        }
+
+        if (shouldUpdateFuelEvents) {
+          const afterFuelEvents = await deps.activityRepo.updateFuelEvents(input.activityId, fuelEvents);
+          if (!afterFuelEvents) {
+            throw new TRPCError({ code: 'NOT_FOUND', message: 'Activity not found during fuelling update' });
+          }
         }
 
         const savedNiggles = await deps.niggleRepo.setForActivity(input.activityId, input.niggles);
@@ -257,15 +306,19 @@ export function createActivityWorkflowService(deps: ActivityWorkflowServiceDeps)
           niggles: savedNiggles,
         };
       } catch (error) {
-        await deps.activityRepo.save(previousActivity);
-        await deps.niggleRepo.setForActivity(
-          input.activityId,
-          previousNiggles.map(stripNigglePersistenceFields),
-        );
+        const rollbackTasks: Promise<unknown>[] = [
+          deps.activityRepo.save(previousActivity),
+          deps.niggleRepo.setForActivity(
+            input.activityId,
+            previousNiggles.map(stripNigglePersistenceFields),
+          ),
+        ];
 
         if (activePlan && previousWeeks) {
-          await deps.planRepo.updateWeeks(activePlan.id, previousWeeks);
+          rollbackTasks.push(deps.planRepo.updateWeeks(activePlan.id, previousWeeks));
         }
+
+        await Promise.allSettled(rollbackTasks);
 
         throw error;
       }

@@ -2,6 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import type { CrossTrainingEntry, Injury, TrainingPlanWithAnnotation } from '@steady/types';
 import { trpc } from '../../lib/trpc';
 import { logNonNetworkError } from '../../lib/network-errors';
+import {
+  getScreenshotDemoCrossTrainingEntries,
+  isScreenshotDemoMode,
+} from '../../demo/screenshot-demo';
 
 export type RecoveryDataScope =
   | { type: 'week'; weekStartDate: string }
@@ -40,6 +44,17 @@ export function useRecoveryData({
   const recoveryInjury = injury === undefined ? activeInjury : injury;
   const visibleActiveInjury =
     recoveryInjury && recoveryInjury.status !== 'resolved' ? recoveryInjury : null;
+
+  if (isScreenshotDemoMode()) {
+    return {
+      activeInjury: visibleActiveInjury,
+      isRecoveryActive: Boolean(visibleActiveInjury),
+      entries: getScreenshotDemoCrossTrainingEntries(),
+      isLoadingEntries: false,
+      refreshEntries: async () => {},
+    };
+  }
+
   const [entries, setEntries] = useState<CrossTrainingEntry[]>([]);
   const [isLoadingEntries, setIsLoadingEntries] = useState(false);
   const scopeType = scope?.type ?? null;

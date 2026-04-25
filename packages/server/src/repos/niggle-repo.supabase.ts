@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Niggle } from '@steady/types';
+import { normalizeNiggleWhen, type Niggle, type NiggleWhenValue } from '@steady/types';
 import type { NiggleInput, NiggleRepo } from './niggle-repo';
 
 function rowToNiggle(row: Record<string, unknown>): Niggle {
@@ -10,7 +10,7 @@ function rowToNiggle(row: Record<string, unknown>): Niggle {
     bodyPart: row.body_part as Niggle['bodyPart'],
     bodyPartOtherText: (row.body_part_other_text as Niggle['bodyPartOtherText']) ?? undefined,
     severity: row.severity as Niggle['severity'],
-    when: row.niggle_when as Niggle['when'],
+    when: normalizeNiggleWhen(row.niggle_when as NiggleWhenValue),
     side: (row.side as Niggle['side']) ?? null,
     createdAt: row.created_at as string,
   };

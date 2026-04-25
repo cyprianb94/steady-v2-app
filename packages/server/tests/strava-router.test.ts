@@ -217,6 +217,25 @@ describe('strava router', () => {
       splits: [{ km: 1, pace: 303 }],
       matchedSessionId: 'w1d0',
       notes: 'keep this note',
+      fuelEvents: [
+        {
+          id: 'fuel-1',
+          minute: 35,
+          gel: {
+            id: 'precision-fuel-and-hydration-pf-30-gel-original',
+            brand: 'Precision Fuel & Hydration',
+            name: 'PF 30 Gel',
+            flavour: 'Original',
+            caloriesKcal: 120,
+            carbsG: 30,
+            caffeineMg: 0,
+            sodiumMg: 0,
+            potassiumMg: 0,
+            magnesiumMg: 0,
+            imageUrl: null,
+          },
+        },
+      ],
     });
 
     stravaClient = {
@@ -275,11 +294,10 @@ describe('strava router', () => {
       distance: 7.605,
       matchedSessionId: 'w1d0',
       notes: 'keep this note',
+      fuelEvents: [{ id: 'fuel-1', minute: 35 }],
     });
-    expect(refreshed.splits[0]).toMatchObject({ km: 1, pace: 300, hr: 150, distance: 1 });
-    expect(refreshed.splits[0]?.label).toBeUndefined();
-    expect(refreshed.splits[1]).toMatchObject({ km: 2, pace: 318, hr: 156, distance: 1 });
-    expect(refreshed.splits[1]?.label).toBeUndefined();
+    expect(refreshed.splits[0]).toMatchObject({ km: 1, pace: 360, hr: 135, distance: 2, label: '2 km' });
+    expect(refreshed.splits[1]).toMatchObject({ km: 2, pace: 220, hr: 174, distance: 0.4, label: '400m' });
   });
 
   it('rejects unauthenticated requests', async () => {

@@ -9,6 +9,7 @@ const {
   mockRouterReplace,
   mockUseLocalSearchParams,
   mockActivityGet,
+  mockActivityList,
   mockShoeList,
   mockSaveRunDetail,
   mockRefreshActivity,
@@ -17,6 +18,7 @@ const {
   mockRouterReplace: vi.fn(),
   mockUseLocalSearchParams: vi.fn<() => { activityId: string | string[] }>(() => ({ activityId: 'activity-1' })),
   mockActivityGet: vi.fn(),
+  mockActivityList: vi.fn(),
   mockShoeList: vi.fn(),
   mockSaveRunDetail: vi.fn(),
   mockRefreshActivity: vi.fn(),
@@ -65,6 +67,9 @@ vi.mock('../lib/trpc', () => ({
       get: {
         query: mockActivityGet,
       },
+      list: {
+        query: mockActivityList,
+      },
       saveRunDetail: {
         mutate: mockSaveRunDetail,
       },
@@ -91,6 +96,7 @@ describe('SyncRunDetailScreen', () => {
     mockUseLocalSearchParams.mockReset();
     mockUseLocalSearchParams.mockReturnValue({ activityId: 'activity-1' });
     mockActivityGet.mockReset();
+    mockActivityList.mockReset();
     mockShoeList.mockReset();
     mockSaveRunDetail.mockReset();
     mockRefreshActivity.mockReset();
@@ -111,6 +117,7 @@ describe('SyncRunDetailScreen', () => {
     mockRefreshPlan.mockReset();
     mockRefreshPlan.mockResolvedValue(undefined);
     mockShoeList.mockResolvedValue([]);
+    mockActivityList.mockResolvedValue([]);
     mockActivityGet.mockResolvedValue({
       id: 'activity-1',
       source: 'strava',
@@ -259,7 +266,7 @@ describe('SyncRunDetailScreen', () => {
 
     render(<SyncRunDetailScreen />);
 
-    expect(await screen.findByText('EASY · MATCHED TO TODAY')).toBeTruthy();
+    expect(await screen.findByText('Matched to 8km Easy Run')).toBeTruthy();
     expect(screen.getByText('8km Easy Run')).toBeTruthy();
   });
 
@@ -297,7 +304,7 @@ describe('SyncRunDetailScreen', () => {
         await Promise.resolve();
       });
 
-      expect(screen.getByText('EASY · MATCHED TO TODAY')).toBeTruthy();
+      expect(screen.getByText('Matched to 8km Easy Run')).toBeTruthy();
       expect(screen.getByText('8km Easy Run')).toBeTruthy();
     } finally {
       timezoneOffsetSpy.mockRestore();
@@ -336,8 +343,8 @@ describe('SyncRunDetailScreen', () => {
 
     render(<SyncRunDetailScreen />);
 
-    expect(await screen.findByText('UNMATCHED · BONUS RUN')).toBeTruthy();
-    expect(screen.getByText("Didn't match a planned session")).toBeTruthy();
+    expect((await screen.findAllByText('Bonus run')).length).toBeGreaterThan(0);
+    expect(screen.getByText('No planned session matched')).toBeTruthy();
   });
 
   it('shows the slot-corrected weekday for stale session dates in the match picker', async () => {
@@ -381,8 +388,10 @@ describe('SyncRunDetailScreen', () => {
         await Promise.resolve();
       });
 
-      fireEvent.click(screen.getByText('LONG · MATCHED TO TODAY'));
+      fireEvent.click(screen.getByText('Matched to 20km Long Run'));
 
+      expect(screen.getByText('Change match')).toBeTruthy();
+      expect(screen.getByText('Match this run to the plan')).toBeTruthy();
       expect(screen.getByText(`${expectedDay} · 10km Tempo`)).toBeTruthy();
       expect(screen.queryByText(`${staleDay} · 10km Tempo`)).toBeNull();
     } finally {
@@ -428,8 +437,9 @@ describe('SyncRunDetailScreen', () => {
         await Promise.resolve();
       });
 
-      fireEvent.click(screen.getByText('EASY · MATCHED TO TODAY'));
+      fireEvent.click(screen.getByText('Matched to 8km Easy Run'));
 
+      expect(screen.getByText('Change match')).toBeTruthy();
       expect(screen.getByText('Today · 8km Easy Run')).toBeTruthy();
       expect(screen.getByText('Mon · 8km Easy Run')).toBeTruthy();
       expect(screen.getByText('Thu · 5×800m Intervals')).toBeTruthy();
@@ -440,7 +450,7 @@ describe('SyncRunDetailScreen', () => {
     }
   });
 
-  it('keeps shoe selection below feel, removes the placeholder shoe art, and hides manual Strava re-sync', async () => {
+  it('keeps shoe selection below feel, puts notes last, removes placeholder shoe art, and hides manual Strava re-sync', async () => {
     mockActivityGet.mockResolvedValue({
       id: 'activity-1',
       source: 'strava',
@@ -460,6 +470,7 @@ describe('SyncRunDetailScreen', () => {
         brand: 'Nike',
         model: 'Pegasus 40',
         stravaGearId: 'gear-1',
+        stravaDistanceKm: 721.4,
         retired: false,
         retireAtKm: 800,
         totalKm: 312,
@@ -473,8 +484,13 @@ describe('SyncRunDetailScreen', () => {
     await screen.findByText('Run detail');
 
     const bodyText = document.body.textContent ?? '';
-    expect(bodyText.indexOf('How did it feel?')).toBeLessThan(bodyText.indexOf('Shoe'));
-    expect(bodyText.indexOf('Shoe')).toBeLessThan(bodyText.indexOf('Notes'));
+    expect(bodyText.indexOf('How did it feel?')).toBeLessThan(bodyText.indexOf('Shoes'));
+    expect(bodyText.indexOf('Shoes')).toBeLessThan(bodyText.indexOf('Fuelling'));
+    expect(bodyText.indexOf('Fuelling')).toBeLessThan(bodyText.indexOf('Niggles'));
+    expect(bodyText.indexOf('Niggles')).toBeLessThan(bodyText.indexOf('Notes'));
+    expect(bodyText.indexOf('Pair used for this run')).toBeGreaterThan(bodyText.indexOf('Shoes'));
+    expect(await screen.findByText('Lifetime')).toBeTruthy();
+    expect(screen.getByText('721 km')).toBeTruthy();
     expect(screen.queryByText('Re-sync from Strava')).toBeNull();
     expect(screen.queryByText('👟')).toBeNull();
 
@@ -524,6 +540,7 @@ describe('SyncRunDetailScreen', () => {
     fireEvent.click(await screen.findByText('Hamstring'));
     fireEvent.click(screen.getByText('Left'));
     fireEvent.click(screen.getByText('Mild'));
+    fireEvent.click(screen.getByText('Before'));
     fireEvent.click(screen.getByText('During'));
     fireEvent.click(screen.getByText('Add niggle'));
 
@@ -536,10 +553,135 @@ describe('SyncRunDetailScreen', () => {
       expect(mockSaveRunDetail).toHaveBeenCalledWith(expect.objectContaining({
         shoeId: 'shoe-1',
         niggles: [
-          { bodyPart: 'hamstring', side: 'left', severity: 'mild', when: 'during' },
+          { bodyPart: 'hamstring', side: 'left', severity: 'mild', when: ['before', 'during'] },
         ],
       }));
     });
+  });
+
+  it('adds a gel by minute and includes fuelling in the run-detail save', async () => {
+    mockActivityGet.mockResolvedValue({
+      id: 'activity-1',
+      source: 'strava',
+      startTime: '2026-04-15T07:15:00.000Z',
+      distance: 8.2,
+      duration: 2650,
+      avgPace: 323,
+      avgHR: 148,
+      splits: [],
+      matchedSessionId: null,
+      niggles: [],
+    });
+
+    render(<SyncRunDetailScreen />);
+
+    await screen.findByText('Run detail');
+
+    fireEvent.click(screen.getByText('+ Add gel'));
+    fireEvent.click(screen.getByText('Precision Fuel & Hydration'));
+    fireEvent.click(screen.getByText('PF 30 Gel'));
+    fireEvent.click(screen.getByText('Add at 30 min'));
+
+    expect(screen.getByText('30 min')).toBeTruthy();
+    expect(screen.getAllByText('PF 30 Gel').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByText('Fresh'));
+    fireEvent.click(screen.getByText('Easy'));
+    fireEvent.click(screen.getByText('Could go again'));
+    fireEvent.click(await screen.findByText('Save run'));
+
+    await waitFor(() => {
+      expect(mockSaveRunDetail).toHaveBeenCalledWith(expect.objectContaining({
+        fuelEvents: [
+          expect.objectContaining({
+            minute: 30,
+            gel: expect.objectContaining({
+              brand: 'Precision Fuel & Hydration',
+              name: 'PF 30 Gel',
+              carbsG: 30,
+            }),
+          }),
+        ],
+      }));
+    });
+  });
+
+  it('shows a fuelling migration-specific save error when the database column is missing', async () => {
+    mockActivityGet.mockResolvedValue({
+      id: 'activity-1',
+      source: 'strava',
+      startTime: '2026-04-15T07:15:00.000Z',
+      distance: 8.2,
+      duration: 2650,
+      avgPace: 323,
+      avgHR: 148,
+      splits: [],
+      matchedSessionId: null,
+      niggles: [],
+    });
+    mockSaveRunDetail.mockRejectedValue(new Error('Failed to update fuel events: column activities.fuel_events does not exist'));
+
+    render(<SyncRunDetailScreen />);
+
+    await screen.findByText('Run detail');
+
+    fireEvent.click(screen.getByText('+ Add gel'));
+    fireEvent.click(screen.getByText('PF 30 Gel'));
+    fireEvent.click(screen.getByText('Add at 30 min'));
+    fireEvent.click(screen.getByText('Fresh'));
+    fireEvent.click(screen.getByText('Easy'));
+    fireEvent.click(screen.getByText('Could go again'));
+    fireEvent.click(await screen.findByText('Save run'));
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Could not save fuelling',
+        'The database is missing the fuelling column. Apply the latest migration, then retry.',
+      );
+    });
+    expect(screen.getByText('Fuelling storage is not ready yet. Apply the latest database migration, then retry. Your notes and selections are still here.')).toBeTruthy();
+  });
+
+  it('keeps brands chosen during fuelling edits pinned as quick chips', async () => {
+    mockActivityGet.mockResolvedValue({
+      id: 'activity-1',
+      source: 'strava',
+      startTime: '2026-04-15T07:15:00.000Z',
+      distance: 8.2,
+      duration: 2650,
+      avgPace: 323,
+      avgHR: 148,
+      splits: [],
+      matchedSessionId: null,
+      niggles: [],
+    });
+
+    render(<SyncRunDetailScreen />);
+
+    await screen.findByText('Run detail');
+
+    fireEvent.click(screen.getByText('+ Add gel'));
+    fireEvent.click(screen.getByText('Browse brands'));
+    expect(screen.getByText('Brand catalogue')).toBeTruthy();
+    fireEvent.click(screen.getByText('⌃'));
+    expect(screen.queryByText('Brand catalogue')).toBeNull();
+
+    fireEvent.click(screen.getByText('Browse brands'));
+    fireEvent.click(screen.getByText('Cadence'));
+    expect(screen.getByText('Cadence')).toBeTruthy();
+    expect(screen.getByText('Precision Fuel & Hydration')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Core Gel'));
+    fireEvent.click(screen.getByText('Add at 30 min'));
+
+    fireEvent.click(screen.getByText('Precision Fuel & Hydration'));
+    expect(screen.getByText('Cadence')).toBeTruthy();
+    fireEvent.click(screen.getByText('PF 30 Gel'));
+    fireEvent.click(screen.getByText('Add at 45 min'));
+
+    expect(screen.getByText('30 min')).toBeTruthy();
+    expect(screen.getAllByText('45 min').length).toBeGreaterThan(0);
+    expect(screen.getByText('Cadence')).toBeTruthy();
   });
 
   it('requires custom text for Other niggles and saves it once provided', async () => {
@@ -590,7 +732,7 @@ describe('SyncRunDetailScreen', () => {
             bodyPartOtherText: 'Upper calf',
             side: 'left',
             severity: 'mild',
-            when: 'during',
+            when: ['during'],
           },
         ],
       }));

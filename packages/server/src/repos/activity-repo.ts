@@ -1,4 +1,4 @@
-import type { Activity, SubjectiveInput } from '@steady/types';
+import type { Activity, RunFuelEvent, SubjectiveInput } from '@steady/types';
 
 export interface ActivityRepo {
   getByUserId(userId: string): Promise<Activity[]>;
@@ -9,5 +9,6 @@ export interface ActivityRepo {
   updateSubjectiveInput(activityId: string, input: SubjectiveInput): Promise<Activity | null>;
   updateNotes(activityId: string, notes: string | null): Promise<Activity | null>;
   setShoe(activityId: string, shoeId: string | null): Promise<Activity | null>;
+  updateFuelEvents(activityId: string, fuelEvents: RunFuelEvent[]): Promise<Activity | null>;
   updateMatchedSession(activityId: string, sessionId: string | null): Promise<Activity | null>;
 }

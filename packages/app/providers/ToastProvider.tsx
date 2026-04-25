@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C } from '../constants/colours';
 import { FONTS } from '../constants/typography';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 type ToastTone = 'success' | 'error' | 'neutral';
 
@@ -41,15 +42,61 @@ function toneStyles(tone: ToastTone) {
 export function ToastProvider({ children }: React.PropsWithChildren) {
   const insets = useSafeAreaInsets();
   const [toast, setToast] = useState<ToastState | null>(null);
+  const reducedMotion = useReducedMotion();
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(-8)).current;
 
   useEffect(() => {
     if (!toast) return;
+    const id = toast.id;
+
+    opacity.stopAnimation();
+    translateY.stopAnimation();
+
+    if (reducedMotion) {
+      opacity.setValue(1);
+      translateY.setValue(0);
+    } else {
+      opacity.setValue(0);
+      translateY.setValue(-8);
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 180,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 180,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    }
+
     const timeoutId = setTimeout(() => {
-      setToast((current) => (current?.id === toast.id ? null : current));
+      if (reducedMotion) {
+        setToast((current) => (current?.id === id ? null : current));
+        return;
+      }
+
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 160,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }).start(() => {
+        setToast((current) => (current?.id === id ? null : current));
+      });
+      Animated.timing(translateY, {
+        toValue: -6,
+        duration: 160,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
     }, 2800);
 
     return () => clearTimeout(timeoutId);
-  }, [toast]);
+  }, [opacity, reducedMotion, toast, translateY]);
 
   return (
     <ToastContext.Provider
@@ -65,12 +112,16 @@ export function ToastProvider({ children }: React.PropsWithChildren) {
     >
       {children}
       {toast ? (
-        <View
+        <Animated.View
           pointerEvents="none"
           style={[
             styles.wrapper,
             {
               top: insets.top + 12,
+            },
+            {
+              opacity,
+              transform: [{ translateY }],
             },
           ]}
         >
@@ -84,7 +135,7 @@ export function ToastProvider({ children }: React.PropsWithChildren) {
               {toast.message}
             </Text>
           </View>
-        </View>
+        </Animated.View>
       ) : null}
     </ToastContext.Provider>
   );

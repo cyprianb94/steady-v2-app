@@ -113,6 +113,41 @@ function runActivityRepoTests(name: string, createRepo: () => ActivityRepo) {
       });
     });
 
+    it('updates fuel events on an activity', async () => {
+      const activity = makeActivity('user-1');
+      await repo.save(activity);
+
+      const updated = await repo.updateFuelEvents(activity.id, [
+        {
+          id: 'fuel-1',
+          minute: 35,
+          gel: {
+            id: 'precision-fuel-and-hydration-pf-30-gel-original',
+            brand: 'Precision Fuel & Hydration',
+            name: 'PF 30 Gel',
+            flavour: 'Original',
+            caloriesKcal: 120,
+            carbsG: 30,
+            caffeineMg: 0,
+            sodiumMg: 0,
+            potassiumMg: 0,
+            magnesiumMg: 0,
+            imageUrl: null,
+          },
+        },
+      ]);
+
+      expect(updated).toMatchObject({
+        fuelEvents: [{ id: 'fuel-1', minute: 35 }],
+      });
+
+      await repo.updateFuelEvents(activity.id, []);
+
+      expect(await repo.getById(activity.id)).toMatchObject({
+        fuelEvents: undefined,
+      });
+    });
+
     it('isolates activities between users', async () => {
       await repo.save(makeActivity('user-1'));
       await repo.save(makeActivity('user-2'));

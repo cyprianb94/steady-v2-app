@@ -8,18 +8,26 @@ const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(TEST_DIR, '../../..');
 const MIGRATIONS_DIR = path.join(REPO_ROOT, 'supabase', 'migrations');
 
-async function loadShoesMigration(): Promise<string> {
+async function loadMigrationBySuffix(suffix: string): Promise<string> {
   const entries = await readdir(MIGRATIONS_DIR);
   const filename = entries
-    .filter((entry) => entry.endsWith('_create_shoes.sql'))
+    .filter((entry) => entry.endsWith(suffix))
     .sort()
     .at(-1);
 
   if (!filename) {
-    throw new Error('Could not find the create shoes migration');
+    throw new Error(`Could not find migration ending in ${suffix}`);
   }
 
   return readFile(path.join(MIGRATIONS_DIR, filename), 'utf8');
+}
+
+async function loadShoesMigration(): Promise<string> {
+  return loadMigrationBySuffix('_create_shoes.sql');
+}
+
+async function loadShoeStravaDistanceMigration(): Promise<string> {
+  return loadMigrationBySuffix('_add_shoe_strava_distance.sql');
 }
 
 describe('create_shoes migration', () => {
@@ -38,18 +46,20 @@ describe('create_shoes migration', () => {
     `);
 
     await db.exec(await loadShoesMigration());
+    await db.exec(await loadShoeStravaDistanceMigration());
 
     const columns = await db.query(`
       select table_name, column_name
       from information_schema.columns
       where table_name in ('shoes', 'activities')
-        and column_name in ('strava_gear_id', 'shoe_id', 'retire_at_km')
+        and column_name in ('strava_gear_id', 'strava_distance_km', 'shoe_id', 'retire_at_km')
       order by table_name asc, column_name asc
     `);
 
     expect(columns.rows).toEqual([
       { table_name: 'activities', column_name: 'shoe_id' },
       { table_name: 'shoes', column_name: 'retire_at_km' },
+      { table_name: 'shoes', column_name: 'strava_distance_km' },
       { table_name: 'shoes', column_name: 'strava_gear_id' },
     ]);
 

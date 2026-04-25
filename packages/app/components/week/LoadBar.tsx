@@ -6,6 +6,7 @@ import { FONTS } from '../../constants/typography';
 import type { PlanWeek } from '@steady/types';
 import { usePreferences } from '../../providers/preferences-context';
 import { formatDistance } from '../../lib/units';
+import { AnimatedProgressFill } from '../ui/AnimatedProgressFill';
 
 interface LoadBarProps {
   week: PlanWeek;
@@ -14,7 +15,7 @@ interface LoadBarProps {
 
 export function LoadBar({ week, maxKm }: LoadBarProps) {
   const { units } = usePreferences();
-  const pct = maxKm > 0 ? Math.round((week.plannedKm / maxKm) * 100) : 0;
+  const pct = maxKm > 0 ? week.plannedKm / maxKm : 0;
   const color = PHASE_COLOR[week.phase] || C.clay;
 
   return (
@@ -26,7 +27,7 @@ export function LoadBar({ week, maxKm }: LoadBarProps) {
         </View>
       </View>
       <View style={styles.barBg}>
-        <View style={[styles.barFg, { width: `${pct}%`, backgroundColor: color }]} />
+        <AnimatedProgressFill progress={pct} fillStyle={[styles.barFg, { backgroundColor: color }]} />
       </View>
     </View>
   );

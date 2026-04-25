@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 import { todayIsoLocal } from '../lib/plan-helpers';
+import {
+  SCREENSHOT_DEMO_TODAY,
+  isScreenshotDemoMode,
+} from '../demo/screenshot-demo';
 
 function msUntilNextLocalMidnight(now: Date = new Date()): number {
   const nextMidnight = new Date(now);
@@ -9,6 +13,10 @@ function msUntilNextLocalMidnight(now: Date = new Date()): number {
 }
 
 export function useTodayIso(): string {
+  if (isScreenshotDemoMode()) {
+    return SCREENSHOT_DEMO_TODAY;
+  }
+
   const [today, setToday] = useState(() => todayIsoLocal());
 
   useEffect(() => {

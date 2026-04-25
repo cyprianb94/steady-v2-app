@@ -14,11 +14,20 @@ const SubjectiveInputSchema = z.object({
   overall: z.enum(['could-go-again', 'done', 'shattered']),
 });
 
+const NiggleWhenSchema = z.union([
+  z.enum(NIGGLE_WHEN_OPTIONS).transform((value) => [value]),
+  z.array(z.enum(NIGGLE_WHEN_OPTIONS))
+    .min(1)
+    .max(NIGGLE_WHEN_OPTIONS.length)
+    .refine((values) => new Set(values).size === values.length, 'Choose each when option once')
+    .transform((values) => NIGGLE_WHEN_OPTIONS.filter((option) => values.includes(option))),
+]);
+
 const NiggleInputSchema = z.object({
   bodyPart: z.enum(BODY_PARTS),
   bodyPartOtherText: z.string().trim().min(1).max(NIGGLE_OTHER_BODY_PART_MAX_LENGTH).optional().nullable(),
   severity: z.enum(NIGGLE_SEVERITIES),
-  when: z.enum(NIGGLE_WHEN_OPTIONS),
+  when: NiggleWhenSchema,
   side: z.enum(['left', 'right']).nullable(),
 }).superRefine((value, ctx) => {
   if (value.bodyPart === 'other' && !value.bodyPartOtherText) {
@@ -38,12 +47,34 @@ const NiggleInputSchema = z.object({
   }
 });
 
+const FuelGelSchema = z.object({
+  id: z.string().min(1).max(160),
+  brand: z.string().trim().min(1).max(120),
+  name: z.string().trim().min(1).max(160),
+  flavour: z.string().trim().min(1).max(120),
+  caloriesKcal: z.number().int().nonnegative().nullable(),
+  carbsG: z.number().nonnegative().nullable(),
+  caffeineMg: z.number().int().nonnegative().nullable(),
+  sodiumMg: z.number().int().nonnegative().nullable(),
+  potassiumMg: z.number().int().nonnegative().nullable(),
+  magnesiumMg: z.number().int().nonnegative().nullable(),
+  imageUrl: z.string().trim().url().nullable(),
+  notes: z.string().trim().max(500).optional(),
+});
+
+const FuelEventSchema = z.object({
+  id: z.string().min(1).max(80),
+  minute: z.number().int().nonnegative(),
+  gel: FuelGelSchema,
+});
+
 const SaveRunDetailSchema = z.object({
   activityId: z.string().uuid(),
   subjectiveInput: SubjectiveInputSchema,
   niggles: z.array(NiggleInputSchema),
   notes: z.string().optional(),
   shoeId: z.string().min(1).nullable().optional(),
+  fuelEvents: z.array(FuelEventSchema).max(50).optional(),
   matchedSessionId: z.string().nullable().optional(),
 });
 

@@ -49,14 +49,14 @@ export function MatchPickerModal({
   return (
     <SyncRunModalShell
       visible={visible}
-      title="Match run"
+      title="Change match"
       onClose={onClose}
-      rightActionLabel="Confirm"
+      rightActionLabel="Done"
       onRightAction={onConfirm}
     >
-      <Text style={styles.screenTitle}>Which session was this?</Text>
+      <Text style={styles.screenTitle}>Match this run to the plan</Text>
       <Text style={styles.screenSub}>
-        Pick the planned session this run belonged to, or mark it as a bonus run.
+        Choose the planned session this run belongs to, or keep it as a bonus run.
       </Text>
 
       <View style={styles.runSummary}>
@@ -74,17 +74,17 @@ export function MatchPickerModal({
         </View>
       </View>
 
-      <Text style={styles.groupLabel}>This week</Text>
+      <Text style={styles.groupLabel}>Planned sessions</Text>
       {sessionOptions.map((session) => {
         const selected = selectedSessionId === session.id;
         const selectable = isSessionSelectable(session, activity.id);
         const tag = !selectable
           ? 'TAKEN'
           : session.id === recommendedSessionId
-            ? 'AUTO'
+            ? 'SUGGESTED'
             : session.id === todaySessionId
               ? 'TODAY'
-              : 'MISSED';
+              : 'PAST';
 
         return (
           <Pressable
@@ -113,9 +113,9 @@ export function MatchPickerModal({
               style={[
                 styles.optionTag,
                 tag === 'TAKEN' && styles.optionTagTaken,
-                tag === 'AUTO' && styles.optionTagAuto,
+                tag === 'SUGGESTED' && styles.optionTagSuggested,
                 tag === 'TODAY' && styles.optionTagToday,
-                tag === 'MISSED' && styles.optionTagMissed,
+                tag === 'PAST' && styles.optionTagPast,
               ]}
             >
               {tag}
@@ -125,7 +125,7 @@ export function MatchPickerModal({
       })}
 
       <View style={styles.divider} />
-      <Text style={styles.groupLabel}>No session</Text>
+      <Text style={styles.groupLabel}>Keep unmatched</Text>
       <Pressable
         onPress={() => onSelect(null)}
         style={[styles.option, selectedSessionId == null && styles.optionSelected]}
@@ -135,9 +135,9 @@ export function MatchPickerModal({
         </View>
         <View style={styles.optionBody}>
           <Text style={styles.optionTitle}>Bonus run</Text>
-          <Text style={styles.optionSub}>Log as extra mileage with no plan attached</Text>
+          <Text style={styles.optionSub}>Keep this run as extra mileage with no planned session attached</Text>
         </View>
-        <Text style={[styles.optionTag, styles.optionTagNeutral]}>NEUTRAL</Text>
+        <Text style={[styles.optionTag, styles.optionTagNeutral]}>BONUS</Text>
       </Pressable>
     </SyncRunModalShell>
   );
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     overflow: 'hidden',
   },
-  optionTagAuto: {
+  optionTagSuggested: {
     color: C.surface,
     backgroundColor: C.forest,
   },
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     color: C.surface,
     backgroundColor: C.navy,
   },
-  optionTagMissed: {
+  optionTagPast: {
     color: C.surface,
     backgroundColor: C.clay,
   },

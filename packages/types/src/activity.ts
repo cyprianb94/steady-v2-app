@@ -1,6 +1,27 @@
 import type { Niggle } from './niggle';
 import type { SubjectiveInput } from './session';
 
+export interface RunFuelGel {
+  id: string;
+  brand: string;
+  name: string;
+  flavour: string;
+  caloriesKcal: number | null;
+  carbsG: number | null;
+  caffeineMg: number | null;
+  sodiumMg: number | null;
+  potassiumMg: number | null;
+  magnesiumMg: number | null;
+  imageUrl: string | null;
+  notes?: string;
+}
+
+export interface RunFuelEvent {
+  id: string;
+  minute: number;
+  gel: RunFuelGel;
+}
+
 export interface ActivitySplit {
   km: number; // 1-indexed
   pace: number; // seconds per km
@@ -42,4 +63,7 @@ export interface Activity {
 
   // Persisted niggles attached to this activity
   niggles?: Niggle[];
+
+  // Gels consumed during this run, logged by minute from run start
+  fuelEvents?: RunFuelEvent[];
 }

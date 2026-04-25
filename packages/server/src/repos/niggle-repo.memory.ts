@@ -1,4 +1,4 @@
-import type { Niggle } from '@steady/types';
+import { normalizeNiggleWhen, type Niggle } from '@steady/types';
 import type { ActivityRepo } from './activity-repo';
 import type { NiggleInput, NiggleRepo } from './niggle-repo';
 
@@ -21,7 +21,7 @@ export class InMemoryNiggleRepo implements NiggleRepo {
       bodyPart: niggle.bodyPart,
       bodyPartOtherText: niggle.bodyPart === 'other' ? niggle.bodyPartOtherText ?? null : undefined,
       severity: niggle.severity,
-      when: niggle.when,
+      when: normalizeNiggleWhen(niggle.when),
       side: niggle.side,
       createdAt: new Date(baseTime + index).toISOString(),
     }));

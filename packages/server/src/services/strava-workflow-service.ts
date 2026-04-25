@@ -175,6 +175,7 @@ function mapActivity(userId: string, activity: StravaActivity, existing?: Activi
     matchedSessionId: existing?.matchedSessionId,
     shoeId: existing?.shoeId,
     notes: existing?.notes,
+    fuelEvents: existing?.fuelEvents,
   };
 }
 
@@ -212,6 +213,9 @@ function mapGearToShoe(userId: string, gear: StravaGear): Omit<Shoe, 'totalKm'> 
     id: crypto.randomUUID(),
     userId,
     stravaGearId: gear.id,
+    stravaDistanceKm: typeof gear.distanceMeters === 'number' && Number.isFinite(gear.distanceMeters)
+      ? Number((gear.distanceMeters / 1000).toFixed(3))
+      : undefined,
     brand: gear.brand,
     model: gear.model,
     nickname: gear.name,

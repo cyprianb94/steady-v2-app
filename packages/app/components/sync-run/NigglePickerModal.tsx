@@ -34,7 +34,7 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
   const [bodyPartOtherText, setBodyPartOtherText] = useState('');
   const [side, setSide] = useState<NiggleSide>(null);
   const [severity, setSeverity] = useState<NiggleSeverity | null>(null);
-  const [when, setWhen] = useState<NiggleWhen | null>(null);
+  const [when, setWhen] = useState<NiggleWhen[]>([]);
   const trimmedOtherText = bodyPartOtherText.trim();
 
   useEffect(() => {
@@ -43,11 +43,23 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
       setBodyPartOtherText('');
       setSide(null);
       setSeverity(null);
-      setWhen(null);
+      setWhen([]);
     }
   }, [visible]);
 
-  const canAdd = Boolean(bodyPart && severity && when && (bodyPart !== 'other' || trimmedOtherText));
+  const canAdd = Boolean(bodyPart && severity && when.length > 0 && (bodyPart !== 'other' || trimmedOtherText));
+
+  function toggleWhen(option: NiggleWhen) {
+    setWhen((current) => {
+      const selected = new Set(current);
+      if (selected.has(option)) {
+        selected.delete(option);
+      } else {
+        selected.add(option);
+      }
+      return NIGGLE_WHEN_OPTIONS.filter((whenOption) => selected.has(whenOption));
+    });
+  }
 
   return (
     <SyncRunModalShell
@@ -59,7 +71,7 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
         <View style={styles.bottomBar}>
           <Pressable
             onPress={() => {
-              if (!bodyPart || !severity || !when || (bodyPart === 'other' && !trimmedOtherText)) {
+              if (!bodyPart || !severity || when.length === 0 || (bodyPart === 'other' && !trimmedOtherText)) {
                 return;
               }
               onAdd({
@@ -67,7 +79,7 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
                 bodyPartOtherText: bodyPart === 'other' ? trimmedOtherText : undefined,
                 side,
                 severity,
-                when,
+                when: [...when],
               });
             }}
             style={[styles.addButton, !canAdd && styles.addButtonDisabled]}
@@ -167,11 +179,11 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
         <Text style={styles.blockLabel}>When</Text>
         <View style={styles.whenRow}>
           {NIGGLE_WHEN_OPTIONS.map((option) => {
-            const selected = when === option;
+            const selected = when.includes(option);
             return (
               <Pressable
                 key={option}
-                onPress={() => setWhen(option)}
+                onPress={() => toggleWhen(option)}
                 style={[styles.whenPill, selected && styles.whenPillSelected]}
               >
                 <Text style={[styles.whenPillText, selected && styles.whenPillTextSelected]}>

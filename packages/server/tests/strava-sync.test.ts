@@ -211,17 +211,19 @@ describe('strava workflow service — sync', () => {
     });
     expect(activities[0].splits[0]).toMatchObject({
       km: 1,
-      pace: 300,
-      hr: 148,
-      elevation: 5,
-      distance: 1,
+      pace: 360,
+      hr: 135,
+      elevation: 8,
+      distance: 2,
+      label: '2 km',
     });
     expect(activities[0].splits[1]).toMatchObject({
       km: 2,
-      pace: 310,
-      hr: 151,
-      elevation: -2,
-      distance: 1,
+      pace: 220,
+      hr: 174,
+      elevation: 1,
+      distance: 0.4,
+      label: '400m',
     });
 
     const plan = await planRepo.getActive('user-1');
@@ -511,6 +513,7 @@ describe('strava workflow service — sync', () => {
       brand: 'Nike',
       model: 'Pegasus',
       name: 'Daily',
+      distanceMeters: 388206,
       retired: false,
     }));
 
@@ -561,6 +564,7 @@ describe('strava workflow service — sync', () => {
         brand: 'Nike',
         model: 'Pegasus',
         nickname: 'Daily',
+        stravaDistanceKm: 388.206,
         totalKm: 18,
       }),
     ]);

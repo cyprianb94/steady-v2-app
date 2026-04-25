@@ -15,6 +15,14 @@ interface PaceFormatOptions {
   withUnit?: boolean;
 }
 
+export type SplitLabelMode = 'position' | 'segment';
+
+interface SplitLabelOptions {
+  mode?: SplitLabelMode;
+}
+
+type SplitLabelInput = { km: number; label?: string; distance?: number };
+
 function formatRounded(value: number, decimals: number, trimTrailingZero: boolean): string {
   const fixed = value.toFixed(decimals);
   return trimTrailingZero ? Number(fixed).toString() : fixed;
@@ -24,6 +32,74 @@ function paceToSeconds(pace: string): number | null {
   const [minutes, seconds] = pace.split(':').map(Number);
   if (!Number.isFinite(minutes) || !Number.isFinite(seconds)) return null;
   return minutes * 60 + seconds;
+}
+
+function parseDistanceLabelKm(label: string): number | null {
+  const trimmed = label.trim();
+  const kmMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s*km$/i);
+  if (kmMatch) {
+    return Number(kmMatch[1]);
+  }
+
+  const metreMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s*m$/i);
+  if (metreMatch) {
+    return Number(metreMatch[1]) / 1000;
+  }
+
+  return null;
+}
+
+function isPositionLabel(label: string, splitKm: number): boolean {
+  return new RegExp(`^km\\s*${splitKm}$`, 'i').test(label.trim());
+}
+
+function isFullKmDistance(distanceKm: number): boolean {
+  return distanceKm >= 0.95 && distanceKm <= 1.05;
+}
+
+function formatSplitDistance(distanceKm: number, units: DistanceUnits): string {
+  return formatDistance(distanceKm, units, {
+    decimals: distanceKm >= 1 ? 1 : 2,
+    spaced: true,
+  });
+}
+
+function formatSegmentSplitDistance(distanceKm: number, units: DistanceUnits): string {
+  if (units === 'metric' && distanceKm < 1) {
+    return `${Math.round(distanceKm * 1000)}m`;
+  }
+
+  const displayDistance = toDisplayDistance(distanceKm, units);
+  const roundedToTwo = Number(displayDistance.toFixed(2));
+  const decimals = Number.isInteger(roundedToTwo) ? 0 : 2;
+  const unitLabel = units === 'imperial' ? 'mi' : 'km';
+  return `${formatRounded(displayDistance, decimals, true)} ${unitLabel}`;
+}
+
+function formatExplicitDistanceLabel(label: string, units: DistanceUnits): string | null {
+  const parsedDistance = parseDistanceLabelKm(label);
+  if (parsedDistance != null) {
+    return formatSegmentSplitDistance(parsedDistance, units);
+  }
+
+  return null;
+}
+
+function formatPartialSplitDistance(distanceKm: number, units: DistanceUnits): string {
+  const displayDistance = toDisplayDistance(distanceKm, units);
+  return `+${formatRounded(displayDistance, displayDistance >= 1 ? 1 : 2, true)}`;
+}
+
+function splitDistanceKm(split: SplitLabelInput): number | null {
+  if (typeof split.distance === 'number' && split.distance > 0) {
+    return split.distance;
+  }
+
+  if (split.label && !isPositionLabel(split.label, split.km)) {
+    return parseDistanceLabelKm(split.label);
+  }
+
+  return null;
 }
 
 export function toDisplayDistance(distanceKm: number, units: DistanceUnits): number {
@@ -159,32 +235,65 @@ export function formatWarmupCooldown(
   return `${formatDistance(normalized.value, units)} ${label}`;
 }
 
+export function inferSplitLabelMode(
+  session: Pick<PlannedSession, 'type'> | null | undefined,
+  splits: SplitLabelInput[],
+): SplitLabelMode {
+  const lastIndex = splits.length - 1;
+  const hasStructuredSplit = splits.some((split, index) => {
+    const labelDistance = split.label && !isPositionLabel(split.label, split.km)
+      ? parseDistanceLabelKm(split.label)
+      : null;
+    const distanceKm = splitDistanceKm(split);
+
+    if (split.label && !isPositionLabel(split.label, split.km) && labelDistance == null) {
+      return true;
+    }
+
+    if (typeof distanceKm !== 'number' || distanceKm <= 0) {
+      return false;
+    }
+
+    const finalPartial = index === lastIndex && distanceKm < 0.95;
+    return !isFullKmDistance(distanceKm) && !finalPartial;
+  });
+
+  if (session?.type === 'INTERVAL') {
+    return hasStructuredSplit ? 'segment' : 'position';
+  }
+
+  return hasStructuredSplit ? 'segment' : 'position';
+}
+
 export function formatSplitLabel(
-  split: { km: number; label?: string; distance?: number },
+  split: SplitLabelInput,
   units: DistanceUnits,
+  options: SplitLabelOptions = {},
 ): string {
-  if (split.label && units === 'metric') {
-    return split.label;
+  if (options.mode === 'position') {
+    const distanceKm = splitDistanceKm(split);
+    if (typeof distanceKm === 'number' && distanceKm > 0 && distanceKm < 0.95) {
+      return formatPartialSplitDistance(distanceKm, units);
+    }
+
+    return String(split.km);
+  }
+
+  if (options.mode === 'segment' && typeof split.distance === 'number' && split.distance > 0) {
+    return formatSegmentSplitDistance(split.distance, units);
   }
 
   if (split.label) {
-    const kmMatch = split.label.match(/^(\d+(?:\.\d+)?)\s*km$/i);
-    if (kmMatch) {
-      const parsedDistance = Number(kmMatch[1]);
-      return formatDistance(parsedDistance, units, {
-        decimals: parsedDistance >= 1 ? 1 : 2,
-        spaced: true,
-      });
+    const distanceLabel = formatExplicitDistanceLabel(split.label, units);
+    if (distanceLabel) {
+      return distanceLabel;
     }
 
     return split.label;
   }
 
   if (typeof split.distance === 'number' && split.distance > 0) {
-    return formatDistance(split.distance, units, {
-      decimals: split.distance >= 1 ? 1 : 2,
-      spaced: true,
-    });
+    return formatSplitDistance(split.distance, units);
   }
 
   return `Split ${split.km}`;

@@ -33,9 +33,14 @@ export function TabIcon({ name, focused }: TabIconProps) {
     case 'settings':
       return (
         <View style={styles.container}>
-          {/* Gear-like circle with dot */}
-          <View style={[styles.settingsCircle, { borderColor: color }]}>
-            <View style={[styles.settingsDot, { backgroundColor: color }]} />
+          {/* Sliders icon from the settings icon pack */}
+          <View style={styles.settingsGlyph}>
+            <View style={[styles.settingsLine, styles.settingsTopLeft, { backgroundColor: color }]} />
+            <View style={[styles.settingsLine, styles.settingsTopRight, { backgroundColor: color }]} />
+            <View style={[styles.settingsLine, styles.settingsBottomLeft, { backgroundColor: color }]} />
+            <View style={[styles.settingsLine, styles.settingsBottomRight, { backgroundColor: color }]} />
+            <View style={[styles.settingsKnob, styles.settingsTopKnob, { borderColor: color }]} />
+            <View style={[styles.settingsKnob, styles.settingsBottomKnob, { borderColor: color }]} />
           </View>
         </View>
       );
@@ -69,17 +74,48 @@ const styles = StyleSheet.create({
     borderRadius: 1.5,
     marginVertical: 1,
   },
-  settingsCircle: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
+  settingsGlyph: {
+    width: 24,
+    height: 24,
   },
-  settingsDot: {
+  settingsLine: {
+    position: 'absolute',
+    height: 1.5,
+    borderRadius: 0.75,
+  },
+  settingsTopLeft: {
+    left: 4,
+    top: 7.25,
+    width: 4.25,
+  },
+  settingsTopRight: {
+    left: 11.75,
+    top: 7.25,
+    width: 8.25,
+  },
+  settingsBottomLeft: {
+    left: 4,
+    top: 15.25,
+    width: 10.25,
+  },
+  settingsBottomRight: {
+    left: 17.75,
+    top: 15.25,
+    width: 2.25,
+  },
+  settingsKnob: {
+    position: 'absolute',
     width: 5,
     height: 5,
     borderRadius: 2.5,
+    borderWidth: 1.5,
+  },
+  settingsTopKnob: {
+    left: 7.5,
+    top: 5.5,
+  },
+  settingsBottomKnob: {
+    left: 13.5,
+    top: 13.5,
   },
 });

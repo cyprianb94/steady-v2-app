@@ -5,8 +5,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   expectedDistance,
   formatNiggleSummary,
+  shoeLifetimeKm,
   type Activity,
   type PlannedSession,
+  type RunFuelEvent,
   type Shoe,
   type SubjectiveBreathing,
   type SubjectiveInput,
@@ -19,12 +21,15 @@ import { trpc } from '../../lib/trpc';
 import { usePlan } from '../../hooks/usePlan';
 import { findSessionForDateOrWeekday, todayIsoLocal } from '../../lib/plan-helpers';
 import { usePreferences } from '../../providers/preferences-context';
-import { formatDistance, formatPace, formatSessionTitle, formatSplitLabel, formatStoredPace } from '../../lib/units';
+import { formatDistance, formatPace, formatSessionTitle, formatSplitLabel, formatStoredPace, inferSplitLabelMode } from '../../lib/units';
 import { type EditableNiggle, isActivityDateCompatibleWithSession, isRunnableSession, isSessionSelectable, listMatchableSessions, resolveDefaultMatchSessionId, shoeWearState, toEditableNiggles } from '../../features/sync/sync-run-detail';
 import { buildCurrentDisplayWeek } from '../../features/run/display-week';
 import { MatchPickerModal } from '../../components/sync-run/MatchPickerModal';
 import { NigglePickerModal } from '../../components/sync-run/NigglePickerModal';
 import { ShoePickerModal } from '../../components/sync-run/ShoePickerModal';
+import { FuellingCard } from '../../components/sync-run/FuellingCard';
+import { GEL_BRANDS } from '../../features/fuelling/gel-catalogue';
+import { suggestedBrands as buildSuggestedFuelBrands, uniqueRecentFuelGels } from '../../features/fuelling/fuel-events';
 
 function formatDuration(seconds: number): string {
   const hrs = Math.floor(seconds / 3600);
@@ -81,6 +86,24 @@ const OVERALL_OPTIONS: { value: SubjectiveOverall; label: string }[] = [
 ];
 
 const RUN_DETAIL_LOAD_TIMEOUT_MS = 8000;
+
+function saveRunFailureCopy(error: unknown): { inline: string; alertTitle: string; alertBody: string } {
+  const message = error instanceof Error ? error.message : '';
+
+  if (message.includes('fuel_events') || message.toLowerCase().includes('fuel events')) {
+    return {
+      inline: 'Fuelling storage is not ready yet. Apply the latest database migration, then retry. Your notes and selections are still here.',
+      alertTitle: 'Could not save fuelling',
+      alertBody: 'The database is missing the fuelling column. Apply the latest migration, then retry.',
+    };
+  }
+
+  return {
+    inline: 'Could not save this run yet. Your notes and selections are still here so you can retry.',
+    alertTitle: 'Could not save run',
+    alertBody: 'Please try again in a moment.',
+  };
+}
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -150,9 +173,11 @@ export default function SyncRunDetailScreen() {
   const { units } = usePreferences();
   const { currentWeek, refresh: refreshPlan } = usePlan();
   const [activity, setActivity] = useState<Activity | null>(null);
+  const [fuelHistoryActivities, setFuelHistoryActivities] = useState<Activity[]>([]);
   const [shoes, setShoes] = useState<Shoe[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [fuelSliderActive, setFuelSliderActive] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [planRefreshError, setPlanRefreshError] = useState<string | null>(null);
@@ -182,6 +207,7 @@ export default function SyncRunDetailScreen() {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [selectedShoeId, setSelectedShoeId] = useState<string | null>(null);
   const [niggles, setNiggles] = useState<EditableNiggle[]>([]);
+  const [fuelEvents, setFuelEvents] = useState<RunFuelEvent[]>([]);
   const recommendedSessionId = useMemo(
     () => resolveDefaultMatchSessionId({
       activity,
@@ -194,6 +220,7 @@ export default function SyncRunDetailScreen() {
   );
   const selectedSession = sessionOptions.find((session) => session.id === selectedSessionId) ?? null;
   const selectedShoe = shoes.find((shoe) => shoe.id === selectedShoeId) ?? null;
+  const selectedShoeLifetimeKm = selectedShoe ? shoeLifetimeKm(selectedShoe) : 0;
   const matchedSession = activity?.matchedSessionId
     ? sessionOptions.find((session) => session.id === activity.matchedSessionId) ?? null
     : null;
@@ -213,6 +240,23 @@ export default function SyncRunDetailScreen() {
     ? { legs: legs!, breathing: breathing!, overall: overall! }
     : undefined;
   const canSave = feelComplete && !saving;
+  const fuelHistory = useMemo(
+    () => activity
+      ? [
+          { ...activity, fuelEvents },
+          ...fuelHistoryActivities.filter((historyActivity) => historyActivity.id !== activity.id),
+        ]
+      : fuelHistoryActivities,
+    [activity, fuelEvents, fuelHistoryActivities],
+  );
+  const recentFuelGels = useMemo(
+    () => uniqueRecentFuelGels(fuelHistory),
+    [fuelHistory],
+  );
+  const suggestedFuelBrands = useMemo(
+    () => buildSuggestedFuelBrands(recentFuelGels, GEL_BRANDS),
+    [recentFuelGels],
+  );
 
   useEffect(() => {
     setDraftSeedActivityId(null);
@@ -235,6 +279,7 @@ export default function SyncRunDetailScreen() {
         setLoading(true);
         setLoadError(null);
         setShoes([]);
+        setFuelHistoryActivities([]);
         const nextActivity = await withTimeout(
           trpc.activity.get.query({ activityId: resolvedActivityId }),
           RUN_DETAIL_LOAD_TIMEOUT_MS,
@@ -260,10 +305,27 @@ export default function SyncRunDetailScreen() {
               setShoes([]);
             }
           });
+        void withTimeout(
+          trpc.activity.list.query(),
+          RUN_DETAIL_LOAD_TIMEOUT_MS,
+          'sync-run detail activity history fetch',
+        )
+          .then((activities) => {
+            if (!cancelled) {
+              setFuelHistoryActivities(activities);
+            }
+          })
+          .catch((error) => {
+            console.warn('Failed to load activity history for run fuelling:', error);
+            if (!cancelled) {
+              setFuelHistoryActivities(nextActivity ? [nextActivity] : []);
+            }
+          });
       } catch (error) {
         console.warn('Failed to load sync-run detail activity:', error);
         if (!cancelled) {
           setActivity(null);
+          setFuelHistoryActivities([]);
           setLoadError('We could not refresh this run. Try again or go back to the picker.');
         }
       } finally {
@@ -290,6 +352,7 @@ export default function SyncRunDetailScreen() {
     setSelectedSessionId(recommendedSessionId);
     setSelectedShoeId(activity.shoeId ?? null);
     setNiggles(toEditableNiggles(activity.niggles));
+    setFuelEvents(activity.fuelEvents ?? []);
     setNotes(activity.notes ?? '');
     setLegs(activity.subjectiveInput?.legs ?? null);
     setBreathing(activity.subjectiveInput?.breathing ?? null);
@@ -328,9 +391,22 @@ export default function SyncRunDetailScreen() {
           console.warn('Failed to reload shoes for sync-run detail:', error);
           setShoes([]);
         });
+      void withTimeout(
+        trpc.activity.list.query(),
+        RUN_DETAIL_LOAD_TIMEOUT_MS,
+        'sync-run detail activity history fetch',
+      )
+        .then((activities) => {
+          setFuelHistoryActivities(activities);
+        })
+        .catch((error) => {
+          console.warn('Failed to reload activity history for run fuelling:', error);
+          setFuelHistoryActivities(nextActivity ? [nextActivity] : []);
+        });
     } catch (error) {
       console.warn('Failed to load sync-run detail activity:', error);
       setActivity(null);
+      setFuelHistoryActivities([]);
       setLoadError('We could not refresh this run. Try again or go back to the picker.');
     } finally {
       setLoading(false);
@@ -355,6 +431,7 @@ export default function SyncRunDetailScreen() {
         activityId: activity.id,
         subjectiveInput,
         niggles,
+        fuelEvents,
         notes: notes.trim() || undefined,
         shoeId: selectedShoeId,
         matchedSessionId: selectedSessionId,
@@ -363,8 +440,9 @@ export default function SyncRunDetailScreen() {
       setActivity({ ...result.activity, niggles: result.niggles });
     } catch (error) {
       console.warn('Failed to save synced run:', error);
-      setSaveError('Could not save this run yet. Your notes and selections are still here so you can retry.');
-      Alert.alert('Could not save run', 'Please try again in a moment.');
+      const failureCopy = saveRunFailureCopy(error);
+      setSaveError(failureCopy.inline);
+      Alert.alert(failureCopy.alertTitle, failureCopy.alertBody);
       setSaving(false);
       return;
     }
@@ -407,14 +485,13 @@ export default function SyncRunDetailScreen() {
     );
   }
 
-  const matchedToToday = selectedSession && todaySession && selectedSession.id === todaySession.id;
-  const matchedChipText = matchedToToday
-    ? `${selectedSession.type} · MATCHED TO TODAY`
-    : selectedSession
-      ? `${selectedSession.type} · MATCHED`
-      : 'UNMATCHED · BONUS RUN';
+  const matchedChipText = selectedSession
+    ? `Matched to ${formatSessionTitle(selectedSession, units)}`
+    : 'Bonus run';
   const matchedChipStyle = selectedSession ? styles.matchChipActive : styles.matchChipNeutral;
   const matchedChipTextStyle = selectedSession ? styles.matchChipTextActive : styles.matchChipTextNeutral;
+  const splitLabelMode = inferSplitLabelMode(selectedSession, activity.splits);
+  const splitSummaryLabel = splitLabelMode === 'segment' ? 'segments' : 'per km';
 
   return (
     <View style={styles.container}>
@@ -432,11 +509,18 @@ export default function SyncRunDetailScreen() {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView scrollEnabled={!fuelSliderActive} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Pressable onPress={() => setShowMatchPicker(true)} style={[styles.matchChip, matchedChipStyle]}>
-            <Text style={[styles.matchChipText, matchedChipTextStyle]}>{matchedChipText}</Text>
-            <Text style={[styles.matchChipChevron, matchedChipTextStyle]}>›</Text>
+          <Pressable
+            onPress={() => setShowMatchPicker(true)}
+            style={[styles.matchChip, matchedChipStyle]}
+            accessibilityRole="button"
+            accessibilityLabel={`${matchedChipText}. Change match`}
+          >
+            <Text style={[styles.matchChipText, matchedChipTextStyle]} numberOfLines={1}>
+              {matchedChipText}
+            </Text>
+            <Text style={[styles.matchChipAction, matchedChipTextStyle]}>Change</Text>
           </Pressable>
           <Text style={styles.runTitle}>
             {selectedSession ? formatSessionTitle(selectedSession, units) : activity.name ?? 'Bonus run'}
@@ -474,19 +558,19 @@ export default function SyncRunDetailScreen() {
               This run was matched to a session that is no longer available here. Re-match it before saving, or keep it as a bonus run.
             </Text>
             <Pressable onPress={() => setShowMatchPicker(true)}>
-              <Text style={styles.statusAction}>Match to a session ›</Text>
+              <Text style={styles.statusAction}>Change match ›</Text>
             </Pressable>
           </View>
         ) : null}
 
         {!selectedSession ? (
           <View style={styles.statusCard}>
-            <Text style={styles.statusTitle}>Didn&apos;t match a planned session</Text>
+            <Text style={styles.statusTitle}>No planned session matched</Text>
             <Text style={styles.statusCopy}>
-              We&apos;ll log this as a bonus run. Was it meant for a planned session instead?
+              This will stay as bonus mileage unless you match it to a planned session.
             </Text>
             <Pressable onPress={() => setShowMatchPicker(true)}>
-              <Text style={styles.statusAction}>Match to a session ›</Text>
+              <Text style={styles.statusAction}>Change match ›</Text>
             </Pressable>
           </View>
         ) : null}
@@ -506,8 +590,8 @@ export default function SyncRunDetailScreen() {
         ) : null}
 
         {selectedSession ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Planned vs actual</Text>
+          <View style={[styles.section, styles.pvaSection]}>
+            <Text style={[styles.sectionTitle, styles.pvaTitle]}>Planned vs actual</Text>
             <View style={styles.pvaRow}>
               <Text style={styles.pvaLabel}>Planned</Text>
               <Text style={styles.pvaValue}>{formatDistance(expectedDistance(selectedSession), units, { spaced: true })}</Text>
@@ -525,11 +609,11 @@ export default function SyncRunDetailScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHead}>
               <Text style={styles.sectionTitle}>Splits</Text>
-              <Text style={styles.sectionAction}>per km</Text>
+              <Text style={styles.sectionAction}>{splitSummaryLabel}</Text>
             </View>
             {activity.splits.map((split) => (
               <View key={split.km} style={styles.splitRow}>
-                <Text style={styles.splitKm}>{formatSplitLabel(split, units)}</Text>
+                <Text style={styles.splitKm}>{formatSplitLabel(split, units, { mode: splitLabelMode })}</Text>
                 <Text style={styles.splitPace}>{formatPace(split.pace, units)}</Text>
                 <View style={styles.splitBar}>
                   <View style={[styles.splitFill, { width: paceBarWidth(split.pace, fastestPace, slowestPace) }]} />
@@ -549,16 +633,25 @@ export default function SyncRunDetailScreen() {
 
         <View style={styles.section}>
           <View style={styles.sectionHead}>
-            <Text style={styles.sectionTitle}>Shoe</Text>
+            <View style={styles.sectionTitleBlock}>
+              <Text style={styles.sectionTitle}>Shoes</Text>
+              <Text style={styles.sectionSubtitle}>Pair used for this run</Text>
+            </View>
           </View>
           <Pressable onPress={() => setShowShoePicker(true)} style={styles.shoeRow}>
             <View style={styles.shoeBody}>
               <Text style={styles.shoeName}>{selectedShoe ? shoeLabel(selectedShoe) : 'Not tracked'}</Text>
-              <Text style={styles.shoeMeta}>
-                {selectedShoe
-                  ? `${selectedShoe.nickname ? `${selectedShoe.nickname} · ` : ''}lifetime ${Math.round(selectedShoe.totalKm)} km`
-                  : 'Choose the pair used for this run'}
-              </Text>
+              {selectedShoe ? (
+                <>
+                  {selectedShoe.nickname ? <Text style={styles.shoeMeta}>{selectedShoe.nickname}</Text> : null}
+                  <View style={styles.shoeLifetimePill}>
+                    <Text style={styles.shoeLifetimeLabel}>Lifetime</Text>
+                    <Text style={styles.shoeLifetimeValue}>{Math.round(selectedShoeLifetimeKm)} km</Text>
+                  </View>
+                </>
+              ) : (
+                <Text style={styles.shoeMeta}>Choose the pair used for this run</Text>
+              )}
               {selectedShoe?.retireAtKm ? (
                 <View style={styles.shoeBar}>
                   <View
@@ -566,7 +659,7 @@ export default function SyncRunDetailScreen() {
                       styles.shoeBarFill,
                       shoeWearState(selectedShoe) === 'warn' && styles.shoeBarFillWarn,
                       shoeWearState(selectedShoe) === 'critical' && styles.shoeBarFillCritical,
-                      { width: `${Math.min(100, Math.round((selectedShoe.totalKm / selectedShoe.retireAtKm) * 100))}%` },
+                      { width: `${Math.min(100, Math.round((selectedShoeLifetimeKm / selectedShoe.retireAtKm) * 100))}%` },
                     ]}
                   />
                 </View>
@@ -576,21 +669,14 @@ export default function SyncRunDetailScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.section}>
-          <View style={styles.sectionHead}>
-            <Text style={styles.sectionTitle}>Notes</Text>
-            <Text style={styles.sectionAction}>Optional</Text>
-          </View>
-          <TextInput
-            style={styles.notesInput}
-            placeholder="Anything worth remembering about this run?"
-            placeholderTextColor={C.muted}
-            multiline
-            numberOfLines={3}
-            value={notes}
-            onChangeText={setNotes}
-          />
-        </View>
+        <FuellingCard
+          durationSeconds={activity.duration}
+          fuelEvents={fuelEvents}
+          recentGels={recentFuelGels}
+          suggestedBrands={suggestedFuelBrands}
+          onSliderDragChange={setFuelSliderActive}
+          onChange={setFuelEvents}
+        />
 
         <View style={styles.section}>
           <View style={styles.sectionHead}>
@@ -613,6 +699,22 @@ export default function SyncRunDetailScreen() {
           ) : (
             <Text style={styles.emptySectionCopy}>No niggles flagged for this run.</Text>
           )}
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHead}>
+            <Text style={styles.sectionTitle}>Notes</Text>
+            <Text style={styles.sectionAction}>Optional</Text>
+          </View>
+          <TextInput
+            style={styles.notesInput}
+            placeholder="Anything worth remembering about this run?"
+            placeholderTextColor={C.muted}
+            multiline
+            numberOfLines={3}
+            value={notes}
+            onChangeText={setNotes}
+          />
         </View>
 
         <Pressable
@@ -737,7 +839,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 10,
-    paddingBottom: 120,
+    paddingBottom: 36,
   },
   header: {
     paddingHorizontal: 4,
@@ -746,6 +848,7 @@ const styles = StyleSheet.create({
   },
   matchChip: {
     alignSelf: 'flex-start',
+    maxWidth: '100%',
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -767,7 +870,7 @@ const styles = StyleSheet.create({
   matchChipText: {
     fontFamily: FONTS.sansSemiBold,
     fontSize: 11,
-    letterSpacing: 0.5,
+    flexShrink: 1,
   },
   matchChipTextActive: {
     color: C.forest,
@@ -775,9 +878,10 @@ const styles = StyleSheet.create({
   matchChipTextNeutral: {
     color: C.slate,
   },
-  matchChipChevron: {
-    fontFamily: FONTS.serifBold,
+  matchChipAction: {
+    fontFamily: FONTS.sansSemiBold,
     fontSize: 11,
+    textDecorationLine: 'underline',
   },
   runTitle: {
     fontFamily: FONTS.serifBold,
@@ -881,10 +985,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 14,
   },
+  sectionTitleBlock: {
+    flex: 1,
+  },
   sectionTitle: {
     fontFamily: FONTS.serifBold,
     fontSize: 17,
     color: C.ink,
+  },
+  sectionSubtitle: {
+    marginTop: 3,
+    fontFamily: FONTS.sans,
+    fontSize: 12,
+    color: C.muted,
   },
   sectionAction: {
     fontFamily: FONTS.sansSemiBold,
@@ -915,6 +1028,31 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: C.muted,
   },
+  shoeLifetimePill: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(42,92,69,0.28)',
+    backgroundColor: C.forestBg,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  shoeLifetimeLabel: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 9,
+    color: C.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+  },
+  shoeLifetimeValue: {
+    fontFamily: FONTS.monoBold,
+    fontSize: 12,
+    color: C.forest,
+  },
   shoeBar: {
     marginTop: 6,
     height: 4,
@@ -938,6 +1076,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: C.forest,
     paddingLeft: 8,
+  },
+  pvaSection: {
+    paddingTop: 14,
+  },
+  pvaTitle: {
+    lineHeight: 21,
+    marginBottom: 12,
   },
   pvaRow: {
     flexDirection: 'row',
@@ -967,11 +1112,10 @@ const styles = StyleSheet.create({
     borderTopColor: C.border,
   },
   splitKm: {
-    width: 36,
-    fontFamily: FONTS.sansSemiBold,
+    width: 58,
+    fontFamily: FONTS.mono,
     fontSize: 10,
     color: C.muted,
-    letterSpacing: 1,
   },
   splitPace: {
     width: 56,

@@ -441,6 +441,29 @@ export function SessionEditor({
     }, 120);
   }
 
+  function clearCustomDraft(field: Exclude<CustomField, null>) {
+    switch (field) {
+      case 'distance':
+        setCustomDistance('');
+        return;
+      case 'repetitions':
+        setCustomRepDuration('');
+        return;
+      case 'pace':
+        setCustomPace('');
+        return;
+      case 'recovery':
+        setCustomRecovery('');
+        return;
+      case 'warmup':
+        setCustomWarmup('');
+        return;
+      case 'cooldown':
+        setCustomCooldown('');
+        return;
+    }
+  }
+
   const customKeyboardPaddingStyle = customField
     ? !isInterval && (customField === 'warmup' || customField === 'cooldown')
       ? styles.bodyContentWithNonIntervalDurationKeyboard
@@ -448,6 +471,7 @@ export function SessionEditor({
     : null;
 
   function openCustomField(field: Exclude<CustomField, null>) {
+    clearCustomDraft(field);
     setCustomField(field);
     afterNextPaint(() => keepCustomFieldVisible(field));
   }
@@ -576,7 +600,6 @@ export function SessionEditor({
                           customValue={customRepDuration}
                           onCustomPress={() => {
                             openCustomField('repetitions');
-                            setCustomRepDuration(repDuration.value != null ? formatValue(repDuration.value) : '');
                           }}
                           onCustomChangeText={(text) => handleCustomNumberChange('repetitions', text)}
                           onCustomBlur={() => closeCustomField('repetitions')}
@@ -612,7 +635,6 @@ export function SessionEditor({
                           customValue={customDistance}
                           onCustomPress={() => {
                             openCustomField('distance');
-                            setCustomDistance(distance ? formatValue(distance) : '');
                           }}
                           onCustomChangeText={(text) => handleCustomNumberChange('distance', text)}
                           onCustomBlur={() => closeCustomField('distance')}
@@ -659,7 +681,6 @@ export function SessionEditor({
                         }}
                         onCustomPress={() => {
                           openCustomField('pace');
-                          setCustomPace(pace || '');
                         }}
                         onCustomChangeText={(text) => {
                           setCustomPace(text);
@@ -715,7 +736,6 @@ export function SessionEditor({
                           customValue={customRecovery}
                           onCustomPress={() => {
                             openCustomField('recovery');
-                            setCustomRecovery(recovery.value != null ? formatValue(recovery.value) : '');
                           }}
                           onCustomChangeText={(text) => handleCustomNumberChange('recovery', text)}
                           onCustomBlur={() => closeCustomField('recovery')}
@@ -763,7 +783,6 @@ export function SessionEditor({
                             customValue={customWarmup}
                             onCustomPress={() => {
                               openCustomField('warmup');
-                              setCustomWarmup(warmup.value != null ? formatValue(warmup.value) : '');
                             }}
                             onCustomChangeText={(text) => handleCustomNumberChange('warmup', text)}
                             onCustomBlur={() => closeCustomField('warmup')}
@@ -808,7 +827,6 @@ export function SessionEditor({
                             customValue={customCooldown}
                             onCustomPress={() => {
                               openCustomField('cooldown');
-                              setCustomCooldown(cooldown.value != null ? formatValue(cooldown.value) : '');
                             }}
                             onCustomChangeText={(text) => handleCustomNumberChange('cooldown', text)}
                             onCustomBlur={() => closeCustomField('cooldown')}

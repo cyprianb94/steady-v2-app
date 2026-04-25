@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, View, Text, Pressable, StyleSheet } from 'react-native';
 import {
   normalizeSessionDuration,
   sessionSupportsWarmupCooldown,
@@ -25,6 +25,7 @@ import {
   formatStoredPace,
   formatWarmupCooldown,
 } from '../../lib/units';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 interface ActivitySummary {
   id: string;
@@ -211,6 +212,54 @@ export function TodayHeroCard({
   onDismissSubjectiveInput,
 }: TodayHeroCardProps) {
   const { units } = usePreferences();
+  const completed = Boolean(session && session.type !== 'REST' && (session.actualActivityId || activity));
+  const reducedMotion = useReducedMotion();
+  const completedReveal = useRef(new Animated.Value(completed ? 1 : 0)).current;
+  const wasCompleted = useRef(completed);
+
+  useEffect(() => {
+    if (!completed) {
+      completedReveal.setValue(0);
+      wasCompleted.current = false;
+      return;
+    }
+
+    const shouldReveal = !wasCompleted.current;
+    wasCompleted.current = true;
+
+    if (reducedMotion) {
+      completedReveal.setValue(1);
+      return;
+    }
+
+    if (shouldReveal) {
+      completedReveal.setValue(0);
+    }
+
+    Animated.timing(completedReveal, {
+      toValue: 1,
+      duration: shouldReveal ? 340 : 180,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [completed, completedReveal, reducedMotion]);
+
+  const completedRevealStyle = useMemo(
+    () => ({
+      opacity: completedReveal,
+      transform: [
+        {
+          translateY: completedReveal.interpolate({
+            inputRange: [0, 1],
+            outputRange: [6, 0],
+            extrapolate: 'clamp',
+          }),
+        },
+      ],
+    }),
+    [completedReveal],
+  );
+
   if (!session || session.type === 'REST') {
     return (
       <View style={[styles.card, { backgroundColor: '#F7F5F1' }]} testID="hero-card">
@@ -225,7 +274,6 @@ export function TodayHeroCard({
   const supportsWarmupCooldown = sessionSupportsWarmupCooldown(session.type);
   const warmup = supportsWarmupCooldown ? normalizeSessionDuration(session.warmup) : undefined;
   const cooldown = supportsWarmupCooldown ? normalizeSessionDuration(session.cooldown) : undefined;
-  const completed = Boolean(session.actualActivityId || activity);
   const savedSubjectiveInput = activity?.subjectiveInput;
   const completedSummary = buildCompletedSummary(session, activity);
   const completedMetrics = buildCompletedMetrics(session, activity, units);
@@ -274,7 +322,7 @@ export function TodayHeroCard({
         <View style={styles.completedMetricRow}>
           {completedMetrics.map((metric) => (
             <View key={metric.label} style={styles.completedMetricCard}>
-              <Text style={styles.completedMetricValue}>{metric.value}</Text>
+              <Text style={styles.completedMetricValue} numberOfLines={1}>{metric.value}</Text>
               <Text style={styles.completedMetricLabel}>{metric.label}</Text>
             </View>
           ))}
@@ -322,14 +370,18 @@ export function TodayHeroCard({
           ]}
           testID="hero-completed"
         >
-          {content}
+          <Animated.View style={completedRevealStyle}>
+            {content}
+          </Animated.View>
         </Pressable>
       );
     }
 
     return (
       <View style={[styles.card, styles.completedCard, { backgroundColor: meta.bg }]} testID="hero-completed">
-        {content}
+        <Animated.View style={completedRevealStyle}>
+          {content}
+        </Animated.View>
       </View>
     );
   }
@@ -366,17 +418,17 @@ export function TodayHeroCard({
 
       <View style={styles.metricGrid}>
         <View style={styles.metricCard}>
-          <Text style={styles.metricValue}>
+          <Text style={styles.metricValue} numberOfLines={1}>
             {isInterval ? `${session.reps}×${formatIntervalRepLength(session)}` : formatDistance(session.distance ?? 0, units)}
           </Text>
           <Text style={styles.metricLabel}>{isInterval ? 'session' : 'distance'}</Text>
         </View>
         <View style={styles.metricCard}>
-          <Text style={styles.metricValue}>{formatStoredPace(session.pace, units)}</Text>
+          <Text style={styles.metricValue} numberOfLines={1}>{formatStoredPace(session.pace, units)}</Text>
           <Text style={styles.metricLabel}>target pace</Text>
         </View>
         <View style={styles.metricCard}>
-          <Text style={styles.metricValue}>{plannedHeartRateZone(session)}</Text>
+          <Text style={styles.metricValue} numberOfLines={1}>{plannedHeartRateZone(session)}</Text>
           <Text style={styles.metricLabel}>heart rate</Text>
         </View>
       </View>
@@ -653,6 +705,7 @@ const styles = StyleSheet.create({
   },
   completedMetricCard: {
     flex: 1,
+    minWidth: 0,
     backgroundColor: 'rgba(255,255,255,0.52)',
     borderRadius: 12,
     paddingHorizontal: 12,
@@ -691,6 +744,7 @@ const styles = StyleSheet.create({
   },
   metricCard: {
     flex: 1,
+    minWidth: 0,
     backgroundColor: 'rgba(255,255,255,0.4)',
     borderRadius: 8,
     paddingHorizontal: 12,
@@ -723,6 +777,7 @@ const styles = StyleSheet.create({
   },
   steadyNoteMain: {
     flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
@@ -739,6 +794,7 @@ const styles = StyleSheet.create({
   },
   steadyText: {
     flex: 1,
+    minWidth: 0,
     fontFamily: FONTS.sans,
     fontSize: 13,
     lineHeight: 19,

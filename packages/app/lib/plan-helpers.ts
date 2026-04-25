@@ -9,6 +9,10 @@ import {
   type PlanWeek,
 } from '@steady/types';
 import { formatDistance, formatIntervalRepLength, formatStoredPace, type DistanceUnits } from './units';
+import {
+  SCREENSHOT_DEMO_TODAY,
+  isScreenshotDemoMode,
+} from '../demo/screenshot-demo';
 
 // Re-export shared functions from types so existing app imports keep working
 export {
@@ -84,6 +88,10 @@ export function sessionLabel(
 }
 
 export function todayIsoLocal(now: Date = new Date()): string {
+  if (isScreenshotDemoMode()) {
+    return SCREENSHOT_DEMO_TODAY;
+  }
+
   return isoDateLocal(now);
 }
 

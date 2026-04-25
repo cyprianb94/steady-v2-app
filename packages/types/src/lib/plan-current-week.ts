@@ -1,12 +1,18 @@
 import type { PlanWeek } from '../plan';
-import type { PlannedSession } from '../session';
+import { addDaysIso, inferWeekStartDate } from './week-dates';
+
+function hasDatedSession(week: PlanWeek): boolean {
+  return week.sessions.some((session) => Boolean(session?.date));
+}
 
 function findCurrentWeekIndex(weeks: PlanWeek[], today: string): number {
   for (let i = 0; i < weeks.length; i++) {
-    const sessions = weeks[i].sessions.filter(Boolean) as PlannedSession[];
-    if (sessions.length === 0) continue;
-    const dates = sessions.map((session) => session.date);
-    if (dates.some((date) => date >= today)) {
+    const week = weeks[i];
+    if (!hasDatedSession(week)) continue;
+
+    const weekStart = inferWeekStartDate(week, today);
+    const weekEnd = addDaysIso(weekStart, 6);
+    if (today <= weekEnd) {
       return i;
     }
   }

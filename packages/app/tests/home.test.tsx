@@ -330,6 +330,10 @@ describe('HomeScreen', () => {
     const weeklyLoadCard = screen.getByTestId('weekly-load-card');
     expect(within(weeklyLoadCard).getByText('8.2km')).toBeTruthy();
     expect(within(weeklyLoadCard).getByText('/ 50km')).toBeTruthy();
+    expect(weeklyLoadCard.getAttribute('style')).toContain('background-color: rgb(253, 250, 245)');
+    expect(weeklyLoadCard.getAttribute('style')).toContain('border-color: rgb(229, 221, 208)');
+    expect(weeklyLoadCard.getAttribute('style')).toContain('border-width: 1.5px');
+    expect(weeklyLoadCard.getAttribute('style')).toContain('margin-bottom: 16px');
   });
 
   it('ignores a future linked-only long run in the current week load and remaining-days status', async () => {
@@ -1044,7 +1048,7 @@ describe('HomeScreen', () => {
             bodyPart: 'hamstring',
             side: 'left',
             severity: 'mild',
-            when: 'during',
+            when: ['during'],
             createdAt: '2026-04-15T08:00:00.000Z',
           },
         ],
@@ -1103,7 +1107,7 @@ describe('HomeScreen', () => {
             bodyPartOtherText: 'Upper calf',
             side: 'left',
             severity: 'mild',
-            when: 'during',
+            when: ['during'],
             createdAt: '2026-04-15T08:00:00.000Z',
           },
         ],

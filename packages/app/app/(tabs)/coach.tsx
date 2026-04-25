@@ -16,6 +16,10 @@ import { FONTS } from '../../constants/typography';
 import { createId } from '../../lib/id';
 import { trpc } from '../../lib/trpc';
 import { useAuth } from '../../lib/auth';
+import {
+  getScreenshotDemoCoachMessages,
+  isScreenshotDemoMode,
+} from '../../demo/screenshot-demo';
 
 interface Message {
   id: string;
@@ -26,7 +30,9 @@ interface Message {
 
 export default function CoachTab() {
   const { session, isLoading } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(
+    () => (isScreenshotDemoMode() ? getScreenshotDemoCoachMessages() : []),
+  );
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [sending, setSending] = useState(false);
   const listRef = useRef<FlatList>(null);

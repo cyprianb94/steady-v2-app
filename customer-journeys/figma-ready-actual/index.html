@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Steady actual app screenshots</title>
+    <style>
+      :root {
+        color: #1c1510;
+        background: #eee5d8;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      body {
+        margin: 0;
+        padding: clamp(16px, 6vw, 40px);
+        overflow-x: hidden;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 34px;
+        line-height: 1.1;
+      }
+
+      p {
+        margin: 0 0 32px;
+        color: #3d3028;
+        max-width: 720px;
+        line-height: 1.5;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+        gap: 32px;
+        align-items: start;
+      }
+
+      figure {
+        margin: 0;
+      }
+
+      img {
+        display: block;
+        width: min(100%, 430px);
+        max-width: 430px;
+        border-radius: 28px;
+        box-shadow: 0 18px 45px rgba(28, 21, 16, 0.16);
+      }
+
+      figcaption {
+        margin-top: 12px;
+        font-size: 14px;
+        font-weight: 650;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Steady actual app screenshots</h1>
+    <p>
+      Captured from the real Expo web app in screenshot-demo mode at a 430px phone viewport.
+      These are image assets for dropping into Figma frames.
+    </p>
+    <div class="grid">
+      <figure>
+        <img src="home.png" alt="Steady Home screen" />
+        <figcaption>Home</figcaption>
+      </figure>
+      <figure>
+        <img src="block.png" alt="Steady Block screen" />
+        <figcaption>Block</figcaption>
+      </figure>
+      <figure>
+        <img src="settings.png" alt="Steady Settings screen" />
+        <figcaption>Settings</figcaption>
+      </figure>
+      <figure>
+        <img src="coach.png" alt="Steady AI conversation screen" />
+        <figcaption>Steady AI</figcaption>
+      </figure>
+      <figure>
+        <img src="sync-run.png" alt="Steady sync run picker" />
+        <figcaption>Sync run picker</figcaption>
+      </figure>
+      <figure>
+        <img src="run-detail.png" alt="Steady run detail screen" />
+        <figcaption>Run detail</figcaption>
+      </figure>
+      <figure>
+        <img src="recovery-home.png" alt="Steady recovery Home screen" />
+        <figcaption>Recovery Home</figcaption>
+      </figure>
+    </div>
+  </body>
+</html>

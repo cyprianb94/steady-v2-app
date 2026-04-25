@@ -174,6 +174,29 @@ describe('BlockTab session rearrange', () => {
     ).toBeTruthy();
   });
 
+  it('shows the session target as the main expanded-row label with the run type below', () => {
+    planState.current = makePlan([
+      makeWeek(1, [
+        session('w1-easy', 'EASY', { distance: 8, pace: '5:20' }),
+        session('w1-interval', 'INTERVAL', { reps: 6, repDist: 400, pace: '3:50' }),
+        session('w1-long', 'LONG', { distance: 16, pace: '5:10' }),
+        null,
+        null,
+        null,
+        null,
+      ]),
+    ]);
+
+    render(<BlockTab />);
+
+    fireEvent.click(screen.getByText('W1'));
+
+    expect(screen.getByText('8km @ 5:20')).toBeTruthy();
+    expect(screen.getByText('6×400m @ 3:50')).toBeTruthy();
+    expect(screen.getByText('Easy Run')).toBeTruthy();
+    expect(screen.getByText('Intervals')).toBeTruthy();
+  });
+
   it('stages a reschedule locally and persists following weeks only after apply', async () => {
     render(<BlockTab />);
 
@@ -225,7 +248,7 @@ describe('BlockTab session rearrange', () => {
     expect(input[1].swapLog).toBeUndefined();
   });
 
-  it('shows logged rows as locked and does not stage a drag for them', () => {
+  it('shows completed rows as locked with the run status symbol and does not stage a drag for them', () => {
     planState.current = makePlan([
       makeWeek(1, [
         session('mon', 'EASY', { actualActivityId: 'act-1' }),
@@ -242,7 +265,8 @@ describe('BlockTab session rearrange', () => {
 
     fireEvent.click(screen.getByText('W1'));
 
-    expect(screen.getByText('Logged')).toBeTruthy();
+    expect(screen.getByTestId('block-day-status-1-0')).toBeTruthy();
+    expect(screen.queryByText('Logged')).toBeNull();
 
     dragHandle('block-drag-handle-1-0', 120);
 
@@ -265,7 +289,7 @@ describe('BlockTab session rearrange', () => {
     render(<BlockTab />);
 
     fireEvent.click(screen.getByText('W1'));
-    expect(screen.getByText('Past weeks are locked. Tap Logged to review synced run details.')).toBeTruthy();
+    expect(screen.getByText('Past weeks are locked. Tap a logged session to review synced run details.')).toBeTruthy();
 
     fireEvent.click(screen.getByTestId('block-day-1-0'));
     expect(screen.queryByText('Update session')).toBeNull();
@@ -274,7 +298,7 @@ describe('BlockTab session rearrange', () => {
     expect(screen.queryByText('Do you want to apply reschedule?')).toBeNull();
   });
 
-  it('opens run details from the Logged chip in a past week', async () => {
+  it('opens run details from the run status symbol in a past week', async () => {
     planState.currentWeekIndex = 1;
     planState.current = makePlan([
       makeWeek(1, [
@@ -327,6 +351,49 @@ describe('BlockTab session rearrange', () => {
     expect(mockRouterPush).toHaveBeenCalledWith('/sync-run/act-1');
   });
 
+  it('opens run details from a logged session row in the current week', async () => {
+    planState.currentWeekIndex = 0;
+    planState.current = makePlan([
+      makeWeek(1, [
+        session('w1-tempo', 'TEMPO', {
+          date: '2026-04-06',
+          distance: 10,
+          pace: '4:20',
+          actualActivityId: 'act-1',
+        }),
+        session('w1-easy', 'EASY', { date: '2026-04-07', distance: 8 }),
+        null,
+        null,
+        null,
+        null,
+        null,
+      ]),
+    ]);
+    mockActivityListQuery.mockResolvedValue([
+      {
+        id: 'act-1',
+        userId: 'user-1',
+        source: 'strava',
+        externalId: 'strava-1',
+        startTime: '2026-04-06T07:00:00.000Z',
+        distance: 10.1,
+        duration: 2620,
+        avgPace: 260,
+        splits: [],
+        matchedSessionId: 'w1-tempo',
+      },
+    ]);
+
+    render(<BlockTab />);
+
+    fireEvent.click(screen.getByText('W1'));
+    await waitFor(() => expect(screen.getByTestId('block-day-status-1-0')).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId('block-day-1-0'));
+
+    expect(mockRouterPush).toHaveBeenCalledWith('/sync-run/act-1');
+  });
+
   it('locks matched completed rows and counts their distance before actualActivityId refreshes', async () => {
     planState.current = makePlan([
       makeWeek(1, [
@@ -372,7 +439,7 @@ describe('BlockTab session rearrange', () => {
 
     fireEvent.click(screen.getByText('W1'));
 
-    await waitFor(() => expect(screen.getAllByText('Logged')).toHaveLength(2));
+    await waitFor(() => expect(screen.getAllByTestId(/block-day-status-1-/)).toHaveLength(2));
 
     dragHandle('block-drag-handle-1-1', 120);
 
@@ -415,7 +482,7 @@ describe('BlockTab session rearrange', () => {
     fireEvent.click(screen.getByText('W1'));
 
     await waitFor(() => expect(mockActivityListQuery).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.queryByText('Logged')).toBeNull());
+    await waitFor(() => expect(screen.queryByTestId('block-day-status-1-6')).toBeNull());
     expect(screen.queryByText('✓')).toBeNull();
   });
 
@@ -473,7 +540,7 @@ describe('BlockTab session rearrange', () => {
       fireEvent.click(screen.getByText('W1'));
 
       expect(mockActivityListQuery).toHaveBeenCalledTimes(1);
-      expect(screen.getAllByText('Logged')).toHaveLength(2);
+      expect(screen.getAllByTestId(/block-day-status-1-/)).toHaveLength(2);
       expect(screen.getByTestId('block-day-1-6').textContent).toContain('Long Run');
     } finally {
       vi.useRealTimers();

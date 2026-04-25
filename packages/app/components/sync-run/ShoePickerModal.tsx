@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import type { Shoe } from '@steady/types';
+import { shoeLifetimeKm, type Shoe } from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { shoeWearState } from '../../features/sync/sync-run-detail';
@@ -43,7 +43,8 @@ export function ShoePickerModal({
       {activeShoes.map((shoe) => {
         const selected = selectedShoeId === shoe.id;
         const wear = shoeWearState(shoe);
-        const wearPct = shoe.retireAtKm ? Math.min(100, Math.round((shoe.totalKm / shoe.retireAtKm) * 100)) : 0;
+        const lifetimeKm = shoeLifetimeKm(shoe);
+        const wearPct = shoe.retireAtKm ? Math.min(100, Math.round((lifetimeKm / shoe.retireAtKm) * 100)) : 0;
 
         return (
           <Pressable
@@ -57,7 +58,7 @@ export function ShoePickerModal({
                 {shoe.stravaGearId ? <Text style={[styles.shoeTag, styles.shoeTagStrava]}>FROM STRAVA</Text> : null}
               </View>
               <Text style={styles.shoeMeta}>
-                lifetime <Text style={styles.shoeMetaStrong}>{Math.round(shoe.totalKm)} km</Text>
+                lifetime <Text style={styles.shoeMetaStrong}>{Math.round(lifetimeKm)} km</Text>
                 {shoe.retireAtKm ? ` · retire at ${Math.round(shoe.retireAtKm)}` : ''}
               </Text>
               {shoe.retireAtKm ? (
@@ -83,7 +84,8 @@ export function ShoePickerModal({
       {retiredShoes.length ? <Text style={styles.groupLabel}>Retired</Text> : null}
       {retiredShoes.map((shoe) => {
         const selected = selectedShoeId === shoe.id;
-        const wearPct = shoe.retireAtKm ? Math.min(100, Math.round((shoe.totalKm / shoe.retireAtKm) * 100)) : 100;
+        const lifetimeKm = shoeLifetimeKm(shoe);
+        const wearPct = shoe.retireAtKm ? Math.min(100, Math.round((lifetimeKm / shoe.retireAtKm) * 100)) : 100;
 
         return (
           <Pressable
@@ -97,7 +99,7 @@ export function ShoePickerModal({
                 <Text style={styles.shoeTag}>RETIRED</Text>
               </View>
               <Text style={styles.shoeMeta}>
-                lifetime <Text style={styles.shoeMetaStrong}>{Math.round(shoe.totalKm)} km</Text>
+                lifetime <Text style={styles.shoeMetaStrong}>{Math.round(lifetimeKm)} km</Text>
               </Text>
               <View style={styles.shoeBar}>
                 <View style={[styles.shoeBarFill, styles.shoeBarFillCritical, { width: `${wearPct}%` }]} />

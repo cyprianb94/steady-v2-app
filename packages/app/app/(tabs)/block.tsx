@@ -21,6 +21,7 @@ import { DragHandle } from '../../components/plan-builder/DragHandle';
 import { PropagateModal } from '../../components/plan-builder/PropagateModal';
 import { RunStatusIcon, type RunStatusIconStatus } from '../../components/run/RunStatusIcon';
 import { Btn } from '../../components/ui/Btn';
+import { AnimatedProgressFill } from '../../components/ui/AnimatedProgressFill';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { PHASE_COLOR } from '../../constants/phase-meta';
@@ -34,7 +35,7 @@ import { useDirectWeekReschedule } from '../../features/plan-builder/use-direct-
 import { useAuth } from '../../lib/auth';
 import { createId } from '../../lib/id';
 import { updatePlanWeeks } from '../../lib/plan-api';
-import { addDaysIso, inferWeekStartDate, todayIsoLocal, weekKm } from '../../lib/plan-helpers';
+import { addDaysIso, inferWeekStartDate, sessionLabel, todayIsoLocal, weekKm } from '../../lib/plan-helpers';
 import { usePreferences } from '../../providers/preferences-context';
 import { formatDistance } from '../../lib/units';
 import {
@@ -892,12 +893,10 @@ export default function BlockTab() {
                   volumeTone === 'current' && styles.volumeTrackCurrent,
                 ]}
               >
-                <View
-                  style={[
+                <AnimatedProgressFill
+                  progress={getWeekVolumeRatio(volumeSummary.barKm, maxKm)}
+                  fillStyle={[
                     styles.volumeFill,
-                    {
-                      width: `${getWeekVolumeRatio(volumeSummary.barKm, maxKm) * 100}%`,
-                    },
                     volumeTone === 'past' && styles.volumeFillPast,
                     volumeTone === 'current' && styles.volumeFillCurrent,
                     volumeTone === 'future' && styles.volumeFillFuture,
@@ -942,11 +941,17 @@ export default function BlockTab() {
                     canDragIndex: canDragVisibleDay,
                     hasRunDetail: runDetailNavigation.canOpenRunDetail(session),
                   });
-                  const distanceLabel = session?.type === 'INTERVAL'
-                    ? detail.distanceLabel
-                    : session?.distance != null
-                      ? formatDistance(session.distance, units)
-                      : detail.distanceLabel;
+                  const sessionMainLabel = detail.isRest || !session
+                    ? 'Rest day'
+                    : sessionLabel(session, units);
+                  const sessionCaption = detail.isRest
+                    ? 'Recovery slot locked in for this day'
+                    : SESSION_TYPE[detail.sessionType].label;
+                  const dayPressHandler = canReviewRun
+                    ? () => { void runDetailNavigation.openRunDetail(session); }
+                    : canEditDay
+                      ? () => openSessionEditor(i, dayIndex)
+                      : undefined;
                   return (
                     <Animated.View
                       key={`${week.weekNumber}-${detail.dayLabel}`}
@@ -982,8 +987,8 @@ export default function BlockTab() {
                         ) : null}
                         <Pressable
                           testID={`block-day-${week.weekNumber}-${dayIndex}`}
-                          disabled={!canEditDay}
-                          onPress={canEditDay ? () => openSessionEditor(i, dayIndex) : undefined}
+                          disabled={!dayPressHandler}
+                          onPress={dayPressHandler}
                           style={styles.dayRowPressable}
                         >
                           <View style={styles.dayMeta}>
@@ -999,36 +1004,49 @@ export default function BlockTab() {
                                 detail.isRest && styles.dayDotRest,
                               ]}
                             />
-                            <Text style={[styles.daySessionLabel, detail.isRest && styles.daySessionLabelRest]}>
-                              {detail.sessionLabel}
-                            </Text>
+                            <View style={styles.daySessionCopy}>
+                              <Text
+                                style={[styles.daySessionLabel, detail.isRest && styles.daySessionLabelRest]}
+                                numberOfLines={1}
+                              >
+                                {sessionMainLabel}
+                              </Text>
+                              <Text
+                                style={[styles.daySessionCaption, detail.isRest && styles.daySessionCaptionRest]}
+                                numberOfLines={1}
+                              >
+                                {sessionCaption}
+                              </Text>
+                            </View>
                           </View>
                         </Pressable>
 
                         <View style={styles.dayRight}>
-                          {distanceLabel ? (
-                            <Text style={styles.dayDistance}>{distanceLabel}</Text>
-                          ) : null}
-                          {locked ? (
+                          {statusIcon ? (
                             canReviewRun ? (
                               <Pressable
+                                accessibilityLabel={`Review ${statusIcon === 'varied' ? 'varied' : statusIcon} run`}
                                 accessibilityRole="button"
                                 testID={`block-review-run-${week.weekNumber}-${dayIndex}`}
                                 onPress={() => runDetailNavigation.openRunDetail(session)}
-                                style={({ pressed }) => pressed && styles.dayStatusChipPressed}
+                                style={({ pressed }) => [
+                                  styles.dayStatusButton,
+                                  pressed && styles.dayStatusIconPressed,
+                                ]}
                               >
-                                <Text style={[styles.dayStatusChip, styles.dayStatusChipLocked]}>Logged</Text>
+                                <RunStatusIcon
+                                  status={statusIcon}
+                                  size={18}
+                                  testID={`block-day-status-${week.weekNumber}-${dayIndex}`}
+                                />
                               </Pressable>
                             ) : (
-                              <Text style={[styles.dayStatusChip, styles.dayStatusChipLocked]}>Logged</Text>
+                              <RunStatusIcon
+                                status={statusIcon}
+                                size={18}
+                                testID={`block-day-status-${week.weekNumber}-${dayIndex}`}
+                              />
                             )
-                          ) : null}
-                          {statusIcon && !locked ? (
-                            <RunStatusIcon
-                              status={statusIcon}
-                              size={18}
-                              testID={`block-day-status-${week.weekNumber}-${dayIndex}`}
-                            />
                           ) : null}
                           {!injuryWeek ? (
                             <DragHandle
@@ -1398,7 +1416,7 @@ const styles = StyleSheet.create({
   dayRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 28,
+    minHeight: 40,
     borderRadius: 10,
   },
   dayRowPressable: {
@@ -1455,6 +1473,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  daySessionCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
   dayDot: {
     width: 9,
     height: 9,
@@ -1464,43 +1486,38 @@ const styles = StyleSheet.create({
     backgroundColor: C.slate,
   },
   daySessionLabel: {
-    fontFamily: FONTS.sans,
-    fontSize: 12,
+    fontFamily: FONTS.mono,
+    fontSize: 13,
     color: C.ink,
   },
   daySessionLabelRest: {
+    fontFamily: FONTS.sansMedium,
+    color: C.ink,
+  },
+  daySessionCaption: {
+    fontFamily: FONTS.sans,
+    fontSize: 10.5,
+    color: C.muted,
+    marginTop: 1,
+  },
+  daySessionCaptionRest: {
     color: C.muted,
   },
   dayRight: {
-    minWidth: 86,
+    minWidth: 26,
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
     gap: 6,
     paddingRight: 4,
   },
-  dayDistance: {
-    fontFamily: FONTS.mono,
-    fontSize: 11,
-    color: C.ink2,
+  dayStatusButton: {
+    width: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  dayStatusChip: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 9,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-    borderRadius: 999,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  dayStatusChipLocked: {
-    color: C.forest,
-    backgroundColor: C.forestBg,
-    borderColor: `${C.forest}35`,
-  },
-  dayStatusChipPressed: {
+  dayStatusIconPressed: {
     opacity: 0.75,
   },
   pendingStrip: {

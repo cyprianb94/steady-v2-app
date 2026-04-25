@@ -21,7 +21,7 @@ function makeWeek(weekNumber: number, dates: string[]): PlanWeek {
 }
 
 describe('getDisplayWeekIndex', () => {
-  it('returns the first week that still has a session on or after today', () => {
+  it('returns the first week whose date range has not ended', () => {
     const weeks: PlanWeek[] = [
       makeWeek(1, ['2026-04-01', '', '', '', '', '', '2026-04-06']),
       makeWeek(2, ['2026-04-07', '', '', '', '', '', '2026-04-13']),
@@ -29,6 +29,16 @@ describe('getDisplayWeekIndex', () => {
     ];
 
     expect(getDisplayWeekIndex(weeks, '2026-04-09')).toBe(1);
+  });
+
+  it('keeps the current week selected on a Sunday rest day with no session date', () => {
+    const weeks: PlanWeek[] = [
+      makeWeek(1, ['2026-04-13', '2026-04-14', '2026-04-15', '2026-04-16', '2026-04-17', '2026-04-18', '']),
+      makeWeek(2, ['2026-04-20', '2026-04-21', '2026-04-22', '2026-04-23', '2026-04-24', '2026-04-25', '']),
+      makeWeek(3, ['2026-04-27', '2026-04-28', '2026-04-29', '2026-04-30', '2026-05-01', '2026-05-02', '2026-05-03']),
+    ];
+
+    expect(getDisplayWeekIndex(weeks, '2026-04-26')).toBe(1);
   });
 
   it('prefers a chosen resume week when it exists in the plan', () => {

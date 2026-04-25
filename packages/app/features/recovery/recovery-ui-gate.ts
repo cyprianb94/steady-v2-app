@@ -1,6 +1,7 @@
 import type { Injury, TrainingPlanWithAnnotation } from '@steady/types';
+import { isScreenshotDemoMode } from '../../demo/screenshot-demo';
 
-export const MVP_RECOVERY_UI_ENABLED = false;
+export const MVP_RECOVERY_UI_ENABLED = isScreenshotDemoMode();
 
 // TODO(STV2-99): Re-enable the parked injury/recovery screen integrations once the post-MVP slice is hardened.
 export function getVisibleActiveInjury(plan: TrainingPlanWithAnnotation | null): Injury | null {

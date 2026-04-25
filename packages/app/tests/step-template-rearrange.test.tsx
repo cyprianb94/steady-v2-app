@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
+import * as Haptics from 'expo-haptics';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { router, useLocalSearchParams } from 'expo-router';
 
@@ -26,6 +27,7 @@ describe('StepTemplate direct week reorder', () => {
   beforeEach(() => {
     vi.mocked(router.push).mockReset();
     vi.mocked(useLocalSearchParams).mockReturnValue(baseParams);
+    vi.mocked(Haptics.selectionAsync).mockClear();
   });
 
   it('reorders the visible week directly and sends the updated template to Step 3', () => {
@@ -43,6 +45,17 @@ describe('StepTemplate direct week reorder', () => {
     const template = JSON.parse(call.params.template);
     expect(template[0].type).toBe('LONG');
     expect(template[6].type).toBe('EASY');
+  });
+
+  it('emits haptics when a session is picked up and moved over another slot', () => {
+    render(<StepTemplate />);
+
+    fireEvent.click(screen.getByTestId('starter-choice-template'));
+    vi.mocked(Haptics.selectionAsync).mockClear();
+
+    dragHandle('template-drag-handle-0', 360);
+
+    expect(Haptics.selectionAsync).toHaveBeenCalledTimes(2);
   });
 
   it('lets the user cancel the regeneration warning when per-week edits exist', () => {

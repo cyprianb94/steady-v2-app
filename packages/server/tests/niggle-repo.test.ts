@@ -41,11 +41,13 @@ function runNiggleRepoTests(
 
     it('stores and lists niggles for an activity in insertion order', async () => {
       const inserted = await niggleRepo.setForActivity(activityId, [
-        { bodyPart: 'calf', severity: 'mild', when: 'during', side: 'left' },
+        { bodyPart: 'calf', severity: 'mild', when: ['before', 'during'], side: 'left' },
         { bodyPart: 'other', bodyPartOtherText: 'Upper calf', severity: 'niggle', when: 'after', side: null },
       ]);
 
       expect(inserted.map((niggle) => niggle.bodyPart)).toEqual(['calf', 'other']);
+      expect(inserted[0]).toMatchObject({ when: ['before', 'during'] });
+      expect(inserted[1]).toMatchObject({ when: ['after'] });
       expect(inserted[1]).toMatchObject({ bodyPartOtherText: 'Upper calf' });
       expect(await niggleRepo.listByActivity(activityId)).toEqual(inserted);
     });

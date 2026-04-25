@@ -8,6 +8,10 @@ import {
 } from '@steady/types';
 import { trpc } from './trpc';
 import { getSupabaseClient } from './supabase';
+import {
+  getScreenshotDemoPlan,
+  isScreenshotDemoMode,
+} from '../demo/screenshot-demo';
 
 export interface SavePlanInput {
   raceName: string;
@@ -223,6 +227,10 @@ async function updatePlanWeeksViaSupabase(weeks: PlanWeek[]): Promise<TrainingPl
 }
 
 export async function getPlan(): Promise<TrainingPlanWithAnnotation | null> {
+  if (isScreenshotDemoMode()) {
+    return getScreenshotDemoPlan();
+  }
+
   if (__DEV__) {
     return getPlanViaSupabase();
   }
@@ -231,6 +239,10 @@ export async function getPlan(): Promise<TrainingPlanWithAnnotation | null> {
 }
 
 export async function savePlan(input: SavePlanInput): Promise<TrainingPlan> {
+  if (isScreenshotDemoMode()) {
+    return getScreenshotDemoPlan();
+  }
+
   if (__DEV__) {
     return savePlanViaSupabase(input);
   }
@@ -239,6 +251,10 @@ export async function savePlan(input: SavePlanInput): Promise<TrainingPlan> {
 }
 
 export async function updatePlanWeeks(weeks: PlanWeek[]): Promise<TrainingPlan | null> {
+  if (isScreenshotDemoMode()) {
+    return getScreenshotDemoPlan();
+  }
+
   if (__DEV__) {
     return updatePlanWeeksViaSupabase(weeks);
   }

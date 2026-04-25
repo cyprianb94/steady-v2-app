@@ -1,8 +1,106 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
+import * as Haptics from 'expo-haptics';
 import { describe, expect, it, vi } from 'vitest';
 
 import { SessionEditor } from '../components/plan-builder/SessionEditor';
+import type { PlannedSession } from '@steady/types';
+
+function renderSessionEditor(existing: Partial<PlannedSession>) {
+  render(
+    <SessionEditor
+      dayIndex={1}
+      existing={existing}
+      onSave={vi.fn()}
+      onClose={vi.fn()}
+      presentation="screen"
+    />,
+  );
+}
+
+function expectCustomInputBlank() {
+  const customInput = screen.getByTestId('editable-chip-custom-input') as HTMLInputElement;
+  expect(customInput.value).toBe('');
+  return customInput;
+}
+
+const intervalSession = {
+  type: 'INTERVAL' as const,
+  reps: 6,
+  repDist: 800,
+  recovery: '90s' as const,
+  pace: '3:50',
+  warmup: { unit: 'km' as const, value: 1.5 },
+  cooldown: { unit: 'km' as const, value: 1 },
+};
+
+describe('SessionEditor custom field editing', () => {
+  it.each([
+    {
+      label: 'Distance',
+      existing: { type: 'LONG' as const, distance: 20, pace: '5:10' },
+    },
+    {
+      label: 'Repetitions',
+      existing: intervalSession,
+    },
+    {
+      label: 'Rep target pace',
+      existing: intervalSession,
+    },
+    {
+      label: 'Recovery between reps',
+      existing: intervalSession,
+    },
+    {
+      label: 'Warm-up',
+      existing: intervalSession,
+    },
+    {
+      label: 'Cool-down',
+      existing: intervalSession,
+    },
+  ])('opens $label custom input empty instead of copying the selected value', ({ label, existing }) => {
+    renderSessionEditor(existing);
+
+    fireEvent.click(screen.getByText(label));
+    fireEvent.click(screen.getByText('Custom...'));
+
+    expectCustomInputBlank();
+  });
+
+  it('opens a previously selected custom target pace as an empty input for replacement', () => {
+    renderSessionEditor(intervalSession);
+
+    fireEvent.click(screen.getByText('Rep target pace'));
+    fireEvent.click(screen.getByText('Custom...'));
+    fireEvent.change(expectCustomInputBlank(), {
+      target: { value: '3:42' },
+    });
+    fireEvent.blur(screen.getByTestId('editable-chip-custom-input'));
+
+    fireEvent.click(screen.getByText('3:42 /km'));
+
+    expectCustomInputBlank();
+  });
+});
+
+describe('SessionEditor haptics', () => {
+  it('emits selection haptics when edit chips are pressed', () => {
+    vi.mocked(Haptics.selectionAsync).mockClear();
+
+    renderSessionEditor(intervalSession);
+
+    fireEvent.click(screen.getByText('Tempo'));
+    fireEvent.click(screen.getByText('Target pace'));
+    fireEvent.click(screen.getByText('4:15 /km'));
+    fireEvent.click(screen.getByText('Warm-up'));
+    fireEvent.click(screen.getAllByText('MIN')[0]);
+    fireEvent.click(screen.getByText('Custom...'));
+
+    expect(Haptics.selectionAsync).toHaveBeenCalledTimes(4);
+  });
+});
 
 describe('SessionEditor keyboard-safe custom duration editing', () => {
   it.each([
@@ -34,7 +132,7 @@ describe('SessionEditor keyboard-safe custom duration editing', () => {
     fireEvent.click(screen.getByText(label));
     fireEvent.click(screen.getByText('Custom...'));
     expect(screen.queryByPlaceholderText('Custom km')).toBeNull();
-    const customInput = screen.getByPlaceholderText('Custom');
+    const customInput = screen.getByTestId('editable-chip-custom-input');
     fireEvent.change(customInput, {
       target: { value: '2.5' },
     });
@@ -131,7 +229,7 @@ describe('SessionEditor target pace editing', () => {
     fireEvent.click(screen.getByText('Rep target pace'));
     fireEvent.click(screen.getByText('Custom...'));
     expect(screen.queryByPlaceholderText('Custom pace')).toBeNull();
-    const customInput = screen.getByPlaceholderText('Custom');
+    const customInput = screen.getByTestId('editable-chip-custom-input');
     fireEvent.change(customInput, {
       target: { value: '3:42' },
     });
@@ -196,7 +294,7 @@ describe('SessionEditor distance editing', () => {
 
     expect(screen.getByText('20 km')).toBeTruthy();
     fireEvent.click(screen.getByText('Custom...'));
-    const customInput = screen.getByPlaceholderText('Custom');
+    const customInput = screen.getByTestId('editable-chip-custom-input');
     fireEvent.change(customInput, {
       target: { value: '21' },
     });
@@ -241,7 +339,7 @@ describe('SessionEditor interval notebook rows', () => {
 
     fireEvent.click(screen.getByText('Recovery between reps'));
     fireEvent.click(screen.getByText('Custom...'));
-    const customInput = screen.getByPlaceholderText('Custom');
+    const customInput = screen.getByTestId('editable-chip-custom-input');
     fireEvent.change(customInput, {
       target: { value: '2.5' },
     });

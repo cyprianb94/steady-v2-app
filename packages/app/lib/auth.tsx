@@ -5,6 +5,10 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { requireSupabaseClient, getSupabaseClient } from './supabase';
 import { setCurrentSession } from './auth-session';
+import {
+  SCREENSHOT_DEMO_SESSION,
+  isScreenshotDemoMode,
+} from '../demo/screenshot-demo';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -48,6 +52,25 @@ async function createSessionFromUrl(url: string): Promise<Session | null> {
 }
 
 export function AuthProvider({ children }: React.PropsWithChildren) {
+  if (isScreenshotDemoMode()) {
+    setCurrentSession(SCREENSHOT_DEMO_SESSION);
+
+    return (
+      <AuthContext.Provider
+        value={{
+          signInWithGoogle: async () => SCREENSHOT_DEMO_SESSION,
+          signOut: async () => {
+            setCurrentSession(SCREENSHOT_DEMO_SESSION);
+          },
+          session: SCREENSHOT_DEMO_SESSION,
+          isLoading: false,
+        }}
+      >
+        {children}
+      </AuthContext.Provider>
+    );
+  }
+
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const url = Linking.useLinkingURL();

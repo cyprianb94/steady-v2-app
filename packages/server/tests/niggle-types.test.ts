@@ -27,14 +27,14 @@ describe('niggle types', () => {
       bodyPart: 'other',
       bodyPartOtherText: 'Upper calf',
       severity: 'moderate',
-      when: 'during',
+      when: ['before', 'during'],
       side: 'left',
       createdAt: '2026-04-10T10:00:00Z',
     };
 
     expect(niggle.bodyPart).toBe('other');
     expect(formatNiggleBodyPart(niggle)).toBe('Upper calf');
-    expect(formatNiggleSummary(niggle)).toBe('Left Upper calf · Moderate · During');
-    expect(niggle.when).toBe('during');
+    expect(formatNiggleSummary(niggle)).toBe('Left Upper calf · Moderate · Before, During');
+    expect(niggle.when).toEqual(['before', 'during']);
   });
 });

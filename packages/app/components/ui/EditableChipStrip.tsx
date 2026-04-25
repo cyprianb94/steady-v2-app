@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
+import { triggerSelectionHaptic } from '../../lib/haptics';
 
 export interface EditableChipOption {
   key: string;
@@ -42,7 +43,7 @@ export function EditableChipStrip({
   customLabel = 'Custom...',
   customValue = '',
   customUnit,
-  customPlaceholder = 'Custom',
+  customPlaceholder = '',
   customKeyboardType = 'default',
   onSelect,
   onCustomPress,
@@ -58,7 +59,10 @@ export function EditableChipStrip({
           return (
             <Pressable
               key={option.key}
-              onPress={() => onSelect(option.key)}
+              onPress={() => {
+                triggerSelectionHaptic();
+                onSelect(option.key);
+              }}
               style={[
                 styles.chip,
                 active && { borderColor: activeColor, backgroundColor: activeColor },
@@ -80,6 +84,7 @@ export function EditableChipStrip({
             ]}
           >
             <TextInput
+              testID="editable-chip-custom-input"
               autoFocus
               selectTextOnFocus
               value={customValue}
@@ -96,7 +101,10 @@ export function EditableChipStrip({
           </View>
         ) : (
           <Pressable
-            onPress={onCustomPress}
+            onPress={() => {
+              triggerSelectionHaptic();
+              onCustomPress();
+            }}
             style={[
               styles.chip,
               styles.customChip,

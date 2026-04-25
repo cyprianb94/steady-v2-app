@@ -1,10 +1,10 @@
-import type { Niggle, BodyPart, NiggleSeverity, NiggleWhen, NiggleSide } from '@steady/types';
+import type { Niggle, BodyPart, NiggleSeverity, NiggleWhenValue, NiggleSide } from '@steady/types';
 
 export interface NiggleInput {
   bodyPart: BodyPart;
   bodyPartOtherText?: string | null;
   severity: NiggleSeverity;
-  when: NiggleWhen;
+  when: NiggleWhenValue;
   side: NiggleSide;
 }
 

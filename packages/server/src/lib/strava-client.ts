@@ -63,6 +63,7 @@ export interface StravaGear {
   brand: string;
   model: string;
   name?: string;
+  distanceMeters?: number;
   retired: boolean;
 }
 
@@ -356,6 +357,7 @@ export function createStravaClient(options: CreateStravaClientOptions = {}): Str
         brand: payload.brand_name,
         model: payload.model_name,
         name: typeof payload.name === 'string' ? payload.name : undefined,
+        distanceMeters: typeof payload.distance === 'number' ? payload.distance : undefined,
         retired: Boolean(payload.retired),
       };
     },

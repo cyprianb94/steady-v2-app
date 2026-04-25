@@ -19,9 +19,11 @@ export function BottomSheetView({
 export const BottomSheetModal = React.forwardRef(function MockBottomSheetModal(
   {
     children,
+    footerComponent: FooterComponent,
     onDismiss,
   }: {
     children: React.ReactNode;
+    footerComponent?: React.ComponentType<any>;
     onDismiss?: () => void;
   },
   ref: React.ForwardedRef<{
@@ -41,7 +43,12 @@ export const BottomSheetModal = React.forwardRef(function MockBottomSheetModal(
 
   if (!open) return null;
 
-  return <View data-rn="BottomSheetModal">{children}</View>;
+  return (
+    <View data-rn="BottomSheetModal">
+      {children}
+      {FooterComponent ? <FooterComponent animatedFooterPosition={{ get: () => 0 }} /> : null}
+    </View>
+  );
 });
 
 export function BottomSheetScrollView({
@@ -52,6 +59,13 @@ export function BottomSheetScrollView({
 }
 
 export const BottomSheetTextInput = TextInput;
+
+export function BottomSheetFooter({
+  children,
+  ...props
+}: React.ComponentProps<typeof View>) {
+  return <View {...props}>{children}</View>;
+}
 
 export default function BottomSheet({ children }: { children: React.ReactNode }) {
   return <View>{children}</View>;

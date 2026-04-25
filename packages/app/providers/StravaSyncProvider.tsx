@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth';
 import { isLikelyNetworkError } from '../lib/network-errors';
 import { StravaSyncContext, type StravaStatus } from '../hooks/useStravaSync';
 import { useToast } from './ToastProvider';
+import { isScreenshotDemoMode } from '../demo/screenshot-demo';
 
 const AUTO_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
 
@@ -41,6 +42,30 @@ function buildToastMessage(result: StravaSyncResult): string | null {
 }
 
 export function StravaSyncProvider({ children }: React.PropsWithChildren) {
+  if (isScreenshotDemoMode()) {
+    const status: StravaStatus = {
+      connected: true,
+      athleteId: '123456',
+      lastSyncedAt: '2026-04-23T12:45:00.000Z',
+    };
+
+    return (
+      <StravaSyncContext.Provider
+        value={{
+          status,
+          syncing: false,
+          lastResult: null,
+          syncRevision: 1,
+          refreshStatus: async () => status,
+          requestAutoSync: async () => null,
+          forceSync: async () => null,
+        }}
+      >
+        {children}
+      </StravaSyncContext.Provider>
+    );
+  }
+
   const { session } = useAuth();
   const { showToast } = useToast();
   const [status, setStatus] = useState<StravaStatus | null>(null);
