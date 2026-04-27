@@ -1,9 +1,10 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLocalSearchParams } from 'expo-router';
 
 import StepPlan from '../app/onboarding/plan-builder/step-plan';
+import { savePlan } from '../lib/plan-api';
 
 vi.mock('../lib/plan-api', () => ({
   savePlan: vi.fn(),
@@ -39,12 +40,14 @@ const baseParams = {
 describe('StepPlan session editing', () => {
   beforeEach(() => {
     vi.mocked(useLocalSearchParams).mockReturnValue(baseParams);
+    vi.mocked(savePlan).mockReset();
+    vi.mocked(savePlan).mockResolvedValue({} as Awaited<ReturnType<typeof savePlan>>);
   });
 
   it('opens the shared full-screen editor and applies an edit to remaining weeks', () => {
     render(<StepPlan />);
 
-    fireEvent.click(screen.getByText('W1'));
+    fireEvent.click(screen.getByTestId('block-review-key-week-1'));
     fireEvent.click(screen.getByTestId('plan-week-1-day-0'));
 
     expect(screen.getByText('Cancel')).toBeTruthy();
@@ -58,18 +61,38 @@ describe('StepPlan session editing', () => {
 
     expect(screen.getByTestId('plan-week-1-day-0').textContent).toContain('Rest day');
 
-    fireEvent.click(screen.getByText('W2'));
+    fireEvent.click(screen.getByTestId('block-review-week-2'));
     expect(screen.getByTestId('plan-week-2-day-0').textContent).toContain('Rest day');
   });
 
   it('opens interval sessions in the notebook-row editor rather than the old inline controls', () => {
     render(<StepPlan />);
 
-    fireEvent.click(screen.getByText('W1'));
+    fireEvent.click(screen.getByTestId('block-review-key-week-1'));
     fireEvent.click(screen.getByTestId('plan-week-1-day-1'));
 
     expect(screen.getByText('Repetitions')).toBeTruthy();
     expect(screen.getByText('Rep target pace')).toBeTruthy();
     expect(screen.queryByText('Rep distance')).toBeNull();
+  });
+
+  it('applies custom overload and saves a dated plan', async () => {
+    render(<StepPlan />);
+
+    fireEvent.click(screen.getByTestId('block-review-overload-custom'));
+    fireEvent.click(screen.getByTestId('block-review-overload-12'));
+    fireEvent.click(screen.getByTestId('block-review-overload-apply-custom'));
+    fireEvent.click(screen.getByText('Save plan and start training →'));
+
+    await waitFor(() => expect(savePlan).toHaveBeenCalledTimes(1));
+
+    const savedPlan = vi.mocked(savePlan).mock.calls[0][0];
+    expect(savedPlan).toMatchObject({
+      raceName: 'Club 10K',
+      raceDate: '2026-09-20',
+      progressionPct: 12,
+    });
+    expect(savedPlan.weeks[0].sessions[0]?.date).toBe('2026-08-31');
+    expect(savedPlan.weeks[2].sessions[6]?.date).toBe('2026-09-20');
   });
 });
