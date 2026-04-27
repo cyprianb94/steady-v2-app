@@ -12,7 +12,11 @@ import {
 import { useIsFocused } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { PlannedSession, SkippedSessionReason } from '@steady/types';
+import {
+  buildWeeklyVolumeSummary,
+  type PlannedSession,
+  type SkippedSessionReason,
+} from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { useAuth } from '../../lib/auth';
@@ -27,7 +31,7 @@ import { RemainingDaysList } from '../../components/home/RemainingDaysList';
 import { CoachAnnotationCard } from '../../components/home/CoachAnnotationCard';
 import { FinishedRunCta } from '../../components/home/FinishedRunCta';
 import { NiggleBanner } from '../../components/home/NiggleBanner';
-import { WeeklyLoadCard } from '../../components/home/WeeklyLoadCard';
+import { WeeklyVolumeCard } from '../../components/home/WeeklyLoadCard';
 import { ResolveSessionSheet } from '../../components/home/ResolveSessionSheet';
 import { InjuryBanner } from '../../components/recovery/InjuryBanner';
 import { CrossTrainingLog } from '../../components/recovery/CrossTrainingLog';
@@ -186,7 +190,12 @@ export default function HomeScreen() {
   const weekSessions = displayWeek.sessions;
   const todaySession = findSessionForDateOrWeekday(weekSessions, today);
   const todayActivity = activityResolution.activityForSession(todaySession);
-  const weeklyActualKm = activityResolution.weekActualKm(weekSessions);
+  const weeklyVolumeSummary = buildWeeklyVolumeSummary({
+    sessions: weekSessions,
+    activities: activityResolution.activities,
+    today,
+    weekStartDate: resolvedWeekStartDate,
+  });
   const showFinishedRunCta = Boolean(
     todaySession
     && todaySession.type !== 'REST'
@@ -378,7 +387,7 @@ export default function HomeScreen() {
             </>
           ) : (
             <>
-              <WeeklyLoadCard actualKm={weeklyActualKm} plannedKm={week.plannedKm} />
+              <WeeklyVolumeCard summary={weeklyVolumeSummary} />
               <TodayHeroCard
                 session={todaySession}
                 activity={todayActivity}

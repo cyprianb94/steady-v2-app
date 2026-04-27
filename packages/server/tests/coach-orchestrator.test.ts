@@ -25,6 +25,7 @@ const testUser: User = {
   subscriptionTier: 'pro',
   timezone: 'Europe/London',
   units: 'metric',
+  weeklyVolumeMetric: 'distance',
 };
 
 const testPlan: TrainingPlan = {

@@ -36,12 +36,14 @@ function createMockComponent(tag: string) {
     const {
       accessibilityRole: _accessibilityRole,
       accessibilityLabel: _accessibilityLabel,
+      accessibilityState: _accessibilityState,
       accessibilityIgnoresInvertColors: _accessibilityIgnoresInvertColors,
       delayLongPress: _delayLongPress,
       numberOfLines: _numberOfLines,
       onLayout: _onLayout,
       onPress,
       onLongPress,
+      onPressOut,
       onTouchStart,
       onTouchMove,
       onTouchEnd,
@@ -59,7 +61,10 @@ function createMockComponent(tag: string) {
           onLongPress?.({ nativeEvent: { pageY: event.clientY ?? 0 } });
         },
         onMouseMove: (event: any) => onTouchMove?.({ nativeEvent: { pageY: event.clientY ?? 0 } }),
-        onMouseUp: (event: any) => onTouchEnd?.({ nativeEvent: { pageY: event.clientY ?? 0 } }),
+        onMouseUp: (event: any) => {
+          onPressOut?.({ nativeEvent: { pageY: event.clientY ?? 0 } });
+          onTouchEnd?.({ nativeEvent: { pageY: event.clientY ?? 0 } });
+        },
         ...rest,
       },
       children,

@@ -15,6 +15,7 @@ function makeUser(id: string, units: 'metric' | 'imperial' = 'metric') {
     subscriptionTier: 'free' as const,
     timezone: 'Europe/London',
     units,
+    weeklyVolumeMetric: 'distance' as const,
   };
 }
 
@@ -42,6 +43,7 @@ describe('profile router', () => {
       id: 'user-1',
       email: 'user-1@steady.test',
       units: 'metric',
+      weeklyVolumeMetric: 'distance',
     });
   });
 
@@ -52,6 +54,28 @@ describe('profile router', () => {
 
     await expect(profileRepo.getById('user-1')).resolves.toMatchObject({
       units: 'imperial',
+      weeklyVolumeMetric: 'distance',
+    });
+  });
+
+  it('updates weekly volume metric without changing units', async () => {
+    await expect(caller.profile.updatePreferences({ weeklyVolumeMetric: 'time' })).resolves.toMatchObject({
+      units: 'metric',
+      weeklyVolumeMetric: 'time',
+    });
+
+    await expect(profileRepo.getById('user-1')).resolves.toMatchObject({
+      units: 'metric',
+      weeklyVolumeMetric: 'time',
+    });
+  });
+
+  it('updates units and weekly volume metric together', async () => {
+    await expect(
+      caller.profile.updatePreferences({ units: 'imperial', weeklyVolumeMetric: 'time' }),
+    ).resolves.toMatchObject({
+      units: 'imperial',
+      weeklyVolumeMetric: 'time',
     });
   });
 
@@ -67,6 +91,7 @@ describe('profile router', () => {
     await expect(appRouter.createCaller({ userId: 'ghost' }).profile.me()).resolves.toMatchObject({
       id: 'ghost',
       units: 'metric',
+      weeklyVolumeMetric: 'distance',
     });
   });
 });

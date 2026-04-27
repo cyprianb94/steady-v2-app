@@ -429,13 +429,25 @@ export const screenshotDemoTrpc = {
   },
   profile: {
     me: {
-      query: async () => ({ id: DEMO_USER_ID, email: 'runner@example.com', units: 'metric' }),
+      query: async () => ({
+        id: DEMO_USER_ID,
+        email: 'runner@example.com',
+        units: 'metric',
+        weeklyVolumeMetric: 'distance',
+      }),
     },
     updatePreferences: {
-      mutate: async ({ units }: { units: 'metric' | 'imperial' }) => ({
+      mutate: async ({
+        units = 'metric',
+        weeklyVolumeMetric = 'distance',
+      }: {
+        units?: 'metric' | 'imperial';
+        weeklyVolumeMetric?: 'time' | 'distance';
+      }) => ({
         id: DEMO_USER_ID,
         email: 'runner@example.com',
         units,
+        weeklyVolumeMetric,
       }),
     },
   },

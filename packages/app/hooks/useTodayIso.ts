@@ -13,13 +13,15 @@ function msUntilNextLocalMidnight(now: Date = new Date()): number {
 }
 
 export function useTodayIso(): string {
-  if (isScreenshotDemoMode()) {
-    return SCREENSHOT_DEMO_TODAY;
-  }
-
-  const [today, setToday] = useState(() => todayIsoLocal());
+  const demoMode = isScreenshotDemoMode();
+  const [today, setToday] = useState(() => (demoMode ? SCREENSHOT_DEMO_TODAY : todayIsoLocal()));
 
   useEffect(() => {
+    if (demoMode) {
+      setToday(SCREENSHOT_DEMO_TODAY);
+      return;
+    }
+
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     const scheduleRefresh = () => {
@@ -48,7 +50,7 @@ export function useTodayIso(): string {
       }
       subscription.remove();
     };
-  }, []);
+  }, [demoMode]);
 
-  return today;
+  return demoMode ? SCREENSHOT_DEMO_TODAY : today;
 }

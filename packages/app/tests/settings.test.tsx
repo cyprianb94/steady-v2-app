@@ -38,9 +38,12 @@ vi.mock('../hooks/useStravaSync', () => ({
 
 const mockPreferences = {
   units: 'metric' as 'metric' | 'imperial',
+  weeklyVolumeMetric: 'distance' as 'distance' | 'time',
   loading: false,
   updatingUnits: false,
+  updatingWeeklyVolumeMetric: false,
   setUnits: vi.fn(),
+  setWeeklyVolumeMetric: vi.fn(),
 };
 
 vi.mock('../providers/preferences-context', () => ({
@@ -106,9 +109,12 @@ describe('SettingsTab', () => {
     mockStrava.syncing = false;
 
     mockPreferences.units = 'metric';
+    mockPreferences.weeklyVolumeMetric = 'distance';
     mockPreferences.loading = false;
     mockPreferences.updatingUnits = false;
+    mockPreferences.updatingWeeklyVolumeMetric = false;
     mockPreferences.setUnits.mockResolvedValue(undefined);
+    mockPreferences.setWeeklyVolumeMetric.mockResolvedValue(undefined);
   });
 
   it('keeps the overview canonical and the sections in the new order', () => {
@@ -133,6 +139,7 @@ describe('SettingsTab', () => {
     expect(screen.getByText('Valencia Marathon · 3:15')).toBeTruthy();
     expect(screen.getByText('Week 2 of 3.')).toBeTruthy();
     expect(screen.getAllByText('Strava')).toHaveLength(1);
+    expect(screen.getByText('Weekly volume')).toBeTruthy();
     expect(screen.queryByText('Recovery mode')).toBeNull();
 
     const preferences = screen.getByText('Preferences');
@@ -155,6 +162,18 @@ describe('SettingsTab', () => {
 
     await waitFor(() => {
       expect(mockPreferences.setUnits).toHaveBeenCalledWith('imperial');
+    });
+  });
+
+  it('updates the weekly volume metric from the preference rows', async () => {
+    mockAuth.session = { user: { email: 'runner@example.com' } };
+
+    render(<SettingsTab />);
+
+    fireEvent.click(screen.getByText('Time on feet'));
+
+    await waitFor(() => {
+      expect(mockPreferences.setWeeklyVolumeMetric).toHaveBeenCalledWith('time');
     });
   });
 

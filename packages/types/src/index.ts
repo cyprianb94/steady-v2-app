@@ -77,10 +77,21 @@ export type {
   PlanEditStatus,
 } from './coach';
 
-export type { User } from './user';
+export type { User, WeeklyVolumeMetric } from './user';
 
 // Shared pure functions (used by both server and app)
 export { sessionKm, expectedDistance, weekKm } from './lib/session-km';
+export {
+  buildWeeklyVolumeSummary,
+  getWeeklyVolumeDayMetric,
+} from './lib/weekly-volume';
+export type {
+  BuildWeeklyVolumeSummaryInput,
+  WeeklyVolumeDay,
+  WeeklyVolumeDayStatus,
+  WeeklyVolumeMetricValues,
+  WeeklyVolumeSummary,
+} from './lib/weekly-volume';
 export { generatePlan, defaultPhases } from './lib/plan-generator';
 export {
   normalizePlanWeekSessionDurations,

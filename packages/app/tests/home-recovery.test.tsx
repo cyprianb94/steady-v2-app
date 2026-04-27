@@ -113,7 +113,7 @@ vi.mock('../components/home/CoachAnnotationCard', () => ({
 }));
 
 vi.mock('../components/home/WeeklyLoadCard', () => ({
-  WeeklyLoadCard: () => <div>WEEKLY LOAD</div>,
+  WeeklyVolumeCard: () => <div>WEEKLY VOLUME</div>,
 }));
 
 vi.mock('../components/recovery/InjuryBanner', () => ({
@@ -240,7 +240,7 @@ describe('HomeScreen recovery behavior', () => {
     render(<HomeScreen />);
 
     expect(screen.getByText('Week 4 · Build Phase')).toBeTruthy();
-    expect(screen.getByText('WEEKLY LOAD')).toBeTruthy();
+    expect(screen.getByText('WEEKLY VOLUME')).toBeTruthy();
     expect(screen.queryByText('Recovery Mode')).toBeNull();
     expect(screen.queryByText('Calf strain')).toBeNull();
     expect(screen.queryByText('Cross-Training This Week')).toBeNull();

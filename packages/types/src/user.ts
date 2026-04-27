@@ -1,3 +1,5 @@
+export type WeeklyVolumeMetric = 'time' | 'distance';
+
 export interface User {
   id: string;
   email: string;
@@ -15,4 +17,5 @@ export interface User {
   // Preferences
   timezone: string; // IANA e.g. 'Europe/London'
   units: 'metric' | 'imperial';
+  weeklyVolumeMetric: WeeklyVolumeMetric;
 }

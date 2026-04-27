@@ -35,6 +35,15 @@ vi.mock('../hooks/usePlan', () => ({
 
 const mockActivityList = vi.hoisted(() => vi.fn());
 const mockActivityGet = vi.hoisted(() => vi.fn());
+const mockPreferences = vi.hoisted(() => ({
+  units: 'metric' as 'metric' | 'imperial',
+  weeklyVolumeMetric: 'distance' as 'distance' | 'time',
+  loading: false,
+  updatingUnits: false,
+  updatingWeeklyVolumeMetric: false,
+  setUnits: vi.fn(),
+  setWeeklyVolumeMetric: vi.fn(),
+}));
 
 vi.mock('../lib/trpc', () => ({
   trpc: {
@@ -47,6 +56,10 @@ vi.mock('../lib/trpc', () => ({
       },
     },
   },
+}));
+
+vi.mock('../providers/preferences-context', () => ({
+  usePreferences: () => mockPreferences,
 }));
 
 import HomeScreen from '../app/(tabs)/home';
@@ -73,6 +86,13 @@ describe('HomeScreen', () => {
     mockPlan.refresh = vi.fn();
     mockActivityList.mockReset();
     mockActivityGet.mockReset();
+    mockPreferences.units = 'metric';
+    mockPreferences.weeklyVolumeMetric = 'distance';
+    mockPreferences.loading = false;
+    mockPreferences.updatingUnits = false;
+    mockPreferences.updatingWeeklyVolumeMetric = false;
+    mockPreferences.setUnits.mockReset();
+    mockPreferences.setWeeklyVolumeMetric.mockReset();
     mockActivityList.mockReturnValue(new Promise(() => {}));
     mockActivityGet.mockResolvedValue(null);
     vi.spyOn(Alert, 'alert').mockImplementation(() => {});
@@ -85,6 +105,34 @@ describe('HomeScreen', () => {
   it('shows a loading indicator while auth is loading', () => {
     render(<HomeScreen />);
     expect(screen.getByTestId('home-loading')).toBeTruthy();
+  });
+
+  it('can transition from loading to a loaded weekly volume view', () => {
+    const week = {
+      weekNumber: 3,
+      phase: 'BASE' as const,
+      sessions: [null, null, null, null, null, null, null],
+      plannedKm: 40,
+    };
+
+    const { rerender } = render(<HomeScreen />);
+    expect(screen.getByTestId('home-loading')).toBeTruthy();
+
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-07-15',
+      coachAnnotation: 'Keep this one conversational.',
+    };
+    mockPlan.currentWeek = week;
+
+    rerender(<HomeScreen />);
+
+    expect(screen.getByTestId('weekly-volume-card')).toBeTruthy();
   });
 
   it('shows sign-in prompt when not authenticated', () => {
@@ -283,7 +331,7 @@ describe('HomeScreen', () => {
     expect(screen.queryByText('10km Tempo')).toBeNull();
   });
 
-  it('shows weekly load with actual and planned distance', async () => {
+  it('shows weekly volume with actual and planned distance', async () => {
     const week = {
       weekNumber: 3,
       phase: 'BUILD' as const,
@@ -326,14 +374,65 @@ describe('HomeScreen', () => {
 
     render(<HomeScreen />);
 
-    expect(await screen.findByText('WEEKLY LOAD')).toBeTruthy();
-    const weeklyLoadCard = screen.getByTestId('weekly-load-card');
-    expect(within(weeklyLoadCard).getByText('8.2km')).toBeTruthy();
-    expect(within(weeklyLoadCard).getByText('/ 50km')).toBeTruthy();
-    expect(weeklyLoadCard.getAttribute('style')).toContain('background-color: rgb(253, 250, 245)');
-    expect(weeklyLoadCard.getAttribute('style')).toContain('border-color: rgb(229, 221, 208)');
-    expect(weeklyLoadCard.getAttribute('style')).toContain('border-width: 1.5px');
-    expect(weeklyLoadCard.getAttribute('style')).toContain('margin-bottom: 16px');
+    expect(await screen.findByText('WEEKLY VOLUME')).toBeTruthy();
+    const weeklyVolumeCard = screen.getByTestId('weekly-volume-card');
+    expect(within(weeklyVolumeCard).getByText('8.2km')).toBeTruthy();
+    expect(within(weeklyVolumeCard).getByText('/ 50km')).toBeTruthy();
+    expect(within(weeklyVolumeCard).queryByText(/h\d{2}|\d+m/)).toBeNull();
+    expect(weeklyVolumeCard.getAttribute('style')).toContain('background-color: rgb(253, 250, 245)');
+    expect(weeklyVolumeCard.getAttribute('style')).toContain('border-color: rgb(229, 221, 208)');
+    expect(weeklyVolumeCard.getAttribute('style')).toContain('border-width: 1.5px');
+    expect(weeklyVolumeCard.getAttribute('style')).toContain('margin-bottom: 16px');
+  });
+
+  it('shows only time when weekly volume preference is time', async () => {
+    mockPreferences.weeklyVolumeMetric = 'time';
+    const week = {
+      weekNumber: 3,
+      phase: 'BUILD' as const,
+      sessions: [
+        { id: 'mon', type: 'EASY', date: '2026-04-06', distance: 8, pace: '5:20', actualActivityId: 'act-1' },
+        null,
+        null,
+        { id: 'thu', type: 'TEMPO', date: '2026-04-09', distance: 10, pace: '4:20' },
+        null,
+        { id: 'sat', type: 'EASY', date: '2026-04-11', distance: 12, pace: '5:15' },
+        { id: 'sun', type: 'LONG', date: '2026-04-12', distance: 20, pace: '5:05' },
+      ],
+      plannedKm: 50,
+    };
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-07-15',
+      coachAnnotation: 'Keep the first half controlled.',
+    };
+    mockPlan.currentWeek = week;
+    mockActivityList.mockResolvedValue([
+      {
+        id: 'act-1',
+        userId: '1',
+        source: 'strava',
+        externalId: 'strava-1',
+        startTime: '2026-04-06T07:00:00.000Z',
+        distance: 8.2,
+        duration: 2620,
+        avgPace: 320,
+        splits: [],
+        matchedSessionId: 'mon',
+      },
+    ]);
+
+    render(<HomeScreen />);
+
+    const weeklyVolumeCard = await screen.findByTestId('weekly-volume-card');
+    expect(within(weeklyVolumeCard).getByText('44m')).toBeTruthy();
+    expect(within(weeklyVolumeCard).getByText('/ 4h11')).toBeTruthy();
+    expect(within(weeklyVolumeCard).queryByText('8.2km')).toBeNull();
   });
 
   it('ignores a future linked-only long run in the current week load and remaining-days status', async () => {
@@ -400,9 +499,9 @@ describe('HomeScreen', () => {
       await Promise.resolve();
     });
 
-    const weeklyLoadCard = screen.getByTestId('weekly-load-card');
-    expect(within(weeklyLoadCard).getByText('21.5km')).toBeTruthy();
-    expect(within(weeklyLoadCard).queryByText('41.5km')).toBeNull();
+    const weeklyVolumeCard = screen.getByTestId('weekly-volume-card');
+    expect(within(weeklyVolumeCard).getByText('21.5km')).toBeTruthy();
+    expect(within(weeklyVolumeCard).queryByText('41.5km')).toBeNull();
     expect(screen.getAllByTestId('day-row-check')).toHaveLength(1);
     expect(screen.getAllByTestId('day-row-off-target')).toHaveLength(1);
   });
@@ -458,8 +557,8 @@ describe('HomeScreen', () => {
       await Promise.resolve();
     });
 
-    const weeklyLoadCard = screen.getByTestId('weekly-load-card');
-    expect(within(weeklyLoadCard).getByText('16km')).toBeTruthy();
+    const weeklyVolumeCard = screen.getByTestId('weekly-volume-card');
+    expect(within(weeklyVolumeCard).getByText('16km')).toBeTruthy();
     expect(screen.getAllByTestId('day-row-check')).toHaveLength(2);
     expect(screen.queryByTestId('day-row-warning')).toBeNull();
   });

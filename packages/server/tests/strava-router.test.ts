@@ -51,6 +51,7 @@ describe('strava router', () => {
       subscriptionTier: 'free',
       timezone: 'Europe/London',
       units: 'metric',
+      weeklyVolumeMetric: 'distance',
     });
 
     const appRouter = createAppRouter({

@@ -169,7 +169,15 @@ export default function SettingsTab() {
   const { signInWithGoogle, signOut, session, isLoading } = useAuth();
   const { plan, loading: planLoading, currentWeekIndex, refresh } = usePlan();
   const { status: stravaStatus, refreshStatus, forceSync, syncing: stravaSyncing } = useStravaSync();
-  const { units, setUnits, loading: preferencesLoading, updatingUnits } = usePreferences();
+  const {
+    units,
+    setUnits,
+    weeklyVolumeMetric,
+    setWeeklyVolumeMetric,
+    loading: preferencesLoading,
+    updatingUnits,
+    updatingWeeklyVolumeMetric,
+  } = usePreferences();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [recoveryModalMode, setRecoveryModalMode] = useState<'mark' | 'resume' | null>(null);
   const activeInjury = getVisibleActiveInjury(plan);
@@ -269,7 +277,18 @@ export default function SettingsTab() {
     }
   }
 
+  async function handleWeeklyVolumeMetricChange(nextMetric: 'distance' | 'time') {
+    if (nextMetric === weeklyVolumeMetric || updatingWeeklyVolumeMetric) return;
+
+    try {
+      await setWeeklyVolumeMetric(nextMetric);
+    } catch (error) {
+      Alert.alert('Could not update weekly volume', error instanceof Error ? error.message : 'Unknown error');
+    }
+  }
+
   const busy = isLoading || isSubmitting || stravaSyncing || recoveryController.isMutatingRecovery;
+  const preferenceBusy = busy || preferencesLoading || updatingUnits || updatingWeeklyVolumeMetric;
   const hasPlan = Boolean(plan);
   const planSummary = plan ? `${plan.raceName} · ${plan.targetTime}` : 'No active plan.';
   const weekSummary = plan ? `Week ${currentWeekIndex + 1} of ${plan.weeks.length}.` : 'No active block.';
@@ -344,7 +363,7 @@ export default function SettingsTab() {
               title="Kilometres"
               subtitle="Distance in km and pace per kilometre."
               selected={units === 'metric'}
-              disabled={busy || preferencesLoading || updatingUnits}
+              disabled={preferenceBusy}
               onPress={() => {
                 void handleUnitsChange('metric');
               }}
@@ -353,7 +372,7 @@ export default function SettingsTab() {
               title="Miles"
               subtitle="Distance in miles and pace per mile."
               selected={units === 'imperial'}
-              disabled={busy || preferencesLoading || updatingUnits}
+              disabled={preferenceBusy}
               onPress={() => {
                 void handleUnitsChange('imperial');
               }}
@@ -371,8 +390,44 @@ export default function SettingsTab() {
           </View>
         )}
 
+        <Text style={styles.preferenceGroupLabel}>Weekly volume</Text>
+        {session ? (
+          <View style={styles.rowCard}>
+            <SelectionRow
+              title="Mileage"
+              subtitle="Show weekly volume by distance."
+              selected={weeklyVolumeMetric === 'distance'}
+              disabled={preferenceBusy}
+              onPress={() => {
+                void handleWeeklyVolumeMetricChange('distance');
+              }}
+            />
+            <SelectionRow
+              title="Time on feet"
+              subtitle="Show weekly volume by duration."
+              selected={weeklyVolumeMetric === 'time'}
+              disabled={preferenceBusy}
+              onPress={() => {
+                void handleWeeklyVolumeMetricChange('time');
+              }}
+              showBorder={false}
+            />
+          </View>
+        ) : (
+          <View style={styles.rowCard}>
+            <ActionRow
+              title="Weekly volume"
+              subtitle="Sign in before saving the Home weekly volume metric."
+              value="Locked"
+              showBorder={false}
+            />
+          </View>
+        )}
+
         <Text style={styles.microCopy}>
-          {updatingUnits ? 'Updating defaults…' : 'Track rep distances stay in metres for now.'}
+          {updatingUnits || updatingWeeklyVolumeMetric
+            ? 'Updating defaults…'
+            : 'Track rep distances stay in metres for now.'}
         </Text>
       </View>
 
@@ -601,6 +656,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 16,
     paddingHorizontal: 16,
+  },
+  preferenceGroupLabel: {
+    paddingHorizontal: 4,
+    marginTop: 6,
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: C.muted,
   },
   settingRow: {
     flexDirection: 'row',

@@ -55,6 +55,7 @@ function makeUser(overrides: Partial<User> = {}): User {
     subscriptionTier: 'free',
     timezone: 'UTC',
     units: 'metric',
+    weeklyVolumeMetric: 'distance',
     ...overrides,
   };
 }
