@@ -205,6 +205,54 @@ describe('HomeScreen', () => {
     expect(screen.getByTestId('home-scroll')).toBeTruthy();
   });
 
+  it('locks home scroll while the weekly volume plot is scrubbed', () => {
+    const week = {
+      weekNumber: 3,
+      phase: 'BASE' as const,
+      sessions: [
+        { id: 'mon', type: 'EASY', date: '2026-04-27', distance: 8, pace: '5:20' },
+        null,
+        null,
+        { id: 'thu', type: 'TEMPO', date: '2026-04-30', distance: 10, pace: '4:20' },
+        null,
+        { id: 'sat', type: 'EASY', date: '2026-05-02', distance: 12, pace: '5:15' },
+        { id: 'sun', type: 'LONG', date: '2026-05-03', distance: 20, pace: '5:05' },
+      ],
+      plannedKm: 50,
+    };
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-07-15',
+      coachAnnotation: 'Keep this one conversational.',
+    };
+    mockPlan.currentWeek = week;
+    mockPlan.currentWeekIndex = 0;
+
+    render(<HomeScreen />);
+
+    expect(screen.getByTestId('home-scroll').getAttribute('data-scroll-enabled')).toBe('true');
+
+    fireEvent.click(screen.getByTestId('weekly-volume-collapsed'));
+    fireEvent.mouseDown(screen.getByTestId('weekly-volume-plot-scrub-surface'), {
+      clientX: 8,
+      clientY: 12,
+    });
+
+    expect(screen.getByTestId('home-scroll').getAttribute('data-scroll-enabled')).toBe('false');
+
+    fireEvent.mouseUp(screen.getByTestId('weekly-volume-plot-scrub-surface'), {
+      clientX: 8,
+      clientY: 12,
+    });
+
+    expect(screen.getByTestId('home-scroll').getAttribute('data-scroll-enabled')).toBe('true');
+  });
+
   it('keeps today-first guidance beneath the week header', () => {
     const week = {
       weekNumber: 3,

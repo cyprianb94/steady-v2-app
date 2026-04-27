@@ -342,6 +342,34 @@ describe('WeeklyVolumeCard', () => {
     expect(screen.queryByText('time view')).toBeNull();
   });
 
+  it('reports active plot scrubbing until release so the parent scroll can lock', () => {
+    const onScrubActiveChange = vi.fn();
+    render(<WeeklyVolumeCard summary={makeSummary()} onScrubActiveChange={onScrubActiveChange} />);
+
+    fireEvent.click(screen.getByTestId('weekly-volume-collapsed'));
+    fireEvent.mouseDown(screen.getByTestId('weekly-volume-plot-scrub-surface'), { clientX: 8 });
+    fireEvent.mouseMove(screen.getByTestId('weekly-volume-plot-scrub-surface'), { clientX: 268, clientY: 12 });
+    fireEvent.mouseUp(screen.getByTestId('weekly-volume-plot-scrub-surface'), { clientX: 268, clientY: 12 });
+
+    expect(onScrubActiveChange).toHaveBeenNthCalledWith(1, true);
+    expect(onScrubActiveChange).toHaveBeenNthCalledWith(2, false);
+    expect(onScrubActiveChange).toHaveBeenCalledTimes(2);
+  });
+
+  it('releases the plot scrub lock if the chart unmounts mid-gesture', () => {
+    const onScrubActiveChange = vi.fn();
+    const { unmount } = render(
+      <WeeklyVolumeCard summary={makeSummary()} onScrubActiveChange={onScrubActiveChange} />,
+    );
+
+    fireEvent.click(screen.getByTestId('weekly-volume-collapsed'));
+    fireEvent.mouseDown(screen.getByTestId('weekly-volume-plot-scrub-surface'), { clientX: 8 });
+    unmount();
+
+    expect(onScrubActiveChange).toHaveBeenNthCalledWith(1, true);
+    expect(onScrubActiveChange).toHaveBeenNthCalledWith(2, false);
+  });
+
   it('temporarily flips expanded chart metric while the axis or lower plot area is held', async () => {
     render(<WeeklyVolumeCard summary={makeSummary()} />);
 

@@ -83,6 +83,7 @@ export default function HomeScreen() {
   const [resumeFlowKind, setResumeFlowKind] = useState<'manual' | 'complete-step'>('manual');
   const [resolvingSession, setResolvingSession] = useState<ResolvingSessionState | null>(null);
   const [resolveSessionBusy, setResolveSessionBusy] = useState(false);
+  const [weeklyVolumeScrubActive, setWeeklyVolumeScrubActive] = useState(false);
   const today = useTodayIso();
   const weekStartDate = currentWeek ? resolveDisplayWeekStartDate(currentWeek, today) : null;
   const activeInjury = getVisibleActiveInjury(plan);
@@ -366,6 +367,7 @@ export default function HomeScreen() {
         <ScrollView
           testID="home-scroll"
           style={styles.scroll}
+          scrollEnabled={!weeklyVolumeScrubActive}
           refreshControl={
             <RefreshControl
               refreshing={refreshing || syncing}
@@ -437,7 +439,11 @@ export default function HomeScreen() {
             </>
           ) : (
             <>
-              <WeeklyVolumeCard summary={weeklyVolumeSummary} focused={isFocused} />
+              <WeeklyVolumeCard
+                summary={weeklyVolumeSummary}
+                focused={isFocused}
+                onScrubActiveChange={setWeeklyVolumeScrubActive}
+              />
               <TodayHeroCard
                 session={todaySession}
                 activity={todayActivity}

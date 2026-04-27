@@ -70,6 +70,7 @@ const TYPE_COLOURS: Record<SessionType, { solid: string; pale: string }> = {
 interface WeeklyVolumeCardProps {
   summary: WeeklyVolumeSummary;
   focused?: boolean;
+  onScrubActiveChange?: (active: boolean) => void;
 }
 
 interface WeeklyLoadCardProps {
@@ -451,6 +452,7 @@ function WeeklyVolumeBucketChart({
   onSelectDay,
   onMetricHold,
   onMetricRelease,
+  onScrubActiveChange,
 }: {
   summary: WeeklyVolumeSummary;
   metric: WeeklyVolumeMetric;
@@ -459,11 +461,13 @@ function WeeklyVolumeBucketChart({
   onSelectDay: (dayIndex: number | null) => void;
   onMetricHold: () => void;
   onMetricRelease: () => void;
+  onScrubActiveChange?: (active: boolean) => void;
 }) {
   const plotRef = useRef<View>(null);
   const plotFrameRef = useRef({ x: 0, width: 0, measured: false });
   const selectedDayIndexRef = useRef(selectedDayIndex);
   const scrubActiveRef = useRef(false);
+  const onScrubActiveChangeRef = useRef(onScrubActiveChange);
   const [plotWidth, setPlotWidth] = useState(0);
   const [scrubX, setScrubX] = useState<number | null>(null);
   const maxChartValue = Math.max(
@@ -489,11 +493,27 @@ function WeeklyVolumeBucketChart({
   const selectedGuideLeft = clamp(selectedX, 0, Math.max(0, usablePlotWidth - 1));
 
   useEffect(() => {
+    onScrubActiveChangeRef.current = onScrubActiveChange;
+  }, [onScrubActiveChange]);
+
+  useEffect(() => () => {
+    if (scrubActiveRef.current) {
+      onScrubActiveChangeRef.current?.(false);
+    }
+  }, []);
+
+  useEffect(() => {
     selectedDayIndexRef.current = selectedDayIndex;
     if (selectedDayIndex == null) {
       setScrubX(null);
     }
   }, [selectedDayIndex]);
+
+  const setScrubActive = (active: boolean) => {
+    if (scrubActiveRef.current === active) return;
+    scrubActiveRef.current = active;
+    onScrubActiveChangeRef.current?.(active);
+  };
 
   const measurePlot = () => {
     plotRef.current?.measureInWindow?.((x, _y, width) => {
@@ -526,7 +546,7 @@ function WeeklyVolumeBucketChart({
   };
   const clearScrubSelection = () => {
     if (!scrubActiveRef.current) return;
-    scrubActiveRef.current = false;
+    setScrubActive(false);
     selectedDayIndexRef.current = null;
     setScrubX(null);
     onSelectDay(null);
@@ -565,7 +585,7 @@ function WeeklyVolumeBucketChart({
           onMoveShouldSetResponder={shouldScrubFromEvent}
           onResponderTerminationRequest={() => false}
           onResponderGrant={(event) => {
-            scrubActiveRef.current = true;
+            setScrubActive(true);
             measurePlot();
             selectDayFromEvent(event);
           }}
@@ -683,7 +703,11 @@ function WeeklyVolumeCollapsedContent({
   );
 }
 
-export function WeeklyVolumeCard({ summary, focused = true }: WeeklyVolumeCardProps) {
+export function WeeklyVolumeCard({
+  summary,
+  focused = true,
+  onScrubActiveChange,
+}: WeeklyVolumeCardProps) {
   const { units, weeklyVolumeMetric } = usePreferences();
   const reducedMotion = useReducedMotion();
   const [expanded, setExpanded] = useState(false);
@@ -934,6 +958,7 @@ export function WeeklyVolumeCard({ summary, focused = true }: WeeklyVolumeCardPr
                 onSelectDay={setSelectedDayIndex}
                 onMetricHold={handleLongPress}
                 onMetricRelease={handlePressOut}
+                onScrubActiveChange={onScrubActiveChange}
               />
             </Animated.View>
           </Animated.View>
