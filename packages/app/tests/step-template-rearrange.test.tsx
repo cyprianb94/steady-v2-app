@@ -14,6 +14,8 @@ const baseParams = {
   weeks: '8',
   targetTime: '00:45:00',
   phases: JSON.stringify({ BASE: 2, BUILD: 4, RECOVERY: 0, PEAK: 1, TAPER: 1 }),
+  starterMode: 'template',
+  templateRunCount: '6',
 };
 
 function dragHandle(testId: string, pageY: number) {
@@ -34,8 +36,6 @@ describe('StepTemplate direct week reorder', () => {
   it('reorders the visible week directly and sends the updated template to Step 3', () => {
     render(<StepTemplate />);
 
-    fireEvent.click(screen.getByTestId('starter-choice-template'));
-
     dragHandle('template-drag-handle-0', 360);
     fireEvent.click(screen.getByText('Generate 8-week plan →'));
 
@@ -51,7 +51,6 @@ describe('StepTemplate direct week reorder', () => {
   it('emits haptics when a session is picked up and moved over another slot', () => {
     render(<StepTemplate />);
 
-    fireEvent.click(screen.getByTestId('starter-choice-template'));
     vi.mocked(Haptics.impactAsync).mockClear();
     vi.mocked(Haptics.selectionAsync).mockClear();
 
@@ -69,7 +68,6 @@ describe('StepTemplate direct week reorder', () => {
 
     render(<StepTemplate />);
 
-    fireEvent.click(screen.getByTestId('starter-choice-template'));
     dragHandle('template-drag-handle-0', 360);
 
     expect(screen.getByText('Regenerate plan preview?')).toBeTruthy();
@@ -86,8 +84,6 @@ describe('StepTemplate direct week reorder', () => {
 
   it('lets the user drag the default rest day to a new slot', () => {
     render(<StepTemplate />);
-
-    fireEvent.click(screen.getByTestId('starter-choice-template'));
 
     dragHandle('template-drag-handle-4', -120);
     fireEvent.click(screen.getByText('Generate 8-week plan →'));

@@ -1,49 +1,106 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { sessionKm } from '@steady/types';
-import type { PlannedSession } from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { DAYS, sessionLabel } from '../../lib/plan-helpers';
-import { formatDistance, type DistanceUnits } from '../../lib/units';
+import type { DistanceUnits } from '../../lib/units';
 import {
-  STEADY_TEMPLATE,
+  TEMPLATE_RUN_COUNTS,
+  createRunCountTemplate,
+  type TemplateRunCount,
   type TemplateStarterMode,
+  type TemplateStarterSelection,
 } from '../../features/plan-builder/template-starter';
 
 interface StarterChoiceCardsProps {
-  onSelect: (mode: TemplateStarterMode) => void;
+  onSelect: (selection: TemplateStarterSelection) => void;
+  selectedMode: TemplateStarterMode;
+  selectedRunCount: TemplateRunCount;
   units: DistanceUnits;
 }
 
+const RUN_COUNT_SUMMARY: Record<TemplateRunCount, string> = {
+  1: 'One key run. Useful for returning gently or building around another sport.',
+  2: 'Easy run plus long run. A minimal rhythm with space to recover.',
+  3: 'Easy, quality, and long run. A simple balanced base.',
+  4: 'Adds one more easy day around a quality session and long run.',
+  5: 'Two quality sessions, two easy runs, and a long run.',
+  6: 'Easy runs, quality sessions, rest, and a long run are placed for you.',
+  7: 'Every day has a run. Keep the easy days genuinely easy.',
+};
+
 const PREVIEW_DAY_INDICES = [0, 1, 3, 6] as const;
 
-export function StarterChoiceCards({ onSelect, units }: StarterChoiceCardsProps) {
-  const templateVolume = STEADY_TEMPLATE.reduce(
-    (sum, session) => sum + sessionKm((session as PlannedSession | null) ?? null),
-    0,
+function Radio({ selected }: { selected: boolean }) {
+  return (
+    <View style={[styles.radio, selected && styles.radioSelected]}>
+      {selected ? <View style={styles.radioDot} /> : null}
+    </View>
   );
+}
+
+export function StarterChoiceCards({
+  onSelect,
+  selectedMode,
+  selectedRunCount,
+  units,
+}: StarterChoiceCardsProps) {
+  const template = createRunCountTemplate(selectedRunCount);
+  const templateSelected = selectedMode === 'template';
+  const cleanSelected = selectedMode === 'clean';
 
   return (
     <View>
-      <View style={[styles.card, styles.templateCard]}>
-        <View style={styles.cardRailClay} />
+      <Pressable
+        testID="starter-choice-template"
+        onPress={() => onSelect({ mode: 'template', runCount: selectedRunCount })}
+        style={[styles.card, templateSelected && styles.cardSelected]}
+      >
         <View style={styles.cardHeader}>
-          <View style={styles.chipTemplate}>
-            <Text style={styles.chipTextTemplate}>Recommended</Text>
+          <View>
+            <Text style={styles.cardTitle}>Build from template</Text>
+            <Text style={styles.cardCopy}>
+              Pre-fill your base week from a run count. Move, edit, or delete every session next.
+            </Text>
           </View>
-          <Text style={styles.volumeValue}>~{formatDistance(templateVolume, units, { spaced: true })} / week</Text>
+          <Radio selected={templateSelected} />
         </View>
 
-        <Text style={styles.cardTitle}>Steady template</Text>
-        <Text style={styles.cardCopy}>
-          Start from a balanced week with easy runs, a workout, a rest day, and a long run already in place.
-        </Text>
+        <View style={styles.selectorPanel}>
+          <View style={styles.selectorHeader}>
+            <Text style={styles.selectorLabel}>Runs per week</Text>
+            <Text style={styles.selectorHint}>Tap a number</Text>
+          </View>
+          <View style={styles.runCountRow}>
+            {TEMPLATE_RUN_COUNTS.map((runCount) => {
+              const selected = templateSelected && selectedRunCount === runCount;
+              return (
+                <Pressable
+                  key={runCount}
+                  onPress={(event) => {
+                    event.stopPropagation?.();
+                    onSelect({ mode: 'template', runCount });
+                  }}
+                  style={[styles.runCountButton, selected && styles.runCountButtonSelected]}
+                  testID={`starter-run-count-${runCount}`}
+                >
+                  <Text style={[styles.runCountText, selected && styles.runCountTextSelected]}>
+                    {runCount}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <View style={styles.templateSummary}>
+            <Text style={styles.templateSummaryTitle}>{selectedRunCount}-run week</Text>
+            <Text style={styles.templateSummaryCopy}>{RUN_COUNT_SUMMARY[selectedRunCount]}</Text>
+          </View>
+        </View>
 
         <View style={styles.previewGrid}>
           {PREVIEW_DAY_INDICES.map((dayIndex) => {
-            const session = STEADY_TEMPLATE[dayIndex];
-
+            const session = template[dayIndex];
             return (
               <View
                 key={DAYS[dayIndex]}
@@ -59,72 +116,27 @@ export function StarterChoiceCards({ onSelect, units }: StarterChoiceCardsProps)
                 <Text style={styles.previewMain} numberOfLines={1}>
                   {session ? sessionLabel(session, units) : 'Rest day'}
                 </Text>
-                <Text style={styles.previewSub}>
-                  {session?.type === 'INTERVAL'
-                    ? 'Intervals'
-                    : session?.type === 'TEMPO'
-                      ? 'Tempo'
-                      : session?.type === 'LONG'
-                        ? 'Long Run'
-                        : session?.type === 'EASY'
-                          ? 'Easy Run'
-                          : 'Rest day'}
-                </Text>
               </View>
             );
           })}
         </View>
+      </Pressable>
 
-        <View style={styles.cardFooter}>
-          <Text style={styles.cardNote}>
-            Includes a steady default structure you can edit and rearrange before generating.
-          </Text>
-          <Pressable
-            testID="starter-choice-template"
-            onPress={() => onSelect('template')}
-            style={[styles.inlineButton, styles.primaryButton]}
-          >
-            <Text style={styles.primaryButtonText}>Use Steady template</Text>
-          </Pressable>
-        </View>
-      </View>
-
-      <View style={styles.card}>
-        <View style={styles.cardRailMuted} />
+      <Pressable
+        testID="starter-choice-clean"
+        onPress={() => onSelect({ mode: 'clean', runCount: selectedRunCount })}
+        style={[styles.card, cleanSelected && styles.cardCleanSelected]}
+      >
         <View style={styles.cardHeader}>
-          <View style={styles.chipClean}>
-            <Text style={styles.chipTextClean}>Clean slate</Text>
+          <View>
+            <Text style={styles.cardTitle}>Clean slate</Text>
+            <Text style={styles.cardCopy}>
+              All seven days start empty. Use this if you want to place every session yourself.
+            </Text>
           </View>
+          <Radio selected={cleanSelected} />
         </View>
-
-        <Text style={styles.cardTitle}>Start clean</Text>
-        <Text style={styles.cardCopy}>
-          Build your own week from scratch and add only the sessions you know you can support right now.
-        </Text>
-
-        <View style={styles.blankPreview}>
-          <View style={styles.blankBadge}>
-            <Text style={styles.blankBadgeText}>+</Text>
-          </View>
-          <Text style={styles.blankTitle}>Empty week</Text>
-          <Text style={styles.blankCopy}>
-            Every day starts open so you can shape the week deliberately instead of editing around assumptions.
-          </Text>
-        </View>
-
-        <View style={styles.cardFooter}>
-          <Text style={styles.cardNote}>
-            Useful if you already know your own rhythm or want to build conservatively from zero.
-          </Text>
-          <Pressable
-            testID="starter-choice-clean"
-            onPress={() => onSelect('clean')}
-            style={[styles.inlineButton, styles.secondaryButton]}
-          >
-            <Text style={styles.secondaryButtonText}>Start clean</Text>
-          </Pressable>
-        </View>
-      </View>
+      </Pressable>
     </View>
   );
 }
@@ -132,99 +144,143 @@ export function StarterChoiceCards({ onSelect, units }: StarterChoiceCardsProps)
 const styles = StyleSheet.create({
   card: {
     backgroundColor: C.surface,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: C.border,
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 14,
-    overflow: 'hidden',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
   },
-  templateCard: {
-    borderColor: `${C.clay}38`,
+  cardSelected: {
+    borderColor: C.clay,
+    backgroundColor: C.clayBg,
   },
-  cardRailClay: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 4,
-    backgroundColor: C.clay,
-  },
-  cardRailMuted: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 4,
-    backgroundColor: `${C.muted}45`,
+  cardCleanSelected: {
+    borderColor: C.muted,
+    backgroundColor: 'rgba(154, 142, 126, 0.08)',
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
     gap: 14,
-    marginBottom: 14,
-  },
-  chipTemplate: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    backgroundColor: C.clayBg,
-  },
-  chipClean: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    backgroundColor: 'rgba(154, 142, 126, 0.1)',
-  },
-  chipTextTemplate: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 9,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: C.clay,
-  },
-  chipTextClean: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 9,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: C.muted,
-  },
-  volumeValue: {
-    fontFamily: FONTS.monoBold,
-    fontSize: 12,
-    color: C.ink,
   },
   cardTitle: {
-    fontFamily: FONTS.serifBold,
-    fontSize: 22,
-    lineHeight: 24,
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 15,
     color: C.ink,
     marginBottom: 6,
   },
   cardCopy: {
     fontFamily: FONTS.sans,
+    fontSize: 12,
+    lineHeight: 18,
+    color: C.muted,
+  },
+  radio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  radioSelected: {
+    borderColor: C.clay,
+  },
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: C.clay,
+  },
+  selectorPanel: {
+    marginTop: 14,
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: 'rgba(196,82,42,0.20)',
+    borderRadius: 14,
+    padding: 12,
+  },
+  selectorHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  selectorLabel: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 9,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    color: C.muted,
+  },
+  selectorHint: {
+    fontFamily: FONTS.sans,
+    fontSize: 10,
+    color: C.muted,
+  },
+  runCountRow: {
+    flexDirection: 'row',
+    gap: 4,
+    backgroundColor: C.cream,
+    borderRadius: 18,
+    padding: 4,
+    marginBottom: 12,
+  },
+  runCountButton: {
+    flex: 1,
+    minHeight: 36,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  runCountButtonSelected: {
+    backgroundColor: C.surface,
+    borderWidth: 1.5,
+    borderColor: C.clay,
+  },
+  runCountText: {
+    fontFamily: FONTS.monoBold,
     fontSize: 13,
-    lineHeight: 20,
-    color: C.ink2,
-    marginBottom: 14,
+    color: C.muted,
+  },
+  runCountTextSelected: {
+    color: C.clay,
+  },
+  templateSummary: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: C.cream,
+    padding: 12,
+  },
+  templateSummaryTitle: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 13,
+    color: C.ink,
+    marginBottom: 4,
+  },
+  templateSummaryCopy: {
+    fontFamily: FONTS.sans,
+    fontSize: 11.5,
+    lineHeight: 17,
+    color: C.muted,
   },
   previewGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 14,
+    marginTop: 12,
   },
   previewCell: {
     width: '48%',
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: C.border,
-    backgroundColor: 'rgba(244, 239, 230, 0.75)',
-    paddingVertical: 10,
-    paddingHorizontal: 11,
-    minHeight: 58,
+    backgroundColor: C.surface,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    minHeight: 50,
   },
   previewEasy: {
     backgroundColor: C.forestBg,
@@ -239,109 +295,21 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(212, 136, 42, 0.18)',
   },
   previewLong: {
-    backgroundColor: 'rgba(237, 241, 248, 0.95)',
+    backgroundColor: C.navyBg,
     borderColor: 'rgba(27, 58, 107, 0.18)',
   },
   previewDay: {
     fontFamily: FONTS.sansSemiBold,
-    fontSize: 10,
+    fontSize: 9,
     letterSpacing: 1,
     textTransform: 'uppercase',
     color: C.muted,
-    marginBottom: 7,
+    marginBottom: 5,
   },
   previewMain: {
     fontFamily: FONTS.sansSemiBold,
-    fontSize: 12,
+    fontSize: 11.5,
     lineHeight: 14,
-    color: C.ink,
-  },
-  previewSub: {
-    marginTop: 3,
-    fontFamily: FONTS.sans,
-    fontSize: 10,
-    color: C.muted,
-  },
-  blankPreview: {
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: 'rgba(229, 221, 208, 0.95)',
-    backgroundColor: 'rgba(253, 250, 245, 0.92)',
-    minHeight: 132,
-    paddingVertical: 18,
-    paddingHorizontal: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-  },
-  blankBadge: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1,
-    borderColor: 'rgba(154, 142, 126, 0.22)',
-    backgroundColor: 'rgba(253, 250, 245, 0.84)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  blankBadgeText: {
-    fontFamily: FONTS.sans,
-    fontSize: 18,
-    color: C.muted,
-  },
-  blankTitle: {
-    fontFamily: FONTS.serifBold,
-    fontSize: 18,
-    lineHeight: 20,
-    color: C.ink2,
-    marginBottom: 6,
-  },
-  blankCopy: {
-    fontFamily: FONTS.sans,
-    fontSize: 11,
-    lineHeight: 16,
-    color: C.muted,
-    textAlign: 'center',
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-  },
-  cardNote: {
-    flex: 1,
-    fontFamily: FONTS.sans,
-    fontSize: 11,
-    lineHeight: 15,
-    color: C.muted,
-  },
-  inlineButton: {
-    minHeight: 46,
-    borderRadius: 999,
-    paddingHorizontal: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-  },
-  primaryButton: {
-    backgroundColor: C.clay,
-    borderColor: C.clay,
-  },
-  secondaryButton: {
-    backgroundColor: C.surface,
-    borderColor: C.border,
-  },
-  primaryButtonText: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 12,
-    color: C.surface,
-  },
-  secondaryButtonText: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 12,
     color: C.ink,
   },
 });

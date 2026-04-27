@@ -2,21 +2,26 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
-import type { TemplateStarterMode } from '../../features/plan-builder/template-starter';
+import type {
+  TemplateRunCount,
+  TemplateStarterMode,
+} from '../../features/plan-builder/template-starter';
 
 interface StarterSummaryStripProps {
   mode: TemplateStarterMode;
+  runCount: TemplateRunCount;
   volumeLabel: string;
   onChange: () => void;
 }
 
 export function StarterSummaryStrip({
   mode,
+  runCount,
   volumeLabel,
   onChange,
 }: StarterSummaryStripProps) {
   const title =
-    mode === 'template' ? 'Steady template · balanced week' : 'Clean slate · empty week';
+    mode === 'template' ? `${runCount}-run template` : 'Clean slate · empty week';
   const meta =
     mode === 'template'
       ? `Recommended base · ${volumeLabel}`

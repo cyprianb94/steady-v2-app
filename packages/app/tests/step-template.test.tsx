@@ -20,6 +20,8 @@ const baseParams = {
   weeks: '8',
   targetTime: '00:45:00',
   phases: JSON.stringify({ BASE: 2, BUILD: 4, RECOVERY: 0, PEAK: 1, TAPER: 1 }),
+  starterMode: 'template',
+  templateRunCount: '6',
 };
 
 describe('StepTemplate starter choice', () => {
@@ -29,6 +31,13 @@ describe('StepTemplate starter choice', () => {
   });
 
   it('loads into the chooser-first state', () => {
+    const {
+      starterMode: _starterMode,
+      templateRunCount: _templateRunCount,
+      ...chooserParams
+    } = baseParams;
+    vi.mocked(useLocalSearchParams).mockReturnValue(chooserParams);
+
     render(<StepTemplate />);
 
     expect(screen.getByText(/Start from a recommended base or build your own week from scratch/i)).toBeTruthy();
@@ -40,8 +49,7 @@ describe('StepTemplate starter choice', () => {
   it('hydrates the Steady template and passes the resolved template to Step 3', () => {
     render(<StepTemplate />);
 
-    fireEvent.click(screen.getByTestId('starter-choice-template'));
-    expect(screen.getByText('Steady template · balanced week')).toBeTruthy();
+    expect(screen.getByText('6-run template')).toBeTruthy();
 
     fireEvent.click(screen.getByText('Generate 8-week plan →'));
 
@@ -56,9 +64,13 @@ describe('StepTemplate starter choice', () => {
   });
 
   it('keeps the clean slate CTA disabled until a session is added', () => {
+    vi.mocked(useLocalSearchParams).mockReturnValue({
+      ...baseParams,
+      starterMode: 'clean',
+    });
+
     render(<StepTemplate />);
 
-    fireEvent.click(screen.getByTestId('starter-choice-clean'));
     expect(screen.getByText('Clean slate · empty week')).toBeTruthy();
 
     fireEvent.click(screen.getByText('Generate 8-week plan →'));
@@ -81,7 +93,6 @@ describe('StepTemplate starter choice', () => {
   it('asks for confirmation before replacing an edited week with a different starter mode', () => {
     render(<StepTemplate />);
 
-    fireEvent.click(screen.getByTestId('starter-choice-template'));
     dragHandle('template-drag-handle-0', 360);
 
     fireEvent.click(screen.getByTestId('starter-summary-change'));
@@ -107,7 +118,6 @@ describe('StepTemplate starter choice', () => {
 
     render(<StepTemplate />);
 
-    fireEvent.click(screen.getByTestId('starter-choice-template'));
     fireEvent.click(screen.getByTestId('starter-summary-change'));
     fireEvent.click(screen.getByTestId('starter-choice-clean'));
 

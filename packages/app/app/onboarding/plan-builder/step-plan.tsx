@@ -15,6 +15,7 @@ import {
   buildSessionEditDescription,
   materializeEditedSession,
 } from '../../../features/plan-builder/session-editing';
+import { getSharedPlanBuilderReviewComponent } from '../../../features/plan-builder/review-block-integration';
 import { savePlan } from '../../../lib/plan-api';
 import { usePreferences } from '../../../providers/preferences-context';
 import { formatDistance } from '../../../lib/units';
@@ -111,6 +112,7 @@ export default function StepPlan() {
   }
 
   const maxKm = Math.max(...plan.map((w) => w.plannedKm), 1);
+  const SharedReviewBlock = getSharedPlanBuilderReviewComponent();
 
   const [saving, setSaving] = useState(false);
 
@@ -154,12 +156,30 @@ export default function StepPlan() {
     );
   }
 
+  if (SharedReviewBlock) {
+    return (
+      <SharedReviewBlock
+        plan={plan}
+        template={template}
+        weeks={weeks}
+        phases={phases}
+        raceLabel={params.raceLabel || params.raceDistance || 'Race'}
+        targetTime={params.targetTime || ''}
+        progressionPct={progState}
+        saving={saving}
+        onApplyProgression={accept}
+        onEditSession={openSessionEditor}
+        onSavePlan={handleDone}
+      />
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.step}>STEP 3 OF 3</Text>
-        <Text style={styles.title}>Your {weeks}-week plan</Text>
+        <Text style={styles.step}>STEP 6 OF 6</Text>
+        <Text style={styles.title}>Review your block</Text>
         <Text style={styles.subtitle}>
           {params.raceLabel || params.raceDistance} · {params.targetTime} · Tap any week to edit sessions
         </Text>

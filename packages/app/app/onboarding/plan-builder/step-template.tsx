@@ -21,25 +21,32 @@ import { FONTS } from '../../../constants/typography';
 import {
   createStarterTemplate,
   canGenerateTemplate,
+  coerceTemplateRunCount,
+  DEFAULT_TEMPLATE_RUN_COUNT,
   hasStarterTemplateEdits,
   toTemplateSessions,
   type TemplateDay,
-  type TemplateStarterMode,
+  type TemplateStarterSelection,
 } from '../../../features/plan-builder/template-starter';
 import { useDirectWeekReschedule } from '../../../features/plan-builder/use-direct-week-reschedule';
-import { DAYS, sessionLabel } from '../../../lib/plan-helpers';
-import { formatDistance } from '../../../lib/units';
+import { DAYS } from '../../../lib/plan-helpers';
+import {
+  formatDistance,
+  formatSessionTitle,
+  formatStoredPace,
+  type DistanceUnits,
+} from '../../../lib/units';
 import { usePreferences } from '../../../providers/preferences-context';
 
 type PendingStarterChange =
   | {
-      nextMode: TemplateStarterMode;
+      selection: TemplateStarterSelection;
     }
   | null;
 
 type PendingStarterPreviewReset =
   | {
-      nextMode: TemplateStarterMode;
+      selection: TemplateStarterSelection;
     }
   | null;
 
@@ -61,10 +68,37 @@ function materializeTemplateSession(
   } as PlannedSession;
 }
 
-function createEditableStarterTemplate(mode: TemplateStarterMode): (PlannedSession | null)[] {
-  return createStarterTemplate(mode).map((session, dayIndex) =>
+function createEditableStarterTemplate(
+  selection: TemplateStarterSelection,
+): (PlannedSession | null)[] {
+  return createStarterTemplate(selection.mode, selection.runCount).map((session, dayIndex) =>
     materializeTemplateSession(dayIndex, session, null),
   );
+}
+
+function starterSelectionFromParams(params: {
+  starterMode?: string;
+  templateRunCount?: string;
+}): TemplateStarterSelection | null {
+  const runCount = coerceTemplateRunCount(params.templateRunCount);
+
+  if (params.starterMode === 'template') {
+    return { mode: 'template', runCount };
+  }
+
+  if (params.starterMode === 'clean') {
+    return { mode: 'clean', runCount };
+  }
+
+  return null;
+}
+
+function compactSessionMeta(session: PlannedSession | null, units: DistanceUnits) {
+  if (!session || session.type === 'REST') {
+    return 'Recovery slot';
+  }
+
+  return `@ ${formatStoredPace(session.pace, units, { withUnit: true })}`;
 }
 
 export default function StepTemplate() {
@@ -78,10 +112,18 @@ export default function StepTemplate() {
     targetTime: string;
     phases: string;
     hasPerWeekTweaks?: string;
+    starterMode?: string;
+    templateRunCount?: string;
   }>();
-  const [starterMode, setStarterMode] = useState<TemplateStarterMode | null>(null);
+  const initialStarterSelection = starterSelectionFromParams(params);
+  const [starterSelection, setStarterSelection] = useState<TemplateStarterSelection | null>(
+    initialStarterSelection,
+  );
   const [templateSessions, setTemplateSessions] = useState<(PlannedSession | null)[]>(
-    () => createEditableStarterTemplate('clean'),
+    () =>
+      createEditableStarterTemplate(
+        initialStarterSelection ?? { mode: 'clean', runCount: DEFAULT_TEMPLATE_RUN_COUNT },
+      ),
   );
   const [editing, setEditing] = useState<number | null>(null);
   const [starterPickerVisible, setStarterPickerVisible] = useState(false);
@@ -93,11 +135,13 @@ export default function StepTemplate() {
   const weeks = Number(params.weeks) || 16;
   const hasPerWeekTweaks = params.hasPerWeekTweaks === 'true';
   const committedTemplate = toTemplateSessions(templateSessions);
+  const starterMode = starterSelection?.mode ?? null;
+  const templateRunCount = starterSelection?.runCount ?? DEFAULT_TEMPLATE_RUN_COUNT;
 
   const reschedule = useDirectWeekReschedule({
     initialSessions: templateSessions,
     canDragDay: (session) => {
-      if (starterMode === 'clean') {
+      if (starterSelection?.mode === 'clean') {
         return Boolean(session);
       }
 
@@ -131,9 +175,9 @@ export default function StepTemplate() {
         ? `This pattern repeats across all ${weeks} weeks. Tap any day to adjust, or drag the grip to move it.`
         : 'Build a week from scratch and add only the sessions you know you can support. Dragging unlocks once the week has shape.';
 
-  function applyStarterMode(mode: TemplateStarterMode) {
-    setStarterMode(mode);
-    setTemplateSessions(createEditableStarterTemplate(mode));
+  function applyStarterSelection(selection: TemplateStarterSelection) {
+    setStarterSelection(selection);
+    setTemplateSessions(createEditableStarterTemplate(selection));
     setStarterPickerVisible(false);
     setPendingStarterChange(null);
     setPendingStarterPreviewReset(null);
@@ -141,25 +185,28 @@ export default function StepTemplate() {
     setEditing(null);
   }
 
-  function requestStarterMode(nextMode: TemplateStarterMode) {
-    if (starterMode === nextMode) {
+  function requestStarterSelection(selection: TemplateStarterSelection) {
+    if (starterMode === selection.mode && templateRunCount === selection.runCount) {
       setStarterPickerVisible(false);
       return;
     }
 
-    if (starterMode && hasStarterTemplateEdits(committedTemplate, starterMode)) {
-      setPendingStarterChange({ nextMode });
+    if (
+      starterMode &&
+      hasStarterTemplateEdits(committedTemplate, starterMode, templateRunCount)
+    ) {
+      setPendingStarterChange({ selection });
       setStarterPickerVisible(false);
       return;
     }
 
     if (starterMode !== null && hasPerWeekTweaks) {
-      setPendingStarterPreviewReset({ nextMode });
+      setPendingStarterPreviewReset({ selection });
       setStarterPickerVisible(false);
       return;
     }
 
-    applyStarterMode(nextMode);
+    applyStarterSelection(selection);
   }
 
   function handleSave(dayIndex: number, session: TemplateDay) {
@@ -205,15 +252,15 @@ export default function StepTemplate() {
       return;
     }
 
-    const { nextMode } = pendingStarterChange;
+    const { selection } = pendingStarterChange;
     setPendingStarterChange(null);
 
     if (hasPerWeekTweaks) {
-      setPendingStarterPreviewReset({ nextMode });
+      setPendingStarterPreviewReset({ selection });
       return;
     }
 
-    applyStarterMode(nextMode);
+    applyStarterSelection(selection);
   }
 
   function applyStarterPreviewReset() {
@@ -221,8 +268,8 @@ export default function StepTemplate() {
       return;
     }
 
-    const { nextMode } = pendingStarterPreviewReset;
-    applyStarterMode(nextMode);
+    const { selection } = pendingStarterPreviewReset;
+    applyStarterSelection(selection);
   }
 
   if (editing !== null) {
@@ -239,7 +286,7 @@ export default function StepTemplate() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.step}>STEP 2 OF 3</Text>
+        <Text style={styles.step}>STEP 5 OF 6</Text>
         <Text style={styles.title}>Design your week</Text>
         <Text style={styles.subtitle}>{subtitle}</Text>
       </View>
@@ -250,11 +297,17 @@ export default function StepTemplate() {
         scrollEnabled={!reschedule.isHandleActive}
       >
         {starterMode === null ? (
-          <StarterChoiceCards onSelect={requestStarterMode} units={units} />
+          <StarterChoiceCards
+            onSelect={requestStarterSelection}
+            selectedMode="template"
+            selectedRunCount={templateRunCount}
+            units={units}
+          />
         ) : (
           <>
             <StarterSummaryStrip
               mode={starterMode}
+              runCount={templateRunCount}
               volumeLabel={volumeLabel}
               onChange={() => setStarterPickerVisible(true)}
             />
@@ -329,7 +382,7 @@ export default function StepTemplate() {
                       <View style={styles.emptyDayCopy}>
                         <Text style={styles.emptyDayTitle}>Empty day</Text>
                         <Text style={styles.emptyDaySubtitle}>
-                          Add a run, workout or rest choice.
+                          Add a run or rest day.
                         </Text>
                       </View>
                       <View style={styles.addAction}>
@@ -391,12 +444,10 @@ export default function StepTemplate() {
                         />
                         <View style={styles.sessionCopy}>
                           <Text style={styles.sessionMain} numberOfLines={1}>
-                            {isRest ? 'Rest day' : sessionLabel(session, units)}
+                            {isRest || !session ? 'Rest day' : formatSessionTitle(session, units)}
                           </Text>
                           <Text style={[styles.sessionDetail, isRest && styles.sessionDetailRest]} numberOfLines={1}>
-                            {isRest
-                              ? 'Recovery slot locked in for this day'
-                              : sessionType.label}
+                            {compactSessionMeta(session, units)}
                           </Text>
                         </View>
                       </View>
@@ -482,7 +533,12 @@ export default function StepTemplate() {
                 contentContainerStyle={styles.pickerScrollContent}
                 showsVerticalScrollIndicator={false}
               >
-                <StarterChoiceCards onSelect={requestStarterMode} units={units} />
+                <StarterChoiceCards
+                  onSelect={requestStarterSelection}
+                  selectedMode={starterMode ?? 'template'}
+                  selectedRunCount={templateRunCount}
+                  units={units}
+                />
               </ScrollView>
               <Pressable
                 onPress={() => setStarterPickerVisible(false)}
@@ -502,10 +558,10 @@ export default function StepTemplate() {
               <Text style={styles.warningTitle}>Replace this week?</Text>
               <Text style={styles.warningCopy}>
                 Switching to{' '}
-                {pendingStarterChange.nextMode === 'template'
-                  ? 'the Steady template'
+                {pendingStarterChange.selection.mode === 'template'
+                  ? `the ${pendingStarterChange.selection.runCount}-run template`
                   : 'a clean slate'}{' '}
-                will replace the week you&apos;ve already edited.
+                will replace the week you've already edited.
               </Text>
               <View style={styles.warningActions}>
                 <Pressable
@@ -641,14 +697,14 @@ const styles = StyleSheet.create({
     backgroundColor: C.surface,
     borderWidth: 1,
     borderColor: C.border,
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   layoutTitle: {
     fontFamily: FONTS.sansSemiBold,
@@ -687,7 +743,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   dayCardWrap: {
-    marginBottom: 8,
+    marginBottom: 6,
     position: 'relative',
   },
   dayCardWrapDragging: {
@@ -697,7 +753,7 @@ const styles = StyleSheet.create({
   dayCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 18,
+    borderRadius: 14,
     borderWidth: 1.5,
     overflow: 'hidden',
   },
@@ -705,9 +761,9 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 13,
-    paddingLeft: 14,
+    gap: 9,
+    paddingVertical: 9,
+    paddingLeft: 12,
     paddingRight: 2,
   },
   dayCardDropTarget: {
@@ -721,7 +777,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   dayLabel: {
-    width: 44,
+    width: 40,
   },
   dayName: {
     fontFamily: FONTS.sansSemiBold,
@@ -732,13 +788,13 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     overflow: 'hidden',
   },
   sessionDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   sessionDotRest: {
     backgroundColor: C.slate,
@@ -749,36 +805,36 @@ const styles = StyleSheet.create({
   },
   sessionMain: {
     fontFamily: FONTS.sansMedium,
-    fontSize: 14,
+    fontSize: 13.5,
     lineHeight: 16,
     color: C.ink,
   },
   sessionDetail: {
     fontFamily: FONTS.sans,
-    fontSize: 11,
+    fontSize: 10.5,
     color: C.muted,
-    marginTop: 4,
+    marginTop: 2,
   },
   sessionDetailRest: {
     color: C.muted,
   },
   emptyDayCard: {
-    borderRadius: 18,
+    borderRadius: 14,
     borderWidth: 1.5,
     borderColor: C.border,
     backgroundColor: 'rgba(253, 250, 245, 0.9)',
-    marginBottom: 10,
+    marginBottom: 6,
     overflow: 'hidden',
   },
   emptyDayPressable: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
+    gap: 9,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
   emptyDayLabel: {
-    width: 44,
+    width: 40,
     fontFamily: FONTS.sansSemiBold,
     fontSize: 12,
     color: C.muted,
@@ -790,11 +846,11 @@ const styles = StyleSheet.create({
   },
   emptyDayTitle: {
     fontFamily: FONTS.sansMedium,
-    fontSize: 14,
+    fontSize: 13.5,
     color: C.ink2,
   },
   emptyDaySubtitle: {
-    marginTop: 4,
+    marginTop: 2,
     fontFamily: FONTS.sans,
     fontSize: 11,
     color: C.muted,
