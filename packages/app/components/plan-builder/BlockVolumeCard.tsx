@@ -301,6 +301,8 @@ export function BlockVolumeCard({
   const selectedX = scrubX ?? selectedPoint?.x ?? PLOT_LEFT;
   const tooltipLeft = clamp(selectedX - TOOLTIP_WIDTH / 2, PLOT_LEFT, PLOT_RIGHT - TOOLTIP_WIDTH);
   const tooltipTop = selectedPoint ? clamp(selectedPoint.y - 60, 0, PLOT_BOTTOM - 56) : 0;
+  const finalMarker = model.markers[model.markers.length - 1];
+  const shouldStackFinalPhaseLabel = Boolean(finalMarker && PLOT_RIGHT - finalMarker.x < 44);
 
   function selectWeekFromX(x: number) {
     const clampedX = clamp(x, PLOT_LEFT, PLOT_RIGHT);
@@ -446,7 +448,13 @@ export function BlockVolumeCard({
             {marker.label}
           </Text>
         ))}
-        <Text style={[styles.axisLabel, styles.axisLabelRace]}>
+        <Text
+          style={[
+            styles.axisLabel,
+            styles.axisLabelRace,
+            shouldStackFinalPhaseLabel && styles.axisLabelRaceStacked,
+          ]}
+        >
           {PHASE_LABEL[raceWeek.phase].toUpperCase()}
         </Text>
 
@@ -612,6 +620,10 @@ const styles = StyleSheet.create({
   axisLabelRace: {
     right: 0,
     textAlign: 'right',
+    width: 52,
+  },
+  axisLabelRaceStacked: {
+    top: PLOT_BOTTOM + 28,
   },
   selectionLayer: {
     position: 'absolute',
