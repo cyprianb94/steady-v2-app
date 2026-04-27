@@ -12,6 +12,7 @@ import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { PHASE_COLOR } from '../../constants/phase-meta';
 import { useAuth } from '../../lib/auth';
+import { getStravaRedirectUri } from '../../lib/strava-auth';
 import { trpc } from '../../lib/trpc';
 import { usePreferences, type Units } from '../../providers/preferences-context';
 
@@ -297,7 +298,7 @@ export default function SettingsTab() {
         throw new Error('STRAVA_CLIENT_ID is not configured on the server');
       }
 
-      const redirectTo = Linking.createURL('strava-callback');
+      const redirectTo = getStravaRedirectUri();
       const authorizeUrl = new URL('https://www.strava.com/oauth/mobile/authorize');
       authorizeUrl.searchParams.set('client_id', config.clientId);
       authorizeUrl.searchParams.set('redirect_uri', redirectTo);

@@ -10,7 +10,7 @@ export interface PlanBuilderReviewBlockProps {
   targetTime: string;
   progressionPct: number | null;
   saving: boolean;
-  onApplyProgression: (pct: number) => void;
+  onApplyProgression: (pct: number, everyWeeks?: number) => void;
   onEditSession: (weekIndex: number, dayIndex: number) => void;
   onSavePlan: () => void;
 }

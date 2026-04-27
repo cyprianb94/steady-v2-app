@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, Alert } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, Alert, TextInput } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { C } from '../../../constants/colours';
 import { SESSION_TYPE } from '../../../constants/session-types';
@@ -7,10 +7,11 @@ import { PHASE_COLOR } from '../../../constants/phase-meta';
 import { FONTS } from '../../../constants/typography';
 import { Btn } from '../../../components/ui/Btn';
 import { SessionDot } from '../../../components/ui/SessionDot';
+import { BlockVolumeCard } from '../../../components/plan-builder/BlockVolumeCard';
 import { PropagateModal } from '../../../components/plan-builder/PropagateModal';
 import { SessionEditorScreen } from '../../../components/plan-builder/SessionEditorScreen';
 import { generatePlan, propagateChange, assignDates } from '@steady/types';
-import type { PhaseConfig, PlannedSession, PlanWeek, PropagateScope } from '@steady/types';
+import type { PhaseConfig, PhaseName, PlannedSession, PlanWeek, PropagateScope } from '@steady/types';
 import {
   buildSessionEditDescription,
   materializeEditedSession,
@@ -29,6 +30,79 @@ interface EditingSession {
 interface PendingEdit extends EditingSession {
   updated: Partial<PlannedSession> | null;
   desc: string;
+}
+
+type ReviewTab = 'overview' | 'phases' | 'weeks';
+
+const REVIEW_TABS: Array<{ key: ReviewTab; label: string }> = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'phases', label: 'Phases' },
+  { key: 'weeks', label: 'Weeks' },
+];
+
+const PHASE_LABEL: Record<PhaseName, string> = {
+  BASE: 'Base',
+  BUILD: 'Build',
+  RECOVERY: 'Recovery',
+  PEAK: 'Peak',
+  TAPER: 'Taper',
+};
+
+const PHASE_COPY: Record<PhaseName, string> = {
+  BASE: 'Hold the rhythm while the routine settles.',
+  BUILD: 'Main progression. Volume moves towards peak load.',
+  RECOVERY: 'Absorb the work before the next push.',
+  PEAK: 'Highest load. Sharpen without adding noise.',
+  TAPER: 'Reduce volume and keep rhythm into race day.',
+};
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function sanitizeWholeNumber(value: string, maxLength = 2) {
+  return value.replace(/\D/g, '').slice(0, maxLength);
+}
+
+function progressionPercent(value: string) {
+  return clampNumber(Number(value) || 7, 0, 30);
+}
+
+function progressionEveryWeeks(value: string) {
+  return clampNumber(Number(value) || 2, 1, 12);
+}
+
+function formatProgressionSummary(pct: number, everyWeeks: number) {
+  if (pct === 0) {
+    return 'Flat plan.';
+  }
+
+  return everyWeeks === 1
+    ? `+${pct}% progression every week.`
+    : `+${pct}% progression every ${everyWeeks} weeks.`;
+}
+
+function phaseSections(plan: PlanWeek[]) {
+  return plan.reduce<Array<{ phase: PhaseName; start: number; end: number; weeks: PlanWeek[] }>>(
+    (sections, week, index) => {
+      const previous = sections[sections.length - 1];
+      if (previous && previous.phase === week.phase) {
+        previous.end = index;
+        previous.weeks.push(week);
+        return sections;
+      }
+
+      sections.push({ phase: week.phase, start: index, end: index, weeks: [week] });
+      return sections;
+    },
+    [],
+  );
+}
+
+function peakWeekIndex(plan: PlanWeek[]) {
+  return plan.reduce((peakIndex, week, index) => (
+    week.plannedKm > plan[peakIndex].plannedKm ? index : peakIndex
+  ), 0);
 }
 
 export default function StepPlan() {
@@ -50,15 +124,41 @@ export default function StepPlan() {
 
   const [plan, setPlan] = useState<PlanWeek[]>(() => generatePlan(template, weeks, 0, phases));
   const [progState, setProgState] = useState<number | null>(null);
+  const [progEveryWeeks, setProgEveryWeeks] = useState(2);
   const [customPct, setCustomPct] = useState('7');
+  const [customEveryWeeks, setCustomEveryWeeks] = useState('2');
   const [showCustom, setShowCustom] = useState(false);
+  const [activeTab, setActiveTab] = useState<ReviewTab>('overview');
   const [expanded, setExpanded] = useState<number | null>(null);
   const [editing, setEditing] = useState<EditingSession | null>(null);
   const [pendingEdit, setPendingEdit] = useState<PendingEdit | null>(null);
 
-  const accept = (pct: number) => {
-    setPlan(generatePlan(template, weeks, pct, phases));
-    setProgState(pct);
+  const accept = (pct: number, everyWeeks = 2) => {
+    const safePct = clampNumber(Math.round(pct), 0, 30);
+    const safeEveryWeeks = clampNumber(Math.round(everyWeeks), 1, 12);
+    setPlan(generatePlan(template, weeks, safePct, phases, safeEveryWeeks));
+    setProgState(safePct);
+    setProgEveryWeeks(safeEveryWeeks);
+  };
+
+  const acceptCustom = () => {
+    const pct = progressionPercent(customPct);
+    const everyWeeks = progressionEveryWeeks(customEveryWeeks);
+    setCustomPct(String(pct));
+    setCustomEveryWeeks(String(everyWeeks));
+    accept(pct, everyWeeks);
+  };
+
+  const openWeek = (weekIndex: number) => {
+    setActiveTab('weeks');
+    setExpanded(weekIndex);
+  };
+
+  const handleChangeProgression = () => {
+    setCustomPct(String(progState ?? progressionPercent(customPct)));
+    setCustomEveryWeeks(String(progEveryWeeks));
+    setShowCustom(true);
+    setProgState(null);
   };
 
   function openSessionEditor(weekIndex: number, dayIndex: number) {
@@ -128,6 +228,7 @@ export default function StepPlan() {
         targetTime: params.targetTime || '',
         phases,
         progressionPct: progState ?? 0,
+        progressionEveryWeeks: progEveryWeeks,
         templateWeek: template,
         weeks: datedWeeks,
       });
@@ -174,6 +275,10 @@ export default function StepPlan() {
     );
   }
 
+  const peakIndex = peakWeekIndex(plan);
+  const overviewWeekIndexes = Array.from(new Set([0, peakIndex, plan.length - 1]));
+  const sections = phaseSections(plan);
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -185,74 +290,184 @@ export default function StepPlan() {
         </Text>
       </View>
 
-      {/* Progression card */}
-      {progState === null && (
-        <View style={styles.progCard}>
-          <Text style={styles.progText}>
-            <Text style={styles.progStrong}>Steady</Text> — Add progressive overload? Volume builds
-            automatically through the build phase, then tapers before race day.
-          </Text>
-          {!showCustom ? (
-            <View style={styles.progButtons}>
-              <Pressable onPress={() => accept(7)} style={styles.progBtnPrimary}>
-                <Text style={styles.progBtnPrimaryText}>Yes, +7% / 2 weeks</Text>
-              </Pressable>
-              <Pressable onPress={() => setShowCustom(true)} style={styles.progBtnSecondary}>
-                <Text style={styles.progBtnSecondaryText}>Custom %</Text>
-              </Pressable>
-              <Pressable onPress={() => accept(0)} style={styles.progBtnSecondary}>
-                <Text style={[styles.progBtnSecondaryText, { color: C.muted }]}>Keep flat</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <View style={styles.customRow}>
-              {['5', '7', '10', '12', '15'].map((p) => (
-                <Pressable
-                  key={p}
-                  onPress={() => setCustomPct(p)}
-                  style={[
-                    styles.pctChip,
-                    {
-                      borderColor: customPct === p ? C.amber : C.border,
-                      backgroundColor: customPct === p ? `${C.amber}18` : C.cream,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.pctChipText,
-                      { color: customPct === p ? C.amber : C.muted, fontWeight: customPct === p ? '700' : '400' },
-                    ]}
-                  >
-                    {p}%
-                  </Text>
-                </Pressable>
-              ))}
-              <Pressable onPress={() => accept(Number(customPct) || 7)} style={styles.progBtnPrimary}>
-                <Text style={styles.progBtnPrimaryText}>Apply {customPct}%</Text>
-              </Pressable>
-            </View>
-          )}
-        </View>
-      )}
-
-      {progState !== null && (
-        <View style={styles.progConfirm}>
-          <View style={styles.progConfirmLeft}>
-            <Text style={styles.progCheckmark}>✓</Text>
-            <Text style={styles.progConfirmText}>
-              {progState === 0 ? 'Flat plan.' : `+${progState}% progression every 2 weeks.`}
-            </Text>
-          </View>
-          <Pressable onPress={() => setProgState(null)}>
-            <Text style={styles.progChangeBtn}>change</Text>
-          </Pressable>
-        </View>
-      )}
-
-      {/* Week list */}
       <ScrollView style={styles.weekList} contentContainerStyle={styles.weekListContent}>
-        {plan.map((w, wi) => {
+        <BlockVolumeCard plan={plan} units={units} raceDate={params.raceDate} />
+
+        {/* Progression card */}
+        {progState === null && (
+          <View style={styles.progCard}>
+            <Text style={styles.progText}>
+              <Text style={styles.progStrong}>Steady</Text> — Add progressive overload? Volume builds
+              automatically through the build phase, then tapers before race day.
+            </Text>
+            {!showCustom ? (
+              <View style={styles.progButtons}>
+                <Pressable onPress={() => accept(7)} style={styles.progBtnPrimary}>
+                  <Text style={styles.progBtnPrimaryText}>Yes, +7% / 2 weeks</Text>
+                </Pressable>
+                <Pressable onPress={() => setShowCustom(true)} style={styles.progBtnSecondary}>
+                  <Text style={styles.progBtnSecondaryText}>Custom</Text>
+                </Pressable>
+                <Pressable onPress={() => accept(0)} style={styles.progBtnSecondary}>
+                  <Text style={[styles.progBtnSecondaryText, { color: C.muted }]}>Keep flat</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                <View style={styles.customRow}>
+                  {['5', '6', '7', '10'].map((p) => (
+                    <Pressable
+                      key={p}
+                      onPress={() => setCustomPct(p)}
+                      style={[
+                        styles.pctChip,
+                        {
+                          borderColor: customPct === p ? C.amber : C.border,
+                          backgroundColor: customPct === p ? `${C.amber}18` : C.cream,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.pctChipText,
+                          { color: customPct === p ? C.amber : C.muted, fontWeight: customPct === p ? '700' : '400' },
+                        ]}
+                      >
+                        {p}%
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                <View style={styles.customFields}>
+                  <View style={styles.customField}>
+                    <Text style={styles.customLabel}>Progression</Text>
+                    <View style={styles.customInputWrap}>
+                      <TextInput
+                        testID="progression-pct-input"
+                        value={customPct}
+                        onChangeText={(value) => setCustomPct(sanitizeWholeNumber(value))}
+                        keyboardType="number-pad"
+                        style={styles.customInput}
+                      />
+                      <Text style={styles.customSuffix}>%</Text>
+                    </View>
+                  </View>
+                  <View style={styles.customField}>
+                    <Text style={styles.customLabel}>Every</Text>
+                    <View style={styles.customInputWrap}>
+                      <TextInput
+                        testID="progression-every-weeks-input"
+                        value={customEveryWeeks}
+                        onChangeText={(value) => setCustomEveryWeeks(sanitizeWholeNumber(value, 2))}
+                        keyboardType="number-pad"
+                        style={styles.customInput}
+                      />
+                      <Text style={styles.customSuffix}>weeks</Text>
+                    </View>
+                  </View>
+                  <Pressable onPress={acceptCustom} style={styles.progBtnPrimary}>
+                    <Text style={styles.progBtnPrimaryText}>
+                      Apply +{progressionPercent(customPct)}% / {progressionEveryWeeks(customEveryWeeks)}w
+                    </Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
+          </View>
+        )}
+
+        {progState !== null && (
+          <View style={styles.progConfirm}>
+            <View style={styles.progConfirmLeft}>
+              <Text style={styles.progCheckmark}>✓</Text>
+              <Text style={styles.progConfirmText}>
+                {formatProgressionSummary(progState, progEveryWeeks)}
+              </Text>
+            </View>
+            <Pressable onPress={handleChangeProgression}>
+              <Text style={styles.progChangeBtn}>change</Text>
+            </Pressable>
+          </View>
+        )}
+
+        <View style={styles.tabs} testID="review-tabs">
+          {REVIEW_TABS.map((tab) => {
+            const active = activeTab === tab.key;
+            return (
+              <Pressable
+                key={tab.key}
+                testID={`review-tab-${tab.key}`}
+                onPress={() => setActiveTab(tab.key)}
+                style={[styles.tab, active && styles.tabActive]}
+              >
+                <Text style={[styles.tabText, active && styles.tabTextActive]}>{tab.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {activeTab === 'overview' ? (
+          <View style={styles.keyWeeks}>
+            {overviewWeekIndexes.map((weekIndex) => {
+              const week = plan[weekIndex];
+              const isPeak = weekIndex === peakIndex;
+              const isRace = weekIndex === plan.length - 1;
+              const title = isRace ? 'Race week' : isPeak ? 'Peak week' : 'Settle into rhythm';
+              const detail = isPeak
+                ? `${formatDistance(week.plannedKm, units)} · Highest load`
+                : `${formatDistance(week.plannedKm, units)} · ${PHASE_LABEL[week.phase]}`;
+
+              return (
+                <Pressable
+                  key={`overview-${week.weekNumber}`}
+                  onPress={() => openWeek(weekIndex)}
+                  style={styles.keyWeekRow}
+                >
+                  <Text style={styles.keyWeekNo}>W{weekIndex + 1}</Text>
+                  <View style={styles.keyWeekCopy}>
+                    <Text style={styles.keyWeekTitle}>{title}</Text>
+                    <Text style={styles.keyWeekDetail}>{detail}</Text>
+                  </View>
+                  <Text style={styles.keyWeekChevron}>›</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
+
+        {activeTab === 'phases' ? (
+          <View style={styles.phaseList}>
+            {sections.map((section) => {
+              const pc = PHASE_COLOR[section.phase] || PHASE_COLOR.BUILD;
+              const sampleWeek = section.weeks[0];
+              const rangeLabel = section.start === section.end
+                ? `W${section.start + 1}`
+                : `W${section.start + 1}-W${section.end + 1}`;
+
+              return (
+                <View key={`${section.phase}-${section.start}`} style={styles.phaseCard}>
+                  <View style={styles.phaseCardTop}>
+                    <View style={styles.phaseNameRow}>
+                      <View style={[styles.phaseDot, { backgroundColor: pc }]} />
+                      <Text style={styles.phaseName}>{PHASE_LABEL[section.phase]}</Text>
+                    </View>
+                    <Text style={styles.phaseRange}>{rangeLabel}</Text>
+                  </View>
+                  <Text style={styles.phaseCopy}>{PHASE_COPY[section.phase]}</Text>
+                  <View style={styles.phaseSessionDots}>
+                    {sampleWeek.sessions.map((session, index) => (
+                      <SessionDot key={`${section.phase}-${index}`} type={session?.type || 'REST'} size={8} />
+                    ))}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
+
+        {/* Week list */}
+        {activeTab === 'weeks' ? plan.map((w, wi) => {
           const isExp = expanded === wi;
           const pc = PHASE_COLOR[w.phase] || PHASE_COLOR.BUILD;
 
@@ -260,6 +475,7 @@ export default function StepPlan() {
             <View key={wi} style={{ marginBottom: 6 }}>
               {/* Week header row */}
               <Pressable
+                testID={`plan-week-${wi + 1}-header`}
                 onPress={() => setExpanded(isExp ? null : wi)}
                 style={[
                   styles.weekHeader,
@@ -349,7 +565,7 @@ export default function StepPlan() {
               )}
             </View>
           );
-        })}
+        }) : null}
       </ScrollView>
 
       {/* CTA */}
@@ -403,8 +619,8 @@ const styles = StyleSheet.create({
   },
   // Progression card
   progCard: {
-    marginHorizontal: 18,
-    marginTop: 6,
+    marginHorizontal: 0,
+    marginTop: 0,
     marginBottom: 8,
     backgroundColor: C.amberBg,
     borderWidth: 1.5,
@@ -460,6 +676,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
     alignItems: 'center',
+    marginBottom: 10,
   },
   pctChip: {
     paddingVertical: 6,
@@ -471,9 +688,49 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.mono,
     fontSize: 12,
   },
+  customFields: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  customField: {
+    minWidth: 96,
+  },
+  customLabel: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 9,
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    color: C.muted,
+    marginBottom: 5,
+  },
+  customInputWrap: {
+    minHeight: 38,
+    borderRadius: 19,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    backgroundColor: C.surface,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  customInput: {
+    minWidth: 24,
+    paddingVertical: 0,
+    fontFamily: FONTS.monoBold,
+    fontSize: 13,
+    color: C.ink,
+  },
+  customSuffix: {
+    fontFamily: FONTS.sansMedium,
+    fontSize: 11.5,
+    color: C.muted,
+  },
   // Progression confirmed
   progConfirm: {
-    marginHorizontal: 18,
+    marginHorizontal: 0,
     marginBottom: 8,
     backgroundColor: C.forestBg,
     borderWidth: 1,
@@ -503,6 +760,125 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.sans,
     fontSize: 11,
     color: C.muted,
+  },
+  tabs: {
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    backgroundColor: C.card,
+    padding: 4,
+    marginBottom: 10,
+    flexDirection: 'row',
+    gap: 4,
+  },
+  tab: {
+    flex: 1,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabActive: {
+    backgroundColor: C.surface,
+  },
+  tabText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 11.5,
+    color: C.muted,
+  },
+  tabTextActive: {
+    color: C.ink,
+  },
+  keyWeeks: {
+    gap: 8,
+  },
+  keyWeekRow: {
+    minHeight: 78,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    backgroundColor: C.surface,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  keyWeekNo: {
+    width: 42,
+    fontFamily: FONTS.monoBold,
+    fontSize: 12,
+    color: C.muted,
+  },
+  keyWeekCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  keyWeekTitle: {
+    fontFamily: FONTS.sansMedium,
+    fontSize: 14,
+    color: C.ink,
+  },
+  keyWeekDetail: {
+    fontFamily: FONTS.sans,
+    fontSize: 11.5,
+    color: C.muted,
+    marginTop: 3,
+  },
+  keyWeekChevron: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 16,
+    color: C.muted,
+  },
+  phaseList: {
+    gap: 8,
+  },
+  phaseCard: {
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    backgroundColor: C.surface,
+    padding: 14,
+  },
+  phaseCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  phaseNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  phaseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  phaseName: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 11,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    color: C.ink,
+  },
+  phaseRange: {
+    fontFamily: FONTS.monoBold,
+    fontSize: 10,
+    color: C.muted,
+  },
+  phaseCopy: {
+    fontFamily: FONTS.sans,
+    fontSize: 12,
+    lineHeight: 18,
+    color: C.ink2,
+    marginTop: 10,
+  },
+  phaseSessionDots: {
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'center',
+    marginTop: 12,
   },
   // Week list
   weekList: {

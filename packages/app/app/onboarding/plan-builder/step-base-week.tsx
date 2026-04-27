@@ -9,7 +9,6 @@ import {
   DEFAULT_TEMPLATE_RUN_COUNT,
   type TemplateStarterSelection,
 } from '../../../features/plan-builder/template-starter';
-import { usePreferences } from '../../../providers/preferences-context';
 
 function normalizeParams(params: Record<string, string | string[] | undefined>) {
   return Object.fromEntries(
@@ -18,7 +17,6 @@ function normalizeParams(params: Record<string, string | string[] | undefined>) 
 }
 
 export default function StepBaseWeek() {
-  const { units } = usePreferences();
   const params = useLocalSearchParams() as Record<string, string | string[] | undefined>;
   const [selection, setSelection] = useState<TemplateStarterSelection>({
     mode: 'template',
@@ -55,7 +53,6 @@ export default function StepBaseWeek() {
           onSelect={setSelection}
           selectedMode={selection.mode}
           selectedRunCount={selection.runCount}
-          units={units}
         />
       </ScrollView>
 

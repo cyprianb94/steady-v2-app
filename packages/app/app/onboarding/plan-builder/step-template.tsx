@@ -301,7 +301,6 @@ export default function StepTemplate() {
             onSelect={requestStarterSelection}
             selectedMode="template"
             selectedRunCount={templateRunCount}
-            units={units}
           />
         ) : (
           <>
@@ -537,7 +536,6 @@ export default function StepTemplate() {
                   onSelect={requestStarterSelection}
                   selectedMode={starterMode ?? 'template'}
                   selectedRunCount={templateRunCount}
-                  units={units}
                 />
               </ScrollView>
               <Pressable

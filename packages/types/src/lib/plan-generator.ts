@@ -27,8 +27,10 @@ export function generatePlan(
   totalWeeks: number,
   progressionPct: number,
   phases?: PhaseConfig,
+  progressionEveryWeeks = 2,
 ): PlanWeek[] {
   const ph = phases ?? defaultPhases(totalWeeks);
+  const progressionIntervalWeeks = Math.max(1, Math.round(progressionEveryWeeks));
 
   // Spread RECOVERY weeks evenly across the BUILD section
   const recoveryInterval =
@@ -73,7 +75,7 @@ export function generatePlan(
   const taperStart = weekPhases.lastIndexOf('PEAK') + 1;
 
   const rawWeeks = weekPhases.map((phase, w) => {
-    const prog = Math.floor(w / 2);
+    const prog = Math.floor(w / progressionIntervalWeeks);
     const isTaper = phase === 'TAPER';
     const isRecov = phase === 'RECOVERY';
     const taperIdx = isTaper ? w - taperStart : 0;

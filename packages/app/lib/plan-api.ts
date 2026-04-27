@@ -20,6 +20,7 @@ export interface SavePlanInput {
   targetTime: string;
   phases: PhaseConfig;
   progressionPct: number;
+  progressionEveryWeeks?: number;
   templateWeek: (PlannedSession | null)[];
   weeks: PlanWeek[];
 }
@@ -43,6 +44,7 @@ function rowToPlan(row: Record<string, unknown>): TrainingPlan {
     targetTime: row.target_time as string,
     phases: row.phases as PhaseConfig,
     progressionPct: row.progression_pct as number,
+    progressionEveryWeeks: (row.progression_every_weeks as number | null) ?? 2,
     templateWeek: row.template_week as (PlannedSession | null)[],
     weeks: normalizeSessionIds(row.weeks as PlanWeek[]),
     activeInjury: (row.active_injury as TrainingPlan['activeInjury']) ?? null,
@@ -144,6 +146,7 @@ async function savePlanViaSupabase(input: SavePlanInput): Promise<TrainingPlan> 
     target_time: input.targetTime,
     phases: input.phases,
     progression_pct: input.progressionPct,
+    progression_every_weeks: input.progressionEveryWeeks ?? 2,
     template_week: input.templateWeek,
     weeks: input.weeks,
     active_injury: (existing?.active_injury as TrainingPlan['activeInjury']) ?? null,

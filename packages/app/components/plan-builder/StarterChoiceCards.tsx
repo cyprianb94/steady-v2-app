@@ -2,11 +2,8 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
-import { DAYS, sessionLabel } from '../../lib/plan-helpers';
-import type { DistanceUnits } from '../../lib/units';
 import {
   TEMPLATE_RUN_COUNTS,
-  createRunCountTemplate,
   type TemplateRunCount,
   type TemplateStarterMode,
   type TemplateStarterSelection,
@@ -16,7 +13,6 @@ interface StarterChoiceCardsProps {
   onSelect: (selection: TemplateStarterSelection) => void;
   selectedMode: TemplateStarterMode;
   selectedRunCount: TemplateRunCount;
-  units: DistanceUnits;
 }
 
 const RUN_COUNT_SUMMARY: Record<TemplateRunCount, string> = {
@@ -28,8 +24,6 @@ const RUN_COUNT_SUMMARY: Record<TemplateRunCount, string> = {
   6: 'Easy runs, quality sessions, rest, and a long run are placed for you.',
   7: 'Every day has a run. Keep the easy days genuinely easy.',
 };
-
-const PREVIEW_DAY_INDICES = [0, 1, 3, 6] as const;
 
 function Radio({ selected }: { selected: boolean }) {
   return (
@@ -43,9 +37,7 @@ export function StarterChoiceCards({
   onSelect,
   selectedMode,
   selectedRunCount,
-  units,
 }: StarterChoiceCardsProps) {
-  const template = createRunCountTemplate(selectedRunCount);
   const templateSelected = selectedMode === 'template';
   const cleanSelected = selectedMode === 'clean';
 
@@ -57,7 +49,7 @@ export function StarterChoiceCards({
         style={[styles.card, templateSelected && styles.cardSelected]}
       >
         <View style={styles.cardHeader}>
-          <View>
+          <View style={styles.cardHeaderText}>
             <Text style={styles.cardTitle}>Build from template</Text>
             <Text style={styles.cardCopy}>
               Pre-fill your base week from a run count. Move, edit, or delete every session next.
@@ -97,29 +89,6 @@ export function StarterChoiceCards({
             <Text style={styles.templateSummaryCopy}>{RUN_COUNT_SUMMARY[selectedRunCount]}</Text>
           </View>
         </View>
-
-        <View style={styles.previewGrid}>
-          {PREVIEW_DAY_INDICES.map((dayIndex) => {
-            const session = template[dayIndex];
-            return (
-              <View
-                key={DAYS[dayIndex]}
-                style={[
-                  styles.previewCell,
-                  session?.type === 'EASY' && styles.previewEasy,
-                  session?.type === 'INTERVAL' && styles.previewInterval,
-                  session?.type === 'TEMPO' && styles.previewTempo,
-                  session?.type === 'LONG' && styles.previewLong,
-                ]}
-              >
-                <Text style={styles.previewDay}>{DAYS[dayIndex]}</Text>
-                <Text style={styles.previewMain} numberOfLines={1}>
-                  {session ? sessionLabel(session, units) : 'Rest day'}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
       </Pressable>
 
       <Pressable
@@ -128,7 +97,7 @@ export function StarterChoiceCards({
         style={[styles.card, cleanSelected && styles.cardCleanSelected]}
       >
         <View style={styles.cardHeader}>
-          <View>
+          <View style={styles.cardHeaderText}>
             <Text style={styles.cardTitle}>Clean slate</Text>
             <Text style={styles.cardCopy}>
               All seven days start empty. Use this if you want to place every session yourself.
@@ -162,6 +131,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 14,
+    alignItems: 'flex-start',
+  },
+  cardHeaderText: {
+    flex: 1,
+    minWidth: 0,
   },
   cardTitle: {
     fontFamily: FONTS.sansSemiBold,
@@ -184,6 +158,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 1,
+    flexShrink: 0,
   },
   radioSelected: {
     borderColor: C.clay,
@@ -265,51 +240,5 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     lineHeight: 17,
     color: C.muted,
-  },
-  previewGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
-  },
-  previewCell: {
-    width: '48%',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: C.border,
-    backgroundColor: C.surface,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    minHeight: 50,
-  },
-  previewEasy: {
-    backgroundColor: C.forestBg,
-    borderColor: 'rgba(42, 92, 69, 0.16)',
-  },
-  previewInterval: {
-    backgroundColor: C.clayBg,
-    borderColor: 'rgba(196, 82, 42, 0.16)',
-  },
-  previewTempo: {
-    backgroundColor: C.amberBg,
-    borderColor: 'rgba(212, 136, 42, 0.18)',
-  },
-  previewLong: {
-    backgroundColor: C.navyBg,
-    borderColor: 'rgba(27, 58, 107, 0.18)',
-  },
-  previewDay: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 9,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: C.muted,
-    marginBottom: 5,
-  },
-  previewMain: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 11.5,
-    lineHeight: 14,
-    color: C.ink,
   },
 });

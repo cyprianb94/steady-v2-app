@@ -139,6 +139,7 @@ export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo, a
           template: z.array(z.any()),
           totalWeeks: z.number().min(4).max(52),
           progressionPct: z.number().min(0).max(30),
+          progressionEveryWeeks: z.number().min(1).max(12).optional(),
           phases: PhaseConfigSchema.optional(),
         }),
       )
@@ -148,6 +149,7 @@ export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo, a
           input.totalWeeks,
           input.progressionPct,
           input.phases as PhaseConfig | undefined,
+          input.progressionEveryWeeks,
         );
         return { weeks };
       }),
@@ -162,6 +164,7 @@ export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo, a
           targetTime: z.string(),
           phases: PhaseConfigSchema,
           progressionPct: z.number().min(0).max(30),
+          progressionEveryWeeks: z.number().min(1).max(12).optional(),
           templateWeek: z.array(z.any()),
           weeks: z.array(z.any()),
         }),
@@ -201,6 +204,7 @@ export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo, a
           targetTime: input.targetTime,
           phases,
           progressionPct: input.progressionPct,
+          progressionEveryWeeks: input.progressionEveryWeeks ?? 2,
           templateWeek: input.templateWeek as (PlannedSession | null)[],
           weeks,
           activeInjury: existing?.activeInjury ?? null,

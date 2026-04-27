@@ -40,6 +40,7 @@ export interface TrainingPlan {
 
   // Progression
   progressionPct: number; // 0 = flat, 7 = +7% every 2 weeks
+  progressionEveryWeeks?: number; // default 2
 
   // Template week (7 elements, index 0 = Monday)
   templateWeek: (PlannedSession | null)[];

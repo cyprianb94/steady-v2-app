@@ -214,7 +214,7 @@ This is the highest priority UI feature. Build it first so you have data to popu
 2. Open Strava OAuth URL in browser:
    https://www.strava.com/oauth/authorize
    ?client_id={CLIENT_ID}
-   &redirect_uri={APP_SCHEME}://strava-callback
+   &redirect_uri={APP_SCHEME}://{CALLBACK_DOMAIN}/strava-callback
    &response_type=code
    &scope=activity:read_all
 3. User authorises in browser
@@ -224,6 +224,13 @@ This is the highest priority UI feature. Build it first so you have data to popu
 7. Server stores encrypted tokens in Supabase users table
 8. Server fetches recent activities to populate history
 ```
+
+Local Expo Go/LAN builds cannot complete Strava OAuth because they generate `exp://10.x.x.x/...` redirect URLs, which Strava rejects. Use an Expo development build for local Strava testing:
+
+- Strava Authorization Callback Domain: `localhost`
+- Redirect URI sent by the dev build: `steady://localhost/strava-callback`
+
+Release builds must set `EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN` and use an app/API domain, not the landing-page domain.
 
 ### Webhook (new activities)
 

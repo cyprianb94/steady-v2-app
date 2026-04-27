@@ -49,10 +49,12 @@ cd packages/app
 npx --yes eas-cli env:create --environment preview --name EXPO_PUBLIC_API_URL --value https://your-preview-api.example.com
 npx --yes eas-cli env:create --environment preview --name EXPO_PUBLIC_SUPABASE_URL --value https://your-project.supabase.co
 npx --yes eas-cli env:create --environment preview --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value your-anon-key
+npx --yes eas-cli env:create --environment preview --name EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN --value your-preview-app-domain.example.com
 
 npx --yes eas-cli env:create --environment production --name EXPO_PUBLIC_API_URL --value https://your-production-api.example.com
 npx --yes eas-cli env:create --environment production --name EXPO_PUBLIC_SUPABASE_URL --value https://your-project.supabase.co
 npx --yes eas-cli env:create --environment production --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value your-anon-key
+npx --yes eas-cli env:create --environment production --name EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN --value your-production-app-domain.example.com
 ```
 
 4. Register your iPhone for preview internal distribution:
@@ -66,17 +68,26 @@ npx --yes eas-cli device:create
 
 ## Redirects To Whitelist
 
-Production/TestFlight:
+Supabase/Google redirect URLs:
 
 - `steady://auth/callback`
-- `steady://strava-callback`
-
-Preview:
-
 - `steady-preview://auth/callback`
-- `steady-preview://strava-callback`
 
-Expo Go/local dev uses Expo's temporary `exp://...` callback URLs, so keep using the current local flow for fast iteration.
+Set the Strava app's **Authorization Callback Domain** to:
+
+- the domain in `EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN`, without `https://`
+
+Use the app/API domain here, not the landing-page domain. If preview and production use the same Strava client ID, they must use the same callback domain; otherwise create separate Strava apps/client IDs per environment.
+
+Production/TestFlight redirect URI sent by the app:
+
+- `steady://<EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN>/strava-callback`
+
+Preview redirect URI sent by the app:
+
+- `steady-preview://<EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN>/strava-callback`
+
+Expo Go/LAN cannot complete Strava OAuth because Strava rejects `exp://10.x.x.x/...` redirect URLs. For local Strava testing, use an Expo development build and set the Strava Authorization Callback Domain to `localhost`; the app will send `steady://localhost/strava-callback`.
 
 ## Build Commands
 

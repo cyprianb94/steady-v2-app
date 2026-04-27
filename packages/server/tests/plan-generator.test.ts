@@ -205,6 +205,21 @@ describe('progressive overload', () => {
       expect(week.sessions[0]!.distance).toBe(10);
     }
   });
+
+  it('supports custom progression cadence', () => {
+    const tmpl: (PlannedSession | null)[] = [easy(10)];
+    const plan = generatePlan(
+      tmpl,
+      6,
+      10,
+      { BASE: 0, BUILD: 6, RECOVERY: 0, PEAK: 0, TAPER: 0 },
+      3,
+    );
+
+    expect(plan[0].sessions[0]!.distance).toBe(10);
+    expect(plan[2].sessions[0]!.distance).toBe(10);
+    expect(plan[3].sessions[0]!.distance).toBe(11);
+  });
 });
 
 describe('recovery deload', () => {

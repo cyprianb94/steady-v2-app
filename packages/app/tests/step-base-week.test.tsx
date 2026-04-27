@@ -27,6 +27,10 @@ describe('StepBaseWeek starter selection', () => {
     expect(screen.getByText('Build from template')).toBeTruthy();
     expect(screen.getByText('Clean slate')).toBeTruthy();
     expect(screen.getByText('Runs per week')).toBeTruthy();
+    expect(screen.queryByText('Mon')).toBeNull();
+    expect(screen.queryByText('Tue')).toBeNull();
+    expect(screen.queryByText('Thu')).toBeNull();
+    expect(screen.queryByText('Sun')).toBeNull();
 
     fireEvent.click(screen.getByTestId('starter-run-count-1'));
     fireEvent.click(screen.getByText('Build 1-run week →'));

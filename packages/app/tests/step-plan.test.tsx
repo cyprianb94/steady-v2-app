@@ -41,10 +41,22 @@ describe('StepPlan session editing', () => {
     vi.mocked(useLocalSearchParams).mockReturnValue(baseParams);
   });
 
+  it('shows the block volume curve with phase-start markers only', () => {
+    render(<StepPlan />);
+
+    expect(screen.getByTestId('block-volume-card')).toBeTruthy();
+    expect(screen.getAllByTestId('block-volume-phase-marker')).toHaveLength(3);
+    expect(screen.getByTestId('review-tabs')).toBeTruthy();
+    expect(screen.getByText('Overview')).toBeTruthy();
+    expect(screen.getByText('Phases')).toBeTruthy();
+    expect(screen.getByText('Weeks')).toBeTruthy();
+  });
+
   it('opens the shared full-screen editor and applies an edit to remaining weeks', () => {
     render(<StepPlan />);
 
-    fireEvent.click(screen.getByText('W1'));
+    fireEvent.click(screen.getByTestId('review-tab-weeks'));
+    fireEvent.click(screen.getByTestId('plan-week-1-header'));
     fireEvent.click(screen.getByTestId('plan-week-1-day-0'));
 
     expect(screen.getByText('Cancel')).toBeTruthy();
@@ -58,18 +70,34 @@ describe('StepPlan session editing', () => {
 
     expect(screen.getByTestId('plan-week-1-day-0').textContent).toContain('Rest day');
 
-    fireEvent.click(screen.getByText('W2'));
+    fireEvent.click(screen.getByTestId('plan-week-2-header'));
     expect(screen.getByTestId('plan-week-2-day-0').textContent).toContain('Rest day');
   });
 
   it('opens interval sessions in the notebook-row editor rather than the old inline controls', () => {
     render(<StepPlan />);
 
-    fireEvent.click(screen.getByText('W1'));
+    fireEvent.click(screen.getByTestId('review-tab-weeks'));
+    fireEvent.click(screen.getByTestId('plan-week-1-header'));
     fireEvent.click(screen.getByTestId('plan-week-1-day-1'));
 
     expect(screen.getByText('Repetitions')).toBeTruthy();
     expect(screen.getByText('Rep target pace')).toBeTruthy();
     expect(screen.queryByText('Rep distance')).toBeNull();
+  });
+
+  it('applies custom progression percentage and cadence', () => {
+    render(<StepPlan />);
+
+    fireEvent.click(screen.getByText('Custom'));
+    fireEvent.change(screen.getByTestId('progression-pct-input'), {
+      target: { value: '6' },
+    });
+    fireEvent.change(screen.getByTestId('progression-every-weeks-input'), {
+      target: { value: '3' },
+    });
+    fireEvent.click(screen.getByText('Apply +6% / 3w'));
+
+    expect(screen.getByText('+6% progression every 3 weeks.')).toBeTruthy();
   });
 });
