@@ -234,9 +234,12 @@ This is the highest priority UI feature. Build it first so you have data to popu
 8. Server fetches recent activities to populate history
 ```
 
-Local development keeps the original Expo-generated redirect:
+Local development uses Strava's localhost callback-domain whitelist:
 
-- `Linking.createURL('strava-callback')`
+- Expo Go: `exp://localhost/--/strava-callback`
+- Native development build: `steady://localhost/strava-callback`
+
+For local testing, set the Strava app's Authorization Callback Domain to `localhost`.
 
 Release builds must set `EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN` and use an app/API domain, not the landing-page domain. Release redirect URIs are:
 

@@ -23,7 +23,7 @@ eas env:pull --environment production
    - Supabase / Google OAuth redirect: `steady://auth/callback`
    - Strava Authorization Callback Domain: the value of `EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN` (app/API domain, not landing-page domain)
    - Strava redirect URI: `steady://<EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN>/strava-callback`
-   - Local Strava testing keeps the pre-TestFlight Expo redirect: `Linking.createURL('strava-callback')`.
+   - Local Strava testing uses Authorization Callback Domain `localhost`: Expo Go sends `exp://localhost/--/strava-callback`, native development builds send `steady://localhost/strava-callback`.
 
 ## Build and submit
 
