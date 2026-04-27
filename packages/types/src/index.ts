@@ -106,6 +106,7 @@ export { addDaysIso, assignWeekSessionDates, inferWeekStartDate, startOfWeekIso 
 export { buildBlockPhaseSegments, getInjuryWeekRange, isInjuryWeek } from './lib/block-injury';
 export { getBlockVolumeTone, getWeekVolumeRatio, getWeekVolumeSummary } from './lib/block-volume';
 export { buildBlockWeekDayDetails } from './lib/block-week-detail';
+export { BLOCK_REVIEW_PHASE_ORDER, buildBlockReviewModel } from './lib/block-review';
 export { assignDates } from './lib/assign-dates';
 export { normalizeSessionIds } from './lib/normalize-session-ids';
 export { detectHardSessionConflicts, propagateSwap, swapSessions } from './lib/session-rearrange';
@@ -126,6 +127,18 @@ export type {
 export type { BlockPhaseSegment, InjuryWeekRange } from './lib/block-injury';
 export type { BlockVolumeTone, WeekVolumeSummary } from './lib/block-volume';
 export type { BlockDayStatus, BlockWeekDayDetail } from './lib/block-week-detail';
+export type {
+  BlockReviewModel,
+  BlockReviewOverloadModel,
+  BlockReviewPhaseModel,
+  BlockReviewPhaseSegment,
+  BlockReviewTab,
+  BlockReviewVolumeModel,
+  BlockReviewVolumePoint,
+  BlockReviewVolumeStats,
+  BlockReviewWeekModel,
+  BuildBlockReviewModelInput,
+} from './lib/block-review';
 export type {
   PvaHeadline,
   PvaResult,
