@@ -225,7 +225,13 @@ This is the highest priority UI feature. Build it first so you have data to popu
 8. Server fetches recent activities to populate history
 ```
 
-Local Strava OAuth cannot complete in Expo Go: a `localhost` redirect is accepted by Strava, but cannot route back to the running Expo Go project on a physical device. Use a native development build for local Strava testing.
+Expo Go Strava OAuth uses the public API as a redirect relay because Strava rejects private LAN `exp://10.x.x.x/...` callback domains. The app sends Strava to:
+
+- `https://<EXPO_PUBLIC_API_URL host>/oauth/strava/callback?return_to=<Expo Go deep link>`
+
+The API then redirects back to the Expo Go deep link with Strava's `code`.
+
+For Expo Go testing, set the Strava app's Authorization Callback Domain to the public API host from `EXPO_PUBLIC_API_URL`.
 
 Local native development builds use Strava's localhost callback-domain whitelist:
 

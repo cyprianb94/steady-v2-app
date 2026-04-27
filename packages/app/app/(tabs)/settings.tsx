@@ -12,7 +12,7 @@ import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { PHASE_COLOR } from '../../constants/phase-meta';
 import { useAuth } from '../../lib/auth';
-import { getStravaRedirectUri } from '../../lib/strava-auth';
+import { getStravaOAuthRedirects } from '../../lib/strava-auth';
 import { trpc } from '../../lib/trpc';
 import { usePreferences, type Units } from '../../providers/preferences-context';
 
@@ -298,15 +298,18 @@ export default function SettingsTab() {
         throw new Error('STRAVA_CLIENT_ID is not configured on the server');
       }
 
-      const redirectTo = getStravaRedirectUri();
+      const {
+        authorizationRedirectUri,
+        authSessionCallbackUri,
+      } = getStravaOAuthRedirects();
       const authorizeUrl = new URL('https://www.strava.com/oauth/mobile/authorize');
       authorizeUrl.searchParams.set('client_id', config.clientId);
-      authorizeUrl.searchParams.set('redirect_uri', redirectTo);
+      authorizeUrl.searchParams.set('redirect_uri', authorizationRedirectUri);
       authorizeUrl.searchParams.set('response_type', 'code');
       authorizeUrl.searchParams.set('approval_prompt', 'auto');
       authorizeUrl.searchParams.set('scope', 'activity:read_all');
 
-      const result = await WebBrowser.openAuthSessionAsync(authorizeUrl.toString(), redirectTo, {
+      const result = await WebBrowser.openAuthSessionAsync(authorizeUrl.toString(), authSessionCallbackUri, {
         preferEphemeralSession: true,
       });
 

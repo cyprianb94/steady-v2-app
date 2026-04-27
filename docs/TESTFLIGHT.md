@@ -87,7 +87,9 @@ Preview redirect URI sent by the app:
 
 - `steady-preview://<EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN>/strava-callback`
 
-Local Strava OAuth cannot complete in Expo Go. For local testing, use a native development build, set the Strava app's Authorization Callback Domain to `localhost`, and the app will send `steady://localhost/strava-callback`.
+Expo Go Strava testing uses the public API callback relay: set the Strava app's Authorization Callback Domain to the public API host from `EXPO_PUBLIC_API_URL`. The API receives `/oauth/strava/callback` and redirects back into the current Expo Go deep link with Strava's code.
+
+Native development builds can use `localhost`: set the Strava app's Authorization Callback Domain to `localhost`, and the app will send `steady://localhost/strava-callback`.
 
 ## Build Commands
 

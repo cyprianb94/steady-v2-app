@@ -1,7 +1,37 @@
+import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 
 export const STRAVA_CALLBACK_PATH = 'strava-callback';
 const LOCAL_STRAVA_CALLBACK_DOMAIN = 'localhost';
+const STRAVA_RELAY_CALLBACK_PATH = '/oauth/strava/callback';
+
+type ExpoConstantsShape = {
+  expoConfig?: {
+    extra?: {
+      apiUrl?: string | null;
+    };
+  };
+  manifest?: {
+    extra?: {
+      apiUrl?: string | null;
+    };
+  };
+  manifest2?: {
+    extra?: {
+      apiUrl?: string | null;
+      expoClient?: {
+        extra?: {
+          apiUrl?: string | null;
+        };
+      };
+    };
+  };
+};
+
+export interface StravaOAuthRedirects {
+  authorizationRedirectUri: string;
+  authSessionCallbackUri: string;
+}
 
 function normalizeCallbackDomain(value: string | undefined): string | null {
   const trimmed = value?.trim();
@@ -48,7 +78,60 @@ function buildRedirectUri(scheme: string, callbackDomain: string): string {
   return `${scheme}://${callbackDomain}${getRuntimeCallbackPath()}`;
 }
 
-export function getStravaRedirectUri(): string {
+function getRuntimeConfiguredApiUrl(): string | null {
+  const envValue = process.env.EXPO_PUBLIC_API_URL?.trim();
+  if (envValue) {
+    return envValue;
+  }
+
+  const expoConstants = Constants as ExpoConstantsShape;
+  const candidates = [
+    expoConstants.expoConfig?.extra?.apiUrl,
+    expoConstants.manifest2?.extra?.apiUrl,
+    expoConstants.manifest2?.extra?.expoClient?.extra?.apiUrl,
+    expoConstants.manifest?.extra?.apiUrl,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return null;
+}
+
+function getPublicApiBaseUrl(): string {
+  const apiUrl = getRuntimeConfiguredApiUrl();
+  if (!apiUrl) {
+    throw new Error(
+      'Expo Go Strava OAuth needs EXPO_PUBLIC_API_URL set to the public Steady API URL.',
+    );
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(apiUrl);
+  } catch {
+    throw new Error(`Invalid EXPO_PUBLIC_API_URL for Strava OAuth: ${apiUrl}`);
+  }
+
+  if (parsed.protocol !== 'https:') {
+    throw new Error(
+      'Expo Go Strava OAuth needs EXPO_PUBLIC_API_URL to be a public HTTPS URL.',
+    );
+  }
+
+  return parsed.origin;
+}
+
+function buildExpoGoRelayRedirectUri(returnTo: string): string {
+  const relay = new URL(STRAVA_RELAY_CALLBACK_PATH, getPublicApiBaseUrl());
+  relay.searchParams.set('return_to', returnTo);
+  return relay.toString();
+}
+
+export function getStravaOAuthRedirects(): StravaOAuthRedirects {
   const scheme = getCurrentAppScheme();
   const callbackDomain = normalizeCallbackDomain(process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN)
     ?? (isLocalDevRuntime() ? LOCAL_STRAVA_CALLBACK_DOMAIN : null);
@@ -64,10 +147,20 @@ export function getStravaRedirectUri(): string {
   }
 
   if (scheme === 'exp') {
-    throw new Error(
-      'Strava OAuth cannot complete in Expo Go. Use a development build and set the Strava Authorization Callback Domain to localhost.',
-    );
+    const authSessionCallbackUri = Linking.createURL(STRAVA_CALLBACK_PATH);
+    return {
+      authorizationRedirectUri: buildExpoGoRelayRedirectUri(authSessionCallbackUri),
+      authSessionCallbackUri,
+    };
   }
 
-  return buildRedirectUri(scheme, callbackDomain);
+  const redirectUri = buildRedirectUri(scheme, callbackDomain);
+  return {
+    authorizationRedirectUri: redirectUri,
+    authSessionCallbackUri: redirectUri,
+  };
+}
+
+export function getStravaRedirectUri(): string {
+  return getStravaOAuthRedirects().authorizationRedirectUri;
 }

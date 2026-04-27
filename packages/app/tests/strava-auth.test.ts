@@ -2,13 +2,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockCreateURL = vi.hoisted(() => vi.fn());
 
+vi.mock('expo-constants', () => ({
+  default: {
+    expoConfig: { extra: {} },
+    manifest: { extra: {} },
+    manifest2: { extra: {} },
+  },
+}));
+
 vi.mock('expo-linking', () => ({
   createURL: mockCreateURL,
 }));
 
-import { getStravaRedirectUri } from '../lib/strava-auth';
+import { getStravaOAuthRedirects, getStravaRedirectUri } from '../lib/strava-auth';
 
 const originalCallbackDomain = process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN;
+const originalApiUrl = process.env.EXPO_PUBLIC_API_URL;
 const originalNodeEnv = process.env.NODE_ENV;
 
 describe('getStravaRedirectUri', () => {
@@ -19,6 +28,12 @@ describe('getStravaRedirectUri', () => {
       delete process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN;
     } else {
       process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN = originalCallbackDomain;
+    }
+
+    if (originalApiUrl === undefined) {
+      delete process.env.EXPO_PUBLIC_API_URL;
+    } else {
+      process.env.EXPO_PUBLIC_API_URL = originalApiUrl;
     }
 
     if (originalNodeEnv === undefined) {
@@ -69,27 +84,30 @@ describe('getStravaRedirectUri', () => {
     );
   });
 
-  it('fails clearly in Expo Go because the localhost redirect cannot return to the project', () => {
+  it('uses the public API relay so Expo Go can keep its real return URL', () => {
     delete process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN;
+    process.env.EXPO_PUBLIC_API_URL = 'https://api.steady.test';
+    process.env.NODE_ENV = 'development';
+    mockCreateURL.mockImplementation((path: string) => (
+      path ? `exp://10.0.0.1:8081/--/${path}` : 'exp://10.0.0.1:8081/--/'
+    ));
+
+    expect(getStravaOAuthRedirects()).toEqual({
+      authorizationRedirectUri: 'https://api.steady.test/oauth/strava/callback?return_to=exp%3A%2F%2F10.0.0.1%3A8081%2F--%2Fstrava-callback',
+      authSessionCallbackUri: 'exp://10.0.0.1:8081/--/strava-callback',
+    });
+  });
+
+  it('requires a public HTTPS API URL for Expo Go relay redirects', () => {
+    delete process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN;
+    process.env.EXPO_PUBLIC_API_URL = 'http://10.0.0.1:3000';
     process.env.NODE_ENV = 'development';
     mockCreateURL.mockImplementation((path: string) => (
       path ? `exp://10.0.0.1:8081/--/${path}` : 'exp://10.0.0.1:8081/--/'
     ));
 
     expect(() => getStravaRedirectUri()).toThrow(
-      'Strava OAuth cannot complete in Expo Go. Use a development build and set the Strava Authorization Callback Domain to localhost.',
-    );
-  });
-
-  it('fails clearly for release builds that cannot provide a native app scheme', () => {
-    process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN = 'api.steady.test';
-    process.env.NODE_ENV = 'production';
-    mockCreateURL.mockImplementation((path: string) => (
-      path ? `exp://10.0.0.1:8081/--/${path}` : 'exp://10.0.0.1:8081/--/'
-    ));
-
-    expect(() => getStravaRedirectUri()).toThrow(
-      'Strava OAuth cannot complete in Expo Go.',
+      'Expo Go Strava OAuth needs EXPO_PUBLIC_API_URL to be a public HTTPS URL.',
     );
   });
 });

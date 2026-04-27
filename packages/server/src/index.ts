@@ -8,6 +8,7 @@ import {
 import { createAppRouter, type AppRouter } from './trpc/router';
 import { createContext } from './trpc/context';
 import { createServerDeps } from './repos/server-deps';
+import { registerStravaOAuthRedirectRoute } from './routes/strava-oauth-redirect';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,6 +26,8 @@ const server = Fastify({ logger: true });
 server.get('/health', async () => {
   return { status: 'ok', service: 'steady-server' };
 });
+
+registerStravaOAuthRedirectRoute(server);
 
 const appRouter = createAppRouter(createServerDeps());
 
