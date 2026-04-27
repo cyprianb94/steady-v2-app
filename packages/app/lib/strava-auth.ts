@@ -29,21 +29,30 @@ function isLocalDevRuntime(): boolean {
   return process.env.NODE_ENV !== 'production';
 }
 
+function getLocalDevelopmentRedirectUri(): string {
+  return Linking.createURL(STRAVA_CALLBACK_PATH);
+}
+
 export function getStravaRedirectUri(): string {
   const scheme = getCurrentAppScheme();
+  const callbackDomain = normalizeCallbackDomain(process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN);
 
-  if (!scheme || scheme === 'exp') {
-    throw new Error(
-      'Strava OAuth cannot run from Expo Go/LAN because Strava rejects exp:// redirect URLs. Use an Expo development build and set Strava Authorization Callback Domain to localhost.',
-    );
-  }
-
-  const callbackDomain = normalizeCallbackDomain(process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN)
-    ?? (isLocalDevRuntime() ? 'localhost' : null);
   if (!callbackDomain) {
+    if (isLocalDevRuntime()) {
+      return getLocalDevelopmentRedirectUri();
+    }
+
     throw new Error(
       'EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN is not configured for Strava OAuth.',
     );
+  }
+
+  if (!scheme || scheme === 'exp') {
+    if (isLocalDevRuntime()) {
+      return getLocalDevelopmentRedirectUri();
+    }
+
+    throw new Error('Strava OAuth cannot build a release redirect URI without a native app scheme.');
   }
 
   return `${scheme}://${callbackDomain}/${STRAVA_CALLBACK_PATH}`;

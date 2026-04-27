@@ -51,12 +51,12 @@ describe('getStravaRedirectUri', () => {
     expect(getStravaRedirectUri()).toBe('steady://connect.steady.test/strava-callback');
   });
 
-  it('uses localhost for local native development without a configured callback domain', () => {
+  it('preserves the previous local native redirect without a configured callback domain', () => {
     delete process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN;
     process.env.NODE_ENV = 'development';
     mockCreateURL.mockImplementation((path: string) => (path ? `steady://${path}` : 'steady://'));
 
-    expect(getStravaRedirectUri()).toBe('steady://localhost/strava-callback');
+    expect(getStravaRedirectUri()).toBe('steady://strava-callback');
   });
 
   it('fails clearly for production native builds without a configured callback domain', () => {
@@ -69,15 +69,25 @@ describe('getStravaRedirectUri', () => {
     );
   });
 
-  it('fails clearly in Expo Go because Strava rejects exp redirect URLs', () => {
+  it('preserves the previous Expo Go redirect in local development', () => {
     delete process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN;
     process.env.NODE_ENV = 'development';
     mockCreateURL.mockImplementation((path: string) => (
       path ? `exp://10.0.0.1:8081/--/${path}` : 'exp://10.0.0.1:8081/--/'
     ));
 
+    expect(getStravaRedirectUri()).toBe('exp://10.0.0.1:8081/--/strava-callback');
+  });
+
+  it('fails clearly for release builds that cannot provide a native app scheme', () => {
+    process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN = 'api.steady.test';
+    process.env.NODE_ENV = 'production';
+    mockCreateURL.mockImplementation((path: string) => (
+      path ? `exp://10.0.0.1:8081/--/${path}` : 'exp://10.0.0.1:8081/--/'
+    ));
+
     expect(() => getStravaRedirectUri()).toThrow(
-      'Strava OAuth cannot run from Expo Go/LAN because Strava rejects exp:// redirect URLs.',
+      'Strava OAuth cannot build a release redirect URI without a native app scheme.',
     );
   });
 });
