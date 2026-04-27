@@ -18,8 +18,10 @@ Add a Settings entry point for plan history so testers can return to older plans
    - Helper copy: `Restoring a plan keeps the current plan in history.`
 
 3. **Plan preview**
-   - Show archived plan summary before destructive or active-state-changing actions.
-   - Include race name, target, date, phase strip, high-level metrics, and template week preview.
+   - Use the existing Block-style presentation as a read-only archived block preview.
+   - Reuse the plan-builder review graph for block overview: `BlockReviewSurface` / `BlockVolumeChart` or `BlockVolumeCard`.
+   - Reuse the Block tab week-row pattern for week summaries.
+   - Do not show edit affordances, propagation controls, or day drag handles while a plan is inactive.
    - Primary action: `Restore this plan`.
    - Destructive action: `Delete from history`.
 
@@ -35,6 +37,7 @@ Add a Settings entry point for plan history so testers can return to older plans
 - Deleting is only available for inactive historical plans.
 - The active plan cannot be deleted from plan history.
 - Restore should refresh Home and Block to the restored plan immediately.
+- Viewing an inactive plan should not change activity matching, current-week state, or the active plan cache.
 - Activity matching and future retrospective analysis can remain out of scope for the first implementation, but the issue should note that historical analysis will eventually need a plan/activity relationship.
 
 ## Open decisions for implementation
@@ -43,4 +46,3 @@ Add a Settings entry point for plan history so testers can return to older plans
 - Whether history ordering should use `createdAt`, `updatedAt`, or a new `archivedAt`.
 - Whether restored plans keep their original `createdAt` or receive a new `restoredAt`.
 - Whether deleting a historical plan should hard-delete immediately or soft-delete for recovery.
-

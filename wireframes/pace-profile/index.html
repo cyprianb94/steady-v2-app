@@ -1,0 +1,1531 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Steady Pace Profile Wireframes</title>
+    <style>
+      @font-face {
+        font-family: "Playfair Display";
+        src: url("../../packages/app/assets/fonts/PlayfairDisplay-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "Playfair Display";
+        src: url("../../packages/app/assets/fonts/PlayfairDisplay-Bold.ttf") format("truetype");
+        font-weight: 700;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-Medium.ttf") format("truetype");
+        font-weight: 500;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-SemiBold.ttf") format("truetype");
+        font-weight: 600;
+      }
+
+      @font-face {
+        font-family: "Space Mono";
+        src: url("../../packages/app/assets/fonts/SpaceMono-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "Space Mono";
+        src: url("../../packages/app/assets/fonts/SpaceMono-Bold.ttf") format("truetype");
+        font-weight: 700;
+      }
+
+      :root {
+        --cream: #f4efe6;
+        --surface: #fdfaf5;
+        --card: #f0eae0;
+        --ink: #1c1510;
+        --ink2: #3d3028;
+        --muted: #9a8e7e;
+        --border: #e5ddd0;
+        --clay: #c4522a;
+        --clay-bg: #fdf0eb;
+        --amber: #d4882a;
+        --amber-bg: #fdf6eb;
+        --forest: #2a5c45;
+        --forest-bg: #eef4f1;
+        --navy: #1b3a6b;
+        --navy-bg: #edf1f8;
+        --slate: #8a8e9a;
+        --slate-bg: #f2f2f4;
+        --purple: #7c5cbf;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: #e8dfd2;
+        color: var(--ink);
+        font-family: "DM Sans", sans-serif;
+      }
+
+      .board {
+        width: 1816px;
+        padding: 36px 40px 50px;
+      }
+
+      .board-title {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 28px;
+        margin-bottom: 24px;
+      }
+
+      .board-title h1 {
+        margin: 0;
+        font-family: "Playfair Display", serif;
+        font-size: 35px;
+        line-height: 1.04;
+        font-weight: 700;
+        letter-spacing: 0;
+      }
+
+      .board-title p {
+        max-width: 620px;
+        margin: 0 0 5px;
+        color: #6f6255;
+        font-size: 14px;
+        line-height: 1.42;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, 393px);
+        gap: 34px;
+      }
+
+      .frame {
+        display: grid;
+        gap: 10px;
+      }
+
+      .frame-label {
+        color: #6f6255;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1.8px;
+        text-transform: uppercase;
+      }
+
+      .phone {
+        position: relative;
+        width: 393px;
+        height: 852px;
+        overflow: hidden;
+        background: var(--cream);
+        border: 1px solid rgba(28, 21, 16, 0.09);
+        border-radius: 36px;
+        box-shadow: 0 18px 45px rgba(61, 48, 40, 0.12);
+      }
+
+      .status {
+        position: absolute;
+        inset: 0 0 auto;
+        height: 70px;
+        padding: 24px 31px 0;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        font-family: "Space Mono", monospace;
+        font-size: 17px;
+        font-weight: 700;
+        color: #050403;
+        background: var(--cream);
+        z-index: 4;
+      }
+
+      .status.overlay {
+        background: transparent;
+      }
+
+      .icons {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+
+      .bars {
+        display: flex;
+        align-items: flex-end;
+        gap: 2px;
+        height: 14px;
+      }
+
+      .bars i {
+        display: block;
+        width: 4px;
+        border-radius: 2px;
+        background: #060504;
+      }
+
+      .bars i:nth-child(1) { height: 6px; }
+      .bars i:nth-child(2) { height: 10px; }
+      .bars i:nth-child(3) { height: 13px; opacity: 0.28; }
+
+      .wifi {
+        position: relative;
+        width: 18px;
+        height: 14px;
+      }
+
+      .wifi::before,
+      .wifi::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 3px solid #060504;
+        border-color: #060504 transparent transparent transparent;
+        border-radius: 50%;
+      }
+
+      .wifi::before {
+        top: 1px;
+        width: 20px;
+        height: 20px;
+      }
+
+      .wifi::after {
+        top: 7px;
+        width: 10px;
+        height: 10px;
+      }
+
+      .battery {
+        position: relative;
+        min-width: 26px;
+        height: 15px;
+        padding: 0 4px;
+        border-radius: 5px;
+        background: #050403;
+        color: white;
+        font-family: "DM Sans", sans-serif;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 15px;
+        text-align: center;
+      }
+
+      .screen {
+        height: 100%;
+        padding: 92px 18px 104px;
+        overflow: hidden;
+      }
+
+      .screen.scroll {
+        overflow-y: auto;
+        scrollbar-width: none;
+      }
+
+      .screen.scroll::-webkit-scrollbar {
+        display: none;
+      }
+
+      .step {
+        margin-bottom: 12px;
+        color: var(--clay);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 3.2px;
+        text-transform: uppercase;
+      }
+
+      h2 {
+        margin: 0;
+        font-family: "Playfair Display", serif;
+        font-size: 31px;
+        font-weight: 400;
+        line-height: 1.06;
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        margin: 10px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.45;
+      }
+
+      .section-label {
+        display: block;
+        margin: 29px 0 12px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 3.2px;
+        text-transform: uppercase;
+      }
+
+      .chip-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+
+      .chip {
+        min-height: 48px;
+        border: 1.5px solid var(--border);
+        border-radius: 24px;
+        background: var(--surface);
+        color: var(--ink2);
+        display: grid;
+        place-items: center;
+        font-family: "Space Mono", monospace;
+        font-size: 14px;
+      }
+
+      .chip.selected {
+        border-color: var(--clay);
+        background: var(--clay-bg);
+        color: var(--clay);
+        font-weight: 700;
+      }
+
+      .chip.short {
+        width: 112px;
+      }
+
+      .pace-card {
+        margin-top: 24px;
+        border: 1.5px solid rgba(27, 58, 107, 0.16);
+        border-radius: 12px;
+        background: var(--surface);
+        overflow: hidden;
+      }
+
+      .pace-head {
+        padding: 14px 14px 13px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .kicker {
+        margin-bottom: 4px;
+        color: var(--muted);
+        font-size: 9.5px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+      }
+
+      .pace-value {
+        color: var(--navy);
+        font-family: "Space Mono", monospace;
+        font-size: 27px;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      .pace-caption {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .source-pill {
+        flex-shrink: 0;
+        border: 1px solid rgba(27, 58, 107, 0.18);
+        border-radius: 999px;
+        background: var(--navy-bg);
+        color: var(--navy);
+        padding: 5px 9px;
+        font-size: 9.5px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+
+      .pace-rows {
+        padding: 7px 0;
+      }
+
+      .compact-paces {
+        padding: 10px 14px 11px;
+        border-bottom: 1px solid var(--border);
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px 12px;
+      }
+
+      .compact-pace {
+        min-width: 0;
+      }
+
+      .compact-pace-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--ink);
+        font-size: 11.5px;
+        font-weight: 700;
+      }
+
+      .compact-pace-value {
+        margin-top: 3px;
+        color: var(--ink2);
+        font-family: "Space Mono", monospace;
+        font-size: 10.5px;
+        white-space: nowrap;
+      }
+
+      .pace-row {
+        min-height: 43px;
+        padding: 8px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .pace-row + .pace-row {
+        border-top: 1px solid rgba(229, 221, 208, 0.72);
+      }
+
+      .row-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        flex-shrink: 0;
+      }
+
+      .dot.easy { background: var(--forest); }
+      .dot.steady { background: var(--navy); }
+      .dot.threshold { background: var(--amber); }
+      .dot.interval { background: var(--clay); }
+      .dot.rest { background: var(--slate); }
+
+      .row-name {
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .row-value {
+        color: var(--ink2);
+        font-family: "Space Mono", monospace;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .adjust-row {
+        min-height: 46px;
+        padding: 0 14px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: var(--clay);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .footer {
+        position: absolute;
+        inset: auto 0 0;
+        padding: 14px 18px 26px;
+        border-top: 1px solid rgba(229, 221, 208, 0.92);
+        background: rgba(244, 239, 230, 0.98);
+      }
+
+      .button {
+        min-height: 54px;
+        border-radius: 28px;
+        border: 1.5px solid var(--clay);
+        background: var(--clay);
+        color: white;
+        display: grid;
+        place-items: center;
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      .button.secondary {
+        background: var(--surface);
+        color: var(--ink);
+        border-color: var(--border);
+      }
+
+      .dim-content {
+        filter: blur(0.5px);
+        opacity: 0.5;
+      }
+
+      .backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(28, 21, 16, 0.6);
+        z-index: 8;
+      }
+
+      .sheet {
+        position: absolute;
+        top: 126px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 9;
+        max-height: none;
+        border-radius: 22px 22px 0 0;
+        background: var(--surface);
+        box-shadow: 0 -22px 52px rgba(28, 21, 16, 0.23);
+        overflow: hidden;
+      }
+
+      .sheet-handle {
+        width: 36px;
+        height: 4px;
+        margin: 10px auto 8px;
+        border-radius: 999px;
+        background: var(--border);
+      }
+
+      .sheet-head {
+        padding: 0 18px 14px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .sheet-title-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .sheet h3 {
+        margin: 0;
+        font-family: "Playfair Display", serif;
+        font-size: 25px;
+        font-weight: 700;
+        line-height: 1.1;
+      }
+
+      .sheet-copy {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 12.5px;
+        line-height: 1.45;
+      }
+
+      .sheet-body {
+        padding: 13px 18px 132px;
+        max-height: 560px;
+        overflow: hidden;
+      }
+
+      .locked-row {
+        margin-bottom: 10px;
+        border: 1.5px solid rgba(27, 58, 107, 0.18);
+        border-radius: 12px;
+        background: var(--navy-bg);
+        padding: 12px 13px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .locked-label {
+        color: var(--navy);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+      }
+
+      .locked-copy {
+        margin-top: 3px;
+        color: rgba(27, 58, 107, 0.74);
+        font-size: 11px;
+      }
+
+      .locked-value {
+        color: var(--navy);
+        font-family: "Space Mono", monospace;
+        font-size: 17px;
+        font-weight: 700;
+      }
+
+      .editor-list {
+        border: 1.5px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+        overflow: hidden;
+      }
+
+      .editor-row {
+        padding: 12px 13px;
+      }
+
+      .editor-row + .editor-row {
+        border-top: 1px solid var(--border);
+      }
+
+      .editor-row-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .editor-row-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .editor-meta {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .pace-source {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 10px;
+        line-height: 1.2;
+        text-align: right;
+      }
+
+      .pace-source.edited {
+        color: var(--forest);
+        font-weight: 600;
+      }
+
+      .expanded {
+        background: var(--amber-bg);
+      }
+
+      .chip-strip {
+        margin-top: 12px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .pace-chip {
+        min-height: 36px;
+        border: 1.5px solid rgba(212, 136, 42, 0.36);
+        border-radius: 18px;
+        background: var(--surface);
+        padding: 0 12px;
+        color: var(--ink2);
+        display: inline-grid;
+        place-items: center;
+        font-family: "Space Mono", monospace;
+        font-size: 12px;
+      }
+
+      .pace-chip.selected {
+        border-color: var(--amber);
+        background: #fff8ef;
+        color: var(--amber);
+        font-weight: 700;
+      }
+
+      .note {
+        margin-top: 10px;
+        color: #8b671f;
+        font-size: 11px;
+        line-height: 1.4;
+      }
+
+      .sheet-footer {
+        position: absolute;
+        inset: auto 0 18px;
+        padding: 11px 18px 18px;
+        border-top: 1px solid var(--border);
+        background: var(--surface);
+        display: grid;
+        gap: 9px;
+      }
+
+      .sheet-footnote {
+        color: var(--muted);
+        text-align: center;
+        font-size: 10.5px;
+      }
+
+      .settings-screen {
+        padding-bottom: 78px;
+      }
+
+      .settings-title,
+      .block-title {
+        font-family: "Playfair Display", serif;
+        font-size: 28px;
+        font-weight: 700;
+        line-height: 1.05;
+      }
+
+      .settings-section {
+        margin-top: 22px;
+      }
+
+      .card {
+        border: 1.5px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+        overflow: hidden;
+      }
+
+      .plan-head {
+        padding: 14px 14px 15px;
+      }
+
+      .status-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 9px;
+      }
+
+      .active {
+        color: var(--forest);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .phase-name {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .plan-title {
+        margin: 0;
+        color: var(--ink);
+        font-family: "Playfair Display", serif;
+        font-size: 22px;
+        line-height: 1.1;
+        font-weight: 700;
+      }
+
+      .plan-meta {
+        margin-top: 9px;
+        display: flex;
+        gap: 13px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .mono {
+        font-family: "Space Mono", monospace;
+      }
+
+      .target {
+        color: var(--navy);
+        font-weight: 700;
+      }
+
+      .week {
+        color: var(--clay);
+        font-weight: 700;
+      }
+
+      .phase-strip {
+        height: 8px;
+        margin-top: 13px;
+        border-radius: 999px;
+        overflow: hidden;
+        display: flex;
+      }
+
+      .phase-strip span:nth-child(1) { flex: 3; background: var(--navy); }
+      .phase-strip span:nth-child(2) { flex: 7; background: var(--clay); }
+      .phase-strip span:nth-child(3) { flex: 2; background: var(--amber); }
+      .phase-strip span:nth-child(4) { flex: 2; background: var(--forest); }
+
+      .settings-row {
+        min-height: 52px;
+        padding: 10px 14px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 13px;
+      }
+
+      .settings-row-main {
+        min-width: 0;
+      }
+
+      .settings-row-title {
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .settings-row-meta {
+        margin-top: 3px;
+        color: var(--muted);
+        font-family: "Space Mono", monospace;
+        font-size: 10.5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 290px;
+      }
+
+      .chevron {
+        color: var(--muted);
+        font-size: 23px;
+        line-height: 1;
+      }
+
+      .sync-head {
+        padding: 14px;
+      }
+
+      .sync-name {
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .sync-meta {
+        margin-top: 5px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .tabbar {
+        position: absolute;
+        inset: auto 0 0;
+        height: 78px;
+        padding: 8px 34px 13px;
+        border-top: 1px solid rgba(229, 221, 208, 0.96);
+        background: rgba(253, 250, 245, 0.98);
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+      }
+
+      .tab {
+        width: 58px;
+        display: grid;
+        justify-items: center;
+        gap: 5px;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 600;
+      }
+
+      .tab.active {
+        color: var(--clay);
+      }
+
+      .tab-icon {
+        width: 22px;
+        height: 22px;
+        position: relative;
+      }
+
+      .home-icon::before {
+        content: "";
+        position: absolute;
+        inset: 7px 3px 1px;
+        border: 2px solid currentColor;
+        border-top: none;
+        border-radius: 2px;
+      }
+
+      .home-icon::after {
+        content: "";
+        position: absolute;
+        left: 3px;
+        top: 5px;
+        width: 16px;
+        height: 16px;
+        border-left: 2px solid currentColor;
+        border-top: 2px solid currentColor;
+        transform: rotate(45deg);
+        border-radius: 1px;
+      }
+
+      .block-icon,
+      .settings-icon {
+        display: grid;
+        align-content: center;
+        gap: 4px;
+      }
+
+      .block-icon i {
+        display: block;
+        height: 2px;
+        border-radius: 999px;
+        background: currentColor;
+      }
+
+      .block-icon i:nth-child(1) { width: 14px; margin-left: 4px; }
+      .block-icon i:nth-child(2) { width: 22px; }
+      .block-icon i:nth-child(3) { width: 10px; margin-left: 6px; }
+
+      .settings-icon i {
+        display: block;
+        width: 22px;
+        height: 2px;
+        border-radius: 999px;
+        background: currentColor;
+        position: relative;
+      }
+
+      .settings-icon i::after {
+        content: "";
+        position: absolute;
+        top: -4px;
+        width: 8px;
+        height: 8px;
+        border: 2px solid currentColor;
+        border-radius: 999px;
+        background: var(--surface);
+      }
+
+      .settings-icon i:nth-child(1)::after { left: 7px; }
+      .settings-icon i:nth-child(2)::after { left: 2px; }
+
+      .block-header {
+        padding: 0 0 16px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .label {
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+      }
+
+      .race-title {
+        margin-top: 8px;
+        font-family: "Playfair Display", serif;
+        font-size: 23px;
+        font-weight: 700;
+        line-height: 1.1;
+      }
+
+      .block-meta {
+        margin-top: 10px;
+        display: flex;
+        gap: 11px;
+        font-family: "Space Mono", monospace;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .block-meta span:nth-child(1) { color: var(--clay); }
+      .block-meta span:nth-child(2) { color: var(--muted); }
+      .block-meta span:nth-child(3) { color: var(--navy); }
+
+      .pace-shortcut {
+        margin-top: 14px;
+        min-height: 48px;
+        border: 1.5px solid rgba(27, 58, 107, 0.15);
+        border-radius: 12px;
+        background: var(--surface);
+        padding: 10px 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .shortcut-values {
+        margin-top: 3px;
+        color: var(--ink2);
+        font-family: "Space Mono", monospace;
+        font-size: 10.5px;
+      }
+
+      .phase-copy {
+        margin: 8px 0 14px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .week-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .week-card {
+        border: 1.5px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+        padding: 11px 12px;
+      }
+
+      .week-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .week-left {
+        min-width: 0;
+      }
+
+      .week-title {
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .week-date {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 10.5px;
+      }
+
+      .dot-grid {
+        display: flex;
+        gap: 5px;
+      }
+
+      .dot-grid span {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--border);
+      }
+
+      .dot-grid .easy { background: var(--forest); }
+      .dot-grid .interval { background: var(--clay); }
+      .dot-grid .tempo { background: var(--amber); }
+      .dot-grid .long { background: var(--navy); }
+
+      .week-km {
+        color: var(--ink2);
+        font-family: "Space Mono", monospace;
+        font-size: 11px;
+        white-space: nowrap;
+      }
+
+      .week-detail {
+        margin-top: 10px;
+        border-top: 1px solid var(--border);
+        padding-top: 9px;
+        display: grid;
+        gap: 7px;
+      }
+
+      .session-mini {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        font-size: 11.5px;
+      }
+
+      .session-mini strong {
+        font-size: 12px;
+        color: var(--ink);
+      }
+
+      .session-mini span:last-child {
+        color: var(--muted);
+        font-family: "Space Mono", monospace;
+        white-space: nowrap;
+      }
+
+      .muted-card {
+        margin-top: 14px;
+        border-radius: 12px;
+        border: 1.5px solid rgba(42, 92, 69, 0.18);
+        background: var(--forest-bg);
+        padding: 12px 13px;
+        color: var(--forest);
+        font-size: 12px;
+        line-height: 1.42;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="board">
+      <div class="board-title">
+        <div>
+          <h1>Pace profile placement</h1>
+        </div>
+        <p>
+          A shared pace profile component introduced during target selection, reused in Settings,
+          and available as a lightweight Block shortcut after the plan is live.
+        </p>
+      </div>
+
+      <section class="grid" aria-label="Pace profile wireframes">
+        <article class="frame">
+          <div class="frame-label">01 - Onboarding target</div>
+          <div class="phone">
+            <div class="status">
+              <span>23:58</span>
+              <div class="icons" aria-hidden="true">
+                <div class="bars"><i></i><i></i><i></i></div>
+                <div class="wifi"></div>
+                <div class="battery">20</div>
+              </div>
+            </div>
+
+            <div class="screen scroll">
+              <div class="step">Step 3 of 6</div>
+              <h2>What are you<br />aiming for?</h2>
+              <p class="subtitle">
+                Marathon. Pick the target you want the plan to hold in view.
+              </p>
+
+              <span class="section-label">Target time</span>
+              <div class="chip-grid">
+                <div class="chip">sub-2:45</div>
+                <div class="chip">sub-3:00</div>
+                <div class="chip selected">sub-3:15</div>
+                <div class="chip">sub-3:30</div>
+                <div class="chip">sub-3:45</div>
+                <div class="chip">sub-4:00</div>
+                <div class="chip short">Other</div>
+              </div>
+
+              <div class="pace-card">
+                <div class="pace-head">
+                  <div>
+                    <div class="kicker">Goal marathon pace</div>
+                    <div class="pace-value">4:37/km</div>
+                    <div class="pace-caption">
+                      MP means target marathon pace for this plan.
+                    </div>
+                  </div>
+                  <div class="source-pill">Target</div>
+                </div>
+
+                <div class="compact-paces">
+                  <div class="compact-pace">
+                    <div class="compact-pace-label"><span class="dot easy"></span>Easy</div>
+                    <div class="compact-pace-value">5:25-6:05/km</div>
+                  </div>
+                  <div class="compact-pace">
+                    <div class="compact-pace-label"><span class="dot steady"></span>Steady</div>
+                    <div class="compact-pace-value">5:00-5:20/km</div>
+                  </div>
+                  <div class="compact-pace">
+                    <div class="compact-pace-label"><span class="dot threshold"></span>Threshold</div>
+                    <div class="compact-pace-value">4:15-4:25/km</div>
+                  </div>
+                  <div class="compact-pace">
+                    <div class="compact-pace-label"><span class="dot interval"></span>Interval</div>
+                    <div class="compact-pace-value">3:55-4:05/km</div>
+                  </div>
+                </div>
+
+                <div class="adjust-row">
+                  <span>Adjust paces</span>
+                  <span class="chevron">&rsaquo;</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="footer">
+              <div class="button">Build base week &rarr;</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="frame">
+          <div class="frame-label">02 - Reusable pace sheet</div>
+          <div class="phone">
+            <div class="status overlay">
+              <span>23:59</span>
+              <div class="icons" aria-hidden="true">
+                <div class="bars"><i></i><i></i><i></i></div>
+                <div class="wifi"></div>
+                <div class="battery">20</div>
+              </div>
+            </div>
+
+            <div class="screen dim-content">
+              <div class="step">Step 3 of 6</div>
+              <h2>What are you<br />aiming for?</h2>
+              <p class="subtitle">Marathon. Pick the target you want the plan to hold in view.</p>
+              <span class="section-label">Target time</span>
+              <div class="chip-grid">
+                <div class="chip">sub-2:45</div>
+                <div class="chip">sub-3:00</div>
+                <div class="chip selected">sub-3:15</div>
+                <div class="chip">sub-3:30</div>
+                <div class="chip">sub-3:45</div>
+                <div class="chip">sub-4:00</div>
+              </div>
+              <div class="pace-card">
+                <div class="pace-head">
+                  <div>
+                    <div class="kicker">Goal marathon pace</div>
+                    <div class="pace-value">4:37/km</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="backdrop"></div>
+            <section class="sheet" aria-label="Training paces sheet">
+              <div class="sheet-handle"></div>
+              <div class="sheet-head">
+                <div class="sheet-title-row">
+                  <div>
+                    <h3>Training paces</h3>
+                    <p class="sheet-copy">
+                      These are estimates only. Change them if recent training gives you a better number.
+                    </p>
+                  </div>
+                  <span class="source-pill">Goal based</span>
+                </div>
+              </div>
+
+              <div class="sheet-body">
+                <div class="locked-row">
+                  <div>
+                    <div class="locked-label">MP</div>
+                    <div class="locked-copy">Set by your marathon target.</div>
+                  </div>
+                  <div class="locked-value">4:37/km</div>
+                </div>
+
+                <div class="editor-list">
+                  <div class="editor-row">
+                    <div class="editor-row-head">
+                      <div>
+                        <div class="editor-row-title">
+                          <span class="dot easy"></span>
+                          <span>Easy range</span>
+                        </div>
+                        <div class="editor-meta">Conversational running.</div>
+                      </div>
+                      <div>
+                        <div class="row-value">5:25-6:05/km</div>
+                        <div class="pace-source">Estimated</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="editor-row">
+                    <div class="editor-row-head">
+                      <div>
+                        <div class="editor-row-title">
+                          <span class="dot steady"></span>
+                          <span>Steady range</span>
+                        </div>
+                        <div class="editor-meta">Aerobic but purposeful.</div>
+                      </div>
+                      <div>
+                        <div class="row-value">5:00-5:20/km</div>
+                        <div class="pace-source">Estimated</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="editor-row expanded">
+                    <div class="editor-row-head">
+                      <div>
+                        <div class="editor-row-title">
+                          <span class="dot threshold"></span>
+                          <span>Threshold</span>
+                        </div>
+                        <div class="editor-meta">Tempo and cruise interval work.</div>
+                      </div>
+                      <div>
+                        <div class="row-value">4:15-4:25/km</div>
+                        <div class="pace-source edited">Edited</div>
+                      </div>
+                    </div>
+
+                    <div class="chip-strip">
+                      <span class="pace-chip">4:10-4:20</span>
+                      <span class="pace-chip selected">4:15-4:25</span>
+                      <span class="pace-chip">4:20-4:30</span>
+                      <span class="pace-chip">Custom...</span>
+                    </div>
+                    <div class="note">Threshold usually sits faster than MP and slower than interval pace.</div>
+                  </div>
+
+                  <div class="editor-row">
+                    <div class="editor-row-head">
+                      <div>
+                        <div class="editor-row-title">
+                          <span class="dot interval"></span>
+                          <span>Interval</span>
+                        </div>
+                        <div class="editor-meta">Harder reps around 3K-5K effort.</div>
+                      </div>
+                      <div>
+                        <div class="row-value">3:55-4:05/km</div>
+                        <div class="pace-source">Estimated</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="sheet-footer">
+                <div class="sheet-footnote">Updates future sessions that still use profile paces.</div>
+                <div class="button">Save paces</div>
+              </div>
+            </section>
+          </div>
+        </article>
+
+        <article class="frame">
+          <div class="frame-label">03 - Settings entry point</div>
+          <div class="phone">
+            <div class="status">
+              <span>09:41</span>
+              <div class="icons" aria-hidden="true">
+                <div class="bars"><i></i><i></i><i></i></div>
+                <div class="wifi"></div>
+                <div class="battery">100</div>
+              </div>
+            </div>
+
+            <div class="screen scroll settings-screen">
+              <div class="settings-title">Settings</div>
+
+              <section class="settings-section">
+                <span class="section-label">Plan</span>
+                <div class="card">
+                  <div class="plan-head">
+                    <div class="status-line">
+                      <span class="active">Active</span>
+                      <span class="phase-name">Build phase</span>
+                    </div>
+                    <h3 class="plan-title">London Marathon 2026</h3>
+                    <div class="plan-meta">
+                      <span>Target <span class="mono target">sub-3:15</span></span>
+                      <span>Week <span class="mono week">5</span> of <span class="mono">16</span></span>
+                    </div>
+                    <div class="phase-strip" aria-hidden="true">
+                      <span></span><span></span><span></span><span></span>
+                    </div>
+                  </div>
+
+                  <div class="settings-row">
+                    <div class="settings-row-main">
+                      <div class="settings-row-title">Training paces</div>
+                      <div class="settings-row-meta">MP 4:37/km &middot; T 4:15-4:25/km &middot; I 3:55-4:05/km</div>
+                    </div>
+                    <span class="chevron">&rsaquo;</span>
+                  </div>
+
+                  <div class="settings-row">
+                    <div class="settings-row-main">
+                      <div class="settings-row-title">Replace plan</div>
+                    </div>
+                    <span class="chevron">&rsaquo;</span>
+                  </div>
+                </div>
+              </section>
+
+              <section class="settings-section">
+                <span class="section-label">Activity sync</span>
+                <div class="card">
+                  <div class="sync-head">
+                    <div class="status-line">
+                      <span class="sync-name">Strava</span>
+                      <span class="active">Connected</span>
+                    </div>
+                    <div class="sync-meta">Last synced today at <span class="mono">07:18</span>.</div>
+                  </div>
+                  <div class="settings-row">
+                    <div class="settings-row-main">
+                      <div class="settings-row-title">Sync now</div>
+                    </div>
+                    <span class="chevron">&rsaquo;</span>
+                  </div>
+                </div>
+              </section>
+
+              <section class="settings-section">
+                <span class="section-label">Units</span>
+                <div class="card">
+                  <div class="settings-row">
+                    <div class="settings-row-main">
+                      <div class="settings-row-title">Kilometres</div>
+                      <div class="settings-row-meta">Pace as /km</div>
+                    </div>
+                    <span class="active">Selected</span>
+                  </div>
+                  <div class="settings-row">
+                    <div class="settings-row-main">
+                      <div class="settings-row-title">Miles</div>
+                      <div class="settings-row-meta">Pace as /mi</div>
+                    </div>
+                    <span class="chevron">&rsaquo;</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <nav class="tabbar" aria-label="Tabs">
+              <div class="tab">
+                <span class="tab-icon home-icon"></span>
+                <span>Home</span>
+              </div>
+              <div class="tab">
+                <span class="tab-icon block-icon"><i></i><i></i><i></i></span>
+                <span>Block</span>
+              </div>
+              <div class="tab active">
+                <span class="tab-icon settings-icon"><i></i><i></i></span>
+                <span>Settings</span>
+              </div>
+            </nav>
+          </div>
+        </article>
+
+        <article class="frame">
+          <div class="frame-label">04 - Block shortcut</div>
+          <div class="phone">
+            <div class="status">
+              <span>09:42</span>
+              <div class="icons" aria-hidden="true">
+                <div class="bars"><i></i><i></i><i></i></div>
+                <div class="wifi"></div>
+                <div class="battery">100</div>
+              </div>
+            </div>
+
+            <div class="screen scroll settings-screen">
+              <div class="block-header">
+                <div class="label">Goal race</div>
+                <div class="race-title">London Marathon</div>
+                <div class="block-meta">
+                  <span>Apr 26</span>
+                  <span>11 weeks out</span>
+                  <span>sub-3:15</span>
+                </div>
+
+                <div class="pace-shortcut">
+                  <div>
+                    <div class="label">Plan paces</div>
+                    <div class="shortcut-values">MP 4:37/km &middot; T 4:15-4:25/km &middot; I 3:55-4:05/km</div>
+                  </div>
+                  <span class="chevron">&rsaquo;</span>
+                </div>
+              </div>
+
+              <span class="section-label">Current block</span>
+              <div class="phase-strip" aria-hidden="true">
+                <span></span><span></span><span></span><span></span>
+              </div>
+              <p class="phase-copy">Build phase. Week 5 of 8. Peak volume approaching.</p>
+
+              <div class="week-list">
+                <div class="week-card">
+                  <div class="week-row">
+                    <div class="week-left">
+                      <div class="week-title">W5</div>
+                      <div class="week-date">Feb 9-15</div>
+                    </div>
+                    <div class="dot-grid">
+                      <span class="easy"></span><span class="interval"></span><span class="easy"></span><span class="tempo"></span><span></span><span class="easy"></span><span class="long"></span>
+                    </div>
+                    <div class="week-km">68km</div>
+                  </div>
+                  <div class="week-detail">
+                    <div class="session-mini">
+                      <strong>Tue intervals</strong>
+                      <span>6x800m @ I</span>
+                    </div>
+                    <div class="session-mini">
+                      <strong>Thu tempo</strong>
+                      <span>8km @ T</span>
+                    </div>
+                    <div class="session-mini">
+                      <strong>Sun long</strong>
+                      <span>24km incl. 8km @ MP</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="week-card">
+                  <div class="week-row">
+                    <div class="week-left">
+                      <div class="week-title">W6</div>
+                      <div class="week-date">Feb 16-22</div>
+                    </div>
+                    <div class="dot-grid">
+                      <span class="easy"></span><span class="interval"></span><span class="easy"></span><span class="tempo"></span><span></span><span class="easy"></span><span class="long"></span>
+                    </div>
+                    <div class="week-km">72km</div>
+                  </div>
+                </div>
+
+                <div class="week-card">
+                  <div class="week-row">
+                    <div class="week-left">
+                      <div class="week-title">W7</div>
+                      <div class="week-date">Feb 23-Mar 1</div>
+                    </div>
+                    <div class="dot-grid">
+                      <span class="easy"></span><span class="interval"></span><span class="easy"></span><span class="tempo"></span><span></span><span class="easy"></span><span class="long"></span>
+                    </div>
+                    <div class="week-km">76km</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="muted-card">
+                Session rows can use runner language after the pace profile exists: MP, T, I, easy and steady.
+              </div>
+            </div>
+
+            <nav class="tabbar" aria-label="Tabs">
+              <div class="tab">
+                <span class="tab-icon home-icon"></span>
+                <span>Home</span>
+              </div>
+              <div class="tab active">
+                <span class="tab-icon block-icon"><i></i><i></i><i></i></span>
+                <span>Block</span>
+              </div>
+              <div class="tab">
+                <span class="tab-icon settings-icon"><i></i><i></i></span>
+                <span>Settings</span>
+              </div>
+            </nav>
+          </div>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

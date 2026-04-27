@@ -373,7 +373,8 @@
       .welcome-top {
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        justify-content: flex-start;
+        gap: 12px;
         padding: 0 2px;
       }
 
@@ -592,16 +593,21 @@
       .welcome-copy {
         margin-top: auto;
         padding-bottom: 2px;
+        text-align: center;
       }
 
       .welcome-copy .screen-title {
         font-size: 31px;
         max-width: 330px;
+        margin-right: auto;
+        margin-left: auto;
       }
 
       .welcome-copy .screen-copy {
         max-width: 320px;
+        margin-right: auto;
         margin-bottom: 20px;
+        margin-left: auto;
       }
 
       .auth-screen {
@@ -610,34 +616,60 @@
         flex-direction: column;
       }
 
-      .back-mark {
-        width: 34px;
-        height: 34px;
-        border: 1.5px solid var(--border);
-        border-radius: 50%;
-        display: grid;
-        place-items: center;
-        color: var(--ink2);
-        font-size: 22px;
-        line-height: 1;
+      .auth-panel {
+        margin-top: 72px;
+        padding: 16px;
       }
 
-      .auth-header {
+      .auth-panel .screen-copy {
+        margin-bottom: 18px;
+      }
+
+      .next-card {
+        margin-top: 12px;
+        padding: 13px 14px;
+        background: var(--card);
+      }
+
+      .next-title {
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .next-copy {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 11.5px;
+        line-height: 1.42;
+      }
+
+      .next-steps {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        padding: 0 2px;
+        gap: 7px;
+        margin-top: 11px;
+        color: var(--ink2);
+        font-family: "Space Mono", monospace;
+        font-size: 10.5px;
+        font-weight: 700;
       }
 
-      .auth-title-block {
-        margin-top: 34px;
+      .step-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--clay);
+      }
+
+      .step-rule {
+        flex: 1;
+        height: 1px;
+        background: var(--border);
       }
 
       .account-card {
         display: grid;
         gap: 13px;
-        margin-top: 26px;
-        padding: 16px;
       }
 
       .auth-card-copy {
@@ -645,53 +677,6 @@
         color: var(--ink2);
         font-size: 12.5px;
         line-height: 1.48;
-      }
-
-      .save-preview {
-        display: grid;
-        gap: 8px;
-        margin-bottom: 14px;
-      }
-
-      .save-row {
-        display: grid;
-        grid-template-columns: 34px 1fr auto;
-        gap: 10px;
-        align-items: center;
-        min-height: 48px;
-        padding: 10px 12px;
-        border-radius: 10px;
-        background: var(--card);
-      }
-
-      .save-icon {
-        width: 34px;
-        height: 34px;
-        border-radius: 50%;
-        display: grid;
-        place-items: center;
-        background: var(--ink);
-        color: var(--surface);
-        font-family: "Playfair Display", serif;
-        font-size: 17px;
-        font-weight: 700;
-      }
-
-      .save-title {
-        font-size: 13px;
-        font-weight: 700;
-      }
-
-      .save-copy {
-        margin-top: 2px;
-        color: var(--muted);
-        font-size: 11px;
-      }
-
-      .sync-pill {
-        color: var(--forest);
-        font-size: 10px;
-        font-weight: 700;
       }
 
       .google-mark {
@@ -1280,20 +1265,27 @@
             </div>
 
             <div class="screen auth-screen">
-              <header class="auth-header">
-                <div class="back-mark">‹</div>
-              </header>
-
-              <section class="auth-title-block">
+              <section class="card auth-panel">
                 <h2 class="screen-title">Create your account.</h2>
-                <p class="screen-copy">We’ll take you straight into the plan builder after this.</p>
+                <p class="screen-copy">Sign up first, then build your training block.</p>
+                <div class="account-card">
+                  <button class="btn secondary">
+                    <span class="google-mark">G</span>
+                    Sign up with Google
+                  </button>
+                </div>
               </section>
 
-              <section class="card account-card">
-                <button class="btn secondary">
-                  <span class="google-mark">G</span>
-                  Sign up with Google
-                </button>
+              <section class="card next-card">
+                <div class="next-title">Next: plan builder</div>
+                <div class="next-copy">Set the race, shape the week, review the block.</div>
+                <div class="next-steps" aria-hidden="true">
+                  <span>Goal</span>
+                  <span class="step-rule"></span>
+                  <span class="step-dot"></span>
+                  <span class="step-rule"></span>
+                  <span>Plan</span>
+                </div>
               </section>
 
               <div class="auth-bottom">
