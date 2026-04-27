@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Steady - Plan History Wireframes</title>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Space+Mono:wght@400;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap");
+
+    :root {
+      --cream: #F4EFE6;
+      --surface: #FDFAF5;
+      --card: #F0EAE0;
+      --ink: #1C1510;
+      --ink2: #3D3028;
+      --muted: #9A8E7E;
+      --border: #E5DDD0;
+      --clay: #C4522A;
+      --clay-bg: #FDF0EB;
+      --amber: #D4882A;
+      --amber-bg: #FDF6EB;
+      --forest: #2A5C45;
+      --forest-bg: #EEF4F1;
+      --navy: #1B3A6B;
+      --navy-bg: #EDF1F8;
+      --slate: #8A8E9A;
+      --slate-bg: #F2F2F4;
+      --purple: #7C5CBF;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: geometricPrecision;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--cream);
+      color: var(--ink);
+      font-family: "DM Sans", sans-serif;
+    }
+
+    .board {
+      width: 1760px;
+      min-height: 1060px;
+      padding: 38px 42px 44px;
+      background:
+        linear-gradient(90deg, rgba(229, 221, 208, 0.45) 1px, transparent 1px),
+        linear-gradient(rgba(229, 221, 208, 0.35) 1px, transparent 1px),
+        var(--cream);
+      background-size: 32px 32px;
+    }
+
+    .board-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 28px;
+      margin-bottom: 30px;
+    }
+
+    .eyebrow {
+      margin-bottom: 6px;
+      color: var(--clay);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.35px;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Playfair Display", serif;
+      font-size: 34px;
+      font-weight: 600;
+      letter-spacing: 0;
+      line-height: 1.05;
+    }
+
+    .board-copy {
+      max-width: 560px;
+      margin: 0;
+      color: var(--ink2);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .frames {
+      display: grid;
+      grid-template-columns: repeat(4, 390px);
+      gap: 34px;
+      align-items: start;
+    }
+
+    .frame-block {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .frame-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      min-height: 34px;
+      padding: 0 8px;
+    }
+
+    .frame-title h2 {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Playfair Display", serif;
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: 0;
+    }
+
+    .frame-title span {
+      color: var(--muted);
+      font-family: "Space Mono", monospace;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .phone {
+      position: relative;
+      width: 390px;
+      height: 844px;
+      overflow: hidden;
+      border: 12px solid var(--ink);
+      border-radius: 46px;
+      background: var(--cream);
+      box-shadow:
+        0 34px 88px rgba(28, 21, 16, 0.20),
+        0 0 0 1px rgba(28, 21, 16, 0.08);
+    }
+
+    .screen {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--cream);
+    }
+
+    .status-bar {
+      height: 44px;
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 25px;
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .status-right {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .signal {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 10px;
+    }
+
+    .signal span {
+      width: 3px;
+      border-radius: 1px;
+      background: var(--ink);
+    }
+
+    .battery {
+      position: relative;
+      width: 18px;
+      height: 10px;
+      border: 1.5px solid var(--ink);
+      border-radius: 3px;
+    }
+
+    .battery::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      right: -4px;
+      width: 2px;
+      height: 4px;
+      border-radius: 1px;
+      background: var(--ink);
+    }
+
+    .battery::before {
+      content: "";
+      position: absolute;
+      inset: 2px 5px 2px 2px;
+      border-radius: 1px;
+      background: var(--ink);
+    }
+
+    .content {
+      flex: 1;
+      overflow: hidden;
+      padding: 18px 14px 0;
+    }
+
+    .scroll-content {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .screen-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+      padding: 0 4px;
+    }
+
+    .screen-title {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Playfair Display", serif;
+      font-size: 25px;
+      font-weight: 600;
+      line-height: 1.05;
+    }
+
+    .back-button,
+    .icon-button {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border: 1.5px solid var(--border);
+      border-radius: 17px;
+      background: var(--surface);
+      color: var(--ink2);
+      font-family: "DM Sans", sans-serif;
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1;
+    }
+
+    .icon-button svg,
+    .tab svg,
+    .row-icon svg {
+      display: block;
+    }
+
+    .section {
+      margin-bottom: 18px;
+    }
+
+    .section-label {
+      margin: 0 0 7px;
+      padding: 0 4px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.35px;
+      line-height: 1.2;
+      text-transform: uppercase;
+    }
+
+    .card {
+      overflow: hidden;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+    }
+
+    .plan-head {
+      padding: 12px;
+    }
+
+    .plan-kicker {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 7px;
+    }
+
+    .status-line {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--forest);
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 14px;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--forest);
+    }
+
+    .status-dot.muted {
+      background: var(--muted);
+    }
+
+    .phase-name {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.35px;
+      line-height: 12px;
+      text-transform: uppercase;
+    }
+
+    .plan-title {
+      margin: 0;
+      color: var(--ink);
+      font-size: 18px;
+      font-weight: 500;
+      line-height: 22px;
+    }
+
+    .plan-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px 10px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 16px;
+    }
+
+    .mono {
+      color: var(--ink2);
+      font-family: "Space Mono", monospace;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .clay {
+      color: var(--clay);
+    }
+
+    .navy {
+      color: var(--navy);
+    }
+
+    .forest {
+      color: var(--forest);
+    }
+
+    .amber {
+      color: var(--amber);
+    }
+
+    .phase-strip {
+      display: flex;
+      height: 8px;
+      overflow: hidden;
+      margin-top: 10px;
+      border-radius: 999px;
+      background: var(--border);
+    }
+
+    .phase-strip div {
+      min-width: 2px;
+    }
+
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 44px;
+      gap: 12px;
+      padding: 10px 14px;
+      border-top: 1px solid var(--border);
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 18px;
+    }
+
+    .settings-row strong {
+      font-weight: 600;
+    }
+
+    .settings-row.danger {
+      color: var(--clay);
+    }
+
+    .chevron {
+      width: 22px;
+      color: var(--muted);
+      font-size: 22px;
+      font-weight: 500;
+      line-height: 22px;
+      text-align: center;
+    }
+
+    .sync-head,
+    .account-head {
+      padding: 12px;
+    }
+
+    .sync-title-line,
+    .history-title-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .sync-name,
+    .account-email {
+      color: var(--ink);
+      font-size: 16px;
+      font-weight: 500;
+      line-height: 20px;
+    }
+
+    .sync-meta,
+    .account-meta {
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 17px;
+    }
+
+    .unit-card {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px;
+      padding: 5px;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+    }
+
+    .unit-segment {
+      min-height: 60px;
+      padding: 10px;
+      border: 1.5px solid transparent;
+      border-radius: 10px;
+      color: var(--ink);
+    }
+
+    .unit-segment.selected {
+      border-color: rgba(28, 21, 16, 0.22);
+      background: var(--card);
+    }
+
+    .unit-title-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 17px;
+    }
+
+    .radio {
+      display: grid;
+      place-items: center;
+      width: 16px;
+      height: 16px;
+      border: 1.5px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface);
+    }
+
+    .radio.selected {
+      border-color: var(--ink2);
+    }
+
+    .radio.selected::after {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--ink2);
+    }
+
+    .unit-caption {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 15px;
+    }
+
+    .tab-bar {
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      height: 70px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      padding-bottom: 6px;
+    }
+
+    .tab {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 500;
+    }
+
+    .tab.active {
+      color: var(--clay);
+      font-weight: 700;
+    }
+
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .history-card {
+      overflow: hidden;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+    }
+
+    .history-card.current {
+      border-color: rgba(42, 92, 69, 0.35);
+      background: var(--forest-bg);
+    }
+
+    .history-card.restore-target {
+      border-color: rgba(196, 82, 42, 0.35);
+      background: var(--clay-bg);
+    }
+
+    .history-main {
+      padding: 12px;
+    }
+
+    .history-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 7px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.35px;
+      line-height: 12px;
+      text-transform: uppercase;
+    }
+
+    .history-label .status-dot {
+      flex: 0 0 auto;
+    }
+
+    .history-title {
+      margin: 0;
+      color: var(--ink);
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 20px;
+    }
+
+    .history-date {
+      flex: 0 0 auto;
+      color: var(--muted);
+      font-size: 10.5px;
+      line-height: 14px;
+      text-align: right;
+    }
+
+    .history-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px 10px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 15px;
+    }
+
+    .mini-phase-strip {
+      display: flex;
+      height: 7px;
+      overflow: hidden;
+      margin-top: 10px;
+      border-radius: 999px;
+      background: var(--border);
+    }
+
+    .row-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-top: 1px solid var(--border);
+    }
+
+    .row-action {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      gap: 6px;
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .row-action + .row-action {
+      border-left: 1px solid var(--border);
+    }
+
+    .row-action.primary {
+      color: var(--clay);
+    }
+
+    .row-action.danger {
+      color: var(--clay);
+      background: rgba(196, 82, 42, 0.03);
+    }
+
+    .microcopy {
+      margin: 8px 4px 0;
+      color: var(--muted);
+      font-size: 11.5px;
+      line-height: 16px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .metric-tile {
+      min-height: 66px;
+      padding: 10px;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: 1.15px;
+      line-height: 12px;
+      text-transform: uppercase;
+    }
+
+    .metric-value {
+      margin-top: 6px;
+      color: var(--ink);
+      font-family: "Space Mono", monospace;
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 19px;
+    }
+
+    .week-preview {
+      padding: 12px;
+    }
+
+    .week-preview-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .week-preview-title {
+      margin: 0;
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 18px;
+    }
+
+    .week-preview-total {
+      color: var(--clay);
+      font-family: "Space Mono", monospace;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .day-row {
+      display: grid;
+      grid-template-columns: 34px 1fr auto;
+      align-items: center;
+      gap: 10px;
+      min-height: 32px;
+      border-top: 1px solid var(--border);
+      color: var(--ink);
+      font-size: 12.5px;
+      line-height: 15px;
+    }
+
+    .day-row:first-of-type {
+      border-top: 0;
+    }
+
+    .day-name {
+      color: var(--muted);
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .session-line {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+    }
+
+    .session-dot {
+      flex: 0 0 auto;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .session-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--ink);
+      font-weight: 500;
+    }
+
+    .session-km {
+      color: var(--muted);
+      font-family: "Space Mono", monospace;
+      font-size: 10.5px;
+      font-weight: 700;
+    }
+
+    .action-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      border-radius: 22px;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 18px;
+    }
+
+    .button.primary {
+      background: var(--clay);
+      color: var(--surface);
+    }
+
+    .button.secondary {
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      color: var(--ink);
+    }
+
+    .button.danger {
+      border: 1.5px solid rgba(196, 82, 42, 0.25);
+      background: var(--clay-bg);
+      color: var(--clay);
+    }
+
+    .dim {
+      position: absolute;
+      inset: 0;
+      background: rgba(28, 21, 16, 0.60);
+      z-index: 5;
+    }
+
+    .sheet {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 6;
+      padding: 10px 14px 28px;
+      border-radius: 22px 22px 0 0;
+      background: var(--surface);
+      box-shadow: 0 -26px 70px rgba(28, 21, 16, 0.28);
+    }
+
+    .handle {
+      width: 36px;
+      height: 4px;
+      margin: 0 auto 14px;
+      border-radius: 999px;
+      background: var(--border);
+    }
+
+    .sheet h3 {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Playfair Display", serif;
+      font-size: 22px;
+      font-weight: 600;
+      line-height: 1.1;
+    }
+
+    .sheet p {
+      margin: 9px 0 14px;
+      color: var(--ink2);
+      font-size: 13px;
+      line-height: 19px;
+    }
+
+    .swap-card {
+      display: grid;
+      gap: 8px;
+      margin: 12px 0;
+      padding: 10px;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      background: var(--card);
+    }
+
+    .swap-row {
+      display: grid;
+      grid-template-columns: 58px 1fr;
+      gap: 10px;
+      align-items: baseline;
+    }
+
+    .swap-label {
+      color: var(--muted);
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: 1.15px;
+      text-transform: uppercase;
+    }
+
+    .swap-title {
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 17px;
+    }
+
+    .empty-state {
+      padding: 17px 12px;
+      border: 1.5px dashed var(--border);
+      border-radius: 12px;
+      background: rgba(253, 250, 245, 0.55);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 17px;
+    }
+
+    .callout {
+      margin-top: 10px;
+      padding: 11px 12px;
+      border: 1.5px solid rgba(42, 92, 69, 0.22);
+      border-radius: 12px;
+      background: var(--forest-bg);
+      color: var(--ink2);
+      font-size: 12px;
+      line-height: 17px;
+    }
+
+    .callout strong {
+      color: var(--forest);
+      font-weight: 700;
+    }
+
+    .row-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 15px;
+      background: var(--card);
+      color: var(--ink2);
+    }
+
+    .settings-row.with-icon {
+      justify-content: flex-start;
+    }
+
+    .settings-row.with-icon .row-text {
+      flex: 1;
+    }
+
+    .settings-row.with-icon .row-caption {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 400;
+      line-height: 14px;
+    }
+
+    .phone::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: 7px;
+      width: 118px;
+      height: 5px;
+      transform: translateX(-50%);
+      border-radius: 999px;
+      background: rgba(28, 21, 16, 0.82);
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <main class="board">
+    <header class="board-header">
+      <div>
+        <div class="eyebrow">Steady product wireframes</div>
+        <h1>Plan history</h1>
+      </div>
+      <p class="board-copy">
+        High-fidelity proposal for preserving old plans, restoring one as the active plan,
+        and deleting historical plans. The core rule: restoring a plan archives the current
+        plan instead of deleting it.
+      </p>
+    </header>
+
+    <section class="frames">
+      <article class="frame-block">
+        <div class="frame-title">
+          <h2>Settings entry point</h2>
+          <span>01</span>
+        </div>
+        <div class="phone">
+          <div class="screen">
+            <div class="status-bar">
+              <span>9:41</span>
+              <div class="status-right">
+                <div class="signal"><span style="height:3px"></span><span style="height:5px"></span><span style="height:7px"></span><span style="height:10px"></span></div>
+                <div class="battery"></div>
+              </div>
+            </div>
+
+            <div class="content">
+              <div class="scroll-content">
+                <header class="screen-header">
+                  <h2 class="screen-title">Settings</h2>
+                </header>
+
+                <section class="section">
+                  <p class="section-label">Plan</p>
+                  <div class="card">
+                    <div class="plan-head">
+                      <div class="plan-kicker">
+                        <div class="phase-name">Build phase</div>
+                        <div class="status-line"><span class="status-dot"></span>Active</div>
+                      </div>
+                      <h3 class="plan-title">Valencia Marathon</h3>
+                      <div class="plan-meta">
+                        <span><span class="mono clay">W8</span> of <span class="mono">20</span></span>
+                        <span><span class="mono navy">3:15</span> target</span>
+                        <span><span class="mono">Dec 6</span></span>
+                      </div>
+                      <div class="phase-strip">
+                        <div style="flex:4;background:var(--navy)"></div>
+                        <div style="flex:9;background:var(--clay)"></div>
+                        <div style="flex:2;background:var(--purple)"></div>
+                        <div style="flex:3;background:var(--amber)"></div>
+                        <div style="flex:2;background:var(--forest)"></div>
+                      </div>
+                    </div>
+                    <div class="settings-row">
+                      <span>Replace plan</span>
+                      <span class="chevron">&rsaquo;</span>
+                    </div>
+                    <div class="settings-row with-icon">
+                      <span class="row-icon">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M3 5h18"></path><path d="M3 12h18"></path><path d="M3 19h18"></path><path d="M7 5v14"></path>
+                        </svg>
+                      </span>
+                      <span class="row-text">
+                        <strong>Plan history</strong>
+                        <span class="row-caption">View, restore, or delete saved plans.</span>
+                      </span>
+                      <span class="chevron">&rsaquo;</span>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="section">
+                  <p class="section-label">Activity sync</p>
+                  <div class="card">
+                    <div class="sync-head">
+                      <div class="sync-title-line">
+                        <div class="sync-name">Strava</div>
+                        <div class="status-line"><span class="status-dot"></span>Connected</div>
+                      </div>
+                      <div class="sync-meta">Last synced today at <span class="mono">08:32</span>.</div>
+                    </div>
+                    <div class="settings-row"><span>Sync now</span><span class="chevron">&rsaquo;</span></div>
+                    <div class="settings-row danger"><span>Disconnect Strava</span><span class="chevron">&rsaquo;</span></div>
+                  </div>
+                </section>
+
+                <section class="section">
+                  <p class="section-label">Units</p>
+                  <div class="unit-card">
+                    <div class="unit-segment selected">
+                      <div class="unit-title-line">Kilometres <span class="radio selected"></span></div>
+                      <div class="unit-caption">Pace as /km.</div>
+                    </div>
+                    <div class="unit-segment">
+                      <div class="unit-title-line">Miles <span class="radio"></span></div>
+                      <div class="unit-caption">Pace as /mi.</div>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="section">
+                  <p class="section-label">Account</p>
+                  <div class="card">
+                    <div class="account-head">
+                      <div class="account-email">runner@example.com</div>
+                      <div class="account-meta">Signed in with Google.</div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            <nav class="tab-bar">
+              <div class="tab">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8"></path><path d="M5 10v10h14V10"></path></svg>
+                <span>Home</span>
+              </div>
+              <div class="tab">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5"></path><path d="M10 19V9"></path><path d="M16 19V3"></path><path d="M22 19V12"></path></svg>
+                <span>Block</span>
+              </div>
+              <div class="tab active">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.2 2.2-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.2h-3.2v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1L6.2 17l.1-.1A1.7 1.7 0 0 0 6.6 15a1.7 1.7 0 0 0-1.5-1H5v-3.2h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 2.2-2.2.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V4h3.2v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 2.2 2.2-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2v3.2h-.2a1.7 1.7 0 0 0-1.5 1Z"></path></svg>
+                <span>Settings</span>
+              </div>
+            </nav>
+          </div>
+        </div>
+      </article>
+
+      <article class="frame-block">
+        <div class="frame-title">
+          <h2>Plan history list</h2>
+          <span>02</span>
+        </div>
+        <div class="phone">
+          <div class="screen">
+            <div class="status-bar">
+              <span>9:41</span>
+              <div class="status-right">
+                <div class="signal"><span style="height:3px"></span><span style="height:5px"></span><span style="height:7px"></span><span style="height:10px"></span></div>
+                <div class="battery"></div>
+              </div>
+            </div>
+
+            <div class="content">
+              <header class="screen-header">
+                <span class="back-button">&lsaquo;</span>
+                <h2 class="screen-title">Plan history</h2>
+                <span class="icon-button">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14"></path><path d="M5 12h14"></path>
+                  </svg>
+                </span>
+              </header>
+
+              <section class="section">
+                <p class="section-label">Current</p>
+                <div class="history-card current">
+                  <div class="history-main">
+                    <div class="history-label"><span class="status-dot"></span>Active plan</div>
+                    <div class="history-title-line">
+                      <h3 class="history-title">Valencia Marathon</h3>
+                      <div class="history-date">W8/20</div>
+                    </div>
+                    <div class="history-meta">
+                      <span><span class="mono navy">3:15</span> target</span>
+                      <span><span class="mono">Dec 6</span></span>
+                      <span><span class="mono forest">71km</span> this week</span>
+                    </div>
+                    <div class="mini-phase-strip">
+                      <div style="flex:4;background:var(--navy)"></div>
+                      <div style="flex:9;background:var(--clay)"></div>
+                      <div style="flex:2;background:var(--purple)"></div>
+                      <div style="flex:3;background:var(--amber)"></div>
+                      <div style="flex:2;background:var(--forest)"></div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="section">
+                <p class="section-label">Previous</p>
+                <div class="history-list">
+                  <div class="history-card">
+                    <div class="history-main">
+                      <div class="history-label"><span class="status-dot muted"></span>Archived Apr 24</div>
+                      <div class="history-title-line">
+                        <h3 class="history-title">London Marathon test</h3>
+                        <div class="history-date">16 weeks</div>
+                      </div>
+                      <div class="history-meta">
+                        <span><span class="mono navy">3:30</span> target</span>
+                        <span><span class="mono">Oct 4</span></span>
+                        <span><span class="mono">112</span> sessions</span>
+                      </div>
+                      <div class="mini-phase-strip">
+                        <div style="flex:3;background:var(--navy)"></div>
+                        <div style="flex:8;background:var(--clay)"></div>
+                        <div style="flex:2;background:var(--amber)"></div>
+                        <div style="flex:3;background:var(--forest)"></div>
+                      </div>
+                    </div>
+                    <div class="row-actions">
+                      <div class="row-action">View</div>
+                      <div class="row-action primary">Restore</div>
+                    </div>
+                  </div>
+
+                  <div class="history-card">
+                    <div class="history-main">
+                      <div class="history-label"><span class="status-dot muted"></span>Archived Apr 18</div>
+                      <div class="history-title-line">
+                        <h3 class="history-title">Marathon volume check</h3>
+                        <div class="history-date">20 weeks</div>
+                      </div>
+                      <div class="history-meta">
+                        <span><span class="mono navy">3:20</span> target</span>
+                        <span><span class="mono">Nov 29</span></span>
+                        <span><span class="mono">140</span> sessions</span>
+                      </div>
+                      <div class="mini-phase-strip">
+                        <div style="flex:4;background:var(--navy)"></div>
+                        <div style="flex:10;background:var(--clay)"></div>
+                        <div style="flex:3;background:var(--amber)"></div>
+                        <div style="flex:3;background:var(--forest)"></div>
+                      </div>
+                    </div>
+                    <div class="row-actions">
+                      <div class="row-action">View</div>
+                      <div class="row-action primary">Restore</div>
+                    </div>
+                  </div>
+
+                  <div class="history-card">
+                    <div class="history-main">
+                      <div class="history-label"><span class="status-dot muted"></span>Archived Apr 10</div>
+                      <div class="history-title-line">
+                        <h3 class="history-title">Half marathon base</h3>
+                        <div class="history-date">12 weeks</div>
+                      </div>
+                      <div class="history-meta">
+                        <span><span class="mono navy">1:30</span> target</span>
+                        <span><span class="mono">Sep 13</span></span>
+                        <span><span class="mono">72</span> sessions</span>
+                      </div>
+                      <div class="mini-phase-strip">
+                        <div style="flex:3;background:var(--navy)"></div>
+                        <div style="flex:5;background:var(--clay)"></div>
+                        <div style="flex:2;background:var(--amber)"></div>
+                        <div style="flex:2;background:var(--forest)"></div>
+                      </div>
+                    </div>
+                    <div class="row-actions">
+                      <div class="row-action">View</div>
+                      <div class="row-action primary">Restore</div>
+                    </div>
+                  </div>
+                </div>
+                <p class="microcopy">Restoring a plan keeps the current plan in history.</p>
+              </section>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="frame-block">
+        <div class="frame-title">
+          <h2>Plan preview</h2>
+          <span>03</span>
+        </div>
+        <div class="phone">
+          <div class="screen">
+            <div class="status-bar">
+              <span>9:41</span>
+              <div class="status-right">
+                <div class="signal"><span style="height:3px"></span><span style="height:5px"></span><span style="height:7px"></span><span style="height:10px"></span></div>
+                <div class="battery"></div>
+              </div>
+            </div>
+
+            <div class="content">
+              <header class="screen-header">
+                <span class="back-button">&lsaquo;</span>
+                <h2 class="screen-title">London test</h2>
+                <span class="icon-button">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 12h16"></path><path d="M12 4v16"></path>
+                  </svg>
+                </span>
+              </header>
+
+              <section class="section">
+                <div class="history-card restore-target">
+                  <div class="history-main">
+                    <div class="history-label"><span class="status-dot muted"></span>Archived Apr 24</div>
+                    <h3 class="history-title">London Marathon test</h3>
+                    <div class="history-meta">
+                      <span><span class="mono navy">3:30</span> target</span>
+                      <span><span class="mono">Oct 4, 2026</span></span>
+                      <span><span class="mono">16</span> weeks</span>
+                    </div>
+                    <div class="mini-phase-strip">
+                      <div style="flex:3;background:var(--navy)"></div>
+                      <div style="flex:8;background:var(--clay)"></div>
+                      <div style="flex:2;background:var(--amber)"></div>
+                      <div style="flex:3;background:var(--forest)"></div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="section">
+                <div class="summary-grid">
+                  <div class="metric-tile">
+                    <div class="metric-label">Peak week</div>
+                    <div class="metric-value clay">78km</div>
+                  </div>
+                  <div class="metric-tile">
+                    <div class="metric-label">Template</div>
+                    <div class="metric-value">7 days</div>
+                  </div>
+                  <div class="metric-tile">
+                    <div class="metric-label">Created</div>
+                    <div class="metric-value">Apr 24</div>
+                  </div>
+                  <div class="metric-tile">
+                    <div class="metric-label">Sessions</div>
+                    <div class="metric-value">112</div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="section">
+                <p class="section-label">Template week</p>
+                <div class="card week-preview">
+                  <div class="week-preview-head">
+                    <h3 class="week-preview-title">Repeating structure</h3>
+                    <span class="week-preview-total">62km</span>
+                  </div>
+                  <div class="day-row">
+                    <div class="day-name">Mon</div>
+                    <div class="session-line"><span class="session-dot" style="background:var(--forest)"></span><span class="session-name">Easy aerobic run</span></div>
+                    <span class="session-km">8km</span>
+                  </div>
+                  <div class="day-row">
+                    <div class="day-name">Tue</div>
+                    <div class="session-line"><span class="session-dot" style="background:var(--clay)"></span><span class="session-name">6x800m @ 3:50/km</span></div>
+                    <span class="session-km">10km</span>
+                  </div>
+                  <div class="day-row">
+                    <div class="day-name">Wed</div>
+                    <div class="session-line"><span class="session-dot" style="background:var(--forest)"></span><span class="session-name">Easy aerobic run</span></div>
+                    <span class="session-km">8km</span>
+                  </div>
+                  <div class="day-row">
+                    <div class="day-name">Thu</div>
+                    <div class="session-line"><span class="session-dot" style="background:var(--amber)"></span><span class="session-name">Tempo threshold</span></div>
+                    <span class="session-km">12km</span>
+                  </div>
+                  <div class="day-row">
+                    <div class="day-name">Fri</div>
+                    <div class="session-line"><span class="session-dot" style="background:var(--slate)"></span><span class="session-name">Rest day</span></div>
+                    <span class="session-km">--</span>
+                  </div>
+                  <div class="day-row">
+                    <div class="day-name">Sat</div>
+                    <div class="session-line"><span class="session-dot" style="background:var(--forest)"></span><span class="session-name">Easy aerobic run</span></div>
+                    <span class="session-km">10km</span>
+                  </div>
+                  <div class="day-row">
+                    <div class="day-name">Sun</div>
+                    <div class="session-line"><span class="session-dot" style="background:var(--navy)"></span><span class="session-name">Long run</span></div>
+                    <span class="session-km">22km</span>
+                  </div>
+                </div>
+
+                <div class="action-stack">
+                  <div class="button primary">Restore this plan</div>
+                  <div class="button danger">Delete from history</div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="frame-block">
+        <div class="frame-title">
+          <h2>Restore confirmation</h2>
+          <span>04</span>
+        </div>
+        <div class="phone">
+          <div class="screen">
+            <div class="status-bar">
+              <span>9:41</span>
+              <div class="status-right">
+                <div class="signal"><span style="height:3px"></span><span style="height:5px"></span><span style="height:7px"></span><span style="height:10px"></span></div>
+                <div class="battery"></div>
+              </div>
+            </div>
+
+            <div class="content">
+              <header class="screen-header">
+                <span class="back-button">&lsaquo;</span>
+                <h2 class="screen-title">Plan history</h2>
+                <span class="icon-button">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14"></path><path d="M5 12h14"></path>
+                  </svg>
+                </span>
+              </header>
+
+              <section class="section">
+                <p class="section-label">Current</p>
+                <div class="history-card current">
+                  <div class="history-main">
+                    <div class="history-label"><span class="status-dot"></span>Active plan</div>
+                    <h3 class="history-title">Valencia Marathon</h3>
+                    <div class="history-meta">
+                      <span><span class="mono navy">3:15</span> target</span>
+                      <span><span class="mono">W8</span> of <span class="mono">20</span></span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="section">
+                <p class="section-label">Previous</p>
+                <div class="history-list">
+                  <div class="history-card restore-target">
+                    <div class="history-main">
+                      <div class="history-label"><span class="status-dot muted"></span>Selected</div>
+                      <h3 class="history-title">London Marathon test</h3>
+                      <div class="history-meta">
+                        <span><span class="mono navy">3:30</span> target</span>
+                        <span><span class="mono">16</span> weeks</span>
+                        <span><span class="mono">112</span> sessions</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="history-card">
+                    <div class="history-main">
+                      <div class="history-label"><span class="status-dot muted"></span>Archived Apr 18</div>
+                      <h3 class="history-title">Marathon volume check</h3>
+                      <div class="history-meta">
+                        <span><span class="mono navy">3:20</span> target</span>
+                        <span><span class="mono">20</span> weeks</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <div class="dim"></div>
+            <div class="sheet">
+              <div class="handle"></div>
+              <h3>Restore this plan?</h3>
+              <p>
+                London Marathon test will become your active plan. Valencia Marathon will stay in plan history.
+              </p>
+              <div class="swap-card">
+                <div class="swap-row">
+                  <div class="swap-label">Active now</div>
+                  <div class="swap-title">Valencia Marathon <span class="mono navy">3:15</span></div>
+                </div>
+                <div class="swap-row">
+                  <div class="swap-label">Restoring</div>
+                  <div class="swap-title">London Marathon test <span class="mono navy">3:30</span></div>
+                </div>
+              </div>
+              <div class="callout"><strong>No plan is deleted.</strong> You can restore Valencia Marathon again later.</div>
+              <div class="action-stack">
+                <div class="button primary">Restore plan</div>
+                <div class="button secondary">Cancel</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
