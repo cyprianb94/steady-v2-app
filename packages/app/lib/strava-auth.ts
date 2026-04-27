@@ -64,11 +64,9 @@ export function getStravaRedirectUri(): string {
   }
 
   if (scheme === 'exp') {
-    if (isLocalDevRuntime()) {
-      return buildRedirectUri(scheme, callbackDomain);
-    }
-
-    throw new Error('Strava OAuth cannot build a release redirect URI from Expo Go.');
+    throw new Error(
+      'Strava OAuth cannot complete in Expo Go. Use a development build and set the Strava Authorization Callback Domain to localhost.',
+    );
   }
 
   return buildRedirectUri(scheme, callbackDomain);

@@ -69,14 +69,16 @@ describe('getStravaRedirectUri', () => {
     );
   });
 
-  it('uses Strava localhost callback domain for Expo Go local development', () => {
+  it('fails clearly in Expo Go because the localhost redirect cannot return to the project', () => {
     delete process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN;
     process.env.NODE_ENV = 'development';
     mockCreateURL.mockImplementation((path: string) => (
       path ? `exp://10.0.0.1:8081/--/${path}` : 'exp://10.0.0.1:8081/--/'
     ));
 
-    expect(getStravaRedirectUri()).toBe('exp://localhost/--/strava-callback');
+    expect(() => getStravaRedirectUri()).toThrow(
+      'Strava OAuth cannot complete in Expo Go. Use a development build and set the Strava Authorization Callback Domain to localhost.',
+    );
   });
 
   it('fails clearly for release builds that cannot provide a native app scheme', () => {
@@ -87,7 +89,7 @@ describe('getStravaRedirectUri', () => {
     ));
 
     expect(() => getStravaRedirectUri()).toThrow(
-      'Strava OAuth cannot build a release redirect URI from Expo Go.',
+      'Strava OAuth cannot complete in Expo Go.',
     );
   });
 });
