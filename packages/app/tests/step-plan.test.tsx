@@ -1,9 +1,10 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLocalSearchParams } from 'expo-router';
 
 import StepPlan from '../app/onboarding/plan-builder/step-plan';
+import { savePlan } from '../lib/plan-api';
 
 vi.mock('../lib/plan-api', () => ({
   savePlan: vi.fn(),
@@ -39,14 +40,16 @@ const baseParams = {
 describe('StepPlan session editing', () => {
   beforeEach(() => {
     vi.mocked(useLocalSearchParams).mockReturnValue(baseParams);
+    vi.mocked(savePlan).mockReset();
+    vi.mocked(savePlan).mockResolvedValue({} as Awaited<ReturnType<typeof savePlan>>);
   });
 
   it('shows the block volume curve with phase-start markers only', () => {
     render(<StepPlan />);
 
-    expect(screen.getByTestId('block-volume-card')).toBeTruthy();
-    expect(screen.getAllByTestId('block-volume-phase-marker')).toHaveLength(3);
-    expect(screen.getByTestId('review-tabs')).toBeTruthy();
+    expect(screen.getByTestId('block-review-volume-chart')).toBeTruthy();
+    expect(screen.getByTestId('block-review-phase-strip')).toBeTruthy();
+    expect(screen.getByTestId('block-review-tabs')).toBeTruthy();
     expect(screen.getByText('Overview')).toBeTruthy();
     expect(screen.getByText('Phases')).toBeTruthy();
     expect(screen.getByText('Weeks')).toBeTruthy();
@@ -55,8 +58,7 @@ describe('StepPlan session editing', () => {
   it('opens the shared full-screen editor and applies an edit to remaining weeks', () => {
     render(<StepPlan />);
 
-    fireEvent.click(screen.getByTestId('review-tab-weeks'));
-    fireEvent.click(screen.getByTestId('plan-week-1-header'));
+    fireEvent.click(screen.getByTestId('block-review-key-week-1'));
     fireEvent.click(screen.getByTestId('plan-week-1-day-0'));
 
     expect(screen.getByText('Cancel')).toBeTruthy();
@@ -70,15 +72,14 @@ describe('StepPlan session editing', () => {
 
     expect(screen.getByTestId('plan-week-1-day-0').textContent).toContain('Rest day');
 
-    fireEvent.click(screen.getByTestId('plan-week-2-header'));
+    fireEvent.click(screen.getByTestId('block-review-week-2'));
     expect(screen.getByTestId('plan-week-2-day-0').textContent).toContain('Rest day');
   });
 
   it('opens interval sessions in the notebook-row editor rather than the old inline controls', () => {
     render(<StepPlan />);
 
-    fireEvent.click(screen.getByTestId('review-tab-weeks'));
-    fireEvent.click(screen.getByTestId('plan-week-1-header'));
+    fireEvent.click(screen.getByTestId('block-review-key-week-1'));
     fireEvent.click(screen.getByTestId('plan-week-1-day-1'));
 
     expect(screen.getByText('Repetitions')).toBeTruthy();
@@ -86,10 +87,10 @@ describe('StepPlan session editing', () => {
     expect(screen.queryByText('Rep distance')).toBeNull();
   });
 
-  it('applies custom progression percentage and cadence', () => {
+  it('applies custom overload cadence and saves a dated plan', async () => {
     render(<StepPlan />);
 
-    fireEvent.click(screen.getByText('Custom'));
+    fireEvent.click(screen.getByTestId('block-review-overload-custom'));
     fireEvent.change(screen.getByTestId('progression-pct-input'), {
       target: { value: '6' },
     });
@@ -99,5 +100,19 @@ describe('StepPlan session editing', () => {
     fireEvent.click(screen.getByText('Apply +6% / 3w'));
 
     expect(screen.getByText('+6% progression every 3 weeks.')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Save plan and start training →'));
+
+    await waitFor(() => expect(savePlan).toHaveBeenCalledTimes(1));
+
+    const savedPlan = vi.mocked(savePlan).mock.calls[0][0];
+    expect(savedPlan).toMatchObject({
+      raceName: 'Club 10K',
+      raceDate: '2026-09-20',
+      progressionPct: 6,
+      progressionEveryWeeks: 3,
+    });
+    expect(savedPlan.weeks[0].sessions[0]?.date).toBe('2026-08-31');
+    expect(savedPlan.weeks[2].sessions[6]?.date).toBe('2026-09-20');
   });
 });

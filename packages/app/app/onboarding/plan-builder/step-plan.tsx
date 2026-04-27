@@ -11,7 +11,7 @@ import { BlockVolumeCard } from '../../../components/plan-builder/BlockVolumeCar
 import { PropagateModal } from '../../../components/plan-builder/PropagateModal';
 import { SessionEditorScreen } from '../../../components/plan-builder/SessionEditorScreen';
 import { generatePlan, propagateChange, assignDates } from '@steady/types';
-import type { PhaseConfig, PhaseName, PlannedSession, PlanWeek, PropagateScope } from '@steady/types';
+import type { BlockReviewTab, PhaseConfig, PhaseName, PlannedSession, PlanWeek, PropagateScope } from '@steady/types';
 import {
   buildSessionEditDescription,
   materializeEditedSession,
@@ -132,6 +132,8 @@ export default function StepPlan() {
   const [expanded, setExpanded] = useState<number | null>(null);
   const [editing, setEditing] = useState<EditingSession | null>(null);
   const [pendingEdit, setPendingEdit] = useState<PendingEdit | null>(null);
+  const [reviewActiveTab, setReviewActiveTab] = useState<BlockReviewTab>('overview');
+  const [reviewSelectedWeekIndex, setReviewSelectedWeekIndex] = useState<number | null>(null);
 
   const accept = (pct: number, everyWeeks = 2) => {
     const safePct = clampNumber(Math.round(pct), 0, 30);
@@ -257,21 +259,42 @@ export default function StepPlan() {
     );
   }
 
+  const pendingEditModal = pendingEdit ? (
+    <PropagateModal
+      changeDesc={pendingEdit.desc}
+      weekIndex={pendingEdit.weekIndex}
+      totalWeeks={plan.length}
+      phaseName={plan[pendingEdit.weekIndex]?.phase ?? 'BUILD'}
+      phaseWeekCount={plan.filter((week) => week.phase === plan[pendingEdit.weekIndex]?.phase).length}
+      onApply={applyPendingEdit}
+      onClose={() => setPendingEdit(null)}
+    />
+  ) : null;
+
   if (SharedReviewBlock) {
     return (
-      <SharedReviewBlock
-        plan={plan}
-        template={template}
-        weeks={weeks}
-        phases={phases}
-        raceLabel={params.raceLabel || params.raceDistance || 'Race'}
-        targetTime={params.targetTime || ''}
-        progressionPct={progState}
-        saving={saving}
-        onApplyProgression={accept}
-        onEditSession={openSessionEditor}
-        onSavePlan={handleDone}
-      />
+      <>
+        <SharedReviewBlock
+          plan={plan}
+          template={template}
+          weeks={weeks}
+          phases={phases}
+          raceLabel={params.raceLabel || params.raceDistance || 'Race'}
+          targetTime={params.targetTime || ''}
+          progressionPct={progState}
+          progressionEveryWeeks={progEveryWeeks}
+          saving={saving}
+          activeTab={reviewActiveTab}
+          selectedWeekIndex={reviewSelectedWeekIndex}
+          onApplyProgression={accept}
+          onChangeProgression={handleChangeProgression}
+          onTabChange={setReviewActiveTab}
+          onSelectWeek={setReviewSelectedWeekIndex}
+          onEditSession={openSessionEditor}
+          onSavePlan={handleDone}
+        />
+        {pendingEditModal}
+      </>
     );
   }
 
@@ -573,17 +596,7 @@ export default function StepPlan() {
         <Btn title={saving ? "Saving..." : "Save plan and start training →"} onPress={handleDone} fullWidth disabled={saving} />
       </View>
 
-      {pendingEdit ? (
-        <PropagateModal
-          changeDesc={pendingEdit.desc}
-          weekIndex={pendingEdit.weekIndex}
-          totalWeeks={plan.length}
-          phaseName={plan[pendingEdit.weekIndex]?.phase ?? 'BUILD'}
-          phaseWeekCount={plan.filter((week) => week.phase === plan[pendingEdit.weekIndex]?.phase).length}
-          onApply={applyPendingEdit}
-          onClose={() => setPendingEdit(null)}
-        />
-      ) : null}
+      {pendingEditModal}
     </View>
   );
 }
