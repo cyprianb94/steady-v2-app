@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import * as QueryParams from 'expo-auth-session/build/QueryParams';
+import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { Alert } from 'react-native';
@@ -95,6 +96,7 @@ vi.mock('expo-auth-session/build/QueryParams', () => ({
 import SettingsTab from '../app/(tabs)/settings';
 
 const originalStravaCallbackDomain = process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN;
+const originalApiUrl = process.env.EXPO_PUBLIC_API_URL;
 
 describe('SettingsTab', () => {
   beforeEach(() => {
@@ -104,6 +106,12 @@ describe('SettingsTab', () => {
     } else {
       process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN = originalStravaCallbackDomain;
     }
+    if (originalApiUrl === undefined) {
+      delete process.env.EXPO_PUBLIC_API_URL;
+    } else {
+      process.env.EXPO_PUBLIC_API_URL = originalApiUrl;
+    }
+    vi.mocked(Linking.createURL).mockImplementation(() => 'steady://strava-callback');
 
     mockAuth.session = null;
     mockAuth.isLoading = false;
@@ -241,6 +249,49 @@ describe('SettingsTab', () => {
     expect(parsedAuthorizeUrl.origin).toBe('https://www.strava.com');
     expect(parsedAuthorizeUrl.pathname).toBe('/oauth/mobile/authorize');
     expect(parsedAuthorizeUrl.searchParams.get('redirect_uri')).toBe(callbackUrl);
+    expect(parsedAuthorizeUrl.searchParams.get('scope')).toBe('read,activity:read_all');
+    expect(mockTrpc.strava.connect.mutate).toHaveBeenCalledWith({ code: 'oauth-code' });
+  });
+
+  it('uses web Strava OAuth in Expo Go so the installed Strava app does not hijack the auth session', async () => {
+    delete process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN;
+    process.env.EXPO_PUBLIC_API_URL = 'https://api.steady.test';
+    vi.mocked(Linking.createURL).mockImplementation((path = '') => (
+      path ? `exp://192.168.1.103:8081/--/${path}` : 'exp://192.168.1.103:8081/--/'
+    ));
+    mockAuth.session = { user: { email: 'runner@example.com' } };
+    mockTrpc.strava.config.query.mockResolvedValue({ clientId: 'strava-client-id' });
+    vi.mocked(WebBrowser.openAuthSessionAsync).mockResolvedValue({
+      type: 'success',
+      url: 'exp://192.168.1.103:8081/--/strava-callback?code=oauth-code',
+    } as Awaited<ReturnType<typeof WebBrowser.openAuthSessionAsync>>);
+    vi.mocked(QueryParams.getQueryParams).mockReturnValue({
+      params: { code: 'oauth-code' },
+      errorCode: null,
+    });
+    mockTrpc.strava.connect.mutate.mockResolvedValue(null);
+    mockStrava.refreshStatus.mockResolvedValue({ connected: true, athleteId: '12345', lastSyncedAt: null });
+    mockStrava.forceSync.mockResolvedValue(null);
+    mockPlan.refresh.mockResolvedValue(undefined);
+
+    render(<SettingsTab />);
+
+    fireEvent.click(screen.getByText('Connect Strava'));
+
+    await waitFor(() => {
+      expect(WebBrowser.openAuthSessionAsync).toHaveBeenCalledTimes(1);
+    });
+
+    const [authorizeUrl, callbackUrl] = vi.mocked(WebBrowser.openAuthSessionAsync).mock.calls[0];
+    const parsedAuthorizeUrl = new URL(authorizeUrl);
+
+    expect(callbackUrl).toBe('exp://192.168.1.103:8081/--/strava-callback');
+    expect(parsedAuthorizeUrl.origin).toBe('https://www.strava.com');
+    expect(parsedAuthorizeUrl.pathname).toBe('/oauth/authorize');
+    expect(parsedAuthorizeUrl.searchParams.get('redirect_uri')).toBe(
+      'https://api.steady.test/oauth/strava/callback?return_to=exp%3A%2F%2F192.168.1.103%3A8081%2F--%2Fstrava-callback',
+    );
+    expect(parsedAuthorizeUrl.searchParams.get('scope')).toBe('read,activity:read_all');
     expect(mockTrpc.strava.connect.mutate).toHaveBeenCalledWith({ code: 'oauth-code' });
   });
 

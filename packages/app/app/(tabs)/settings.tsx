@@ -20,6 +20,8 @@ const SETTINGS_TOP_SPACING = 18;
 const SETTINGS_BOTTOM_SPACING = 24;
 const PHASE_ORDER: PhaseName[] = ['BASE', 'BUILD', 'RECOVERY', 'PEAK', 'TAPER'];
 const FEEDBACK_EMAIL = 'cyprianbrytan@gmail.com';
+const STRAVA_WEB_AUTHORIZE_URL = 'https://www.strava.com/oauth/authorize';
+const STRAVA_MOBILE_AUTHORIZE_URL = 'https://www.strava.com/oauth/mobile/authorize';
 
 type RowTone = 'default' | 'danger';
 
@@ -75,6 +77,18 @@ function StatusText({ label, connected }: { label: string; connected: boolean })
       </Text>
     </View>
   );
+}
+
+function getStravaAuthorizeUrl(authSessionCallbackUri: string) {
+  try {
+    return new URL(authSessionCallbackUri).protocol === 'exp:'
+      ? STRAVA_WEB_AUTHORIZE_URL
+      : STRAVA_MOBILE_AUTHORIZE_URL;
+  } catch {
+    return authSessionCallbackUri.startsWith('exp://')
+      ? STRAVA_WEB_AUTHORIZE_URL
+      : STRAVA_MOBILE_AUTHORIZE_URL;
+  }
 }
 
 function formatPhaseName(phase: PhaseName | undefined) {
@@ -302,12 +316,12 @@ export default function SettingsTab() {
         authorizationRedirectUri,
         authSessionCallbackUri,
       } = getStravaOAuthRedirects();
-      const authorizeUrl = new URL('https://www.strava.com/oauth/mobile/authorize');
+      const authorizeUrl = new URL(getStravaAuthorizeUrl(authSessionCallbackUri));
       authorizeUrl.searchParams.set('client_id', config.clientId);
       authorizeUrl.searchParams.set('redirect_uri', authorizationRedirectUri);
       authorizeUrl.searchParams.set('response_type', 'code');
       authorizeUrl.searchParams.set('approval_prompt', 'auto');
-      authorizeUrl.searchParams.set('scope', 'activity:read_all');
+      authorizeUrl.searchParams.set('scope', 'read,activity:read_all');
 
       const result = await WebBrowser.openAuthSessionAsync(authorizeUrl.toString(), authSessionCallbackUri, {
         preferEphemeralSession: true,
