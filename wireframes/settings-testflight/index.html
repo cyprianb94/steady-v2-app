@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Settings · TestFlight wireframe</title>
+    <link rel="stylesheet" href="./tokens.css" />
+  </head>
+  <body>
+    <main class="page">
+      <aside class="meta-rail" aria-label="Wireframe notes">
+        <div class="meta-kicker">Settings · TestFlight</div>
+        <h1 class="meta-title">A settings screen for real beta testers.</h1>
+        <p class="meta-copy">
+          This version removes future features and internal setup language. The screen is organised around the runner's actual control points: plan, sync, units, and account.
+        </p>
+        <div class="meta-list">
+          <div class="meta-item">
+            <strong>No overview card</strong>
+            <span>Plan, sync, and account state live where the related action lives. Nothing is repeated at the top.</span>
+          </div>
+          <div class="meta-item">
+            <strong>Visible scope</strong>
+            <span>Only controls available in this TestFlight build are shown.</span>
+          </div>
+          <div class="meta-item">
+            <strong>Tester-ready exits</strong>
+            <span>Feedback and sign out are easy to find, while destructive sync and plan actions stay explicit.</span>
+          </div>
+        </div>
+      </aside>
+
+      <section class="phone-frame" aria-label="Settings screen wireframe">
+        <div class="status-bar">
+          <div class="time">09:41</div>
+          <div class="status-icons" aria-hidden="true">
+            <div class="signal">
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <div class="wifi"></div>
+            <div class="battery">100</div>
+          </div>
+        </div>
+
+        <div class="screen">
+          <div class="scroll">
+            <header class="header">
+              <h2 class="screen-title">Settings</h2>
+            </header>
+
+            <section class="section" aria-labelledby="plan-heading">
+              <span id="plan-heading" class="section-label">Plan</span>
+              <div class="card plan-card">
+                <div class="plan-head">
+                  <div class="plan-kicker">
+                    <span class="active-dot">Active</span>
+                    <span class="phase-name">Build phase</span>
+                  </div>
+                  <h3 class="plan-title">Marathon 2026</h3>
+                  <div class="plan-meta">
+                    <span>Target <span class="mono target">02:15:00</span></span>
+                    <span>Week <span class="mono week">3</span> of <span class="mono">32</span></span>
+                  </div>
+                  <div class="phase-strip" aria-hidden="true">
+                    <span class="phase-segment"></span>
+                    <span class="phase-segment"></span>
+                    <span class="phase-segment"></span>
+                    <span class="phase-segment"></span>
+                  </div>
+                </div>
+
+                <div class="settings-row">
+                  <div>
+                    <div class="row-title">Replace plan</div>
+                  </div>
+                  <span class="chevron" aria-hidden="true">›</span>
+                </div>
+              </div>
+            </section>
+
+            <section class="section" aria-labelledby="sync-heading">
+              <span id="sync-heading" class="section-label">Activity sync</span>
+              <div class="card">
+                <div class="sync-head">
+                  <div class="sync-title-line">
+                    <div class="sync-name">Strava</div>
+                    <div class="sync-status">Connected</div>
+                  </div>
+                  <div class="sync-meta">Last synced today at <span class="mono">02:08</span>.</div>
+                </div>
+
+                <div class="settings-row">
+                  <div>
+                    <div class="row-title">Sync now</div>
+                  </div>
+                  <span class="chevron" aria-hidden="true">›</span>
+                </div>
+
+              </div>
+            </section>
+
+            <section class="section" aria-labelledby="units-heading">
+              <span id="units-heading" class="section-label">Units</span>
+              <div class="card unit-card">
+                <div class="segmented" role="group" aria-label="Distance units">
+                  <div class="segment selected">
+                    <div class="segment-title">
+                      <span>Kilometres</span>
+                      <span class="radio" aria-hidden="true"></span>
+                    </div>
+                    <div class="segment-caption">Pace as <span class="mono">/km</span>.</div>
+                  </div>
+                  <div class="segment">
+                    <div class="segment-title">
+                      <span>Miles</span>
+                      <span class="radio" aria-hidden="true"></span>
+                    </div>
+                    <div class="segment-caption">Pace as <span class="mono">/mi</span>.</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="section" aria-labelledby="account-heading">
+              <span id="account-heading" class="section-label">Account</span>
+              <div class="card">
+                <div class="account-email">
+                  <div>
+                    <div class="email-label">Signed in as</div>
+                    <div class="email-value">cyprianbrytan@gmail.com</div>
+                  </div>
+                </div>
+
+                <div class="settings-row danger-row">
+                  <div>
+                    <div class="row-title">Sign out</div>
+                  </div>
+                  <span class="chevron" aria-hidden="true">›</span>
+                </div>
+
+                <div class="settings-row">
+                  <div>
+                    <div class="row-title">Send feedback</div>
+                  </div>
+                  <span class="chevron" aria-hidden="true">›</span>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <nav class="tabbar" aria-label="Tabs">
+            <div class="tab">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3.5 10.8 12 4l8.5 6.8" />
+                <path d="M6.5 10.2v9h11v-9" />
+              </svg>
+              <span class="tab-label">Home</span>
+            </div>
+            <div class="tab">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 6h10" />
+                <path d="M5 12h14" />
+                <path d="M9 18h6" />
+              </svg>
+              <span class="tab-label">Block</span>
+            </div>
+            <div class="tab active">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 7h7" />
+                <path d="M13 7h7" />
+                <path d="M10.5 7a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z" />
+                <path d="M4 17h4" />
+                <path d="M10 17h10" />
+                <path d="M7.5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z" />
+              </svg>
+              <span class="tab-label">Settings</span>
+            </div>
+          </nav>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

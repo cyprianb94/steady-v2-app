@@ -1,6 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { User } from '@steady/types';
+import type { User, WeeklyVolumeMetric } from '@steady/types';
 import type { ProfileRepo } from './profile-repo';
+
+function toWeeklyVolumeMetric(value: unknown): WeeklyVolumeMetric {
+  return value === 'time' || value === 'distance' ? value : 'distance';
+}
 
 /** Maps a Supabase row to the User type. */
 function rowToUser(row: Record<string, unknown>): User {
@@ -15,6 +19,7 @@ function rowToUser(row: Record<string, unknown>): User {
     subscriptionExpiresAt: (row.subscription_expires_at as string) ?? undefined,
     timezone: row.timezone as string,
     units: row.units as 'metric' | 'imperial',
+    weeklyVolumeMetric: toWeeklyVolumeMetric(row.weekly_volume_metric),
   };
 }
 
@@ -31,6 +36,7 @@ function userToRow(user: User): Record<string, unknown> {
     subscription_expires_at: user.subscriptionExpiresAt ?? null,
     timezone: user.timezone,
     units: user.units,
+    weekly_volume_metric: user.weeklyVolumeMetric ?? 'distance',
   };
 }
 

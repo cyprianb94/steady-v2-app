@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Steady - Home (Recovery Phase)</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Space+Mono:wght@400;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
+
+    :root {
+      --cream: #F4EFE6; --surface: #FDFAF5; --card: #F0EAE0;
+      --ink: #1C1510; --ink2: #3D3028; --muted: #9A8E7E; --border: #E5DDD0;
+      --clay: #C4522A; --clayBg: #FDF0EB;
+      --amber: #D4882A; --amberBg: #FDF6EB;
+      --forest: #2A5C45; --forestBg: #EEF4F1;
+      --navy: #1B3A6B; --navyBg: #EDF1F8;
+      --slate: #8A8E9A;
+    }
+
+    * { box-sizing: border-box; -webkit-font-smoothing: antialiased; margin: 0; padding: 0; }
+
+    html,
+    body {
+      background: var(--cream);
+    }
+
+    body {
+      margin: 0; padding: 0;
+      display: flex; justify-content: center; align-items: center;
+      min-height: 100vh; font-family: 'DM Sans', system-ui, sans-serif;
+    }
+
+    .phone-wrapper { padding: 40px; }
+
+    .phone-frame {
+      width: 375px; height: 812px;
+      background: var(--cream);
+      border-radius: 44px;
+      border: 12px solid var(--ink);
+      box-shadow: 0 40px 100px rgba(28,21,16,0.25),
+                  0 0 0 1px rgba(28,21,16,0.1),
+                  inset 0 1px 0 rgba(255,255,255,0.6);
+      overflow: hidden; position: relative;
+      display: flex; flex-direction: column; z-index: 20;
+    }
+
+    .status-bar {
+      height: 44px; display: flex; justify-content: space-between; align-items: center;
+      padding: 0 28px; background: var(--cream); flex-shrink: 0;
+      font-weight: 600; font-size: 13px; color: var(--ink);
+    }
+    .status-bar .right { display: flex; gap: 7px; align-items: center; }
+    .signal { display: flex; gap: 2px; align-items: flex-end; height: 10px; }
+    .signal div { width: 3px; background: var(--ink); border-radius: 1px; }
+
+    .content-area {
+      flex: 1; overflow-y: auto; padding: 14px 14px 0;
+      display: flex; flex-direction: column;
+    }
+    .content-area::-webkit-scrollbar { display: none; }
+
+    /* Injury Banner */
+    .injury-banner {
+      background: var(--clayBg);
+      border: 1.5px solid rgba(196, 82, 42, 0.35);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 10px;
+    }
+    .injury-banner-top {
+      display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;
+    }
+    .injury-chip {
+      font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+      color: white; background: var(--clay); border-radius: 20px; padding: 3px 10px;
+    }
+    .recovering-pill {
+      font-size: 9px; font-weight: 600; color: var(--forest); background: var(--forestBg);
+      border-radius: 20px; padding: 3px 10px; border: 1px solid rgba(42, 92, 69, 0.2);
+    }
+    .injury-banner h2 {
+      font-family: 'Playfair Display', serif; font-size: 22px; color: var(--ink);
+      margin: 0 0 4px; font-weight: 600; line-height: 1.2;
+    }
+    .injury-banner .meta {
+      font-size: 11px; color: var(--muted);
+    }
+    .goal-update {
+      margin-top: 12px;
+    }
+    .goal-update-label {
+      font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 4px;
+    }
+    .goal-update-row {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .goal-old {
+      font-family: 'Space Mono', monospace; font-size: 13px;
+      text-decoration: line-through; color: var(--muted);
+    }
+    .goal-arrow {
+      color: var(--muted); font-size: 13px;
+    }
+    .goal-new {
+      font-family: 'Space Mono', monospace; font-size: 13px;
+      font-weight: 700; color: var(--clay);
+    }
+    .goal-reassessed {
+      font-size: 10px; color: var(--muted);
+    }
+
+    /* Day list (reused from today-hero) */
+    .day-list { display: flex; flex-direction: column; gap: 1px; margin-bottom: 8px; }
+
+    .day-row {
+      display: flex; align-items: center; padding: 9px 10px;
+      border-radius: 8px; gap: 10px;
+    }
+    .day-row:hover { background: var(--surface); }
+
+    .day-left {
+      width: 48px; flex-shrink: 0;
+    }
+    .day-left .day-name {
+      font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px;
+    }
+    .day-left .day-date {
+      font-size: 10px; color: var(--muted); margin-top: 1px;
+    }
+
+    .day-center {
+      flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0;
+    }
+    .day-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .day-session-name {
+      font-size: 13px; color: var(--ink); font-weight: 500;
+    }
+
+    .day-right {
+      flex-shrink: 0; display: flex; align-items: center; gap: 6px;
+    }
+    .day-status {
+      font-size: 13px; font-weight: 700; line-height: 1;
+    }
+    .day-km {
+      font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted);
+    }
+
+    /* Divider */
+    .list-divider {
+      font-size: 9px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--muted); padding: 8px 10px 4px; margin-top: 14px;
+    }
+
+    /* Return-to-Running Card */
+    .rtr-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px; margin: 0 0 8px;
+    }
+    .rtr-steps {
+      display: flex; flex-direction: column; gap: 0; position: relative;
+    }
+    .rtr-step {
+      display: flex; align-items: center; gap: 12px; padding: 8px;
+      position: relative; z-index: 1;
+    }
+    .rtr-step.current {
+      background: rgba(196, 82, 42, 0.06); border-radius: 8px;
+    }
+    .rtr-circle {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .rtr-circle.active {
+      background: var(--clay); color: white;
+    }
+    .rtr-circle.inactive {
+      background: var(--border); color: var(--muted);
+    }
+    .rtr-label {
+      font-size: 13px; font-weight: 600; color: var(--ink);
+    }
+    .rtr-label.inactive {
+      font-weight: 400; color: var(--muted);
+    }
+    .rtr-plan-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--forest);
+      display: inline-block; margin-right: 4px;
+    }
+    /* Connecting line between circles */
+    .rtr-steps::before {
+      content: '';
+      position: absolute;
+      left: calc(8px + 14px - 1px); /* padding-left + half circle width - half line width */
+      top: 30px;
+      bottom: 30px;
+      width: 2px;
+      background: var(--border);
+      z-index: 0;
+    }
+
+    /* Tab bar */
+    .tab-bar {
+      height: 70px; border-top: 1px solid var(--border); background: var(--surface);
+      display: flex; flex-shrink: 0; padding-bottom: 6px;
+    }
+    .tab {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 3px; background: none; border: none; padding: 7px 0;
+    }
+    .tab span { font-size: 10px; color: var(--muted); letter-spacing: 0.2px; text-transform: capitalize; font-weight: 500; }
+    .tab.active span { color: var(--clay); font-weight: 600; }
+
+    /* Embedded mode: strip iPhone chrome, blend into page */
+    body.embedded {
+      background: var(--cream) !important; overflow: hidden !important;
+      margin: 0 !important; padding: 0 !important;
+    }
+    body.embedded .phone-wrapper { padding: 0 !important; }
+    body.embedded .phone-frame {
+      position: relative !important;
+      width: 100% !important; height: auto !important; min-height: 100% !important;
+      border: 0 !important; border-radius: 0 !important;
+      box-shadow: none !important;
+      background: var(--cream) !important;
+      overflow: hidden !important;
+    }
+    body.embedded .status-bar { display: none !important; }
+    body.embedded .tab-bar { display: none !important; }
+    body.embedded .content-area { padding: 14px 14px 18px !important; overflow: visible !important; flex: 0 0 auto !important; }
+    body.embedded .content-area::-webkit-scrollbar { display: none; }
+  </style>
+</head>
+<body>
+  <script>if (window.self !== window.top) document.body.classList.add('embedded');</script>
+  <div class="phone-wrapper">
+    <div class="phone-frame">
+      <!-- Status bar -->
+      <div class="status-bar">
+        <span>9:41</span>
+        <div class="right">
+          <div class="signal">
+            <div style="height: 3px;"></div>
+            <div style="height: 5px;"></div>
+            <div style="height: 7px;"></div>
+            <div style="height: 10px;"></div>
+          </div>
+          <svg width="15" height="10" fill="none"><rect x=".75" y=".75" width="12" height="8.5" rx="1.5" stroke="#1C1510" stroke-width="1.5"/><rect x="13.5" y="3" width="1.5" height="4" rx=".75" fill="#1C1510"/><rect x="2" y="2.25" width="8" height="5.5" rx=".75" fill="#1C1510"/></svg>
+        </div>
+      </div>
+
+      <!-- App Content -->
+      <div class="content-area">
+
+        <!-- Injury Banner -->
+        <div class="injury-banner">
+          <div class="injury-banner-top">
+            <span class="injury-chip">INJURY</span>
+            <span class="recovering-pill">Recovering</span>
+          </div>
+          <h2>Calf Strain</h2>
+          <div class="meta">Marked Apr 2 · Week 14 of marathon plan</div>
+          <div class="goal-update">
+            <div class="goal-update-label">GOAL UPDATE</div>
+            <div class="goal-update-row">
+              <span class="goal-old">sub-3:30</span>
+              <span class="goal-arrow">&rarr;</span>
+              <span class="goal-new">sub-3:45</span>
+              <span class="goal-reassessed">reassessed</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cross-Training Section -->
+        <div class="list-divider" style="margin-top: 2px;">CROSS-TRAINING THIS WEEK</div>
+        <div class="day-list">
+          <!-- Thu -->
+          <div class="day-row">
+            <div class="day-left">
+              <div class="day-name">Thu</div>
+              <div class="day-date">Apr 3</div>
+            </div>
+            <div class="day-center">
+              <div class="day-dot" style="background: var(--navy);"></div>
+              <span class="day-session-name">Cycling · 45min</span>
+            </div>
+            <div class="day-right">
+              <span class="day-status" style="color: var(--forest);">&#10003;</span>
+            </div>
+          </div>
+          <!-- Wed -->
+          <div class="day-row">
+            <div class="day-left">
+              <div class="day-name">Wed</div>
+              <div class="day-date">Apr 2</div>
+            </div>
+            <div class="day-center">
+              <div class="day-dot" style="background: var(--navy);"></div>
+              <span class="day-session-name">Swimming · 30min</span>
+            </div>
+            <div class="day-right">
+              <span class="day-status" style="color: var(--forest);">&#10003;</span>
+            </div>
+          </div>
+          <!-- Mon -->
+          <div class="day-row">
+            <div class="day-left">
+              <div class="day-name">Mon</div>
+              <div class="day-date">Mar 31</div>
+            </div>
+            <div class="day-center">
+              <div class="day-dot" style="background: var(--navy);"></div>
+              <span class="day-session-name">Upper Body · 40min</span>
+            </div>
+            <div class="day-right">
+              <span class="day-status" style="color: var(--forest);">&#10003;</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Return to Running -->
+        <div class="list-divider">RETURN TO RUNNING</div>
+        <div class="rtr-card">
+          <div class="rtr-steps">
+            <!-- Step 1 (current) -->
+            <div class="rtr-step current">
+              <div class="rtr-circle active">1</div>
+              <span class="rtr-label">Walk/Jog 3km</span>
+            </div>
+            <!-- Step 2 -->
+            <div class="rtr-step">
+              <div class="rtr-circle inactive">2</div>
+              <span class="rtr-label inactive">Easy 5km</span>
+            </div>
+            <!-- Step 3 -->
+            <div class="rtr-step">
+              <div class="rtr-circle inactive">3</div>
+              <span class="rtr-label inactive">Easy 8km + Strides</span>
+            </div>
+            <!-- Step 4 -->
+            <div class="rtr-step">
+              <div class="rtr-circle inactive">4</div>
+              <span class="rtr-label inactive"><span class="rtr-plan-dot"></span>Resume plan · Build W15</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Tab bar — 3 tabs -->
+      <div class="tab-bar">
+        <div class="tab active">
+          <svg width="22" height="22" fill="none" viewBox="0 0 22 22"><path d="M3 9.5L11 3l8 6.5V19a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="var(--clay)" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 20v-6h4v6" stroke="var(--clay)" stroke-width="1.5" stroke-linejoin="round"/></svg>
+          <span>Home</span>
+        </div>
+        <div class="tab">
+          <svg width="22" height="22" fill="none" viewBox="0 0 22 22"><rect x="2" y="3" width="18" height="4" rx="1.5" fill="var(--muted)" opacity="0.4"/><rect x="2" y="9" width="18" height="4" rx="1.5" fill="var(--muted)"/><rect x="2" y="15" width="18" height="4" rx="1.5" fill="var(--muted)" opacity="0.4"/></svg>
+          <span>Block</span>
+        </div>
+        <div class="tab">
+          <svg width="22" height="22" fill="none" viewBox="0 0 22 22"><circle cx="11" cy="11" r="3" stroke="var(--muted)" stroke-width="1.5"/><path d="M11 2v2M11 18v2M2 11h2M18 11h2M4.93 4.93l1.41 1.41M15.66 15.66l1.41 1.41M4.93 17.07l1.41-1.41M15.66 6.34l1.41-1.41" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span>Settings</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -33,6 +33,7 @@ describe('strava workflow service — sync', () => {
       subscriptionTier: 'free',
       timezone: 'Europe/London',
       units: 'metric',
+      weeklyVolumeMetric: 'distance',
     });
 
     await integrationTokenRepo.save({

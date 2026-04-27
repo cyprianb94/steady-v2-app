@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import type { SessionDurationUnit } from '@steady/types';
-import { triggerSelectionHaptic } from '../../lib/haptics';
+import { triggerSelectionChangeHaptic } from '../../lib/haptics';
 
 interface UnitTogglePillProps {
   value: SessionDurationUnit;
@@ -24,7 +24,10 @@ export function UnitTogglePill({ value, onChange, disabled = false }: UnitToggle
             disabled={disabled}
             onPress={(event) => {
               event?.stopPropagation?.();
-              triggerSelectionHaptic();
+              if (active) {
+                return;
+              }
+              triggerSelectionChangeHaptic();
               onChange(option);
             }}
             style={[styles.segment, active && styles.segmentActive]}

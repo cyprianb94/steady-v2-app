@@ -12,12 +12,17 @@ export function canOpenResolveSessionSheet(
   session: PlannedSession | null,
   status: ActivityDayStatus,
 ): session is PlannedSession {
+  const isInspectablePlannedStatus =
+    status === 'missed'
+    || status === 'today'
+    || status === 'upcoming'
+    || status === 'skipped';
+
   return Boolean(
     session
     && session.type !== 'REST'
-    && status === 'missed'
+    && isInspectablePlannedStatus
     && !session.actualActivityId
-    && !session.skipped,
   );
 }
 
@@ -80,5 +85,25 @@ export function markSessionSkippedInWeeks({
           }
         : session
     )),
+  }));
+}
+
+export function clearSessionSkippedInWeeks({
+  weeks,
+  sessionId,
+}: {
+  weeks: readonly PlanWeek[];
+  sessionId: string;
+}): PlanWeek[] {
+  return weeks.map((week) => ({
+    ...week,
+    sessions: week.sessions.map((session) => {
+      if (session?.id !== sessionId) {
+        return session;
+      }
+
+      const { skipped: _skipped, ...sessionWithoutSkipped } = session;
+      return sessionWithoutSkipped;
+    }),
   }));
 }

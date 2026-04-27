@@ -13,6 +13,54 @@ type ExpoConfigContext = {
   config: ExpoConfig;
 };
 
+type AppIdentity = {
+  name: string;
+  slug: string;
+  scheme: string;
+  iosBundleIdentifier: string;
+  androidPackage: string;
+  appVariant: 'development' | 'preview' | 'production';
+};
+
+const DEVELOPMENT_IDENTITY: AppIdentity = {
+  name: 'Steady',
+  slug: 'steady',
+  scheme: 'steady',
+  iosBundleIdentifier: 'com.cyprianbrytan.steady',
+  androidPackage: 'com.cyprianbrytan.steady',
+  appVariant: 'development',
+};
+
+const PRODUCTION_IDENTITY: AppIdentity = {
+  name: 'Steady',
+  slug: 'steady',
+  scheme: 'steady',
+  iosBundleIdentifier: 'com.cyprianbrytan.steady',
+  androidPackage: 'com.cyprianbrytan.steady',
+  appVariant: 'production',
+};
+
+const PREVIEW_IDENTITY: AppIdentity = {
+  name: 'Steady Preview',
+  slug: 'steady-preview',
+  scheme: 'steady-preview',
+  iosBundleIdentifier: 'com.cyprianbrytan.steady.preview',
+  androidPackage: 'com.cyprianbrytan.steady.preview',
+  appVariant: 'preview',
+};
+
+export function getAppIdentityForBuildProfile(buildProfile: string | undefined): AppIdentity {
+  if (buildProfile === 'preview') {
+    return PREVIEW_IDENTITY;
+  }
+
+  if (buildProfile === 'production') {
+    return PRODUCTION_IDENTITY;
+  }
+
+  return DEVELOPMENT_IDENTITY;
+}
+
 function isPrivateApiHost(hostname: string): boolean {
   const normalizedHostname = hostname.toLowerCase();
   if (
@@ -79,6 +127,7 @@ export function validateApiUrlForBuildProfile(
 }
 
 export default function appConfig({ config }: ExpoConfigContext): ExpoConfig {
+  const appIdentity = getAppIdentityForBuildProfile(process.env.EAS_BUILD_PROFILE);
   const apiUrl = validateApiUrlForBuildProfile(
     process.env.EXPO_PUBLIC_API_URL,
     process.env.EAS_BUILD_PROFILE,
@@ -86,8 +135,20 @@ export default function appConfig({ config }: ExpoConfigContext): ExpoConfig {
 
   return {
     ...config,
+    name: appIdentity.name,
+    slug: appIdentity.slug,
+    scheme: appIdentity.scheme,
+    ios: {
+      ...config.ios,
+      bundleIdentifier: appIdentity.iosBundleIdentifier,
+    },
+    android: {
+      ...config.android,
+      package: appIdentity.androidPackage,
+    },
     extra: {
       ...config.extra,
+      appVariant: appIdentity.appVariant,
       apiUrl,
     },
   };

@@ -1,0 +1,1386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Steady · Bring your own plan</title>
+<meta name="description" content="Steady keeps the plan you wrote connected to the training you actually ran." />
+<link rel="stylesheet" href="assets/colors_and_type.css" />
+<link rel="icon" type="image/png" href="assets/steady-app-icon.png" />
+<style>
+  :root {
+    --ink-bg:        #14100C;
+    --ink-bg2:       #1C1812;
+    --on-dark:       #F4EFE6;
+    --on-dark-mute:  #8A8278;
+    --on-dark-soft:  #BFB5A4;
+    --hairline:      #2A241D;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--cream); }
+  body {
+    font-family: var(--font-body);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+    overflow-x: hidden;
+  }
+
+  /* ============================================================
+     HEADER
+     ============================================================ */
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(244, 239, 230, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .site-header-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 16px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  .brand {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    text-decoration: none;
+  }
+  .brand-name {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 700;
+    font-size: 30px;
+    color: var(--ink);
+    letter-spacing: -0.4px;
+    line-height: 1;
+  }
+  .brand-dots {
+    display: flex;
+    gap: 5px;
+    padding-left: 2px;
+  }
+  .brand-dots span {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    display: block;
+  }
+  .header-cta {
+    background: var(--clay);
+    color: white;
+    border: none;
+    border-radius: 22px;
+    padding: 11px 20px;
+    font-family: var(--font-body);
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .header-cta:hover { opacity: 0.92; }
+
+  /* ============================================================
+     SHARED LAYOUT
+     ============================================================ */
+  .section { padding: 96px 28px; }
+  .section.tight { padding: 56px 28px; }
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  .display {
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 0.98;
+    letter-spacing: -1.4px;
+  }
+  .display em {
+    font-style: italic;
+    font-weight: 700;
+  }
+  .display.xl { font-size: clamp(60px, 10.5vw, 132px); }
+  .display.lg { font-size: clamp(36px, 5.2vw, 64px); }
+  .display.md { font-size: clamp(30px, 4.2vw, 50px); }
+  .display.sm { font-size: clamp(22px, 3.2vw, 34px); letter-spacing: -0.5px; line-height: 1.05; }
+
+  .eyebrow-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 22px;
+    border: 1.5px solid;
+  }
+  .eyebrow-pill.clay   { color: var(--clay);   border-color: rgba(196, 82, 42, 0.40); background: rgba(196, 82, 42, 0.06); }
+  .eyebrow-pill.forest { color: var(--forest); border-color: rgba(42, 92, 69, 0.40);  background: rgba(42, 92, 69, 0.06); }
+  .eyebrow-pill.amber  { color: var(--amber);  border-color: rgba(212, 136, 42, 0.40); background: rgba(212, 136, 42, 0.06); }
+  .eyebrow-pill.navy   { color: var(--navy);   border-color: rgba(27, 58, 107, 0.30);  background: rgba(27, 58, 107, 0.06); }
+  .eyebrow-pill.purple { color: var(--purple); border-color: rgba(124, 92, 191, 0.40); background: rgba(124, 92, 191, 0.06); }
+  .eyebrow-pill.cream-on-dark { color: var(--on-dark-soft); border-color: rgba(244, 239, 230, 0.25); background: rgba(244, 239, 230, 0.04); }
+  .eyebrow-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  .lede {
+    font-family: var(--font-body);
+    font-size: 19px;
+    line-height: 1.55;
+    color: var(--ink2);
+    font-weight: 400;
+    letter-spacing: -0.1px;
+    text-wrap: pretty;
+  }
+  .lede.large {
+    font-size: 22px;
+    line-height: 1.5;
+  }
+  .lede strong {
+    color: var(--ink);
+    font-weight: 700;
+  }
+  .lede em {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 600;
+    color: var(--ink);
+    font-size: 1.05em;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+  }
+  .panel.dark {
+    background: var(--ink-bg);
+    border-color: var(--hairline);
+    color: var(--on-dark);
+  }
+
+  /* ============================================================
+     HERO: centered
+     ============================================================ */
+  .hero {
+    padding: 60px 28px 80px;
+    min-height: calc(100vh + 700px);
+  }
+  .hero-headline {
+    text-align: center;
+    max-width: 900px;
+    min-height: calc(100vh + 620px);
+    margin: 0 auto;
+  }
+  .hero-headline .display em { color: var(--forest); }
+
+  .hero-body {
+    margin: 30px auto 0;
+    max-width: 680px;
+    font-family: var(--font-body);
+    font-size: 19px;
+    line-height: 1.55;
+    color: var(--ink2);
+    font-weight: 400;
+    letter-spacing: -0.1px;
+    text-align: center;
+    text-wrap: pretty;
+  }
+  .hero-shot-stage {
+    margin: 52px auto 0;
+    position: sticky;
+    top: 124px;
+    height: 500px;
+    max-width: 680px;
+    isolation: isolate;
+  }
+  .hero-shot-stage::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 38px;
+    transform: translateX(-50%);
+    width: 320px;
+    height: 320px;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, var(--forest-bg) 0%, transparent 78%);
+    z-index: 0;
+    pointer-events: none;
+  }
+  .hero-shot-stack {
+    position: relative;
+    height: 100%;
+    perspective: 1200px;
+    transform-style: preserve-3d;
+  }
+  .hero-shot-stage .shot {
+    --shot-w: 276px;
+    --shot-h: 500px;
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform-origin: center bottom;
+    will-change: transform, filter;
+    backface-visibility: hidden;
+  }
+  .hero-shot-stage .shot::after {
+    display: none;
+  }
+  .hero-shot-home {
+    z-index: 1;
+    transform: translateX(calc(-50% - 132px)) translateY(34px) rotate(-4deg) scale(0.965);
+  }
+  .hero-shot-block {
+    z-index: 3;
+    transform: translateX(-50%) translateY(0) rotate(0deg) scale(1);
+  }
+  .hero-shot-design {
+    z-index: 2;
+    transform: translateX(calc(-50% + 132px)) translateY(34px) rotate(4deg) scale(0.965);
+  }
+
+  /* ============================================================
+     SECTION OPENER (eyebrow + display + lede)
+     ============================================================ */
+  .section-opener {
+    margin-bottom: 48px;
+    max-width: 820px;
+  }
+  .section-opener.center {
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+  }
+  .section-opener .eyebrow-pill { margin-bottom: 28px; }
+  .section-opener .display { margin-bottom: 28px; }
+  .section-opener .lede { max-width: 680px; }
+  .section-opener.center .lede { margin-left: auto; margin-right: auto; }
+
+  /* ============================================================
+     SCREENSHOT CARD — baked into page, no iPhone chrome
+     Soft shadow, transparent edges blend with cream background.
+     ============================================================ */
+  .shot {
+    --shot-w: 300px;
+    --shot-h: 580px;
+    width: var(--shot-w);
+    height: var(--shot-h);
+    border-radius: 24px;
+    background: transparent;
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+    filter: drop-shadow(0 30px 40px rgba(28, 21, 16, 0.10));
+  }
+  .shot iframe {
+    width: 390px;
+    height: 754px;
+    border: none;
+    transform: scale(0.7692);   /* 300 / 390 */
+    transform-origin: top left;
+    display: block;
+    background: transparent;
+  }
+  .shot img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .shot.iphone-375 iframe {
+    width: 375px;
+    height: 725px;
+    transform: scale(0.8);      /* 300 / 375 */
+  }
+  /* Soft gradient mask blends content edges into the page */
+  .shot::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, rgba(244, 239, 230, 0.92) 0%, transparent 6%, transparent 92%, rgba(244, 239, 230, 0.96) 100%);
+    border-radius: inherit;
+  }
+
+  /* ============================================================
+     PLAN SECTION: copy left, single screenshot right
+     ============================================================ */
+  .plan-section .display em { color: var(--forest); }
+  .plan-section .eyebrow-pill { color: var(--forest); border-color: rgba(42, 92, 69, 0.40); background: rgba(42, 92, 69, 0.06); }
+
+  .plan-grid {
+    display: grid;
+    grid-template-columns: 1.05fr 1fr;
+    gap: 72px;
+    align-items: center;
+  }
+
+  .plan-copy { padding: 8px 0; }
+  .plan-copy .eyebrow-pill { margin-bottom: 22px; }
+  .plan-copy .display { margin-bottom: 22px; }
+  .plan-copy .lede { margin-bottom: 32px; max-width: 520px; }
+  .plan-copy .lede em { color: var(--forest); }
+
+  .plan-feature-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 480px;
+  }
+  .plan-feature {
+    display: flex;
+    align-items: center;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+  }
+  .plan-feature .name {
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 2px;
+  }
+  .plan-feature .desc {
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    color: var(--ink2);
+    line-height: 1.4;
+  }
+  .plan-feature .text { flex: 1; min-width: 0; }
+
+  .plan-phone-stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .plan-phone-stage::before {
+    content: "";
+    position: absolute;
+    width: 380px;
+    height: 380px;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, var(--forest-bg) 0%, transparent 78%);
+    z-index: 0;
+    pointer-events: none;
+  }
+  .plan-phone-stage .shot { position: relative; z-index: 1; }
+
+  /* ============================================================
+     INJURY SECTION: combined Recovery + Niggles
+     ============================================================ */
+  .injury-section .display em { color: var(--purple); }
+  .injury-section { padding-bottom: 72px; }
+  .injury-section .section-opener {
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+  }
+  .injury-section .section-opener .eyebrow-pill {
+    display: flex;
+    width: max-content;
+    margin: 0 auto 22px;
+  }
+  .injury-section .section-opener .lede {
+    margin-left: auto;
+    margin-right: auto;
+    text-align: left;
+  }
+
+  /* Staggered headline — intentionally not in a straight line */
+  .stagger-headline {
+    display: inline-block;
+  }
+  .stagger-headline > span,
+  .stagger-headline > em {
+    display: block;
+  }
+  .stagger-headline > :nth-child(2) { padding-left: 1.4em; }
+  .stagger-headline > :nth-child(3) { padding-left: 0.6em; }
+
+  .injury-blocks {
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+  }
+  .injury-row {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 64px;
+    align-items: center;
+  }
+  .injury-row.reverse {
+    grid-template-columns: 1fr 1.1fr;
+  }
+  .injury-copy-col {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 8px 4px;
+  }
+  .injury-subhead {
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    color: var(--purple);
+    margin-bottom: 12px;
+  }
+  .injury-row.niggles .injury-subhead { color: var(--amber); }
+  .injury-copy-title {
+    font-family: var(--font-display);
+    font-size: clamp(24px, 3vw, 34px);
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.1;
+    letter-spacing: -0.4px;
+    margin-bottom: 16px;
+  }
+  .injury-copy-col .lede { max-width: 460px; }
+
+  .injury-phone-stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .injury-phone-stage::before {
+    content: "";
+    position: absolute;
+    width: 380px;
+    height: 380px;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(124, 92, 191, 0.14) 0%, transparent 76%);
+    z-index: 0;
+    pointer-events: none;
+  }
+  .injury-row:not(.niggles) .injury-phone-stage::before { display: none; }
+  .injury-row.niggles .injury-phone-stage::before {
+    background: radial-gradient(closest-side, var(--amber-bg) 0%, transparent 76%);
+  }
+  .injury-phone-stage .shot { position: relative; z-index: 1; }
+  .injury-row:not(.niggles) .shot { filter: none; }
+
+  /* ============================================================
+     PHYSIO CHEATSHEET: copy left, paper sheet right
+     ============================================================ */
+  .physio-section .display em { color: var(--navy); }
+  .physio-section .eyebrow-pill { color: var(--navy); border-color: rgba(27, 58, 107, 0.30); background: rgba(27, 58, 107, 0.06); }
+  .physio-section { padding-top: 72px; }
+
+  .physio-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+  }
+  .physio-copy { padding: 8px 0; }
+  .physio-copy .eyebrow-pill { margin-bottom: 22px; }
+  .physio-copy .display { margin-bottom: 22px; }
+  .physio-copy .lede { max-width: 480px; }
+
+  .physio-stage {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .physio-stage::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(closest-side at 50% 50%, var(--navy-bg) 0%, transparent 72%);
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .paper-sheet {
+    position: relative;
+    width: 100%;
+    max-width: 380px;
+    height: 512px;
+    background: #FFFFFF;
+    border-radius: 6px;
+    overflow: hidden;
+    z-index: 1;
+    filter: drop-shadow(0 24px 36px rgba(28, 21, 16, 0.14));
+  }
+  .paper-sheet iframe {
+    width: 540px;
+    height: 1180px;
+    border: none;
+    display: block;
+    background: white;
+    transform: scale(0.704);   /* 380 / 540 */
+    transform-origin: top left;
+  }
+  .paper-sheet::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 90px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #FFFFFF 82%);
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  /* ============================================================
+     ROADMAP
+     ============================================================ */
+  .roadmap-section .display em { color: var(--navy); }
+  .roadmap-section .section-opener { text-align: center; margin-left: auto; margin-right: auto; }
+
+  .roadmap-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .rm-card {
+    border-radius: 18px;
+    padding: 36px 32px;
+    border: 1.5px solid;
+  }
+  .rm-card.mvp {
+    background: var(--surface);
+    border-color: var(--border);
+  }
+  .rm-card.future {
+    background: var(--ink-bg);
+    border-color: var(--hairline);
+    color: var(--on-dark);
+  }
+  .rm-title {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    letter-spacing: -0.4px;
+  }
+  .rm-title-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+  }
+  .rm-card.mvp .rm-title { color: var(--ink); }
+  .rm-card.mvp .rm-title-dot { background: var(--forest); }
+  .rm-card.future .rm-title { color: var(--on-dark); }
+  .rm-card.future .rm-title-dot { background: var(--amber); }
+
+  .rm-item {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    padding: 16px 0;
+    border-bottom: 1px solid;
+  }
+  .rm-card.mvp .rm-item { border-color: var(--border); }
+  .rm-card.future .rm-item { border-color: var(--hairline); }
+  .rm-item:last-child { border-bottom: none; }
+
+  .rm-item-ico {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 2px;
+    display: grid; place-items: center;
+    border: 1.5px solid;
+  }
+  .rm-card.mvp .rm-item-ico {
+    color: var(--forest);
+    border-color: rgba(42, 92, 69, 0.4);
+    background: var(--forest-bg);
+  }
+  .rm-card.future .rm-item-ico {
+    color: var(--amber);
+    border-color: rgba(212, 136, 42, 0.4);
+    background: rgba(212, 136, 42, 0.08);
+  }
+  .rm-item-name {
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .rm-card.mvp .rm-item-name { color: var(--ink); }
+  .rm-card.future .rm-item-name { color: var(--on-dark); }
+  .rm-item-body {
+    font-family: var(--font-body);
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .rm-card.mvp .rm-item-body { color: var(--ink2); }
+  .rm-card.future .rm-item-body { color: var(--on-dark-soft); }
+
+  /* ============================================================
+     FOUNDER NOTE
+     ============================================================ */
+  .founder-section {
+    background: var(--forest);
+    color: var(--on-dark);
+    padding: 88px 28px;
+  }
+  .founder-wrap {
+    max-width: 980px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(240px, 0.7fr) minmax(0, 1fr);
+    gap: 64px;
+    align-items: start;
+  }
+  .founder-kicker {
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    color: rgba(244, 239, 230, 0.66);
+    margin-bottom: 14px;
+  }
+  .founder-title {
+    color: var(--on-dark);
+    max-width: 360px;
+  }
+  .founder-copy {
+    max-width: 640px;
+    font-family: var(--font-body);
+    font-size: 16.5px;
+    line-height: 1.72;
+    color: rgba(244, 239, 230, 0.86);
+  }
+  .founder-copy p + p { margin-top: 18px; }
+  .founder-signoff {
+    margin-top: 28px;
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--on-dark);
+  }
+  .founder-signoff span {
+    display: block;
+    margin-top: 4px;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(244, 239, 230, 0.76);
+  }
+
+  /* ============================================================
+     SIGNUP
+     ============================================================ */
+  .signup-card {
+    padding: 96px 56px 96px;
+    text-align: center;
+  }
+  .signup-card .display em { color: var(--clay); }
+  .signup-card .display { margin-bottom: 28px; }
+  .signup-sub {
+    font-family: var(--font-body);
+    font-size: 19px;
+    line-height: 1.5;
+    color: var(--ink2);
+    max-width: 540px;
+    margin: 0 auto 48px;
+  }
+  .signup-form {
+    max-width: 580px;
+    margin: 0 auto;
+    display: flex;
+    gap: 12px;
+  }
+  .signup-input {
+    flex: 1;
+    background: var(--cream);
+    border: 1.5px solid var(--border);
+    border-radius: 32px;
+    padding: 16px 24px;
+    font-family: var(--font-body);
+    font-size: 15px;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .signup-input::placeholder { color: var(--muted); }
+  .signup-input:focus { border-color: var(--clay); }
+  .signup-submit {
+    background: var(--clay);
+    color: white;
+    border: none;
+    border-radius: 32px;
+    padding: 16px 32px;
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .signup-submit:hover { opacity: 0.92; }
+  .signup-checkbox-row {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 10px;
+    max-width: 580px;
+    margin: 20px auto 0;
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--ink2);
+    cursor: pointer;
+    text-align: left;
+  }
+  .signup-checkbox {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .signup-check {
+    width: 18px; height: 18px;
+    border-radius: 4px;
+    border: 1.5px solid var(--border);
+    background: var(--cream);
+    color: transparent;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 700;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .signup-check::after {
+    content: "✓";
+  }
+  .signup-checkbox:checked + .signup-check {
+    background: var(--clay);
+    border-color: var(--clay);
+    color: white;
+  }
+  .signup-checkbox:focus-visible + .signup-check {
+    border-color: var(--clay);
+  }
+
+  /* ============================================================
+     FOOTER
+     ============================================================ */
+  .site-footer {
+    background: var(--ink-bg);
+    color: var(--on-dark);
+    padding: 56px 28px 64px;
+    margin-top: 64px;
+  }
+  .footer-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .footer-brand {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--on-dark);
+    line-height: 1;
+  }
+  .footer-mark {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .footer-dots {
+    display: flex;
+    gap: 5px;
+    padding-left: 1px;
+  }
+  .footer-dots span {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    display: block;
+  }
+  .footer-meta {
+    font-family: var(--font-body);
+    font-size: 12px;
+    color: var(--on-dark-mute);
+  }
+  .footer-links { display: flex; gap: 18px; }
+  .footer-links a {
+    font-family: var(--font-body);
+    font-size: 12px;
+    color: var(--on-dark-soft);
+    text-decoration: none;
+  }
+  .footer-links a:hover { color: var(--on-dark); text-decoration: underline; }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+  .reveal.in {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    .section { padding: 56px 18px; }
+    .hero {
+      padding: 24px 18px 56px;
+      min-height: calc(100vh + 560px);
+    }
+    .hero-headline { min-height: calc(100vh + 520px); }
+    .hero-body { margin-top: 24px; font-size: 17px; }
+    .hero-shot-stage { margin-top: 36px; height: 440px; top: 104px; }
+    .hero-shot-stage::before { top: 32px; width: 280px; height: 280px; }
+    .hero-shot-stage .shot { --shot-w: 240px; --shot-h: 460px; }
+    .hero-shot-stage .shot iframe { transform: scale(0.6667); }
+    .hero-shot-home { transform: translateX(calc(-50% - 106px)) translateY(28px) rotate(-4deg) scale(0.965); }
+    .hero-shot-block { transform: translateX(-50%) translateY(0) rotate(0deg) scale(1); }
+    .hero-shot-design { transform: translateX(calc(-50% + 106px)) translateY(28px) rotate(4deg) scale(0.965); }
+
+    .plan-grid { grid-template-columns: 1fr; gap: 48px; }
+    .plan-feature-list { max-width: none; }
+    .plan-phone-stage::before { width: 320px; height: 320px; }
+
+    .injury-row,
+    .injury-row.reverse { grid-template-columns: 1fr; gap: 36px; }
+    .injury-row.reverse .injury-phone-stage { order: -1; }
+    .injury-phone-stage::before { width: 320px; height: 320px; }
+
+    .physio-grid { grid-template-columns: 1fr; gap: 40px; }
+    .paper-sheet { max-width: 360px; height: 480px; margin: 0 auto; }
+
+    .roadmap-cards { grid-template-columns: 1fr; }
+
+    .founder-section { padding: 64px 18px; }
+    .founder-wrap { grid-template-columns: 1fr; gap: 30px; }
+    .founder-title { max-width: 520px; }
+
+    .signup-card { padding: 64px 24px; }
+    .signup-form { flex-direction: column; }
+  }
+
+  @media (max-width: 560px) {
+    .brand-name { font-size: 24px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero {
+      min-height: auto;
+      padding-bottom: 40px;
+    }
+    .hero-shot-stage {
+      position: relative;
+      top: auto;
+    }
+    .hero-shot-stage .shot {
+      will-change: auto;
+    }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ===================== HEADER ===================== -->
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a href="#" class="brand">
+        <span class="brand-name">Steady</span>
+        <div class="brand-dots" aria-hidden="true">
+          <span style="background: var(--clay);"></span>
+          <span style="background: var(--amber);"></span>
+          <span style="background: var(--forest);"></span>
+          <span style="background: var(--navy);"></span>
+          <span style="background: var(--purple);"></span>
+        </div>
+      </a>
+      <button class="header-cta" onclick="document.getElementById('signup').scrollIntoView({behavior:'smooth'})">Join waitlist</button>
+    </div>
+  </header>
+
+  <!-- ===================== HERO ===================== -->
+  <section class="hero" data-screen-label="01 Hero">
+    <div class="container">
+      <div class="hero-headline reveal">
+        <h1 class="display xl">Bring your<br/><em>own plan.</em></h1>
+        <p class="hero-body">
+          Steady keeps the plan you wrote connected to the training you actually ran. Bring in your own plan, sync what happened, and keep the block honest when sessions move, niggles appear, or the goal needs reassessing.
+        </p>
+        <div class="hero-shot-stage" data-hero-stack aria-label="Steady app screenshots">
+          <div class="hero-shot-stack">
+            <div class="shot hero-shot-home" data-shot="home">
+              <img src="assets/hero-home.png" alt="Steady home view" loading="lazy" />
+            </div>
+            <div class="shot hero-shot-block" data-shot="block">
+              <img src="assets/hero-block.png" alt="Steady block view" loading="lazy" />
+            </div>
+            <div class="shot hero-shot-design" data-shot="design">
+              <img src="assets/hero-design-week.png" alt="Steady design your week view" loading="lazy" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PLAN ===================== -->
+  <section class="section plan-section" id="plan" data-screen-label="02 Plan">
+    <div class="container">
+      <div class="plan-grid reveal">
+        <div class="plan-copy">
+          <span class="eyebrow-pill clay"><span class="dot"></span>The Plan Builder</span>
+          <h2 class="display lg">Bring your plan<br/><em>in whatever shape or form.</em></h2>
+          <p class="lede">
+            Use the builder for a <strong>simple, painless setup</strong>. Whether you think in mileage or time on feet, Steady accommodates that. Pick a recommended template, or start from a blank week and shape it day by day.
+          </p>
+
+          <div class="plan-feature-list">
+            <div class="plan-feature">
+              <div class="text">
+                <div class="name">Spreadsheet</div>
+                <div class="desc">Drop in your existing plan as a sheet</div>
+              </div>
+            </div>
+            <div class="plan-feature">
+              <div class="text">
+                <div class="name">PDF or image</div>
+                <div class="desc">Import PDFs or screenshots of your plan to make setup easier</div>
+              </div>
+            </div>
+            <div class="plan-feature">
+              <div class="text">
+                <div class="name">From scratch</div>
+                <div class="desc">Drag and drop builder, week by week</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="plan-phone-stage">
+          <div class="shot">
+            <iframe src="frames/onboarding-week/index.html" title="Plan builder, week" scrolling="no" loading="lazy"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== TRAINING ISN'T A STRAIGHT LINE (incl. niggles) ===================== -->
+  <section class="section injury-section" id="injuries" data-screen-label="03 Training isn't a straight line">
+    <div class="container">
+      <div class="section-opener reveal">
+        <span class="eyebrow-pill purple"><span class="dot"></span>Recovery &amp; Niggles</span>
+        <h2 class="display lg stagger-headline">
+          <span>Training</span>
+          <span>isn't</span>
+          <em>a straight line.</em>
+        </h2>
+        <p class="lede">
+          Steady recognises that injuries happen and that nothing about training is linear. It helps you keep your <strong>recovery routine on track</strong>, track every annoying niggle, and adjust your race goal when you need to.
+        </p>
+      </div>
+
+      <div class="injury-blocks">
+        <div class="injury-row niggles reveal">
+          <div class="injury-copy-col">
+            <div class="injury-subhead">Niggles</div>
+            <div class="injury-copy-title">Report signs your body sends you early.</div>
+            <p class="lede">
+              Injuries are part of any sport. Steady helps you track all those <strong>annoying niggles</strong> which may turn into injuries (fingers crossed they don't).
+            </p>
+          </div>
+          <div class="injury-phone-stage">
+            <div class="shot">
+              <iframe src="frames/niggle-timeline/index.html" title="Niggle timeline" scrolling="no" loading="lazy"></iframe>
+            </div>
+          </div>
+        </div>
+
+        <div class="injury-row reverse reveal">
+          <div class="injury-phone-stage">
+            <div class="shot iphone-375">
+              <iframe src="frames/recovery-phase/index.html" title="Recovery phase" scrolling="no" loading="lazy"></iframe>
+            </div>
+          </div>
+          <div class="injury-copy-col">
+            <div class="injury-subhead">Recovery</div>
+            <div class="injury-copy-title">Stay on track<br/>when you're off your feet.</div>
+            <p class="lede">
+              If injured, Steady will help you keep your <strong>recovery routine on track</strong> and recognise that your race goal may change, and that's fine, too!
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PHYSIO CHEATSHEET ===================== -->
+  <section class="section physio-section" data-screen-label="05 Physio cheatsheet">
+    <div class="container">
+      <div class="physio-grid reveal">
+        <div class="physio-copy">
+          <span class="eyebrow-pill"><span class="dot"></span>Physio cheatsheet</span>
+          <h2 class="display lg"><em>Physio</em><br/>cheatsheet.</h2>
+          <p class="lede">
+            Because you're tracking the relevant metrics throughout your block, Steady generates a <strong>physio report</strong>. A more efficient overview of your mileage and niggle timeline than anything you'd type up the night before. It guides the conversation with your physio so you can spend the visit on actual physical diagnosis and treatment.
+          </p>
+        </div>
+
+        <div class="physio-stage">
+          <div class="paper-sheet">
+            <iframe src="frames/report-preview/index.html" title="Physio report PDF preview" scrolling="no" loading="lazy"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== ROADMAP ===================== -->
+  <section class="section roadmap-section" id="roadmap" data-screen-label="07 Roadmap">
+    <div class="container">
+      <div class="section-opener center reveal">
+        <span class="eyebrow-pill navy">The Roadmap</span>
+        <h2 class="display lg">Where we're<br/><em>headed.</em></h2>
+        <p class="lede">
+          Not everything will be ready for day one, and there's a lot more in store.
+        </p>
+      </div>
+
+      <div class="roadmap-cards reveal">
+        <!-- First release -->
+        <div class="rm-card mvp">
+          <div class="rm-title">
+            <span class="rm-title-dot"></span>
+            First release
+          </div>
+          <div class="rm-item">
+            <div class="rm-item-ico">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M3 7.5L6 10L11 4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div>
+              <div class="rm-item-name">BYOP plan builder</div>
+              <div class="rm-item-body">Build your training block from scratch with an intuitive drag-and-drop interface</div>
+            </div>
+          </div>
+          <div class="rm-item">
+            <div class="rm-item-ico">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M3 7.5L6 10L11 4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div>
+              <div class="rm-item-name">Strava sync</div>
+              <div class="rm-item-body">Automatic activity import from Strava, matched against your planned sessions</div>
+            </div>
+          </div>
+          <div class="rm-item">
+            <div class="rm-item-ico">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M3 7.5L6 10L11 4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div>
+              <div class="rm-item-name">Niggle &amp; fuel logging</div>
+              <div class="rm-item-body">Report any niggles and the fuel you used during your runs in a quick post-run check-in</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Later -->
+        <div class="rm-card future">
+          <div class="rm-title">
+            <span class="rm-title-dot"></span>
+            Later
+          </div>
+          <div class="rm-item">
+            <div class="rm-item-ico">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M7 4.5V7L8.5 8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+            <div>
+              <div class="rm-item-name">Garmin &amp; Apple Watch sync</div>
+              <div class="rm-item-body">Direct integration with your favourite wearables for even deeper data</div>
+            </div>
+          </div>
+          <div class="rm-item">
+            <div class="rm-item-ico">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M7 4.5V7L8.5 8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+            <div>
+              <div class="rm-item-name">Injury phase mode</div>
+              <div class="rm-item-body">Structured return-to-running protocols after an injury</div>
+            </div>
+          </div>
+          <div class="rm-item">
+            <div class="rm-item-ico">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M7 4.5V7L8.5 8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+            <div>
+              <div class="rm-item-name">Physio report export</div>
+              <div class="rm-item-body">One-click PDF generation for your physio appointment</div>
+            </div>
+          </div>
+          <div class="rm-item">
+            <div class="rm-item-ico">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M7 4.5V7L8.5 8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+            <div>
+              <div class="rm-item-name">CSV &amp; screenshot import</div>
+              <div class="rm-item-body">Easier ways to import your existing running plans from other places</div>
+            </div>
+          </div>
+          <div class="rm-item">
+            <div class="rm-item-ico">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M7 4.5V7L8.5 8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+            <div>
+              <div class="rm-item-name">Steady AI &amp; human coaching</div>
+              <div class="rm-item-body">AI-driven insights and access to real-life human coaches</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== READY TO RUN STEADY ===================== -->
+  <section class="section tight" id="signup" data-screen-label="08 Sign up">
+    <div class="container">
+      <div class="panel signup-card reveal">
+        <h2 class="display lg">Ready to run<br/><em>Steady?</em></h2>
+        <p class="signup-sub">
+          I'm currently building Steady in <strong style="color:var(--ink);font-weight:700;">private beta</strong>. Leave your email and I’ll send one note when Steady is available on the App Store.<br/>I promise no marketing BS or data selling.
+        </p>
+
+        <form id="signup-form" class="signup-form" onsubmit="event.preventDefault(); const b=this.querySelector('.signup-submit'); b.textContent='Joined ✓'; b.style.background='var(--forest)';">
+          <input class="signup-input" type="email" placeholder="Enter your email" required />
+          <button class="signup-submit" type="submit">Join waitlist</button>
+        </form>
+
+        <label class="signup-checkbox-row">
+          <input class="signup-checkbox" type="checkbox" name="beta-testing" form="signup-form" />
+          <span class="signup-check" aria-hidden="true"></span>
+          I’d also like to help test Steady before launch
+        </label>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== WHY I'M BUILDING STEADY ===================== -->
+  <section class="founder-section" id="why-building" data-screen-label="09 Why I'm building Steady">
+    <div class="founder-wrap reveal">
+      <div>
+        <div class="founder-kicker">Builder note</div>
+        <h2 class="display lg founder-title">Why I'm building Steady</h2>
+      </div>
+      <div class="founder-copy">
+        <p>I like building my own training from things I’ve picked up online: Pfitz, Jack Daniels, Reddit, sometimes ChatGPT or Claude.</p>
+
+        <p>Since I started running more seriously, the hardest part has not been finding a plan. It has been keeping the plan up to date once life happens. Runs move, niggles appear and injuries sadly happen. The spreadsheet (or notebook) says one thing, Strava says another, and suddenly I’m taking screenshots, checking notes and updating many tools at once. I don't think that's how it should be.</p>
+
+        <p>It felt too cumbersome to keep track of the changes, and I still felt like I was missing parts of the picture: niggles, injuries, fuelling and all the small context that ends up mattering.</p>
+
+        <p>That’s why I’m building Steady: to keep all of it in one place. The training plan you bring, the runs you actually do, the changes you make, and the context behind them. If you need to see a physio, that history should already be there.</p>
+
+        <p>I’m starting small, with plenty of ideas for where Steady could go. But more importantly, I want it shaped by runners who know what it feels like to be overwhelmed by running admin.</p>
+
+        <p class="founder-signoff">Cyprian,<span>Building Steady</span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FOOTER ===================== -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-mark">
+        <div class="footer-brand">Steady</div>
+        <div class="footer-dots" aria-hidden="true">
+          <span style="background: var(--clay);"></span>
+          <span style="background: var(--amber);"></span>
+          <span style="background: var(--forest);"></span>
+          <span style="background: var(--navy);"></span>
+          <span style="background: var(--purple);"></span>
+        </div>
+      </div>
+      <div class="footer-meta">© 2026 Steady · Bring your own plan</div>
+    </div>
+  </footer>
+
+  <script>
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.15 });
+    document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+    (() => {
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+      const stage = document.querySelector('[data-hero-stack]');
+      const hero = document.querySelector('.hero');
+      if (!stage || !hero || reduceMotion.matches) return;
+
+      const shots = {
+        home: stage.querySelector('[data-shot="home"]'),
+        block: stage.querySelector('[data-shot="block"]'),
+        design: stage.querySelector('[data-shot="design"]'),
+      };
+      const names = Object.keys(shots);
+      if (names.some(name => !shots[name])) return;
+
+      const stateRoles = [
+        { home: 'left',   block: 'center', design: 'right'  },
+        { home: 'right',  block: 'left',   design: 'center' },
+        { home: 'center', block: 'right',  design: 'left'   },
+      ];
+      const activeNames = ['block', 'design', 'home'];
+
+      let roleValues = {};
+      let motionValues = {};
+      let targetProgress = 0;
+      let currentProgress = 0;
+      let ticking = false;
+
+      const clamp = value => Math.min(1, Math.max(0, value));
+      const smoother = value => value * value * value * (value * (value * 6 - 15) + 10);
+      const lerp = (from, to, amount) => from + (to - from) * amount;
+
+      function measureRoles() {
+        const width = shots.block.offsetWidth || 276;
+        const isNarrow = window.matchMedia('(max-width: 900px)').matches;
+        const spread = width * (isNarrow ? 0.44 : 0.48);
+        const sideY = isNarrow ? 28 : 34;
+        const rearDip = isNarrow ? 12 : 16;
+        const frontArc = isNarrow ? 4 : 6;
+        roleValues = {
+          left:   { x: -spread, y: sideY, rotation: -4, scale: 0.965, depth: 0.36 },
+          center: { x: 0,       y: 0,     rotation: 0,  scale: 1,     depth: 1    },
+          right:  { x: spread,  y: sideY, rotation: 4,  scale: 0.965, depth: 0.36 },
+        };
+        motionValues = {
+          rearDip,
+          frontArc,
+          rearDepth: 0.18,
+          rearScaleDip: isNarrow ? 0.018 : 0.022,
+          zRange: isNarrow ? 80 : 110,
+        };
+      }
+
+      function readProgress() {
+        const scrollY = window.scrollY || window.pageYOffset;
+        const releasePoint = hero.offsetTop + hero.offsetHeight - window.innerHeight;
+        const start = hero.offsetTop + Math.min(96, window.innerHeight * 0.1);
+        const naturalEnd = start + window.innerHeight * 0.95;
+        const end = Math.max(start + window.innerHeight * 0.55, Math.min(naturalEnd, releasePoint - window.innerHeight * 0.06));
+        return clamp((scrollY - start) / Math.max(1, end - start));
+      }
+
+      function getInterpolatedRole(name, progress) {
+        const segmentCount = stateRoles.length - 1;
+        const scaled = progress * segmentCount;
+        const index = Math.min(segmentCount - 1, Math.floor(scaled));
+        const rawLocal = scaled - index;
+        const local = smoother(rawLocal);
+        const arc = Math.sin(Math.PI * rawLocal);
+        const fromRole = stateRoles[index][name];
+        const toRole = stateRoles[index + 1][name];
+        const from = roleValues[fromRole];
+        const to = roleValues[toRole];
+
+        let y = lerp(from.y, to.y, local);
+        let scale = lerp(from.scale, to.scale, local);
+        let depth = lerp(from.depth, to.depth, local);
+        let layerBias = 0;
+
+        if (fromRole !== 'center' && toRole !== 'center') {
+          y += motionValues.rearDip * arc;
+          scale -= motionValues.rearScaleDip * arc;
+          depth = motionValues.rearDepth;
+          layerBias = -80;
+        } else if (toRole === 'center') {
+          y -= motionValues.frontArc * arc;
+          depth = clamp(depth + 0.04 * local);
+          layerBias = 32 * local;
+        } else if (fromRole === 'center') {
+          y += motionValues.frontArc * arc;
+          depth = clamp(depth - 0.03 * local);
+          layerBias = 18 * (1 - local);
+        }
+
+        return {
+          x: lerp(from.x, to.x, local),
+          y,
+          rotation: lerp(from.rotation, to.rotation, local),
+          scale,
+          depth,
+          layerBias,
+        };
+      }
+
+      function render(progress) {
+        const activeIndex = Math.min(activeNames.length - 1, Math.round(progress * (activeNames.length - 1)));
+        stage.dataset.active = activeNames[activeIndex];
+
+        names.forEach(name => {
+          const shot = shots[name];
+          const role = getInterpolatedRole(name, progress);
+          const frontWeight = clamp(role.depth);
+          const z = (frontWeight - 0.5) * motionValues.zRange;
+          const shadowY = Math.round(16 + frontWeight * 18);
+          const shadowBlur = Math.round(22 + frontWeight * 22);
+          const shadowAlpha = (0.07 + frontWeight * 0.07).toFixed(3);
+
+          shot.style.transform = `translateX(calc(-50% + ${role.x.toFixed(2)}px)) translateY(${role.y.toFixed(2)}px) translateZ(${z.toFixed(2)}px) rotate(${role.rotation.toFixed(2)}deg) scale(${role.scale.toFixed(4)})`;
+          shot.style.zIndex = String(Math.round(1000 + frontWeight * 1000 + role.layerBias));
+          shot.style.filter = `drop-shadow(0 ${shadowY}px ${shadowBlur}px rgba(28, 21, 16, ${shadowAlpha}))`;
+        });
+      }
+
+      function animate() {
+        currentProgress = lerp(currentProgress, targetProgress, 0.16);
+        if (Math.abs(currentProgress - targetProgress) < 0.001) currentProgress = targetProgress;
+        render(currentProgress);
+
+        if (currentProgress !== targetProgress) {
+          requestAnimationFrame(animate);
+        } else {
+          ticking = false;
+        }
+      }
+
+      function requestUpdate() {
+        targetProgress = readProgress();
+        if (!ticking) {
+          ticking = true;
+          requestAnimationFrame(animate);
+        }
+      }
+
+      measureRoles();
+      targetProgress = currentProgress = readProgress();
+      render(currentProgress);
+
+      window.addEventListener('scroll', requestUpdate, { passive: true });
+      window.addEventListener('resize', () => {
+        measureRoles();
+        requestUpdate();
+      });
+    })();
+  </script>
+</body>
+</html>

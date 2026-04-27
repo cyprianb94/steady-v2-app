@@ -5,163 +5,233 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { PhaseName, TrainingPlan, WeeklyVolumeMetric } from '@steady/types';
 import { usePlan } from '../../hooks/usePlan';
 import { useStravaSync } from '../../hooks/useStravaSync';
-import { RecoveryFlowModal } from '../../components/recovery/RecoveryFlowModal';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
+import { PHASE_COLOR } from '../../constants/phase-meta';
 import { useAuth } from '../../lib/auth';
 import { trpc } from '../../lib/trpc';
-import { usePreferences } from '../../providers/preferences-context';
-import { useRecoveryActionController } from '../../features/recovery/use-recovery-action-controller';
-import { getVisibleActiveInjury, MVP_RECOVERY_UI_ENABLED } from '../../features/recovery/recovery-ui-gate';
+import { usePreferences, type Units } from '../../providers/preferences-context';
 
-const SETTINGS_TOP_SPACING = 14;
+const SETTINGS_TOP_SPACING = 18;
 const SETTINGS_BOTTOM_SPACING = 24;
+const PHASE_ORDER: PhaseName[] = ['BASE', 'BUILD', 'RECOVERY', 'PEAK', 'TAPER'];
+const FEEDBACK_EMAIL = 'cyprianbrytan@gmail.com';
 
-type PillTone = 'neutral' | 'success' | 'warm';
+type RowTone = 'default' | 'danger';
 
-function SectionHeading({ title, copy }: { title: string; copy?: string }) {
+interface SettingsRowProps {
+  title: string;
+  onPress?: () => void;
+  disabled?: boolean;
+  tone?: RowTone;
+  showBorder?: boolean;
+  testID?: string;
+}
+
+function SectionLabel({ title }: { title: string }) {
+  return <Text style={styles.sectionLabel}>{title}</Text>;
+}
+
+function Chevron() {
+  return <Text style={styles.chevron}>›</Text>;
+}
+
+function SettingsRow({
+  title,
+  onPress,
+  disabled = false,
+  tone = 'default',
+  showBorder = true,
+  testID,
+}: SettingsRowProps) {
   return (
-    <View style={styles.sectionHeading}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {copy ? <Text style={styles.sectionCopy}>{copy}</Text> : null}
-    </View>
+    <Pressable
+      testID={testID}
+      onPress={onPress}
+      disabled={!onPress || disabled}
+      style={({ pressed }) => [
+        styles.settingsRow,
+        showBorder ? styles.rowDivider : null,
+        disabled ? styles.rowDisabled : null,
+        pressed && onPress && !disabled ? styles.rowPressed : null,
+      ]}
+    >
+      <Text style={[styles.rowTitle, tone === 'danger' ? styles.rowTitleDanger : null]}>{title}</Text>
+      <Chevron />
+    </Pressable>
   );
 }
 
-function MetaPill({
-  label,
-  tone = 'neutral',
-}: {
-  label: string;
-  tone?: PillTone;
-}) {
+function StatusText({ label, connected }: { label: string; connected: boolean }) {
   return (
-    <View
-      style={[
-        styles.metaPill,
-        tone === 'success' && styles.metaPillSuccess,
-        tone === 'warm' && styles.metaPillWarm,
-      ]}
-    >
-      <Text
-        style={[
-          styles.metaPillText,
-          tone === 'success' && styles.metaPillTextSuccess,
-          tone === 'warm' && styles.metaPillTextWarm,
-        ]}
-      >
+    <View style={styles.statusLine}>
+      <View style={[styles.statusDot, connected ? styles.statusDotConnected : styles.statusDotIdle]} />
+      <Text style={[styles.statusText, connected ? styles.statusTextConnected : styles.statusTextIdle]}>
         {label}
       </Text>
     </View>
   );
 }
 
-function OverviewRow({
-  label,
-  detail,
-  value,
-  tone = 'neutral',
-  showBorder = true,
-}: {
-  label: string;
-  detail: string;
-  value: string;
-  tone?: PillTone;
-  showBorder?: boolean;
-}) {
+function formatPhaseName(phase: PhaseName | undefined) {
+  if (!phase) return 'Block active';
+  return `${phase.slice(0, 1)}${phase.slice(1).toLowerCase()} phase`;
+}
+
+function getSafeWeekIndex(plan: TrainingPlan | null | undefined, currentWeekIndex: number) {
+  const weekCount = plan?.weeks?.length ?? 0;
+  if (weekCount <= 0) return 0;
+  return Math.min(Math.max(currentWeekIndex, 0), weekCount - 1);
+}
+
+function getPhaseSegments(plan: TrainingPlan | null | undefined) {
+  if (!plan) return [];
+
+  const configuredPhases = plan.phases
+    ? PHASE_ORDER.map((phase) => ({ phase, count: plan.phases[phase] ?? 0 }))
+    : [];
+  const hasConfiguredPhases = configuredPhases.some((segment) => segment.count > 0);
+
+  const segments = hasConfiguredPhases
+    ? configuredPhases
+    : PHASE_ORDER.map((phase) => ({
+        phase,
+        count: plan.weeks?.filter((week) => week?.phase === phase).length ?? 0,
+      }));
+
+  return segments.filter((segment) => segment.count > 0);
+}
+
+function LastSyncText({ lastSyncedAt }: { lastSyncedAt: string | null | undefined }) {
+  if (!lastSyncedAt) {
+    return <Text style={styles.syncMeta}>No sync recorded yet.</Text>;
+  }
+
+  const syncedAt = new Date(lastSyncedAt);
+  if (Number.isNaN(syncedAt.getTime())) {
+    return <Text style={styles.syncMeta}>Last sync recorded.</Text>;
+  }
+
+  const today = new Date();
+  const dateLabel = syncedAt.toDateString() === today.toDateString()
+    ? 'today'
+    : syncedAt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const timeLabel = syncedAt.toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
   return (
-    <View style={[styles.overviewRow, showBorder ? styles.rowDivider : null]}>
-      <View style={styles.rowCopy}>
-        <Text style={styles.overviewLabel}>{label}</Text>
-        <Text style={styles.overviewDetail}>{detail}</Text>
+    <Text style={styles.syncMeta}>
+      Last synced {dateLabel} at <Text style={styles.monoInline}>{timeLabel}</Text>.
+    </Text>
+  );
+}
+
+function PlanCard({
+  plan,
+  currentWeekIndex,
+  onOpenPlanBuilder,
+}: {
+  plan: TrainingPlan | null | undefined;
+  currentWeekIndex: number;
+  onOpenPlanBuilder: () => void;
+}) {
+  const hasPlan = Boolean(plan);
+  const safeWeekIndex = getSafeWeekIndex(plan, currentWeekIndex);
+  const currentWeek = plan?.weeks?.[safeWeekIndex];
+  const currentWeekNumber = currentWeek?.weekNumber ?? safeWeekIndex + 1;
+  const weekCount = plan?.weeks?.length ?? 0;
+  const phaseSegments = getPhaseSegments(plan);
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.planHead}>
+        <View style={styles.planKicker}>
+          <StatusText label={hasPlan ? 'Active' : 'No plan'} connected={hasPlan} />
+          <Text style={styles.phaseName}>{hasPlan ? formatPhaseName(currentWeek?.phase) : 'Build a plan'}</Text>
+        </View>
+
+        <Text style={styles.planTitle}>{plan?.raceName ?? 'No active plan'}</Text>
+
+        {hasPlan ? (
+          <>
+            <View style={styles.planMeta}>
+              <Text style={styles.metaText}>
+                Target <Text style={[styles.monoInline, styles.targetValue]}>{plan?.targetTime}</Text>
+              </Text>
+              <Text style={styles.metaText}>
+                Week <Text style={[styles.monoInline, styles.weekValue]}>{currentWeekNumber}</Text> of{' '}
+                <Text style={styles.monoInline}>{weekCount}</Text>
+              </Text>
+            </View>
+
+            {phaseSegments.length > 0 ? (
+              <View style={styles.phaseStrip} testID="settings-phase-strip">
+                {phaseSegments.map((segment) => (
+                  <View
+                    key={segment.phase}
+                    style={[
+                      styles.phaseSegment,
+                      {
+                        flex: segment.count,
+                        backgroundColor: PHASE_COLOR[segment.phase],
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+            ) : null}
+          </>
+        ) : (
+          <Text style={styles.emptyPlanCopy}>Build a plan to see your current block here.</Text>
+        )}
       </View>
-      <MetaPill label={value} tone={tone} />
+
+      <SettingsRow
+        title={hasPlan ? 'Replace plan' : 'Build plan'}
+        onPress={onOpenPlanBuilder}
+      />
     </View>
   );
 }
 
-function SelectionRow({
+function UnitSegment({
   title,
-  subtitle,
+  caption,
   selected,
   disabled,
   onPress,
-  showBorder = true,
 }: {
   title: string;
-  subtitle: string;
+  caption: string;
   selected: boolean;
   disabled: boolean;
   onPress: () => void;
-  showBorder?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
-        styles.settingRow,
-        showBorder ? styles.rowDivider : null,
+        styles.unitSegment,
+        selected ? styles.unitSegmentSelected : null,
         disabled ? styles.rowDisabled : null,
         pressed && !disabled ? styles.rowPressed : null,
       ]}
     >
-      <View style={styles.rowCopy}>
-        <Text style={[styles.rowTitle, selected ? styles.rowTitleSelected : null]}>{title}</Text>
-        <Text style={styles.rowSubtitle}>{subtitle}</Text>
+      <View style={styles.unitTitleLine}>
+        <Text style={styles.unitTitle}>{title}</Text>
+        <View style={[styles.radio, selected ? styles.radioSelected : null]}>
+          {selected ? <View style={styles.radioInner} /> : null}
+        </View>
       </View>
-      <View style={[styles.radioOuter, selected ? styles.radioOuterSelected : null]}>
-        {selected ? <View style={styles.radioInner} /> : null}
-      </View>
+      <Text style={styles.unitCaption}>{caption}</Text>
     </Pressable>
   );
-}
-
-function ActionRow({
-  title,
-  subtitle,
-  value,
-  tone = 'neutral',
-  onPress,
-  disabled = false,
-  showBorder = true,
-}: {
-  title: string;
-  subtitle: string;
-  value: string;
-  tone?: PillTone;
-  onPress?: () => void;
-  disabled?: boolean;
-  showBorder?: boolean;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={!onPress || disabled}
-      style={({ pressed }) => [
-        styles.settingRow,
-        showBorder ? styles.rowDivider : null,
-        pressed && onPress && !disabled ? styles.rowPressed : null,
-        disabled ? styles.rowDisabled : null,
-      ]}
-    >
-      <View style={styles.rowCopy}>
-        <Text style={styles.rowTitle}>{title}</Text>
-        <Text style={styles.rowSubtitle}>{subtitle}</Text>
-      </View>
-      <MetaPill label={value} tone={tone} />
-    </Pressable>
-  );
-}
-
-function formatLastSync(lastSyncedAt: string | null) {
-  if (!lastSyncedAt) {
-    return 'No sync recorded yet.';
-  }
-
-  return `Last sync ${new Date(lastSyncedAt).toLocaleString()}.`;
 }
 
 export default function SettingsTab() {
@@ -169,15 +239,20 @@ export default function SettingsTab() {
   const { signInWithGoogle, signOut, session, isLoading } = useAuth();
   const { plan, loading: planLoading, currentWeekIndex, refresh } = usePlan();
   const { status: stravaStatus, refreshStatus, forceSync, syncing: stravaSyncing } = useStravaSync();
-  const { units, setUnits, loading: preferencesLoading, updatingUnits } = usePreferences();
+  const {
+    units,
+    setUnits,
+    weeklyVolumeMetric,
+    setWeeklyVolumeMetric,
+    loading: preferencesLoading,
+    updatingUnits,
+    updatingWeeklyVolumeMetric,
+  } = usePreferences();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [recoveryModalMode, setRecoveryModalMode] = useState<'mark' | 'resume' | null>(null);
-  const activeInjury = getVisibleActiveInjury(plan);
-  const recoveryController = useRecoveryActionController({
-    planId: plan?.id,
-    activeInjury,
-    refreshPlan: refresh,
-  });
+
+  const busy = isLoading || isSubmitting || stravaSyncing;
+  const preferenceBusy = busy || preferencesLoading || updatingUnits || updatingWeeklyVolumeMetric;
+  const stravaConnected = Boolean(session && stravaStatus?.connected);
 
   async function handleGoogleSignIn() {
     try {
@@ -190,7 +265,7 @@ export default function SettingsTab() {
     }
   }
 
-  async function handleSignOut() {
+  async function performSignOut() {
     try {
       setIsSubmitting(true);
       await signOut();
@@ -199,6 +274,19 @@ export default function SettingsTab() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function confirmSignOut() {
+    Alert.alert('Sign out?', 'This removes the account from this device. You can sign back in with Google.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign out',
+        style: 'destructive',
+        onPress: () => {
+          void performSignOut();
+        },
+      },
+    ]);
   }
 
   async function handleStravaConnect() {
@@ -246,7 +334,20 @@ export default function SettingsTab() {
     }
   }
 
-  async function handleStravaDisconnect() {
+  async function handleStravaSyncNow() {
+    try {
+      setIsSubmitting(true);
+      await forceSync();
+      await refreshStatus();
+      await refresh();
+    } catch (error) {
+      Alert.alert('Strava sync failed', error instanceof Error ? error.message : 'Unknown error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function performStravaDisconnect() {
     try {
       setIsSubmitting(true);
       await trpc.strava.disconnect.mutate();
@@ -259,8 +360,21 @@ export default function SettingsTab() {
     }
   }
 
-  async function handleUnitsChange(nextUnits: 'metric' | 'imperial') {
-    if (nextUnits === units || updatingUnits) return;
+  function confirmStravaDisconnect() {
+    Alert.alert('Disconnect Strava?', 'New runs will stop syncing until you reconnect.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Disconnect',
+        style: 'destructive',
+        onPress: () => {
+          void performStravaDisconnect();
+        },
+      },
+    ]);
+  }
+
+  async function handleUnitsChange(nextUnits: Units) {
+    if (nextUnits === units || preferenceBusy) return;
 
     try {
       await setUnits(nextUnits);
@@ -269,23 +383,41 @@ export default function SettingsTab() {
     }
   }
 
-  const busy = isLoading || isSubmitting || stravaSyncing || recoveryController.isMutatingRecovery;
-  const hasPlan = Boolean(plan);
-  const planSummary = plan ? `${plan.raceName} · ${plan.targetTime}` : 'No active plan.';
-  const weekSummary = plan ? `Week ${currentWeekIndex + 1} of ${plan.weeks.length}.` : 'No active block.';
-  async function handleMarkInjury(name: string) {
-    const didMarkInjury = await recoveryController.markInjury(name);
-    if (didMarkInjury) {
-      setRecoveryModalMode(null);
-      router.push('/(tabs)/home');
+  async function handleWeeklyVolumeMetricChange(nextMetric: WeeklyVolumeMetric) {
+    if (nextMetric === weeklyVolumeMetric || preferenceBusy) return;
+
+    try {
+      await setWeeklyVolumeMetric(nextMetric);
+    } catch (error) {
+      Alert.alert('Could not update weekly volume', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 
-  async function handleEndRecovery(option: { type: 'current' } | { type: 'choose'; weekNumber: number }) {
-    const didEndRecovery = await recoveryController.endRecovery({ option });
-    if (didEndRecovery) {
-      setRecoveryModalMode(null);
-      router.push('/(tabs)/home');
+  function openPlanBuilder() {
+    if (!plan) {
+      router.push('/onboarding/plan-builder/step-goal');
+      return;
+    }
+
+    Alert.alert('Replace plan?', 'You will build a new plan before anything changes.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Continue',
+        onPress: () => {
+          router.push('/onboarding/plan-builder/step-goal');
+        },
+      },
+    ]);
+  }
+
+  async function handleSendFeedback() {
+    const subject = encodeURIComponent('Steady feedback');
+    const body = encodeURIComponent(session?.user?.email ? `Account: ${session.user.email}\n\n` : '');
+
+    try {
+      await Linking.openURL(`mailto:${FEEDBACK_EMAIL}?subject=${subject}&body=${body}`);
+    } catch {
+      Alert.alert('Could not open email', `Send feedback to ${FEEDBACK_EMAIL}.`);
     }
   }
 
@@ -300,112 +432,43 @@ export default function SettingsTab() {
           paddingBottom: insets.bottom + SETTINGS_BOTTOM_SPACING,
         },
       ]}
+      showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
-        <Text style={styles.headerEyebrow}>MVP SETUP</Text>
         <Text style={styles.title}>Settings</Text>
-        <Text style={styles.subtitle}>Defaults, training, connections, and account.</Text>
-      </View>
-
-      <View style={styles.summaryCard} testID="settings-summary">
-        <Text style={styles.summaryEyebrow}>Overview</Text>
-        <View style={styles.summaryRows}>
-          <OverviewRow
-            label="Account"
-            detail={session?.user?.email ?? 'Sign in from Account to save settings.'}
-            value={session ? 'Signed in' : 'Idle'}
-            tone={session ? 'success' : 'neutral'}
-          />
-          <OverviewRow
-            label="Plan"
-            detail={planSummary}
-            value={hasPlan ? 'Active' : 'No plan'}
-            tone={hasPlan ? 'warm' : 'neutral'}
-          />
-          <OverviewRow
-            label="Week"
-            detail={weekSummary}
-            value={hasPlan ? `Week ${currentWeekIndex + 1}` : '—'}
-            tone={hasPlan ? 'warm' : 'neutral'}
-            showBorder={false}
-          />
-        </View>
       </View>
 
       <View style={styles.section}>
-        <SectionHeading
-          title="Preferences"
-          copy={session ? 'Choose how distance and pace display across the app.' : 'Sign in to save your display defaults.'}
-        />
-
-        {session ? (
-          <View style={styles.rowCard}>
-            <SelectionRow
-              title="Kilometres"
-              subtitle="Distance in km and pace per kilometre."
-              selected={units === 'metric'}
-              disabled={busy || preferencesLoading || updatingUnits}
-              onPress={() => {
-                void handleUnitsChange('metric');
-              }}
-            />
-            <SelectionRow
-              title="Miles"
-              subtitle="Distance in miles and pace per mile."
-              selected={units === 'imperial'}
-              disabled={busy || preferencesLoading || updatingUnits}
-              onPress={() => {
-                void handleUnitsChange('imperial');
-              }}
-              showBorder={false}
-            />
-          </View>
-        ) : (
-          <View style={styles.rowCard}>
-            <ActionRow
-              title="Units"
-              subtitle="Sign in before saving distance and pace defaults."
-              value="Locked"
-              showBorder={false}
-            />
-          </View>
-        )}
-
-        <Text style={styles.microCopy}>
-          {updatingUnits ? 'Updating defaults…' : 'Track rep distances stay in metres for now.'}
-        </Text>
+        <SectionLabel title="Plan" />
+        <PlanCard plan={plan} currentWeekIndex={currentWeekIndex} onOpenPlanBuilder={openPlanBuilder} />
       </View>
 
       <View style={styles.section}>
-        <SectionHeading
-          title="Training"
-          copy={hasPlan ? 'Keep plan actions close to hand.' : 'Build a test plan to unlock your training views.'}
-        />
+        <SectionLabel title="Activity sync" />
+        <View style={styles.card}>
+          <View style={styles.syncHead}>
+            <View style={styles.syncTitleLine}>
+              <Text style={styles.syncName}>Strava</Text>
+              <StatusText
+                label={stravaConnected ? 'Connected' : 'Not connected'}
+                connected={stravaConnected}
+              />
+            </View>
+            <LastSyncText lastSyncedAt={stravaConnected ? stravaStatus?.lastSyncedAt : null} />
+          </View>
 
-        <View style={styles.rowCard}>
-          <ActionRow
-            title="Plan builder"
-            subtitle={hasPlan ? 'Build a fresh test plan.' : 'Build your first test plan.'}
-            value="Open"
-            onPress={() => router.push('/onboarding/plan-builder/step-goal')}
-            showBorder={MVP_RECOVERY_UI_ENABLED}
+          <SettingsRow
+            title={!session ? 'Sign in to connect' : stravaConnected ? 'Sync now' : 'Connect Strava'}
+            onPress={!session ? handleGoogleSignIn : stravaConnected ? handleStravaSyncNow : handleStravaConnect}
+            disabled={busy || planLoading}
           />
-          {MVP_RECOVERY_UI_ENABLED ? (
-            <ActionRow
-              title="Recovery mode"
-              subtitle={
-                activeInjury
-                  ? `${activeInjury.name} active. Choose where to resume when ready.`
-                  : hasPlan
-                    ? 'Pause the current block and start recovery.'
-                    : 'Available after you build a plan.'
-              }
-              value={
-                !hasPlan ? 'Locked' : activeInjury ? 'Active' : planLoading || busy ? 'Working…' : 'Off'
-              }
-              tone={activeInjury ? 'warm' : 'neutral'}
-              onPress={hasPlan ? () => setRecoveryModalMode(activeInjury ? 'resume' : 'mark') : undefined}
-              disabled={!hasPlan || busy || planLoading}
+
+          {stravaConnected ? (
+            <SettingsRow
+              title="Disconnect Strava"
+              onPress={confirmStravaDisconnect}
+              disabled={busy}
+              tone="danger"
               showBorder={false}
             />
           ) : null}
@@ -413,94 +476,87 @@ export default function SettingsTab() {
       </View>
 
       <View style={styles.section}>
-        <SectionHeading
-          title="Connections"
-          copy={session ? 'Connect activity sync only when you need it.' : 'Sign in before connecting external services.'}
-        />
-
-        <View style={styles.rowCard}>
-          <ActionRow
-            title="Strava"
-            subtitle={
-              session
-                ? stravaStatus?.connected
-                  ? formatLastSync(stravaStatus.lastSyncedAt)
-                  : 'Connect when you want runs matched back to your plan.'
-                : 'Sign in before connecting activity sync.'
-            }
-            value={
-              !session
-                ? 'Locked'
-                : busy
-                  ? 'Working…'
-                  : stravaStatus?.connected
-                    ? 'Disconnect'
-                    : 'Connect'
-            }
-            tone={session && stravaStatus?.connected ? 'success' : 'neutral'}
-            onPress={
-              !session
-                ? undefined
-                : stravaStatus?.connected
-                  ? handleStravaDisconnect
-                  : handleStravaConnect
-            }
-            disabled={!session || busy}
-            showBorder={false}
+        <SectionLabel title="Units" />
+        <View style={styles.unitCard}>
+          <UnitSegment
+            title="Kilometres"
+            caption="Pace as /km."
+            selected={units === 'metric'}
+            disabled={preferenceBusy}
+            onPress={() => {
+              void handleUnitsChange('metric');
+            }}
+          />
+          <UnitSegment
+            title="Miles"
+            caption="Pace as /mi."
+            selected={units === 'imperial'}
+            disabled={preferenceBusy}
+            onPress={() => {
+              void handleUnitsChange('imperial');
+            }}
           />
         </View>
       </View>
 
       <View style={styles.section}>
-        <SectionHeading
-          title="Account"
-          copy={session ? 'Access is already set up on this device.' : 'Use Google to save plan, sync, and preferences.'}
-        />
-
-        {session ? (
-          <Pressable
-            testID="settings-sign-out"
-            onPress={handleSignOut}
-            disabled={busy}
-            style={({ pressed }) => [
-              styles.signOutRow,
-              busy ? styles.rowDisabled : null,
-              pressed && !busy ? styles.rowPressed : null,
-            ]}
-          >
-            <View style={styles.rowCopy}>
-              <Text style={styles.signOutTitle}>Sign out</Text>
-              <Text style={styles.signOutSubtitle}>Use a clean account state for testing on this device.</Text>
-            </View>
-            <Text style={styles.signOutValue}>{busy ? 'Working…' : 'Remove'}</Text>
-          </Pressable>
-        ) : (
-          <View style={styles.rowCard}>
-            <ActionRow
-              title="Google"
-              subtitle="Sign in to save your plan, units, and sync status."
-              value={busy ? 'Working…' : 'Continue'}
-              onPress={handleGoogleSignIn}
-              disabled={busy}
-              showBorder={false}
-            />
-          </View>
-        )}
+        <SectionLabel title="Weekly volume" />
+        <View style={styles.unitCard}>
+          <UnitSegment
+            title="Mileage"
+            caption="Distance on Home."
+            selected={weeklyVolumeMetric === 'distance'}
+            disabled={preferenceBusy}
+            onPress={() => {
+              void handleWeeklyVolumeMetricChange('distance');
+            }}
+          />
+          <UnitSegment
+            title="Time on feet"
+            caption="Duration on Home."
+            selected={weeklyVolumeMetric === 'time'}
+            disabled={preferenceBusy}
+            onPress={() => {
+              void handleWeeklyVolumeMetricChange('time');
+            }}
+          />
+        </View>
       </View>
 
-      {plan && MVP_RECOVERY_UI_ENABLED ? (
-        <RecoveryFlowModal
-          visible={recoveryModalMode !== null}
-          mode={recoveryModalMode ?? 'mark'}
-          plan={plan}
-          currentWeekNumber={plan.weeks[currentWeekIndex]?.weekNumber ?? 1}
-          injury={activeInjury}
-          busy={busy}
-          onClose={() => setRecoveryModalMode(null)}
-          onMarkInjury={handleMarkInjury}
-          onEndRecovery={handleEndRecovery}
-        />
-      ) : null}
+      <View style={styles.section}>
+        <SectionLabel title="Account" />
+        <View style={styles.card}>
+          {session ? (
+            <>
+              <View style={styles.accountEmail}>
+                <Text style={styles.emailLabel}>Signed in as</Text>
+                <Text style={styles.emailValue}>{session.user.email}</Text>
+              </View>
+              <SettingsRow
+                testID="settings-sign-out"
+                title="Sign out"
+                onPress={confirmSignOut}
+                disabled={busy}
+                tone="danger"
+              />
+            </>
+          ) : (
+            <SettingsRow
+              title="Sign in with Google"
+              onPress={handleGoogleSignIn}
+              disabled={busy}
+            />
+          )}
+
+          <SettingsRow
+            title="Send feedback"
+            onPress={() => {
+              void handleSendFeedback();
+            }}
+            showBorder={Boolean(session)}
+          />
+        </View>
+      </View>
     </ScrollView>
   );
 }
@@ -512,210 +568,266 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 18,
-    gap: 22,
+    gap: 14,
   },
   header: {
-    paddingHorizontal: 4,
-    gap: 4,
-  },
-  headerEyebrow: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 10,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    color: C.muted,
+    paddingHorizontal: 2,
+    paddingTop: 8,
+    paddingBottom: 4,
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
+    lineHeight: 30,
     fontFamily: FONTS.serifBold,
+    fontWeight: '600',
     color: C.ink,
-  },
-  subtitle: {
-    maxWidth: 320,
-    fontFamily: FONTS.sans,
-    fontSize: 13,
-    lineHeight: 20,
-    color: C.ink2,
-  },
-  summaryCard: {
-    backgroundColor: C.card,
-    borderColor: C.border,
-    borderWidth: 1,
-    borderRadius: 18,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    gap: 10,
-  },
-  summaryEyebrow: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 10,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: C.clay,
-  },
-  summaryRows: {
-    gap: 0,
-  },
-  overviewRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    paddingVertical: 12,
-  },
-  overviewLabel: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 11,
-    letterSpacing: 1.1,
-    textTransform: 'uppercase',
-    color: C.muted,
-  },
-  overviewDetail: {
-    marginTop: 4,
-    fontFamily: FONTS.sans,
-    fontSize: 13,
-    lineHeight: 19,
-    color: C.ink2,
   },
   section: {
-    gap: 8,
+    gap: 7,
   },
-  sectionHeading: {
-    paddingHorizontal: 4,
-    gap: 2,
-  },
-  sectionTitle: {
-    fontFamily: FONTS.serifBold,
-    fontSize: 20,
-    color: C.ink,
-  },
-  sectionCopy: {
-    fontFamily: FONTS.sans,
-    fontSize: 12,
-    lineHeight: 18,
+  sectionLabel: {
+    paddingHorizontal: 2,
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 10,
+    lineHeight: 12,
+    letterSpacing: 1.35,
+    textTransform: 'uppercase',
     color: C.muted,
   },
-  rowCard: {
+  card: {
+    overflow: 'hidden',
     backgroundColor: C.surface,
     borderColor: C.border,
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: 16,
+    borderWidth: 1.5,
+    borderRadius: 12,
   },
-  settingRow: {
+  planHead: {
+    padding: 12,
+  },
+  planKicker: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    paddingVertical: 15,
+    marginBottom: 7,
+  },
+  statusLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 999,
+  },
+  statusDotConnected: {
+    backgroundColor: C.forest,
+  },
+  statusDotIdle: {
+    backgroundColor: C.muted,
+  },
+  statusText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 11,
+    lineHeight: 14,
+  },
+  statusTextConnected: {
+    color: C.forest,
+  },
+  statusTextIdle: {
+    color: C.muted,
+  },
+  phaseName: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 10,
+    lineHeight: 12,
+    letterSpacing: 1.35,
+    textTransform: 'uppercase',
+    color: C.muted,
+  },
+  planTitle: {
+    fontFamily: FONTS.sansMedium,
+    fontSize: 18,
+    lineHeight: 22,
+    color: C.ink,
+  },
+  planMeta: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 8,
+  },
+  metaText: {
+    fontFamily: FONTS.sans,
+    fontSize: 12,
+    lineHeight: 16,
+    color: C.muted,
+  },
+  monoInline: {
+    fontFamily: FONTS.monoBold,
+    letterSpacing: 0,
+    color: C.ink2,
+  },
+  targetValue: {
+    color: C.navy,
+  },
+  weekValue: {
+    color: C.clay,
+  },
+  phaseStrip: {
+    flexDirection: 'row',
+    height: 8,
+    marginTop: 10,
+    overflow: 'hidden',
+    borderRadius: 999,
+    backgroundColor: C.border,
+  },
+  phaseSegment: {
+    minWidth: 2,
+  },
+  emptyPlanCopy: {
+    marginTop: 7,
+    fontFamily: FONTS.sans,
+    fontSize: 12,
+    lineHeight: 17,
+    color: C.muted,
+  },
+  settingsRow: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
   rowDivider: {
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
+    borderTopWidth: 1,
+    borderTopColor: C.border,
   },
   rowPressed: {
     opacity: 0.82,
   },
   rowDisabled: {
-    opacity: 0.6,
-  },
-  rowCopy: {
-    flex: 1,
+    opacity: 0.55,
   },
   rowTitle: {
-    fontFamily: FONTS.sansSemiBold,
+    flex: 1,
+    fontFamily: FONTS.sansMedium,
     fontSize: 14,
+    lineHeight: 18,
     color: C.ink,
   },
-  rowTitleSelected: {
-    color: C.amber,
+  rowTitleDanger: {
+    color: C.clay,
   },
-  rowSubtitle: {
-    marginTop: 4,
-    fontFamily: FONTS.sans,
-    fontSize: 12,
-    lineHeight: 18,
+  chevron: {
+    width: 22,
+    fontFamily: FONTS.sansMedium,
+    fontSize: 22,
+    lineHeight: 22,
+    textAlign: 'center',
     color: C.muted,
   },
-  metaPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: C.cream,
-    borderWidth: 1,
+  syncHead: {
+    padding: 12,
+  },
+  syncTitleLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  syncName: {
+    fontFamily: FONTS.sansMedium,
+    fontSize: 16,
+    lineHeight: 20,
+    color: C.ink,
+  },
+  syncMeta: {
+    marginTop: 7,
+    fontFamily: FONTS.sans,
+    fontSize: 12,
+    lineHeight: 17,
+    color: C.muted,
+  },
+  unitCard: {
+    flexDirection: 'row',
+    gap: 5,
+    padding: 5,
+    backgroundColor: C.surface,
     borderColor: C.border,
+    borderWidth: 1.5,
+    borderRadius: 12,
   },
-  metaPillSuccess: {
-    backgroundColor: C.forestBg,
-    borderColor: `${C.forest}20`,
+  unitSegment: {
+    flex: 1,
+    minHeight: 60,
+    padding: 10,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    borderRadius: 10,
+    backgroundColor: 'transparent',
   },
-  metaPillWarm: {
-    backgroundColor: C.amberBg,
-    borderColor: `${C.amber}30`,
+  unitSegmentSelected: {
+    borderColor: 'rgba(28, 21, 16, 0.22)',
+    backgroundColor: C.card,
   },
-  metaPillText: {
-    fontFamily: FONTS.monoBold,
-    fontSize: 10,
-    color: C.ink2,
+  unitTitleLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
   },
-  metaPillTextSuccess: {
-    color: C.forest,
+  unitTitle: {
+    flex: 1,
+    fontFamily: FONTS.sansMedium,
+    fontSize: 13,
+    lineHeight: 17,
+    color: C.ink,
   },
-  metaPillTextWarm: {
-    color: C.amber,
-  },
-  radioOuter: {
-    width: 18,
-    height: 18,
-    borderRadius: 999,
+  radio: {
+    width: 16,
+    height: 16,
     borderWidth: 1.5,
     borderColor: C.border,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: C.surface,
   },
-  radioOuterSelected: {
-    borderColor: C.amber,
+  radioSelected: {
+    borderColor: C.ink2,
   },
   radioInner: {
     width: 8,
     height: 8,
     borderRadius: 999,
-    backgroundColor: C.amber,
+    backgroundColor: C.ink2,
   },
-  microCopy: {
-    paddingHorizontal: 4,
+  unitCaption: {
+    marginTop: 6,
     fontFamily: FONTS.sans,
-    fontSize: 12,
+    fontSize: 11,
+    lineHeight: 15,
     color: C.muted,
   },
-  signOutRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 15,
-    backgroundColor: C.surface,
-    borderColor: '#F1D6D0',
-    borderWidth: 1,
-    borderRadius: 16,
+  accountEmail: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  signOutTitle: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 14,
-    color: '#A44330',
-  },
-  signOutSubtitle: {
-    marginTop: 4,
+  emailLabel: {
     fontFamily: FONTS.sans,
-    fontSize: 12,
-    lineHeight: 18,
-    color: '#B56A5A',
-  },
-  signOutValue: {
-    fontFamily: FONTS.monoBold,
     fontSize: 11,
-    color: '#A44330',
+    lineHeight: 14,
+    color: C.muted,
+  },
+  emailValue: {
+    marginTop: 5,
+    fontFamily: FONTS.sansMedium,
+    fontSize: 14,
+    lineHeight: 18,
+    color: C.ink,
   },
 });

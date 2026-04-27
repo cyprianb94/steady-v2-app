@@ -36,17 +36,41 @@ function createMockComponent(tag: string) {
     const {
       accessibilityRole: _accessibilityRole,
       accessibilityLabel: _accessibilityLabel,
+      accessibilityState: _accessibilityState,
       accessibilityIgnoresInvertColors: _accessibilityIgnoresInvertColors,
       delayLongPress: _delayLongPress,
       numberOfLines: _numberOfLines,
       onLayout: _onLayout,
       onPress,
+      onPressIn,
+      onPressOut,
       onLongPress,
       onTouchStart,
       onTouchMove,
       onTouchEnd,
+      onStartShouldSetResponder,
+      onMoveShouldSetResponder: _onMoveShouldSetResponder,
+      onResponderTerminationRequest: _onResponderTerminationRequest,
+      onResponderGrant,
+      onResponderMove,
+      onResponderRelease,
+      onResponderTerminate: _onResponderTerminate,
       ...rest
     } = props;
+    const nativeEvent = (event: any) => {
+      const pageX = event.clientX ?? event.pageX ?? 0;
+      const pageY = event.clientY ?? event.pageY ?? 0;
+
+      return {
+        nativeEvent: {
+          locationX: pageX,
+          locationY: pageY,
+          pageX,
+          pageY,
+        },
+      };
+    };
+
     return React.createElement(
       'div',
       {
@@ -55,11 +79,28 @@ function createMockComponent(tag: string) {
         style: resolved,
         onClick: onPress,
         onMouseDown: (event: any) => {
-          onTouchStart?.({ nativeEvent: { pageY: event.clientY ?? 0 } });
-          onLongPress?.({ nativeEvent: { pageY: event.clientY ?? 0 } });
+          const rnEvent = nativeEvent(event);
+          onPressIn?.(rnEvent);
+          onTouchStart?.(rnEvent);
+          const wantsResponder = onStartShouldSetResponder
+            ? onStartShouldSetResponder(rnEvent)
+            : Boolean(onResponderGrant);
+          if (wantsResponder) {
+            onResponderGrant?.(rnEvent);
+          }
+          onLongPress?.(rnEvent);
         },
-        onMouseMove: (event: any) => onTouchMove?.({ nativeEvent: { pageY: event.clientY ?? 0 } }),
-        onMouseUp: (event: any) => onTouchEnd?.({ nativeEvent: { pageY: event.clientY ?? 0 } }),
+        onMouseMove: (event: any) => {
+          const rnEvent = nativeEvent(event);
+          onTouchMove?.(rnEvent);
+          onResponderMove?.(rnEvent);
+        },
+        onMouseUp: (event: any) => {
+          const rnEvent = nativeEvent(event);
+          onTouchEnd?.(rnEvent);
+          onResponderRelease?.(rnEvent);
+          onPressOut?.(rnEvent);
+        },
         ...rest,
       },
       children,

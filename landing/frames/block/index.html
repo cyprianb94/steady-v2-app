@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Steady · Your body view</title>
+<link rel="stylesheet" href="../chooser/tokens.css" />
+<style>
+  html,
+  body {
+    width: 390px;
+    height: 754px;
+    min-height: 0;
+    background: transparent;
+    overflow: hidden;
+  }
+  body {
+    display: block;
+    padding: 0;
+  }
+  .screen {
+    width: 390px;
+    min-height: 754px;
+    background: transparent;
+    padding: 20px 18px 34px;
+  }
+  .eyebrow {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .title {
+    font-family: var(--serif);
+    font-size: 34px;
+    line-height: 1;
+    color: var(--ink);
+    margin-bottom: 18px;
+  }
+  .goal-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 16px;
+    box-shadow: var(--shadow-soft);
+    margin-bottom: 14px;
+  }
+  .goal-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .goal-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .goal-title {
+    font-family: var(--serif);
+    font-size: 24px;
+    line-height: 1.05;
+  }
+  .goal-time {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--forest);
+    white-space: nowrap;
+  }
+  .phase-strip {
+    display: grid;
+    grid-template-columns: 1.2fr 1.5fr 1fr 0.8fr;
+    gap: 5px;
+    height: 26px;
+  }
+  .phase {
+    border-radius: 999px;
+  }
+  .base { background: var(--navy); }
+  .build { background: var(--clay); }
+  .peak { background: var(--amber); }
+  .taper { background: var(--forest); }
+  .phase.low { background: var(--forest); }
+  .phase.watch { background: var(--amber); }
+  .phase.recovery { background: var(--clay); }
+  .phase.clear { background: var(--border); opacity: 0.65; }
+  .week-list {
+    display: grid;
+    gap: 9px;
+  }
+  .week {
+    background: rgba(253, 250, 245, 0.86);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 13px;
+  }
+  .week.current {
+    border-color: rgba(196, 82, 42, 0.32);
+    background: var(--clay-bg);
+  }
+  .week-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 9px;
+  }
+  .week-name {
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .week-km {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink2);
+  }
+  .mini-bars {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    align-items: end;
+    gap: 5px;
+    height: 54px;
+  }
+  .bar {
+    border-radius: 8px 8px 3px 3px;
+    background: var(--forest-bg);
+    border: 1px solid rgba(42, 92, 69, 0.12);
+  }
+  .bar.interval { background: var(--clay-bg); border-color: rgba(196, 82, 42, 0.14); }
+  .bar.tempo { background: var(--amber-bg); border-color: rgba(212, 136, 42, 0.16); }
+  .bar.long { background: var(--navy-bg); border-color: rgba(27, 58, 107, 0.14); }
+  .bar.rest { background: var(--border); opacity: 0.55; }
+  .bar.recovery { background: var(--clay-bg); border-color: rgba(196, 82, 42, 0.14); }
+  .bar.watch { background: var(--amber-bg); border-color: rgba(212, 136, 42, 0.16); }
+  .context {
+    margin-top: 12px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .pill {
+    border-radius: 999px;
+    padding: 6px 10px;
+    background: rgba(244, 239, 230, 0.78);
+    border: 1px solid var(--border);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ink2);
+  }
+</style>
+</head>
+<body>
+  <main class="screen">
+    <div class="eyebrow">Body log</div>
+    <h1 class="title">Your body</h1>
+
+    <section class="goal-card">
+      <div class="goal-top">
+        <div>
+          <div class="goal-label">Active recovery</div>
+          <div class="goal-title">Calf strain</div>
+        </div>
+        <div class="goal-time">Recovering</div>
+      </div>
+      <div class="phase-strip" aria-hidden="true">
+        <div class="phase recovery"></div>
+        <div class="phase watch"></div>
+        <div class="phase low"></div>
+        <div class="phase clear"></div>
+      </div>
+    </section>
+
+    <section class="week-list">
+      <div class="week">
+        <div class="week-head">
+          <div class="week-name">Niggle timeline</div>
+          <div class="week-km">7 days</div>
+        </div>
+        <div class="mini-bars">
+          <div class="bar" style="height: 18px;"></div>
+          <div class="bar watch" style="height: 30px;"></div>
+          <div class="bar recovery" style="height: 46px;"></div>
+          <div class="bar recovery" style="height: 42px;"></div>
+          <div class="bar watch" style="height: 32px;"></div>
+          <div class="bar" style="height: 24px;"></div>
+          <div class="bar" style="height: 18px;"></div>
+        </div>
+      </div>
+
+      <div class="week current">
+        <div class="week-head">
+          <div class="week-name">Return plan</div>
+          <div class="week-km">Step 1</div>
+        </div>
+        <div class="mini-bars">
+          <div class="bar" style="height: 18px;"></div>
+          <div class="bar" style="height: 24px;"></div>
+          <div class="bar watch" style="height: 30px;"></div>
+          <div class="bar watch" style="height: 34px;"></div>
+          <div class="bar" style="height: 38px;"></div>
+          <div class="bar" style="height: 44px;"></div>
+          <div class="bar long" style="height: 50px;"></div>
+        </div>
+        <div class="context">
+          <span class="pill">Walk/Jog 3km</span>
+          <span class="pill">Pain under 2/10</span>
+        </div>
+      </div>
+
+      <div class="week">
+        <div class="week-head">
+          <div class="week-name">Run context</div>
+          <div class="week-km">Logged</div>
+        </div>
+        <div class="mini-bars">
+          <div class="bar long" style="height: 50px;"></div>
+          <div class="bar watch" style="height: 28px;"></div>
+          <div class="bar" style="height: 34px;"></div>
+          <div class="bar" style="height: 38px;"></div>
+          <div class="bar rest" style="height: 16px;"></div>
+          <div class="bar" style="height: 36px;"></div>
+          <div class="bar long" style="height: 54px;"></div>
+        </div>
+        <div class="context">
+          <span class="pill">Fuel noted</span>
+          <span class="pill">Soreness tracked</span>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

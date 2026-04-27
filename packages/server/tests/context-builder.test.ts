@@ -12,6 +12,7 @@ const USER: User = {
   subscriptionTier: 'pro',
   timezone: 'Europe/London',
   units: 'metric',
+  weeklyVolumeMetric: 'distance',
 };
 
 function makeSession(

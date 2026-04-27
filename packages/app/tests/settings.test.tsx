@@ -1,6 +1,7 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { router } from 'expo-router';
+import { Alert } from 'react-native';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockAuth = {
@@ -38,9 +39,12 @@ vi.mock('../hooks/useStravaSync', () => ({
 
 const mockPreferences = {
   units: 'metric' as 'metric' | 'imperial',
+  weeklyVolumeMetric: 'distance' as 'distance' | 'time',
   loading: false,
   updatingUnits: false,
+  updatingWeeklyVolumeMetric: false,
   setUnits: vi.fn(),
+  setWeeklyVolumeMetric: vi.fn(),
 };
 
 vi.mock('../providers/preferences-context', () => ({
@@ -74,6 +78,7 @@ vi.mock('../components/recovery/RecoveryFlowModal', () => ({
 
 vi.mock('expo-linking', () => ({
   createURL: vi.fn(() => 'steady://strava-callback'),
+  openURL: vi.fn(),
 }));
 
 vi.mock('expo-web-browser', () => ({
@@ -106,18 +111,32 @@ describe('SettingsTab', () => {
     mockStrava.syncing = false;
 
     mockPreferences.units = 'metric';
+    mockPreferences.weeklyVolumeMetric = 'distance';
     mockPreferences.loading = false;
     mockPreferences.updatingUnits = false;
+    mockPreferences.updatingWeeklyVolumeMetric = false;
     mockPreferences.setUnits.mockResolvedValue(undefined);
+    mockPreferences.setWeeklyVolumeMetric.mockResolvedValue(undefined);
   });
 
-  it('keeps the overview canonical and the sections in the new order', () => {
+  it('shows the TestFlight settings hierarchy without future or internal surfaces', () => {
     mockAuth.session = { user: { email: 'runner@example.com' } };
     mockPlan.plan = {
       id: 'plan-1',
+      userId: 'user-1',
+      createdAt: '2026-04-01T00:00:00.000Z',
       raceName: 'Valencia Marathon',
+      raceDate: '2026-12-06',
+      raceDistance: 'Marathon',
       targetTime: '3:15',
-      weeks: [{ weekNumber: 1 }, { weekNumber: 2 }, { weekNumber: 3 }],
+      phases: { BASE: 1, BUILD: 2, RECOVERY: 0, PEAK: 0, TAPER: 0 },
+      progressionPct: 0,
+      templateWeek: [],
+      weeks: [
+        { weekNumber: 1, phase: 'BASE', sessions: [], plannedKm: 40 },
+        { weekNumber: 2, phase: 'BUILD', sessions: [], plannedKm: 44 },
+        { weekNumber: 3, phase: 'BUILD', sessions: [], plannedKm: 46 },
+      ],
       activeInjury: null,
     };
     mockPlan.currentWeekIndex = 1;
@@ -130,25 +149,37 @@ describe('SettingsTab', () => {
     render(<SettingsTab />);
 
     expect(screen.getAllByText('runner@example.com')).toHaveLength(1);
-    expect(screen.getByText('Valencia Marathon · 3:15')).toBeTruthy();
-    expect(screen.getByText('Week 2 of 3.')).toBeTruthy();
+    expect(screen.getByText('Valencia Marathon')).toBeTruthy();
+    expect(screen.getByText('3:15')).toBeTruthy();
+    expect(screen.getByTestId('settings-phase-strip')).toBeTruthy();
     expect(screen.getAllByText('Strava')).toHaveLength(1);
+
+    expect(screen.queryByTestId('settings-summary')).toBeNull();
+    expect(screen.queryByText('Overview')).toBeNull();
+    expect(screen.queryByText('MVP SETUP')).toBeNull();
     expect(screen.queryByText('Recovery mode')).toBeNull();
+    expect(screen.queryByText('Steady AI')).toBeNull();
+    expect(screen.queryByText('Coach')).toBeNull();
+    expect(screen.queryByText('Garmin')).toBeNull();
+    expect(screen.queryByText('Apple Health')).toBeNull();
+    expect(screen.queryByText('Subscription')).toBeNull();
+    expect(screen.queryByText('Preferences')).toBeNull();
+    expect(screen.queryByText('Training')).toBeNull();
+    expect(screen.queryByText('Connections')).toBeNull();
 
-    const preferences = screen.getByText('Preferences');
-    const training = screen.getByText('Training');
-    const connections = screen.getByText('Connections');
-    const account = screen.getAllByText('Account').at(-1);
+    const plan = screen.getByText('Plan');
+    const activitySync = screen.getByText('Activity sync');
+    const units = screen.getByText('Units');
+    const weeklyVolume = screen.getByText('Weekly volume');
+    const account = screen.getByText('Account');
 
-    expect(account).toBeTruthy();
-    expect(preferences.compareDocumentPosition(training) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(training.compareDocumentPosition(connections) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(connections.compareDocumentPosition(account!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(plan.compareDocumentPosition(activitySync) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(activitySync.compareDocumentPosition(units) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(units.compareDocumentPosition(weeklyVolume) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(weeklyVolume.compareDocumentPosition(account) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('updates units from the compact preference rows', async () => {
-    mockAuth.session = { user: { email: 'runner@example.com' } };
-
+  it('updates units from the segmented unit control without requiring sign in', async () => {
     render(<SettingsTab />);
 
     fireEvent.click(screen.getByText('Miles'));
@@ -158,16 +189,98 @@ describe('SettingsTab', () => {
     });
   });
 
-  it('keeps sign out as a separate low-emphasis account action', async () => {
+  it('updates the weekly volume metric from the segmented control without requiring sign in', async () => {
+    render(<SettingsTab />);
+
+    fireEvent.click(screen.getByText('Time on feet'));
+
+    await waitFor(() => {
+      expect(mockPreferences.setWeeklyVolumeMetric).toHaveBeenCalledWith('time');
+    });
+  });
+
+  it('requires confirmation before signing out', async () => {
+    const alertSpy = vi.spyOn(Alert, 'alert');
     mockAuth.session = { user: { email: 'runner@example.com' } };
 
     render(<SettingsTab />);
 
     fireEvent.click(screen.getByTestId('settings-sign-out'));
 
+    expect(mockAuth.signOut).not.toHaveBeenCalled();
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Sign out?',
+      expect.any(String),
+      expect.any(Array),
+    );
+
+    const buttons = alertSpy.mock.calls[0][2] as Array<{ onPress?: () => void }>;
+    await act(async () => {
+      buttons[1].onPress?.();
+      await Promise.resolve();
+    });
+
     await waitFor(() => {
       expect(mockAuth.signOut).toHaveBeenCalledTimes(1);
     });
     expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it('syncs a connected Strava account from the row action', async () => {
+    mockAuth.session = { user: { email: 'runner@example.com' } };
+    mockStrava.status = {
+      connected: true,
+      athleteId: '12345',
+      lastSyncedAt: '2026-04-15T08:30:00.000Z',
+    };
+    mockStrava.forceSync.mockResolvedValue(null);
+    mockStrava.refreshStatus.mockResolvedValue(mockStrava.status);
+    mockPlan.refresh.mockResolvedValue(undefined);
+
+    render(<SettingsTab />);
+
+    fireEvent.click(screen.getByText('Sync now'));
+
+    await waitFor(() => {
+      expect(mockStrava.forceSync).toHaveBeenCalledTimes(1);
+    });
+    expect(mockStrava.refreshStatus).toHaveBeenCalledTimes(1);
+    expect(mockPlan.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('requires confirmation before disconnecting Strava', async () => {
+    const alertSpy = vi.spyOn(Alert, 'alert');
+    mockAuth.session = { user: { email: 'runner@example.com' } };
+    mockStrava.status = {
+      connected: true,
+      athleteId: '12345',
+      lastSyncedAt: '2026-04-15T08:30:00.000Z',
+    };
+    mockTrpc.strava.disconnect.mutate.mockResolvedValue(null);
+    mockStrava.refreshStatus.mockResolvedValue({ connected: false, athleteId: null, lastSyncedAt: null });
+    mockPlan.refresh.mockResolvedValue(undefined);
+
+    render(<SettingsTab />);
+
+    fireEvent.click(screen.getByText('Disconnect Strava'));
+
+    expect(mockTrpc.strava.disconnect.mutate).not.toHaveBeenCalled();
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Disconnect Strava?',
+      expect.any(String),
+      expect.any(Array),
+    );
+
+    const buttons = alertSpy.mock.calls[0][2] as Array<{ onPress?: () => void }>;
+    await act(async () => {
+      buttons[1].onPress?.();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mockTrpc.strava.disconnect.mutate).toHaveBeenCalledTimes(1);
+    });
+    expect(mockStrava.refreshStatus).toHaveBeenCalledTimes(1);
+    expect(mockPlan.refresh).toHaveBeenCalledTimes(1);
   });
 });

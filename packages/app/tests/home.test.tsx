@@ -35,6 +35,17 @@ vi.mock('../hooks/usePlan', () => ({
 
 const mockActivityList = vi.hoisted(() => vi.fn());
 const mockActivityGet = vi.hoisted(() => vi.fn());
+const mockActivityMatchSession = vi.hoisted(() => vi.fn());
+const mockPlanUpdateWeeks = vi.hoisted(() => vi.fn());
+const mockPreferences = vi.hoisted(() => ({
+  units: 'metric' as 'metric' | 'imperial',
+  weeklyVolumeMetric: 'distance' as 'distance' | 'time',
+  loading: false,
+  updatingUnits: false,
+  updatingWeeklyVolumeMetric: false,
+  setUnits: vi.fn(),
+  setWeeklyVolumeMetric: vi.fn(),
+}));
 
 vi.mock('../lib/trpc', () => ({
   trpc: {
@@ -45,8 +56,20 @@ vi.mock('../lib/trpc', () => ({
       list: {
         query: mockActivityList,
       },
+      matchSession: {
+        mutate: mockActivityMatchSession,
+      },
+    },
+    plan: {
+      updateWeeks: {
+        mutate: mockPlanUpdateWeeks,
+      },
     },
   },
+}));
+
+vi.mock('../providers/preferences-context', () => ({
+  usePreferences: () => mockPreferences,
 }));
 
 import HomeScreen from '../app/(tabs)/home';
@@ -73,8 +96,19 @@ describe('HomeScreen', () => {
     mockPlan.refresh = vi.fn();
     mockActivityList.mockReset();
     mockActivityGet.mockReset();
+    mockActivityMatchSession.mockReset();
+    mockPlanUpdateWeeks.mockReset();
+    mockPreferences.units = 'metric';
+    mockPreferences.weeklyVolumeMetric = 'distance';
+    mockPreferences.loading = false;
+    mockPreferences.updatingUnits = false;
+    mockPreferences.updatingWeeklyVolumeMetric = false;
+    mockPreferences.setUnits.mockReset();
+    mockPreferences.setWeeklyVolumeMetric.mockReset();
     mockActivityList.mockReturnValue(new Promise(() => {}));
     mockActivityGet.mockResolvedValue(null);
+    mockActivityMatchSession.mockResolvedValue({});
+    mockPlanUpdateWeeks.mockResolvedValue({});
     vi.spyOn(Alert, 'alert').mockImplementation(() => {});
   });
 
@@ -85,6 +119,34 @@ describe('HomeScreen', () => {
   it('shows a loading indicator while auth is loading', () => {
     render(<HomeScreen />);
     expect(screen.getByTestId('home-loading')).toBeTruthy();
+  });
+
+  it('can transition from loading to a loaded weekly volume view', () => {
+    const week = {
+      weekNumber: 3,
+      phase: 'BASE' as const,
+      sessions: [null, null, null, null, null, null, null],
+      plannedKm: 40,
+    };
+
+    const { rerender } = render(<HomeScreen />);
+    expect(screen.getByTestId('home-loading')).toBeTruthy();
+
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-07-15',
+      coachAnnotation: 'Keep this one conversational.',
+    };
+    mockPlan.currentWeek = week;
+
+    rerender(<HomeScreen />);
+
+    expect(screen.getByTestId('weekly-volume-card')).toBeTruthy();
   });
 
   it('shows sign-in prompt when not authenticated', () => {
@@ -283,7 +345,7 @@ describe('HomeScreen', () => {
     expect(screen.queryByText('10km Tempo')).toBeNull();
   });
 
-  it('shows weekly load with actual and planned distance', async () => {
+  it('shows weekly volume with actual and planned distance', async () => {
     const week = {
       weekNumber: 3,
       phase: 'BUILD' as const,
@@ -326,14 +388,65 @@ describe('HomeScreen', () => {
 
     render(<HomeScreen />);
 
-    expect(await screen.findByText('WEEKLY LOAD')).toBeTruthy();
-    const weeklyLoadCard = screen.getByTestId('weekly-load-card');
-    expect(within(weeklyLoadCard).getByText('8.2km')).toBeTruthy();
-    expect(within(weeklyLoadCard).getByText('/ 50km')).toBeTruthy();
-    expect(weeklyLoadCard.getAttribute('style')).toContain('background-color: rgb(253, 250, 245)');
-    expect(weeklyLoadCard.getAttribute('style')).toContain('border-color: rgb(229, 221, 208)');
-    expect(weeklyLoadCard.getAttribute('style')).toContain('border-width: 1.5px');
-    expect(weeklyLoadCard.getAttribute('style')).toContain('margin-bottom: 16px');
+    expect(await screen.findByText('WEEKLY VOLUME')).toBeTruthy();
+    const weeklyVolumeCard = screen.getByTestId('weekly-volume-card');
+    expect(within(weeklyVolumeCard).getByText('8.2km')).toBeTruthy();
+    expect(within(weeklyVolumeCard).getByText('/ 50km')).toBeTruthy();
+    expect(within(weeklyVolumeCard).queryByText(/h\d{2}|\d+m/)).toBeNull();
+    expect(weeklyVolumeCard.getAttribute('style')).toContain('background-color: rgb(253, 250, 245)');
+    expect(weeklyVolumeCard.getAttribute('style')).toContain('border-color: rgb(229, 221, 208)');
+    expect(weeklyVolumeCard.getAttribute('style')).toContain('border-width: 1.5px');
+    expect(weeklyVolumeCard.getAttribute('style')).toContain('margin-bottom: 16px');
+  });
+
+  it('shows only time when weekly volume preference is time', async () => {
+    mockPreferences.weeklyVolumeMetric = 'time';
+    const week = {
+      weekNumber: 3,
+      phase: 'BUILD' as const,
+      sessions: [
+        { id: 'mon', type: 'EASY', date: '2026-04-06', distance: 8, pace: '5:20', actualActivityId: 'act-1' },
+        null,
+        null,
+        { id: 'thu', type: 'TEMPO', date: '2026-04-09', distance: 10, pace: '4:20' },
+        null,
+        { id: 'sat', type: 'EASY', date: '2026-04-11', distance: 12, pace: '5:15' },
+        { id: 'sun', type: 'LONG', date: '2026-04-12', distance: 20, pace: '5:05' },
+      ],
+      plannedKm: 50,
+    };
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-07-15',
+      coachAnnotation: 'Keep the first half controlled.',
+    };
+    mockPlan.currentWeek = week;
+    mockActivityList.mockResolvedValue([
+      {
+        id: 'act-1',
+        userId: '1',
+        source: 'strava',
+        externalId: 'strava-1',
+        startTime: '2026-04-06T07:00:00.000Z',
+        distance: 8.2,
+        duration: 2620,
+        avgPace: 320,
+        splits: [],
+        matchedSessionId: 'mon',
+      },
+    ]);
+
+    render(<HomeScreen />);
+
+    const weeklyVolumeCard = await screen.findByTestId('weekly-volume-card');
+    expect(within(weeklyVolumeCard).getByText('44min')).toBeTruthy();
+    expect(within(weeklyVolumeCard).getByText('/ 4h11')).toBeTruthy();
+    expect(within(weeklyVolumeCard).queryByText('8.2km')).toBeNull();
   });
 
   it('ignores a future linked-only long run in the current week load and remaining-days status', async () => {
@@ -400,9 +513,9 @@ describe('HomeScreen', () => {
       await Promise.resolve();
     });
 
-    const weeklyLoadCard = screen.getByTestId('weekly-load-card');
-    expect(within(weeklyLoadCard).getByText('21.5km')).toBeTruthy();
-    expect(within(weeklyLoadCard).queryByText('41.5km')).toBeNull();
+    const weeklyVolumeCard = screen.getByTestId('weekly-volume-card');
+    expect(within(weeklyVolumeCard).getByText('21.5km')).toBeTruthy();
+    expect(within(weeklyVolumeCard).queryByText('41.5km')).toBeNull();
     expect(screen.getAllByTestId('day-row-check')).toHaveLength(1);
     expect(screen.getAllByTestId('day-row-off-target')).toHaveLength(1);
   });
@@ -458,8 +571,8 @@ describe('HomeScreen', () => {
       await Promise.resolve();
     });
 
-    const weeklyLoadCard = screen.getByTestId('weekly-load-card');
-    expect(within(weeklyLoadCard).getByText('16km')).toBeTruthy();
+    const weeklyVolumeCard = screen.getByTestId('weekly-volume-card');
+    expect(within(weeklyVolumeCard).getByText('16km')).toBeTruthy();
     expect(screen.getAllByTestId('day-row-check')).toHaveLength(2);
     expect(screen.queryByTestId('day-row-warning')).toBeNull();
   });
@@ -611,7 +724,7 @@ describe('HomeScreen', () => {
     expect(screen.queryByTestId('coach-annotation')).toBeNull();
   });
 
-  it('does not open the Steady conversation from the planned today hero', () => {
+  it('opens the planned-session sheet from the planned today hero without routing to Steady conversation', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-06T12:00:00Z')); // Monday
     const today = '2026-04-06';
@@ -652,7 +765,205 @@ describe('HomeScreen', () => {
     render(<HomeScreen />);
 
     fireEvent.click(screen.getByTestId('hero-card'));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText('UNLOGGED')).toBeTruthy();
+    expect(screen.getByText('Planned session')).toBeTruthy();
     expect(mockRouterPush).not.toHaveBeenCalled();
+  });
+
+  it('opens the planned-session sheet from an upcoming This week row', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-06T12:00:00Z')); // Monday
+    const week = {
+      weekNumber: 3,
+      phase: 'BASE' as const,
+      sessions: [
+        {
+          id: 'mon-session',
+          type: 'EASY',
+          date: '2026-04-06',
+          distance: 8,
+          pace: '5:20',
+        },
+        {
+          id: 'tue-session',
+          type: 'INTERVAL',
+          date: '2026-04-07',
+          reps: 6,
+          repDist: 400,
+          pace: '3:55',
+          recovery: '90s',
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+      ],
+      plannedKm: 14.4,
+    };
+
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-07-15',
+      coachAnnotation: null,
+    };
+    mockPlan.currentWeek = week;
+    mockActivityList.mockResolvedValue([]);
+
+    render(<HomeScreen />);
+
+    fireEvent.click(screen.getAllByTestId('compact-day-row-pressable')[1]);
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText('PLANNED')).toBeTruthy();
+    expect(screen.getByText('Intervals')).toBeTruthy();
+    expect(screen.queryByText('Planned: 6×400m · 2.4km')).toBeNull();
+    expect(screen.getByText('Planned session')).toBeTruthy();
+    expect(screen.queryByText('Log session')).toBeNull();
+    expect(screen.queryByText('Mark skipped')).toBeNull();
+  });
+
+  it('opens skipped rows and can clear the skipped status from the sheet', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-09T12:00:00Z')); // Thursday
+    const week = {
+      weekNumber: 3,
+      phase: 'BASE' as const,
+      sessions: [
+        {
+          id: 'mon-session',
+          type: 'EASY',
+          date: '2026-04-06',
+          distance: 8,
+          pace: '5:20',
+          skipped: {
+            reason: 'busy' as const,
+            markedAt: '2026-04-06T12:00:00.000Z',
+          },
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+      ],
+      plannedKm: 8,
+    };
+
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-07-15',
+      coachAnnotation: null,
+    };
+    mockPlan.currentWeek = week;
+    mockActivityList.mockResolvedValue([]);
+
+    render(<HomeScreen />);
+
+    fireEvent.click(screen.getByTestId('compact-day-row-pressable'));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText('SKIPPED')).toBeTruthy();
+    expect(screen.getByText('Marked skipped: Busy')).toBeTruthy();
+    expect(screen.getByText('Log session instead')).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId('resolve-session-edit-skipped'));
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Edit skipped status',
+      'Change the reason or restore this run to planned.',
+      expect.any(Array),
+    );
+
+    const buttons = vi.mocked(Alert.alert).mock.calls.at(-1)?.[2] as Array<{ text: string; onPress?: () => void }>;
+    const clearButton = buttons.find((button) => button.text === 'Not skipped');
+    if (!clearButton?.onPress) {
+      throw new Error('Expected a Not skipped action');
+    }
+
+    await act(async () => {
+      clearButton.onPress?.();
+      await Promise.resolve();
+    });
+
+    const updateInput = mockPlanUpdateWeeks.mock.calls[0]?.[0];
+    expect(updateInput.weeks[0].sessions[0].skipped).toBeUndefined();
+    expect(mockPlan.refresh).toHaveBeenCalled();
+  });
+
+  it('hides the finished-run CTA for a skipped today session while keeping the hero inspectable', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-06T12:00:00Z')); // Monday
+    const week = {
+      weekNumber: 3,
+      phase: 'BASE' as const,
+      sessions: [
+        {
+          id: 'today-session',
+          type: 'EASY',
+          date: '2026-04-06',
+          distance: 8,
+          pace: '5:20',
+          skipped: {
+            reason: 'tired' as const,
+            markedAt: '2026-04-06T12:00:00.000Z',
+          },
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+      ],
+      plannedKm: 8,
+    };
+
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-07-15',
+      coachAnnotation: null,
+    };
+    mockPlan.currentWeek = week;
+    mockActivityList.mockResolvedValue([]);
+
+    render(<HomeScreen />);
+
+    expect(screen.queryByText('✓  I just finished this run')).toBeNull();
+    fireEvent.click(screen.getByTestId('hero-card'));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText('SKIPPED')).toBeTruthy();
+    expect(screen.getByText('Marked skipped: Tired')).toBeTruthy();
   });
 
   it('uses the weekday slot for today when saved session dates are out of range', () => {
@@ -1237,10 +1548,16 @@ describe('HomeScreen', () => {
     render(<HomeScreen />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('compact-day-row-pressable')).toBeTruthy();
+      expect(screen.getByText('8.2k')).toBeTruthy();
     });
+    const completedRow = screen
+      .getAllByTestId('compact-day-row-pressable')
+      .find((row) => within(row).queryByText('8.2k'));
+    if (!completedRow) {
+      throw new Error('Expected completed week row to be pressable');
+    }
 
-    fireEvent.click(screen.getByTestId('compact-day-row-pressable'));
+    fireEvent.click(completedRow);
     expect(mockRouterPush).toHaveBeenCalledWith('/sync-run/act-1');
   });
 
@@ -1312,7 +1629,14 @@ describe('HomeScreen', () => {
     });
     expect(screen.queryByTestId('day-row-warning')).toBeNull();
 
-    fireEvent.click(screen.getByTestId('compact-day-row-pressable'));
+    const offTargetRow = screen
+      .getAllByTestId('compact-day-row-pressable')
+      .find((row) => within(row).queryByText('8.4k'));
+    if (!offTargetRow) {
+      throw new Error('Expected off-target week row to be pressable');
+    }
+
+    fireEvent.click(offTargetRow);
     expect(mockRouterPush).toHaveBeenCalledWith('/sync-run/act-off-target');
   });
 

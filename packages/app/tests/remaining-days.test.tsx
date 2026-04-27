@@ -255,4 +255,50 @@ describe('RemainingDaysList', () => {
     fireEvent.click(screen.getAllByTestId('compact-day-row-pressable')[0]);
     expect(onSessionPress).toHaveBeenCalledWith(sessions[0], 'missed');
   });
+
+  it('makes today and future unlogged planned rows pressable so a new week is inspectable', () => {
+    const onSessionPress = vi.fn();
+    const sessions = DAYS.map((_, i) =>
+      makeSession(`2026-04-${String(6 + i).padStart(2, '0')}`),
+    );
+
+    renderRemainingDaysList({
+      sessions,
+      today: '2026-04-06',
+      weekStartDate: '2026-04-06',
+      onSessionPress,
+    });
+
+    const pressableRows = screen.getAllByTestId('compact-day-row-pressable');
+    expect(pressableRows).toHaveLength(7);
+
+    fireEvent.click(pressableRows[0]);
+    fireEvent.click(pressableRows[1]);
+    expect(onSessionPress).toHaveBeenNthCalledWith(1, sessions[0], 'today');
+    expect(onSessionPress).toHaveBeenNthCalledWith(2, sessions[1], 'upcoming');
+  });
+
+  it('makes skipped planned rows pressable so the skipped status can be edited', () => {
+    const onSessionPress = vi.fn();
+    const sessions = DAYS.map((_, i) =>
+      makeSession(`2026-04-${String(6 + i).padStart(2, '0')}`),
+    );
+    sessions[0] = {
+      ...sessions[0]!,
+      skipped: {
+        reason: 'busy',
+        markedAt: '2026-04-06T12:00:00.000Z',
+      },
+    };
+
+    renderRemainingDaysList({
+      sessions,
+      today: '2026-04-09',
+      weekStartDate: '2026-04-06',
+      onSessionPress,
+    });
+
+    fireEvent.click(screen.getAllByTestId('compact-day-row-pressable')[0]);
+    expect(onSessionPress).toHaveBeenCalledWith(sessions[0], 'skipped');
+  });
 });

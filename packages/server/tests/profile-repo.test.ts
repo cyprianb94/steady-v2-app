@@ -12,6 +12,7 @@ function makeUser(id: string, overrides?: Partial<User>): User {
     subscriptionTier: 'free',
     timezone: 'Europe/London',
     units: 'metric',
+    weeklyVolumeMetric: 'distance',
     ...overrides,
   };
 }
@@ -40,15 +41,21 @@ function runProfileRepoTests(name: string, createRepo: () => ProfileRepo) {
       expect(retrieved!.email).toBe('user-1@test.com');
       expect(retrieved!.subscriptionTier).toBe('free');
       expect(retrieved!.timezone).toBe('Europe/London');
+      expect(retrieved!.weeklyVolumeMetric).toBe('distance');
     });
 
     it('updates an existing profile via upsert', async () => {
       await repo.upsert(makeUser('user-1', { timezone: 'Europe/London' }));
-      await repo.upsert(makeUser('user-1', { timezone: 'America/New_York', units: 'imperial' }));
+      await repo.upsert(makeUser('user-1', {
+        timezone: 'America/New_York',
+        units: 'imperial',
+        weeklyVolumeMetric: 'time',
+      }));
 
       const retrieved = await repo.getById('user-1');
       expect(retrieved!.timezone).toBe('America/New_York');
       expect(retrieved!.units).toBe('imperial');
+      expect(retrieved!.weeklyVolumeMetric).toBe('time');
     });
 
     it('updates subscription tier and expiry', async () => {

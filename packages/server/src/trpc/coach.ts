@@ -31,6 +31,7 @@ function fallbackUser(userId: string) {
     subscriptionTier: 'free' as const,
     timezone: 'UTC',
     units: 'metric' as const,
+    weeklyVolumeMetric: 'distance' as const,
   };
 }
 

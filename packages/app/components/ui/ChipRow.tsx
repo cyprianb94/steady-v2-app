@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Pressable, Text, StyleSheet } from 'react-native';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
-import { triggerSelectionHaptic } from '../../lib/haptics';
+import { triggerSelectionChangeHaptic } from '../../lib/haptics';
 
 interface Chip {
   key: string;
@@ -25,7 +25,9 @@ export function ChipRow({ chips, selected, onSelect }: ChipRowProps) {
           <Pressable
             key={chip.key}
             onPress={() => {
-              triggerSelectionHaptic();
+              if (!active) {
+                triggerSelectionChangeHaptic();
+              }
               onSelect(chip.key);
             }}
             style={[

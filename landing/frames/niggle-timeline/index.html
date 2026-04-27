@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>01 · Niggle Timeline — "Share with Physio" entry point</title>
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  .screen { padding: 0; }
+  .scroll {
+    padding: 10px 14px 90px;
+    height: 100%;
+    overflow-y: auto;
+  }
+
+  /* Page title */
+  .page-header {
+    padding: 6px 2px 4px;
+  }
+  .page-meta {
+    font-family: var(--sans);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 3px;
+  }
+  .page-title {
+    font-family: var(--serif);
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.2;
+    margin-bottom: 4px;
+  }
+  .page-sub {
+    font-family: var(--sans);
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  /* Alert banner */
+  .trend-alert {
+    background: var(--amber-bg);
+    border: 1.5px solid rgba(212, 136, 42, 0.35);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .trend-alert .icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--amber);
+    color: var(--surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+    font-family: var(--sans);
+  }
+  .trend-alert .alert-text {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--ink);
+    line-height: 1.5;
+    font-weight: 500;
+  }
+  .trend-alert .alert-text strong {
+    font-weight: 700;
+    color: var(--amber);
+  }
+  .trend-alert .alert-sub {
+    font-family: var(--sans);
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* Timeline section */
+  .section-label {
+    font-family: var(--sans);
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    padding: 14px 4px 8px;
+  }
+
+  /* Niggle timeline cards */
+  .niggle-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .niggle-date-col {
+    width: 38px;
+    flex-shrink: 0;
+    text-align: center;
+    padding-top: 2px;
+  }
+  .niggle-date-col .day {
+    font-family: var(--mono);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .niggle-date-col .month {
+    font-family: var(--sans);
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-top: 2px;
+  }
+
+  .niggle-body {
+    flex: 1;
+    min-width: 0;
+  }
+  .niggle-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .niggle-part {
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .niggle-side {
+    font-family: var(--sans);
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .niggle-severity {
+    display: inline-block;
+    font-family: var(--sans);
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+  .niggle-severity.niggle-level {
+    color: var(--amber);
+    background: var(--amber-bg);
+    border: 1px solid rgba(212, 136, 42, 0.3);
+  }
+  .niggle-severity.mild {
+    color: var(--amber);
+    background: var(--amber-bg);
+    border: 1px solid rgba(212, 136, 42, 0.4);
+  }
+  .niggle-severity.moderate {
+    color: var(--clay);
+    background: var(--clay-bg);
+    border: 1px solid rgba(196, 82, 42, 0.3);
+  }
+
+  .niggle-context {
+    font-family: var(--sans);
+    font-size: 12px;
+    color: var(--ink2);
+    line-height: 1.5;
+    margin-top: 4px;
+  }
+  .niggle-context .session-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    margin-right: 4px;
+    vertical-align: middle;
+    position: relative;
+    top: -1px;
+  }
+  .niggle-context .run-ref {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .niggle-when {
+    font-family: var(--sans);
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+
+  /* Shoe tag */
+  .shoe-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--sans);
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  .shoe-tag .shoe-icon {
+    font-size: 11px;
+  }
+
+  /* CTA block */
+  .cta-block {
+    margin: 16px 0 8px;
+    padding: 0 2px;
+  }
+  .cta-block .cta {
+    padding: 15px 18px;
+    font-size: 15px;
+    background: var(--forest);
+    border-radius: 999px;
+  }
+  .cta-sub {
+    display: block;
+    text-align: center;
+    margin-top: 10px;
+    font-family: var(--sans);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.3px;
+    line-height: 1.5;
+  }
+
+  /* Tabbar */
+  .tabbar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 70px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    padding-bottom: 6px;
+  }
+  .tab {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px;
+    font-family: var(--sans);
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: capitalize;
+    font-weight: 500;
+  }
+  .tab .glyph { font-size: 18px; line-height: 1; }
+  .tab.active { color: var(--forest); font-weight: 600; }
+
+  /* Escalation connector */
+  .escalation {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 0 0 18px;
+    margin: -4px 0 -4px 0;
+  }
+  .escalation-line {
+    width: 2px;
+    height: 16px;
+    background: var(--amber);
+    border-radius: 1px;
+    opacity: 0.4;
+  }
+  .escalation-text {
+    font-family: var(--sans);
+    font-size: 9px;
+    color: var(--amber);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  body.embedded { background: transparent !important; padding: 0 !important; margin: 0 !important; overflow: hidden !important; }
+  body.embedded .annotations { display: none !important; }
+  body.embedded .phone-wrap { margin: 0 !important; }
+  body.embedded .phone {
+    width: 100% !important; height: auto !important; min-height: 100% !important;
+    border-radius: 0 !important; border: none !important; box-shadow: none !important;
+    background: transparent !important;
+  }
+  body.embedded .phone::before { display: none !important; }
+  body.embedded .status-bar { display: none !important; }
+  body.embedded .tabbar { display: none !important; }
+  body.embedded .screen { overflow: visible !important; }
+  body.embedded .scroll { overflow: visible !important; height: auto !important; flex: 0 0 auto !important; padding: 12px 14px 18px !important; }
+  body.embedded .frame-label { display: none !important; }
+</style>
+</head>
+<body>
+<script>if (window.self !== window.top) document.body.classList.add('embedded');</script>
+
+<div class="phone-wrap">
+  <span class="frame-label">01 · NIGGLE TIMELINE</span>
+  <div class="phone">
+
+    <div class="status-bar">
+      <span>9:41</span>
+      <span class="icons">◉ ▪ ▯</span>
+    </div>
+
+    <div class="screen">
+      <div class="scroll">
+
+        <!-- Page header -->
+        <div class="page-header">
+          <div class="page-meta">MAR 17 – APR 12 · 2026</div>
+          <div class="page-title">Your Body</div>
+          <div class="page-sub">Niggles, patterns, and what your physio needs to know.</div>
+        </div>
+
+        <!-- Trend alert -->
+        <div class="trend-alert">
+          <div class="icon">!</div>
+          <div>
+            <div class="alert-text"><strong>Left hamstring</strong> flagged 4× in 3 weeks</div>
+            <div class="alert-sub">Severity increasing: niggle → mild → mild → moderate</div>
+          </div>
+        </div>
+
+        <!-- Timeline -->
+        <div class="section-label">RECENT NIGGLES</div>
+
+        <!-- Niggle 1 — most recent -->
+        <div class="niggle-card">
+          <div class="niggle-date-col">
+            <div class="day">10</div>
+            <div class="month">Apr</div>
+          </div>
+          <div class="niggle-body">
+            <div class="niggle-top">
+              <span class="niggle-part">Hamstring</span>
+              <span class="niggle-side">Left</span>
+              <span class="niggle-severity moderate">Moderate</span>
+            </div>
+            <div class="niggle-context">
+              <span class="session-dot" style="background: var(--clay);"></span>
+              5×800m Intervals
+              <span class="run-ref">· 9.1km · 4:02/km</span>
+            </div>
+            <div class="niggle-when">Felt during, eased off after rep 4</div>
+            <div class="shoe-tag">
+              <span class="shoe-icon">👟</span> Nike Vomero 18 · 342km
+            </div>
+          </div>
+        </div>
+
+        <!-- Escalation indicator -->
+        <div class="escalation">
+          <div class="escalation-line"></div>
+          <span class="escalation-text">Severity up</span>
+        </div>
+
+        <!-- Niggle 2 -->
+        <div class="niggle-card">
+          <div class="niggle-date-col">
+            <div class="day">05</div>
+            <div class="month">Apr</div>
+          </div>
+          <div class="niggle-body">
+            <div class="niggle-top">
+              <span class="niggle-part">Hamstring</span>
+              <span class="niggle-side">Left</span>
+              <span class="niggle-severity mild">Mild</span>
+            </div>
+            <div class="niggle-context">
+              <span class="session-dot" style="background: var(--navy);"></span>
+              16km Long Run
+              <span class="run-ref">· 16.4km · 5:18/km</span>
+            </div>
+            <div class="niggle-when">Felt during, ran through it</div>
+            <div class="shoe-tag">
+              <span class="shoe-icon">👟</span> ASICS Novablast 4 · 218km
+            </div>
+          </div>
+        </div>
+
+        <!-- Niggle 3 -->
+        <div class="niggle-card">
+          <div class="niggle-date-col">
+            <div class="day">01</div>
+            <div class="month">Apr</div>
+          </div>
+          <div class="niggle-body">
+            <div class="niggle-top">
+              <span class="niggle-part">Hamstring</span>
+              <span class="niggle-side">Left</span>
+              <span class="niggle-severity mild">Mild</span>
+            </div>
+            <div class="niggle-context">
+              <span class="session-dot" style="background: var(--forest);"></span>
+              Easy 8km
+              <span class="run-ref">· 8.2km · 5:35/km</span>
+            </div>
+            <div class="niggle-when">Felt after cooldown</div>
+            <div class="shoe-tag">
+              <span class="shoe-icon">👟</span> Nike Vomero 18 · 328km
+            </div>
+          </div>
+        </div>
+
+        <!-- Niggle 4 — different body part -->
+        <div class="niggle-card">
+          <div class="niggle-date-col">
+            <div class="day">24</div>
+            <div class="month">Mar</div>
+          </div>
+          <div class="niggle-body">
+            <div class="niggle-top">
+              <span class="niggle-part">Calf</span>
+              <span class="niggle-side">Right</span>
+              <span class="niggle-severity niggle-level">Niggle</span>
+            </div>
+            <div class="niggle-context">
+              <span class="session-dot" style="background: var(--amber);"></span>
+              8km Tempo
+              <span class="run-ref">· 8.1km · 4:28/km</span>
+            </div>
+            <div class="niggle-when">Noticed at km 6, gone by evening</div>
+            <div class="shoe-tag">
+              <span class="shoe-icon">👟</span> Nike Vomero 18 · 312km
+            </div>
+          </div>
+        </div>
+
+        <!-- Share with Physio CTA -->
+        <div class="cta-block">
+          <button class="cta" style="background: var(--forest); color: var(--surface); border: none; display: block; width: 100%; font-family: var(--sans); font-weight: 600; text-align: center; cursor: pointer;">📋 &nbsp; Share with Physio</button>
+          <span class="cta-sub">Generates a PDF report with your run history,<br/>niggles, shoes, and trend analysis</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Tabbar -->
+    <div class="tabbar">
+      <div class="tab"><span class="glyph">●</span>Home</div>
+      <div class="tab"><span class="glyph">◱</span>Block</div>
+      <div class="tab"><span class="glyph">⚙</span>Settings</div>
+    </div>
+
+  </div>
+</div>
+
+<aside class="annotations">
+  <h3>01 · Niggle Timeline</h3>
+  <ul>
+    <li><b>The problem it solves:</b> Every physio appointment begins with 15–20 minutes of "When did it start? Which runs? Show me on Strava." Runners struggle to recall specifics — when the pain started, which sessions made it worse, what shoes they wore. The physio is working from incomplete, verbal data.</li>
+    <li><b>Why this screen matters:</b> This is where the runner sees their body data accumulating into something useful. Each niggle is captured in context — the session it happened on, the shoe, the pace, the severity. Over weeks, a story emerges that no one could reconstruct from memory.</li>
+    <li><b>The trend alert</b> surfaces patterns automatically. "Left hamstring flagged 4× in 3 weeks, severity increasing" — this is the kind of insight that might take a physio several questions to extract verbally. Here it's visible at a glance.</li>
+    <li><b>Escalation connectors</b> between same-body-part entries make severity progression visual. The physio can immediately see the trajectory — was it getting worse gradually or did it jump?</li>
+    <li><b>Shoe data</b> on every niggle entry is deliberate. Many running injuries correlate with shoe mileage or rotation patterns. A physio seeing "Nike Vomero 18 · 342km" next to a hamstring issue gets context they'd never think to ask for.</li>
+    <li><b>Session type and metrics</b> give the physio biomechanical context. A niggle during 5×800m intervals at 4:02/km tells a completely different story than one during an easy 8km at 5:35/km. Intensity matters for diagnosis.</li>
+    <li><b>"Share with Physio" CTA</b> uses forest green — a positive, health-associated action — rather than the injury-warning clay/amber. The message: this is a constructive step, not an alarm.</li>
+    <li><b>For the landing page:</b> This screen shows the depth of data Steady quietly collects through simple post-run check-ins. The value proposition: "You already log this. Now it works for you when you need it most."</li>
+  </ul>
+</aside>
+
+</body>
+</html>

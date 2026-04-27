@@ -12,6 +12,7 @@ function fallbackUser(userId: string) {
     subscriptionTier: 'free' as const,
     timezone: 'UTC',
     units: 'metric' as const,
+    weeklyVolumeMetric: 'distance' as const,
   };
 }
 
@@ -24,9 +25,15 @@ export function createProfileRouter(profileRepo: ProfileRepo) {
 
     updatePreferences: authedProcedure
       .input(
-        z.object({
-          units: z.enum(['metric', 'imperial']),
-        }),
+        z
+          .object({
+            units: z.enum(['metric', 'imperial']).optional(),
+            weeklyVolumeMetric: z.enum(['time', 'distance']).optional(),
+          })
+          .refine(
+            (input) => input.units !== undefined || input.weeklyVolumeMetric !== undefined,
+            'Provide at least one preference to update',
+          ),
       )
       .mutation(async ({ ctx, input }) => {
         const profile = await profileRepo.getById(ctx.userId);
@@ -36,7 +43,8 @@ export function createProfileRouter(profileRepo: ProfileRepo) {
 
         return profileRepo.upsert({
           ...profile,
-          units: input.units,
+          units: input.units ?? profile.units,
+          weeklyVolumeMetric: input.weeklyVolumeMetric ?? profile.weeklyVolumeMetric,
         });
       }),
   });

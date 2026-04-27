@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Steady · Home view</title>
+<link rel="stylesheet" href="../chooser/tokens.css" />
+<style>
+  html,
+  body {
+    width: 390px;
+    height: 754px;
+    min-height: 0;
+    background: transparent;
+    overflow: hidden;
+  }
+  body {
+    display: block;
+    padding: 0;
+  }
+  .screen {
+    width: 390px;
+    min-height: 754px;
+    background: transparent;
+    padding: 20px 18px 34px;
+  }
+  .eyebrow {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .title {
+    font-family: var(--serif);
+    font-size: 34px;
+    line-height: 1;
+    color: var(--ink);
+    margin-bottom: 18px;
+  }
+  .week-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 16px;
+    box-shadow: var(--shadow-soft);
+    margin-bottom: 14px;
+  }
+  .week-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 12px;
+  }
+  .week-label {
+    font-family: var(--serif);
+    font-size: 23px;
+    line-height: 1.05;
+  }
+  .week-meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--forest);
+    white-space: nowrap;
+  }
+  .load-bar {
+    height: 8px;
+    border-radius: 999px;
+    background: var(--border);
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+  .load-fill {
+    width: 73%;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--forest);
+  }
+  .today {
+    background: var(--clay-bg);
+    border: 1px solid rgba(196, 82, 42, 0.22);
+    border-radius: 16px;
+    padding: 14px;
+  }
+  .today-kicker {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--clay);
+    margin-bottom: 8px;
+  }
+  .today-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .today-title {
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .today-data {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .today-sub {
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--ink2);
+  }
+  .list {
+    display: grid;
+    gap: 8px;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 42px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    background: rgba(253, 250, 245, 0.82);
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    padding: 12px;
+  }
+  .row.easy { background: var(--forest-bg); border-color: rgba(42, 92, 69, 0.16); }
+  .row.interval { background: var(--clay-bg); border-color: rgba(196, 82, 42, 0.14); }
+  .row.tempo { background: var(--amber-bg); border-color: rgba(212, 136, 42, 0.16); }
+  .day {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .session {
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .detail {
+    margin-top: 2px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink2);
+  }
+  .status {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--forest);
+  }
+</style>
+</head>
+<body>
+  <main class="screen">
+    <div class="eyebrow">Home</div>
+    <h1 class="title">This week</h1>
+
+    <section class="week-card">
+      <div class="week-top">
+        <div>
+          <div class="week-label">Week 14</div>
+          <div class="today-sub">Build phase · Apr 6-12</div>
+        </div>
+        <div class="week-meta">42.5km / 58km</div>
+      </div>
+      <div class="load-bar"><div class="load-fill"></div></div>
+
+      <div class="today">
+        <div class="today-kicker">Today</div>
+        <div class="today-main">
+          <div class="today-title">Tempo</div>
+          <div class="today-data">10km @ 4:20</div>
+        </div>
+        <div class="today-sub">Move it, edit it, or mark what actually happened.</div>
+      </div>
+    </section>
+
+    <section class="list">
+      <div class="row easy">
+        <div class="day">Mon</div>
+        <div>
+          <div class="session">Easy Run</div>
+          <div class="detail">8km @ 5:30/km</div>
+        </div>
+        <div class="status">✓</div>
+      </div>
+      <div class="row interval">
+        <div class="day">Tue</div>
+        <div>
+          <div class="session">Intervals</div>
+          <div class="detail">6x800m @ 3:50</div>
+        </div>
+        <div class="status" style="color: var(--amber);">●</div>
+      </div>
+      <div class="row easy">
+        <div class="day">Wed</div>
+        <div>
+          <div class="session">Easy Run</div>
+          <div class="detail">8km @ 5:30/km</div>
+        </div>
+        <div class="status">✓</div>
+      </div>
+      <div class="row tempo">
+        <div class="day">Thu</div>
+        <div>
+          <div class="session">Tempo</div>
+          <div class="detail">10km @ 4:20/km</div>
+        </div>
+        <div class="status" style="color: var(--clay);">→</div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

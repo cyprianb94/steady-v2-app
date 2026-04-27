@@ -12,7 +12,11 @@ import {
 import { useIsFocused } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { PlannedSession, SkippedSessionReason } from '@steady/types';
+import {
+  buildWeeklyVolumeSummary,
+  type PlannedSession,
+  type SkippedSessionReason,
+} from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { useAuth } from '../../lib/auth';
@@ -27,13 +31,13 @@ import { RemainingDaysList } from '../../components/home/RemainingDaysList';
 import { CoachAnnotationCard } from '../../components/home/CoachAnnotationCard';
 import { FinishedRunCta } from '../../components/home/FinishedRunCta';
 import { NiggleBanner } from '../../components/home/NiggleBanner';
-import { WeeklyLoadCard } from '../../components/home/WeeklyLoadCard';
+import { WeeklyVolumeCard } from '../../components/home/WeeklyLoadCard';
 import { ResolveSessionSheet } from '../../components/home/ResolveSessionSheet';
 import { InjuryBanner } from '../../components/recovery/InjuryBanner';
 import { CrossTrainingLog } from '../../components/recovery/CrossTrainingLog';
 import { ReturnToRunning } from '../../components/recovery/ReturnToRunning';
 import { RecoveryFlowModal } from '../../components/recovery/RecoveryFlowModal';
-import { addDaysIso, findSessionForDateOrWeekday } from '../../lib/plan-helpers';
+import { addDaysIso, dayIndexForIsoDate, findSessionForDateOrWeekday } from '../../lib/plan-helpers';
 import { useActivityResolution } from '../../features/run/use-activity-resolution';
 import type { ActivityDayStatus } from '../../features/run/activity-resolution';
 import { useRunDetailNavigation } from '../../features/run/use-run-detail-navigation';
@@ -44,12 +48,18 @@ import { usePlanRefreshCoordinator } from '../../features/sync/use-plan-refresh-
 import { buildCurrentDisplayWeek, resolveDisplayWeekStartDate } from '../../features/run/display-week';
 import {
   canOpenResolveSessionSheet,
+  clearSessionSkippedInWeeks,
   markSessionSkippedInWeeks,
   possibleActivityMatchesForSession,
 } from '../../features/home/resolve-session';
 
 const HOME_SCROLL_TOP_PADDING = 14;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+
+interface ResolvingSessionState {
+  session: PlannedSession;
+  status: ActivityDayStatus;
+}
 
 function formatWeekRangeLabel(weekStartDate: string): string {
   const start = new Date(`${weekStartDate}T00:00:00Z`);
@@ -71,7 +81,7 @@ export default function HomeScreen() {
   const { forceSync, syncRevision, syncing } = useStravaSync();
   const [recoveryModalMode, setRecoveryModalMode] = useState<'mark' | 'resume' | null>(null);
   const [resumeFlowKind, setResumeFlowKind] = useState<'manual' | 'complete-step'>('manual');
-  const [resolvingSession, setResolvingSession] = useState<PlannedSession | null>(null);
+  const [resolvingSession, setResolvingSession] = useState<ResolvingSessionState | null>(null);
   const [resolveSessionBusy, setResolveSessionBusy] = useState(false);
   const today = useTodayIso();
   const weekStartDate = currentWeek ? resolveDisplayWeekStartDate(currentWeek, today) : null;
@@ -118,8 +128,8 @@ export default function HomeScreen() {
     activityIdForSession: activityResolution.activityIdForSession,
   });
   const possibleResolveMatches = useMemo(
-    () => (resolvingSession
-      ? possibleActivityMatchesForSession(resolvingSession, activityResolution.activities)
+    () => (resolvingSession && resolvingSession.status !== 'upcoming'
+      ? possibleActivityMatchesForSession(resolvingSession.session, activityResolution.activities)
       : []),
     [activityResolution.activities, resolvingSession],
   );
@@ -185,18 +195,28 @@ export default function HomeScreen() {
   const displayWeek = buildCurrentDisplayWeek(week, today);
   const weekSessions = displayWeek.sessions;
   const todaySession = findSessionForDateOrWeekday(weekSessions, today);
+  const todayIndex = dayIndexForIsoDate(today);
+  const todayStatus = activityResolution.statusForDay(todaySession, todayIndex, todayIndex);
   const todayActivity = activityResolution.activityForSession(todaySession);
-  const weeklyActualKm = activityResolution.weekActualKm(weekSessions);
+  const weeklyVolumeSummary = buildWeeklyVolumeSummary({
+    sessions: weekSessions,
+    activities: activityResolution.activities,
+    today,
+    weekStartDate: resolvedWeekStartDate,
+  });
   const showFinishedRunCta = Boolean(
     todaySession
     && todaySession.type !== 'REST'
+    && !todaySession.skipped
     && !activityResolution.isSessionComplete(todaySession),
   );
   const steadyNote = todaySession ? (plan.todayAnnotation ?? plan.coachAnnotation ?? null) : null;
   const coachNote = plan.coachAnnotation && plan.coachAnnotation === steadyNote ? null : plan.coachAnnotation;
   const handleTodayHeroPress = runDetailNavigation.canOpenRunDetail(todaySession)
     ? () => runDetailNavigation.openRunDetail(todaySession)
-    : undefined;
+    : canOpenResolveSessionSheet(todaySession, todayStatus)
+      ? () => setResolvingSession({ session: todaySession, status: todayStatus })
+      : undefined;
   const handleReviewRunPress = runDetailNavigation.canOpenRunDetail(todaySession)
     ? () => runDetailNavigation.openRunDetail(todaySession)
     : undefined;
@@ -208,7 +228,7 @@ export default function HomeScreen() {
     }
 
     if (canOpenResolveSessionSheet(session, status)) {
-      setResolvingSession(session);
+      setResolvingSession({ session, status });
     }
   }
 
@@ -259,6 +279,29 @@ export default function HomeScreen() {
     }
   }
 
+  async function clearSessionSkipped(sessionToClear: PlannedSession) {
+    if (!plan) {
+      return;
+    }
+
+    try {
+      setResolveSessionBusy(true);
+      await trpc.plan.updateWeeks.mutate({
+        weeks: clearSessionSkippedInWeeks({
+          weeks: plan.weeks,
+          sessionId: sessionToClear.id,
+        }),
+      });
+      setResolvingSession(null);
+      await refresh();
+    } catch (error) {
+      console.warn('Failed to clear skipped status from Home:', error);
+      Alert.alert('Could not update skipped status', 'Please try again in a moment.');
+    } finally {
+      setResolveSessionBusy(false);
+    }
+  }
+
   function handleMarkSkipped(sessionToSkip: PlannedSession) {
     Alert.alert(
       'Mark skipped?',
@@ -270,6 +313,22 @@ export default function HomeScreen() {
         { text: 'Busy', onPress: () => { void markSessionSkipped(sessionToSkip, 'busy'); } },
         { text: 'Sore', onPress: () => { void markSessionSkipped(sessionToSkip, 'sore'); } },
         { text: 'Other', onPress: () => { void markSessionSkipped(sessionToSkip, 'other'); } },
+      ],
+    );
+  }
+
+  function handleEditSkippedStatus(sessionToEdit: PlannedSession) {
+    Alert.alert(
+      'Edit skipped status',
+      'Change the reason or restore this run to planned.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Not skipped', onPress: () => { void clearSessionSkipped(sessionToEdit); } },
+        { text: 'Tired', onPress: () => { void markSessionSkipped(sessionToEdit, 'tired'); } },
+        { text: 'Ill', onPress: () => { void markSessionSkipped(sessionToEdit, 'ill'); } },
+        { text: 'Busy', onPress: () => { void markSessionSkipped(sessionToEdit, 'busy'); } },
+        { text: 'Sore', onPress: () => { void markSessionSkipped(sessionToEdit, 'sore'); } },
+        { text: 'Other', onPress: () => { void markSessionSkipped(sessionToEdit, 'other'); } },
       ],
     );
   }
@@ -378,7 +437,7 @@ export default function HomeScreen() {
             </>
           ) : (
             <>
-              <WeeklyLoadCard actualKm={weeklyActualKm} plannedKm={week.plannedKm} />
+              <WeeklyVolumeCard summary={weeklyVolumeSummary} focused={isFocused} />
               <TodayHeroCard
                 session={todaySession}
                 activity={todayActivity}
@@ -407,12 +466,14 @@ export default function HomeScreen() {
         </ScrollView>
         <ResolveSessionSheet
           open={Boolean(resolvingSession)}
-          session={resolvingSession}
+          session={resolvingSession?.session ?? null}
+          status={resolvingSession?.status ?? 'missed'}
           possibleMatches={possibleResolveMatches}
           busy={resolveSessionBusy}
           onDismiss={() => setResolvingSession(null)}
           onLogSession={handleOpenSessionLog}
           onMarkSkipped={handleMarkSkipped}
+          onEditSkipped={handleEditSkippedStatus}
           onAttachMatch={handleAttachActivityToSession}
         />
         {MVP_RECOVERY_UI_ENABLED ? (

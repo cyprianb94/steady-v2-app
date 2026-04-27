@@ -33,8 +33,9 @@ export function applyActivityMatchToWeeks(
         return session;
       }
 
+      const { skipped: _skipped, ...sessionWithoutSkipped } = session;
       return {
-        ...session,
+        ...sessionWithoutSkipped,
         actualActivityId: activityId,
       };
     }),

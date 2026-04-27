@@ -25,6 +25,7 @@ function getRedirectTo() {
   // Linking.createURL picks the correct scheme automatically:
   // - Expo Go: exp://{hostUri}/--/auth/callback
   // - Dev build / production: steady://auth/callback
+  // - Preview build: steady-preview://auth/callback
   return Linking.createURL('auth/callback');
 }
 

@@ -10,10 +10,10 @@ import {
   View,
   type DimensionValue,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
 import type { RunFuelEvent, RunFuelGel } from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
+import { triggerSegmentTickHaptic, triggerSelectionChangeHaptic } from '../../lib/haptics';
 import { GEL_BRANDS, gelsForBrand, searchBrands } from '../../features/fuelling/gel-catalogue';
 import {
   createFuelEvent,
@@ -58,10 +58,6 @@ function uniqueBrands(brands: string[]): string[] {
   return unique;
 }
 
-function triggerSelectionHaptic() {
-  void Haptics.selectionAsync().catch(() => undefined);
-}
-
 function FuelMinuteSlider({ maxMinute, minute, events, onDragChange, onChange }: FuelMinuteSliderProps) {
   const trackRef = useRef<View>(null);
   const trackFrameRef = useRef({ x: 0, width: 0, measured: false });
@@ -81,21 +77,24 @@ function FuelMinuteSlider({ maxMinute, minute, events, onDragChange, onChange }:
 
   useEffect(() => () => onDragChange?.(false), [onDragChange]);
 
-  const emitMinuteChange = (nextMinute: number, withHaptic = false) => {
+  const emitMinuteChange = (nextMinute: number, haptic: 'none' | 'selection' | 'tick' = 'none') => {
     const clamped = clampMinute(nextMinute, maxMinute);
-    if (clamped === minute) return;
+    if (clamped === minute) return false;
 
     onChange(clamped);
-    if (withHaptic && clamped % 5 === 0 && clamped !== lastHapticMinuteRef.current) {
+    if (haptic === 'selection') {
+      triggerSelectionChangeHaptic();
+    } else if (haptic === 'tick' && clamped % 5 === 0 && clamped !== lastHapticMinuteRef.current) {
       lastHapticMinuteRef.current = clamped;
-      triggerSelectionHaptic();
+      triggerSegmentTickHaptic();
     }
+    return true;
   };
 
   const updateFromX = (x: number, width = trackWidth) => {
     if (!width || maxMinute <= 0) return;
     const ratio = Math.max(0, Math.min(1, x / width));
-    emitMinuteChange(ratio * maxMinute, true);
+    emitMinuteChange(ratio * maxMinute, 'tick');
   };
 
   const measureTrack = () => {
@@ -125,8 +124,7 @@ function FuelMinuteSlider({ maxMinute, minute, events, onDragChange, onChange }:
       <View style={styles.minuteReadoutRow}>
         <Pressable
           onPress={() => {
-            triggerSelectionHaptic();
-            emitMinuteChange(minute - 1);
+            emitMinuteChange(minute - 1, 'selection');
           }}
           style={styles.minuteStep}
         >
@@ -135,8 +133,7 @@ function FuelMinuteSlider({ maxMinute, minute, events, onDragChange, onChange }:
         <Text style={styles.minuteReadout}>{minute} min</Text>
         <Pressable
           onPress={() => {
-            triggerSelectionHaptic();
-            emitMinuteChange(minute + 1);
+            emitMinuteChange(minute + 1, 'selection');
           }}
           style={styles.minuteStep}
         >
@@ -202,8 +199,7 @@ function FuelMinuteSlider({ maxMinute, minute, events, onDragChange, onChange }:
           <Pressable
             key={value}
             onPress={() => {
-              triggerSelectionHaptic();
-              emitMinuteChange(value);
+              emitMinuteChange(value, 'selection');
             }}
             style={[styles.quickMinute, minute === value && styles.quickMinuteSelected]}
           >

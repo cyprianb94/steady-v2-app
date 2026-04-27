@@ -86,7 +86,7 @@ describe('SessionEditor custom field editing', () => {
 });
 
 describe('SessionEditor haptics', () => {
-  it('emits selection haptics when edit chips are pressed', () => {
+  it('emits selection haptics only when chip values change', () => {
     vi.mocked(Haptics.selectionAsync).mockClear();
 
     renderSessionEditor(intervalSession);
@@ -98,7 +98,7 @@ describe('SessionEditor haptics', () => {
     fireEvent.click(screen.getAllByText('MIN')[0]);
     fireEvent.click(screen.getByText('Custom...'));
 
-    expect(Haptics.selectionAsync).toHaveBeenCalledTimes(4);
+    expect(Haptics.selectionAsync).toHaveBeenCalledTimes(3);
   });
 });
 

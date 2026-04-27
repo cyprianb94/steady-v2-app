@@ -8,15 +8,13 @@ import {
   Animated,
   RefreshControl,
   ActivityIndicator,
-  LayoutAnimation,
-  Platform,
-  UIManager,
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { usePlan } from '../../hooks/usePlan';
 import { useStravaSync } from '../../hooks/useStravaSync';
 import { useTodayIso } from '../../hooks/useTodayIso';
+import { AnimatedWeekExpansion } from '../../components/block/AnimatedWeekExpansion';
 import { DragHandle } from '../../components/plan-builder/DragHandle';
 import { PropagateModal } from '../../components/plan-builder/PropagateModal';
 import { RunStatusIcon, type RunStatusIconStatus } from '../../components/run/RunStatusIcon';
@@ -33,6 +31,7 @@ import {
 import { consumeSessionEditReturn } from '../../features/plan-builder/session-edit-return';
 import { useDirectWeekReschedule } from '../../features/plan-builder/use-direct-week-reschedule';
 import { useAuth } from '../../lib/auth';
+import { triggerSelectionChangeHaptic } from '../../lib/haptics';
 import { createId } from '../../lib/id';
 import { updatePlanWeeks } from '../../lib/plan-api';
 import { addDaysIso, inferWeekStartDate, sessionLabel, todayIsoLocal, weekKm } from '../../lib/plan-helpers';
@@ -83,13 +82,6 @@ const COMPACT_PHASE_LABEL: Record<BlockPhaseSegment['name'], string> = {
 };
 
 const EMPTY_WEEK_SESSIONS: (PlannedSession | null)[] = [null, null, null, null, null, null, null];
-
-const WEEK_EXPANSION_LAYOUT_ANIMATION = {
-  duration: 180,
-  update: {
-    type: 'easeInEaseOut',
-  },
-} as const;
 
 const INACTIVE_PHASE_BACKGROUND: Record<PlanWeek['phase'], string> = {
   BASE: `${C.navy}59`,
@@ -343,6 +335,7 @@ export default function BlockTab() {
   const isFocused = useIsFocused();
   const { forceSync, syncRevision, syncing } = useStravaSync();
   const [expandedWeekNumber, setExpandedWeekNumber] = useState<number | null>(null);
+  const [collapsingWeekNumber, setCollapsingWeekNumber] = useState<number | null>(null);
   const [rescheduleWeekIndex, setRescheduleWeekIndex] = useState<number | null>(null);
   const [rescheduleScopeVisible, setRescheduleScopeVisible] = useState(false);
   const [isSavingRearrange, setIsSavingRearrange] = useState(false);
@@ -402,12 +395,6 @@ export default function BlockTab() {
   });
 
   useEffect(() => {
-    if (Platform.OS === 'android') {
-      UIManager.setLayoutAnimationEnabledExperimental?.(true);
-    }
-  }, []);
-
-  useEffect(() => {
     if (!isFocused) {
       return;
     }
@@ -439,6 +426,7 @@ export default function BlockTab() {
   useEffect(() => {
     if (!isFocused) {
       setExpandedWeekNumber(null);
+      setCollapsingWeekNumber(null);
     }
   }, [isFocused]);
 
@@ -564,14 +552,21 @@ export default function BlockTab() {
       return;
     }
 
-    const nextExpandedWeekNumber = expandedWeekNumber === weekNumber ? null : weekNumber;
-    LayoutAnimation.configureNext(WEEK_EXPANSION_LAYOUT_ANIMATION);
+    const previousExpandedWeekNumber = expandedWeekNumber;
+    const nextExpandedWeekNumber = previousExpandedWeekNumber === weekNumber ? null : weekNumber;
+    setCollapsingWeekNumber(
+      previousExpandedWeekNumber == null || previousExpandedWeekNumber === nextExpandedWeekNumber
+        ? null
+        : previousExpandedWeekNumber,
+    );
     setExpandedWeekNumber(nextExpandedWeekNumber);
 
     if (nextExpandedWeekNumber == null) {
       setRescheduleWeekIndex(null);
       return;
     }
+
+    triggerSelectionChangeHaptic();
 
     const nextIndex = plan.weeks.findIndex((nextWeek) => nextWeek.weekNumber === nextExpandedWeekNumber);
     if (nextIndex !== -1) {
@@ -778,6 +773,8 @@ export default function BlockTab() {
         const isEditableWeek = isEditableBlockWeek(i, safeCurrentWeekIndex);
         const injuryWeek = isInjuryWeek(i, injuryRange);
         const isExpanded = visibleExpandedWeekNumber === week.weekNumber;
+        const isCollapsing = collapsingWeekNumber === week.weekNumber && !isExpanded;
+        const shouldRenderExpandedWeek = isExpanded || isCollapsing;
         const isRescheduleWeek = rescheduleWeekIndex === i;
         const shouldUseRescheduleDraft =
           isExpanded
@@ -811,8 +808,8 @@ export default function BlockTab() {
               isCurrent && styles.weekRowCurrent,
               isPast && styles.weekRowPast,
               injuryWeek && styles.weekRowInjury,
-              isExpanded && isFuture && styles.weekRowFutureExpanded,
-              isExpanded && styles.weekRowExpanded,
+              shouldRenderExpandedWeek && isFuture && styles.weekRowFutureExpanded,
+              shouldRenderExpandedWeek && styles.weekRowExpanded,
             ]}
           >
             <Pressable onPress={() => toggleWeek(week.weekNumber)} style={styles.weekPressable}>
@@ -905,12 +902,15 @@ export default function BlockTab() {
               </View>
             </Pressable>
 
-            {isExpanded ? (
-              <View
-                style={[
-                  styles.expandedWeek,
-                  !isPast && styles.expandedWeekNoDivider,
-                ]}
+            {shouldRenderExpandedWeek ? (
+              <AnimatedWeekExpansion
+                expanded={isExpanded}
+                showDivider={isPast}
+                onCollapseEnd={() => {
+                  setCollapsingWeekNumber((current) => (
+                    current === week.weekNumber ? null : current
+                  ));
+                }}
               >
                 {weekGuide ? <Text style={styles.weekGuide}>{weekGuide}</Text> : null}
 
@@ -1113,7 +1113,7 @@ export default function BlockTab() {
                     </View>
                   </View>
                 ) : null}
-              </View>
+              </AnimatedWeekExpansion>
             ) : null}
           </View>
         );
@@ -1391,17 +1391,6 @@ const styles = StyleSheet.create({
   volumeFillFuture: {
     backgroundColor: C.border,
     opacity: 0.55,
-  },
-  expandedWeek: {
-    marginTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: C.border,
-    paddingTop: 10,
-    gap: 10,
-  },
-  expandedWeekNoDivider: {
-    borderTopWidth: 0,
-    paddingTop: 0,
   },
   weekGuide: {
     fontFamily: FONTS.sans,

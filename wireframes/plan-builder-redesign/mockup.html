@@ -1,0 +1,1558 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Steady Plan Builder Redesign Mockup</title>
+    <style>
+      @font-face {
+        font-family: "Playfair Display";
+        src: url("../../packages/app/assets/fonts/PlayfairDisplay-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "Playfair Display";
+        src: url("../../packages/app/assets/fonts/PlayfairDisplay-Bold.ttf") format("truetype");
+        font-weight: 700;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-Medium.ttf") format("truetype");
+        font-weight: 500;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-SemiBold.ttf") format("truetype");
+        font-weight: 600;
+      }
+
+      @font-face {
+        font-family: "Space Mono";
+        src: url("../../packages/app/assets/fonts/SpaceMono-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "Space Mono";
+        src: url("../../packages/app/assets/fonts/SpaceMono-Bold.ttf") format("truetype");
+        font-weight: 700;
+      }
+
+      :root {
+        --cream: #f4efe6;
+        --surface: #fdfaf5;
+        --card: #f0eae0;
+        --ink: #1c1510;
+        --ink2: #3d3028;
+        --muted: #9a8e7e;
+        --border: #e5ddd0;
+        --clay: #c4522a;
+        --clay-bg: #fdf0eb;
+        --amber: #d4882a;
+        --amber-bg: #fdf6eb;
+        --forest: #2a5c45;
+        --forest-bg: #eef4f1;
+        --navy: #1b3a6b;
+        --navy-bg: #edf1f8;
+        --slate: #8a8e9a;
+        --slate-bg: #f2f2f4;
+        --purple: #7c5cbf;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: #e8dfd2;
+        color: var(--ink);
+        font-family: "DM Sans", sans-serif;
+      }
+
+      .board {
+        width: 1816px;
+        padding: 38px 40px 50px;
+      }
+
+      .board-title {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        margin: 0 0 24px;
+      }
+
+      .board-title h1 {
+        margin: 0;
+        font-family: "Playfair Display", serif;
+        font-size: 35px;
+        font-weight: 700;
+        line-height: 1.04;
+        letter-spacing: 0;
+      }
+
+      .board-title p {
+        margin: 0 0 5px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.35;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, 393px);
+        gap: 34px;
+      }
+
+      .frame {
+        display: grid;
+        gap: 10px;
+      }
+
+      .frame-label {
+        color: #6f6255;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1.8px;
+        text-transform: uppercase;
+      }
+
+      .phone {
+        position: relative;
+        width: 393px;
+        height: 852px;
+        overflow: hidden;
+        background: var(--cream);
+        border: 1px solid rgba(28, 21, 16, 0.09);
+        border-radius: 36px;
+        box-shadow: 0 18px 45px rgba(61, 48, 40, 0.12);
+      }
+
+      .status {
+        position: absolute;
+        inset: 0 0 auto;
+        height: 70px;
+        padding: 24px 31px 0;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        font-family: "Space Mono", monospace;
+        font-weight: 700;
+        font-size: 17px;
+        color: #050403;
+        background: var(--cream);
+        z-index: 3;
+      }
+
+      .icons {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+
+      .bars {
+        display: flex;
+        align-items: flex-end;
+        gap: 2px;
+        height: 14px;
+      }
+
+      .bars i {
+        display: block;
+        width: 4px;
+        border-radius: 2px;
+        background: #060504;
+      }
+
+      .bars i:nth-child(1) { height: 6px; }
+      .bars i:nth-child(2) { height: 10px; }
+      .bars i:nth-child(3) { height: 13px; opacity: 0.28; }
+
+      .wifi {
+        position: relative;
+        width: 18px;
+        height: 14px;
+      }
+
+      .wifi::before,
+      .wifi::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 3px solid #060504;
+        border-color: #060504 transparent transparent transparent;
+        border-radius: 50%;
+      }
+
+      .wifi::before {
+        top: 1px;
+        width: 20px;
+        height: 20px;
+      }
+
+      .wifi::after {
+        top: 7px;
+        width: 10px;
+        height: 10px;
+      }
+
+      .battery {
+        position: relative;
+        min-width: 26px;
+        height: 15px;
+        padding: 0 4px;
+        border-radius: 5px;
+        background: #050403;
+        color: white;
+        font-family: "DM Sans", sans-serif;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 15px;
+        text-align: center;
+      }
+
+      .screen {
+        height: 100%;
+        padding: 90px 18px 104px;
+      }
+
+      .screen.scroll {
+        padding-bottom: 92px;
+      }
+
+      .step {
+        color: var(--clay);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 3.2px;
+        margin-bottom: 12px;
+        text-transform: uppercase;
+      }
+
+      .step.muted-step {
+        color: var(--muted);
+      }
+
+      h2 {
+        margin: 0;
+        font-family: "Playfair Display", serif;
+        font-size: 31px;
+        font-weight: 400;
+        line-height: 1.06;
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        margin: 9px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.45;
+      }
+
+      .section-label {
+        margin: 29px 0 12px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 3.3px;
+        text-transform: uppercase;
+      }
+
+      .chip-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 9px;
+      }
+
+      .chip {
+        height: 45px;
+        padding: 0 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: 24px;
+        color: var(--ink2);
+        font-size: 15px;
+        font-weight: 500;
+      }
+
+      .chip.small {
+        height: 38px;
+        padding: 0 15px;
+        font-size: 13px;
+      }
+
+      .chip.mono {
+        font-family: "Space Mono", monospace;
+      }
+
+      .chip.selected {
+        border-color: var(--clay);
+        background: var(--clay-bg);
+        color: var(--clay);
+        font-weight: 600;
+      }
+
+      .button {
+        position: absolute;
+        left: 18px;
+        right: 18px;
+        bottom: 24px;
+        height: 58px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 29px;
+        background: var(--clay);
+        color: white;
+        font-size: 16px;
+        font-weight: 500;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: 18px;
+      }
+
+      .date-card {
+        margin-top: 38px;
+        padding: 21px 22px;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        min-height: 92px;
+      }
+
+      .date-main {
+        font-family: "Space Mono", monospace;
+        font-size: 20px;
+        font-weight: 700;
+      }
+
+      .date-sub {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .calendar {
+        width: 36px;
+        height: 36px;
+        border: 3px solid var(--muted);
+        border-radius: 9px;
+        position: relative;
+      }
+
+      .calendar::before {
+        content: "";
+        position: absolute;
+        left: 5px;
+        right: 5px;
+        top: 9px;
+        height: 3px;
+        background: var(--muted);
+      }
+
+      .input {
+        height: 62px;
+        padding: 0 20px;
+        display: flex;
+        align-items: center;
+        color: var(--ink2);
+        font-size: 16px;
+        border-radius: 24px;
+      }
+
+      .input .optional {
+        margin-left: auto;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .summary-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 14px;
+        padding: 8px 12px;
+        color: var(--navy);
+        background: var(--navy-bg);
+        border-radius: 20px;
+        font-family: "Space Mono", monospace;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .template-card {
+        margin-top: 14px;
+        padding: 15px 16px 16px;
+        border-color: rgba(196, 82, 42, 0.26);
+        box-shadow: inset 5px 0 0 var(--clay);
+      }
+
+      .template-options {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-top: 20px;
+      }
+
+      .template-option {
+        min-height: 45px;
+        padding: 8px 9px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        border: 1.5px solid var(--border);
+        border-radius: 15px;
+        background: var(--surface);
+      }
+
+      .template-option.selected {
+        border-color: var(--clay);
+        background: var(--clay-bg);
+      }
+
+      .template-option .name {
+        color: var(--ink2);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .template-option.selected .name {
+        color: var(--clay);
+      }
+
+      .template-option .meta {
+        margin-top: 2px;
+        color: var(--muted);
+        font-family: "Space Mono", monospace;
+        font-size: 9px;
+        font-weight: 700;
+      }
+
+      .run-count-card {
+        margin-top: 13px;
+        padding: 12px;
+        border: 1.5px solid rgba(196, 82, 42, 0.18);
+        border-radius: 16px;
+        background: var(--surface);
+      }
+
+      .base-methods {
+        display: grid;
+        gap: 10px;
+        margin-top: 26px;
+      }
+
+      .method-choice {
+        padding: 15px;
+        border: 1.5px solid var(--border);
+        border-radius: 18px;
+        background: var(--surface);
+      }
+
+      .method-choice.selected {
+        border-color: rgba(196, 82, 42, 0.42);
+        background: var(--clay-bg);
+        box-shadow: inset 5px 0 0 var(--clay);
+      }
+
+      .method-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .method-title {
+        color: var(--ink);
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      .method-copy {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .radio {
+        width: 22px;
+        height: 22px;
+        border: 1.5px solid var(--border);
+        border-radius: 50%;
+        background: var(--surface);
+      }
+
+      .radio.selected {
+        border-color: var(--clay);
+        background: radial-gradient(circle at center, var(--clay) 0 5px, transparent 6px);
+      }
+
+      .template-note {
+        margin-top: 12px;
+        padding: 13px 14px;
+        border: 1.5px solid var(--border);
+        border-radius: 16px;
+        background: var(--card);
+      }
+
+      .template-note .title {
+        color: var(--ink2);
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .template-note .body {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .run-count-heading {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-bottom: 9px;
+      }
+
+      .run-count-heading .label {
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 2.4px;
+        text-transform: uppercase;
+      }
+
+      .run-count-heading .hint {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .run-ruler {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 3px;
+        padding: 4px;
+        background: var(--card);
+        border: 1.5px solid var(--border);
+        border-radius: 22px;
+      }
+
+      .run-ruler button {
+        height: 42px;
+        border: 0;
+        border-radius: 18px;
+        background: transparent;
+        color: var(--muted);
+        font-family: "Space Mono", monospace;
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .run-ruler button.selected {
+        background: var(--clay-bg);
+        color: var(--clay);
+        box-shadow: inset 0 0 0 1.5px var(--clay);
+      }
+
+      .run-count-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 10px;
+      }
+
+      .run-count-meta .selected-copy {
+        color: var(--ink2);
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .run-count-meta .volume-copy {
+        color: var(--clay);
+        font-family: "Space Mono", monospace;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .clean-slate-row {
+        margin-top: 9px;
+        padding: 9px 13px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border: 1.5px dashed var(--border);
+        border-radius: 16px;
+        background: rgba(253, 250, 245, 0.58);
+      }
+
+      .clean-slate-row .title {
+        color: var(--ink2);
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .clean-slate-row .sub {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .eyebrow-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        height: 28px;
+        padding: 0 12px;
+        border-radius: 16px;
+        background: var(--clay-bg);
+        color: var(--clay);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 2.2px;
+        text-transform: uppercase;
+      }
+
+      .mono {
+        font-family: "Space Mono", monospace;
+        font-weight: 700;
+      }
+
+      .template-title {
+        font-family: "Playfair Display", serif;
+        font-size: 23px;
+        line-height: 1.05;
+      }
+
+      .template-copy {
+        margin-top: 6px;
+        color: var(--ink2);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .week-preview {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+        margin-top: 12px;
+      }
+
+      .preview-row {
+        min-height: 34px;
+        padding: 0 8px;
+        display: grid;
+        grid-template-columns: 28px 8px 1fr;
+        align-items: center;
+        border: 1.5px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+      }
+
+      .preview-row.easy {
+        background: var(--forest-bg);
+        border-color: rgba(42, 92, 69, 0.20);
+      }
+
+      .preview-row.interval {
+        background: var(--clay-bg);
+        border-color: rgba(196, 82, 42, 0.20);
+      }
+
+      .preview-row.tempo {
+        background: var(--amber-bg);
+        border-color: rgba(212, 136, 42, 0.20);
+      }
+
+      .preview-row.long {
+        background: var(--navy-bg);
+        border-color: rgba(27, 58, 107, 0.20);
+      }
+
+      .preview-row.rest {
+        background: var(--surface);
+      }
+
+      .preview-day {
+        color: var(--muted);
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+      }
+
+      .preview-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--forest);
+      }
+
+      .preview-dot.interval { background: var(--clay); }
+      .preview-dot.tempo { background: var(--amber); }
+      .preview-dot.long { background: var(--navy); }
+      .preview-dot.rest { background: var(--border); }
+
+      .preview-main {
+        margin-left: 7px;
+        color: var(--ink);
+        font-size: 11px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .preview-main .num {
+        font-family: "Space Mono", monospace;
+        font-weight: 700;
+      }
+
+      .preview-pace {
+        display: none;
+        color: var(--muted);
+        font-family: "Space Mono", monospace;
+        font-size: 10px;
+        font-weight: 700;
+      }
+
+      .mini-days {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 9px;
+        margin-top: 17px;
+      }
+
+      .mini-day {
+        padding: 11px 12px;
+        border-radius: 13px;
+        border: 1.5px solid var(--border);
+        background: var(--surface);
+      }
+
+      .mini-day.easy {
+        background: var(--forest-bg);
+        border-color: rgba(42, 92, 69, 0.22);
+      }
+
+      .mini-day.interval {
+        background: var(--clay-bg);
+        border-color: rgba(196, 82, 42, 0.22);
+      }
+
+      .mini-day.tempo {
+        background: var(--amber-bg);
+        border-color: rgba(212, 136, 42, 0.22);
+      }
+
+      .mini-day.long {
+        background: var(--navy-bg);
+        border-color: rgba(27, 58, 107, 0.22);
+      }
+
+      .mini-day .day {
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.8px;
+      }
+
+      .mini-day .value {
+        margin-top: 8px;
+        font-family: "Space Mono", monospace;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .mini-day .kind {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .carousel-dots {
+        display: flex;
+        justify-content: center;
+        gap: 7px;
+        margin-top: 14px;
+      }
+
+      .carousel-dots i {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--border);
+      }
+
+      .carousel-dots i.active {
+        background: var(--clay);
+      }
+
+      .compact-card {
+        margin-top: 24px;
+        padding: 18px;
+      }
+
+      .card-label {
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 2.5px;
+        text-transform: uppercase;
+      }
+
+      .change {
+        color: var(--clay);
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .two-col {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .layout-summary {
+        margin-top: 14px;
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-radius: 16px;
+      }
+
+      .layout-summary .title {
+        font-size: 18px;
+        font-weight: 500;
+      }
+
+      .layout-summary .hint {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .km {
+        color: var(--clay);
+        font-family: "Space Mono", monospace;
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .day-list {
+        display: grid;
+        gap: 9px;
+        margin-top: 13px;
+      }
+
+      .day-row {
+        height: 66px;
+        padding: 0 13px;
+        display: grid;
+        grid-template-columns: 46px 22px 1fr 28px;
+        align-items: center;
+        border-radius: 23px;
+        border: 1.5px solid var(--border);
+        background: var(--surface);
+      }
+
+      .day-row.easy {
+        background: var(--forest-bg);
+        border-color: rgba(42, 92, 69, 0.24);
+      }
+
+      .day-row.interval {
+        background: var(--clay-bg);
+        border-color: rgba(196, 82, 42, 0.24);
+      }
+
+      .day-row.tempo {
+        background: var(--amber-bg);
+        border-color: rgba(212, 136, 42, 0.24);
+      }
+
+      .day-row.long {
+        background: var(--navy-bg);
+        border-color: rgba(27, 58, 107, 0.24);
+      }
+
+      .day-row.rest {
+        background: var(--surface);
+      }
+
+      .day-name {
+        font-weight: 600;
+        font-size: 14px;
+      }
+
+      .easy .day-name { color: var(--forest); }
+      .interval .day-name { color: var(--clay); }
+      .tempo .day-name { color: var(--amber); }
+      .long .day-name { color: var(--navy); }
+      .rest .day-name { color: var(--muted); }
+
+      .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--forest);
+      }
+
+      .dot.interval { background: var(--clay); }
+      .dot.tempo { background: var(--amber); }
+      .dot.long { background: var(--navy); }
+      .dot.rest { background: var(--slate); }
+
+      .session-title {
+        font-size: 15px;
+        font-weight: 500;
+      }
+
+      .session-title .num {
+        font-family: "Space Mono", monospace;
+        font-weight: 700;
+      }
+
+      .session-kind {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .grip {
+        color: var(--muted);
+        font-size: 24px;
+        line-height: 1;
+        letter-spacing: -2px;
+      }
+
+      .tabs {
+        margin-top: 15px;
+        height: 42px;
+        padding: 4px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 4px;
+        background: var(--card);
+        border: 1.5px solid var(--border);
+        border-radius: 22px;
+      }
+
+      .tab {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 18px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .tab.active {
+        background: var(--surface);
+        color: var(--ink);
+      }
+
+      .chart-card {
+        margin-top: 22px;
+        padding: 16px 16px 14px;
+      }
+
+      .chart-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+      }
+
+      .chart-title {
+        font-size: 17px;
+        font-weight: 600;
+      }
+
+      .chart-sub {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .peak-pill {
+        padding: 7px 10px;
+        background: var(--amber-bg);
+        border-radius: 14px;
+        color: var(--amber);
+        font-family: "Space Mono", monospace;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .chart {
+        margin-top: 12px;
+        width: 100%;
+        height: 130px;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-top: 13px;
+      }
+
+      .stat {
+        padding: 11px 8px;
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: 14px;
+      }
+
+      .stat-label {
+        color: var(--muted);
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 1.7px;
+        text-transform: uppercase;
+      }
+
+      .stat-value {
+        margin-top: 6px;
+        font-family: "Space Mono", monospace;
+        font-size: 16px;
+        font-weight: 700;
+      }
+
+      .phase-strip {
+        display: flex;
+        gap: 3px;
+        height: 11px;
+        margin-top: 15px;
+        overflow: hidden;
+        border-radius: 7px;
+      }
+
+      .phase-strip div:nth-child(1) { flex: 3; background: var(--navy); }
+      .phase-strip div:nth-child(2) { flex: 9; background: var(--clay); }
+      .phase-strip div:nth-child(3) { flex: 2; background: var(--amber); }
+      .phase-strip div:nth-child(4) { flex: 2; background: var(--forest); }
+
+      .overload {
+        margin-top: 13px;
+        padding: 14px;
+        background: #fff6e8;
+        border-color: rgba(212, 136, 42, 0.30);
+      }
+
+      .overload-copy {
+        color: var(--ink2);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .overload-copy strong {
+        color: var(--amber);
+        font-weight: 600;
+      }
+
+      .overload-buttons {
+        display: flex;
+        gap: 7px;
+        margin-top: 12px;
+      }
+
+      .overload-buttons .pill {
+        height: 37px;
+        padding: 0 12px;
+        display: flex;
+        align-items: center;
+        border: 1.5px solid var(--border);
+        border-radius: 19px;
+        background: var(--surface);
+        color: var(--ink2);
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .overload-buttons .pill.active {
+        background: var(--amber);
+        border-color: var(--amber);
+        color: white;
+      }
+
+      .key-weeks {
+        display: grid;
+        gap: 8px;
+        margin-top: 13px;
+      }
+
+      .key-week {
+        padding: 12px 14px;
+        display: grid;
+        grid-template-columns: 52px 1fr auto;
+        align-items: center;
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: 16px;
+      }
+
+      .week-no {
+        color: var(--muted);
+        font-family: "Space Mono", monospace;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .week-title {
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .week-detail {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 10px;
+      }
+
+      .phase-card {
+        margin-top: 11px;
+        padding: 15px;
+      }
+
+      .phase-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .phase-name {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--ink);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 2.1px;
+        text-transform: uppercase;
+      }
+
+      .phase-range {
+        color: var(--muted);
+        font-family: "Space Mono", monospace;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .phase-copy {
+        margin-top: 9px;
+        color: var(--ink2);
+        font-size: 13px;
+        line-height: 1.35;
+      }
+
+      .phase-dots {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .phase-dots i {
+        width: 11px;
+        height: 11px;
+        display: block;
+        border-radius: 50%;
+      }
+
+      .structure {
+        margin-top: 12px;
+        padding: 13px 15px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--card);
+        border: 1.5px solid var(--border);
+        border-radius: 16px;
+      }
+
+      .structure .label {
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .structure .value {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 10px;
+      }
+
+      .week-list {
+        display: grid;
+        gap: 8px;
+        margin-top: 13px;
+      }
+
+      .week-row {
+        padding: 12px 13px 10px;
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: 16px;
+      }
+
+      .week-row-top {
+        display: grid;
+        grid-template-columns: 44px 1fr auto;
+        align-items: center;
+      }
+
+      .run-dots {
+        display: flex;
+        gap: 6px;
+      }
+
+      .run-dots i {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--forest);
+      }
+
+      .run-dots i.interval { background: var(--clay); }
+      .run-dots i.tempo { background: var(--amber); }
+      .run-dots i.rest { background: var(--border); }
+      .run-dots i.long { background: var(--navy); }
+
+      .phase-tag {
+        height: 25px;
+        padding: 0 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 14px;
+        background: var(--navy-bg);
+        color: var(--navy);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.6px;
+        text-transform: uppercase;
+      }
+
+      .phase-tag.build {
+        background: var(--clay-bg);
+        color: var(--clay);
+      }
+
+      .phase-tag.peak {
+        background: var(--amber-bg);
+        color: var(--amber);
+      }
+
+      .phase-tag.taper {
+        background: var(--forest-bg);
+        color: var(--forest);
+      }
+
+      .week-bar {
+        height: 3px;
+        margin-top: 10px;
+        border-radius: 2px;
+        background: var(--navy);
+      }
+
+      .week-bar.build { background: var(--clay); }
+      .week-bar.peak { background: var(--amber); }
+      .week-bar.taper { background: var(--forest); }
+    </style>
+  </head>
+  <body>
+    <main class="board">
+      <header class="board-title">
+        <div>
+          <h1>Plan builder redesign concept</h1>
+          <p>Static mockup, not app code. Same Steady palette, typography and mobile density. Ultra should reveal a distance field when selected.</p>
+        </div>
+        <p>Race → Date → Target → Base week → Design week → Review block</p>
+      </header>
+
+      <section class="grid">
+        <article class="frame">
+          <div class="frame-label">1. Race</div>
+          <div class="phone">
+            <div class="status"><span>10:08</span><div class="icons"><span class="bars"><i></i><i></i><i></i></span><span class="wifi"></span><span class="battery">98</span></div></div>
+            <div class="screen">
+              <div class="step">Step 1 of 6</div>
+              <h2>What are you<br />training for?</h2>
+              <p class="subtitle">Choose the race distance. The rest of the block follows from this.</p>
+              <div class="section-label">Race distance</div>
+              <div class="chip-grid">
+                <div class="chip">5K</div>
+                <div class="chip">10K</div>
+                <div class="chip">Half Marathon</div>
+                <div class="chip selected">Marathon</div>
+                <div class="chip">Ultra</div>
+              </div>
+              <div class="button">Continue →</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="frame">
+          <div class="frame-label">2. Date</div>
+          <div class="phone">
+            <div class="status"><span>10:08</span><div class="icons"><span class="bars"><i></i><i></i><i></i></span><span class="wifi"></span><span class="battery">98</span></div></div>
+            <div class="screen">
+              <div class="step">Step 2 of 6</div>
+              <h2>When is<br />race day?</h2>
+              <p class="subtitle">This sets the length of the block. You can still adjust the structure later.</p>
+              <div class="date-card card">
+                <div>
+                  <div class="date-main">16 Aug 2026</div>
+                  <div class="date-sub">16 weeks from now</div>
+                </div>
+                <div class="calendar"></div>
+              </div>
+              <div class="section-label">Race name</div>
+              <div class="input card">London Marathon <span class="optional">optional</span></div>
+              <div class="button">Continue →</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="frame">
+          <div class="frame-label">3. Target</div>
+          <div class="phone">
+            <div class="status"><span>10:08</span><div class="icons"><span class="bars"><i></i><i></i><i></i></span><span class="wifi"></span><span class="battery">98</span></div></div>
+            <div class="screen">
+              <div class="step">Step 3 of 6</div>
+              <h2>What are you<br />aiming for?</h2>
+              <p class="subtitle">Marathon · 16 weeks. Pick the target you want the plan to hold in view.</p>
+              <div class="section-label">Target time</div>
+              <div class="chip-grid">
+                <div class="chip mono">sub-2:45</div>
+                <div class="chip mono">sub-3:00</div>
+                <div class="chip mono selected">sub-3:15</div>
+                <div class="chip mono">sub-3:30</div>
+                <div class="chip mono">sub-3:45</div>
+                <div class="chip mono">sub-4:00</div>
+                <div class="chip">Other</div>
+              </div>
+              <div class="button">Build base week →</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="frame">
+          <div class="frame-label">4. Base week</div>
+          <div class="phone">
+            <div class="status"><span>10:08</span><div class="icons"><span class="bars"><i></i><i></i><i></i></span><span class="wifi"></span><span class="battery">98</span></div></div>
+            <div class="screen">
+              <div class="step">Step 4 of 6</div>
+              <h2>Build your<br />base week</h2>
+              <p class="subtitle">Start from a pre-filled week, or begin with every day empty. You’ll edit the days next.</p>
+              <div class="base-methods">
+                <div class="method-choice selected">
+                  <div class="method-top">
+                    <div class="method-title">Build from template</div>
+                    <div class="radio selected"></div>
+                  </div>
+                  <div class="method-copy">Pre-fill your base week from a run count. Move, edit, or delete every session next.</div>
+                  <div class="run-count-card">
+                    <div class="run-count-heading">
+                      <div class="label">Runs per week</div>
+                      <div class="hint">Tap a number</div>
+                    </div>
+                    <div class="run-ruler" aria-label="Runs per week">
+                      <button>1</button>
+                      <button>2</button>
+                      <button>3</button>
+                      <button>4</button>
+                      <button>5</button>
+                      <button class="selected">6</button>
+                      <button>7</button>
+                    </div>
+                    <div class="template-note">
+                      <div class="title">6-run week</div>
+                      <div class="body">Easy runs, quality sessions, rest, and a long run are placed for you.</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="method-choice">
+                  <div class="method-top">
+                    <div class="method-title">Clean slate</div>
+                    <div class="radio"></div>
+                  </div>
+                  <div class="method-copy">All seven days start empty. Use this if you want to place every session yourself.</div>
+                </div>
+              </div>
+              <div class="button">Build 6-run week →</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="frame">
+          <div class="frame-label">5. Design week</div>
+          <div class="phone">
+            <div class="status"><span>10:08</span><div class="icons"><span class="bars"><i></i><i></i><i></i></span><span class="wifi"></span><span class="battery">98</span></div></div>
+            <div class="screen scroll">
+              <div class="step muted-step">Step 5 of 6</div>
+              <h2>Design your week</h2>
+              <p class="subtitle">This pattern repeats across all 16 weeks. Tap any day to adjust.</p>
+              <div class="compact-card card">
+                <div class="two-col">
+                  <div>
+                    <div class="card-label">Starting point</div>
+                    <div style="margin-top: 7px; font-size: 16px; font-weight: 500;">Steady template</div>
+                    <div style="margin-top: 3px; color: var(--muted); font-size: 12px;">Recommended base · ~70.4 km / week</div>
+                  </div>
+                  <div class="change">Change</div>
+                </div>
+              </div>
+              <div class="layout-summary card">
+                <div><div class="title">Weekly layout</div><div class="hint">Move sessions between days.</div></div>
+                <div class="km">~70.4 km</div>
+              </div>
+              <div class="day-list">
+                <div class="day-row easy"><div class="day-name">Mon</div><div class="dot"></div><div><div class="session-title"><span class="num">8km</span> @ <span class="num">5:20</span></div><div class="session-kind">Easy Run</div></div><div class="grip">≡</div></div>
+                <div class="day-row interval"><div class="day-name">Tue</div><div class="dot interval"></div><div><div class="session-title"><span class="num">6×800m</span> @ <span class="num">3:50</span></div><div class="session-kind">Intervals</div></div><div class="grip">≡</div></div>
+                <div class="day-row easy"><div class="day-name">Wed</div><div class="dot"></div><div><div class="session-title"><span class="num">8km</span> @ <span class="num">5:30</span></div><div class="session-kind">Easy Run</div></div><div class="grip">≡</div></div>
+                <div class="day-row tempo"><div class="day-name">Thu</div><div class="dot tempo"></div><div><div class="session-title"><span class="num">10km</span> @ <span class="num">4:20</span></div><div class="session-kind">Tempo</div></div><div class="grip">≡</div></div>
+                <div class="day-row rest"><div class="day-name">Fri</div><div class="dot rest"></div><div><div class="session-title">Rest day</div><div class="session-kind">Recovery slot</div></div><div class="grip">≡</div></div>
+                <div class="day-row easy"><div class="day-name">Sat</div><div class="dot"></div><div><div class="session-title"><span class="num">12km</span> @ <span class="num">5:20</span></div><div class="session-kind">Easy Run</div></div><div class="grip">≡</div></div>
+                <div class="day-row long"><div class="day-name">Sun</div><div class="dot long"></div><div><div class="session-title"><span class="num">20km</span> @ <span class="num">5:10</span></div><div class="session-kind">Long Run</div></div><div class="grip">≡</div></div>
+              </div>
+              <div class="button">Generate block →</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="frame">
+          <div class="frame-label">6. Review overview</div>
+          <div class="phone">
+            <div class="status"><span>10:08</span><div class="icons"><span class="bars"><i></i><i></i><i></i></span><span class="wifi"></span><span class="battery">98</span></div></div>
+            <div class="screen scroll">
+              <div class="step muted-step">Step 6 of 6</div>
+              <h2>Review your block</h2>
+              <p class="subtitle">Marathon · sub-3:15 · 16 weeks</p>
+              <div class="chart-card card">
+                <div class="chart-head">
+                  <div><div class="chart-title">Weekly volume</div><div class="chart-sub">Builds through the middle, then tapers.</div></div>
+                  <div class="peak-pill">92km peak</div>
+                </div>
+                <svg class="chart" viewBox="0 0 320 130" aria-hidden="true">
+                  <line x1="12" y1="110" x2="312" y2="110" stroke="#E5DDD0" stroke-width="2" />
+                  <line x1="12" y1="77" x2="312" y2="77" stroke="#E5DDD0" stroke-width="1" stroke-dasharray="4 6" />
+                  <line x1="12" y1="43" x2="312" y2="43" stroke="#E5DDD0" stroke-width="1" stroke-dasharray="4 6" />
+                  <path d="M16 82 C50 81 63 78 79 72 C106 62 126 58 151 49 C178 39 204 36 225 44 C245 52 255 66 270 82 C285 98 296 105 308 108" fill="none" stroke="#C4522A" stroke-width="4" stroke-linecap="round" />
+                  <circle cx="16" cy="82" r="5" fill="#1B3A6B" />
+                  <circle cx="225" cy="44" r="5" fill="#D4882A" />
+                  <circle cx="308" cy="108" r="5" fill="#2A5C45" />
+                  <text x="9" y="24" fill="#9A8E7E" font-size="10" font-family="Space Mono">km</text>
+                  <text x="12" y="126" fill="#9A8E7E" font-size="10" font-family="Space Mono">W1</text>
+                  <text x="210" y="126" fill="#9A8E7E" font-size="10" font-family="Space Mono">W13</text>
+                  <text x="286" y="126" fill="#9A8E7E" font-size="10" font-family="Space Mono">Race</text>
+                </svg>
+                <div class="stats">
+                  <div class="stat"><div class="stat-label">Start</div><div class="stat-value">70km</div></div>
+                  <div class="stat"><div class="stat-label">Peak</div><div class="stat-value">92km</div></div>
+                  <div class="stat"><div class="stat-label">Race</div><div class="stat-value">42km</div></div>
+                </div>
+                <div class="phase-strip"><div></div><div></div><div></div><div></div></div>
+              </div>
+              <div class="overload card">
+                <div class="overload-copy"><strong>Steady</strong> — Add progressive overload? Volume builds automatically through build, then tapers.</div>
+                <div class="overload-buttons"><div class="pill active">Yes, +7% / 2w</div><div class="pill">Custom %</div><div class="pill">Keep flat</div></div>
+              </div>
+              <div class="tabs"><div class="tab active">Overview</div><div class="tab">Phases</div><div class="tab">Weeks</div></div>
+              <div class="key-weeks">
+                <div class="key-week"><div class="week-no">W1</div><div><div class="week-title">Settle into rhythm</div><div class="week-detail">70km · Base</div></div><span>›</span></div>
+                <div class="key-week"><div class="week-no">W13</div><div><div class="week-title">Peak week</div><div class="week-detail">92km · Highest load</div></div><span>›</span></div>
+              </div>
+              <div class="button">Save plan →</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="frame">
+          <div class="frame-label">7. Review by phase</div>
+          <div class="phone">
+            <div class="status"><span>10:08</span><div class="icons"><span class="bars"><i></i><i></i><i></i></span><span class="wifi"></span><span class="battery">98</span></div></div>
+            <div class="screen scroll">
+              <div class="step muted-step">Step 6 of 6</div>
+              <h2>Review your block</h2>
+              <p class="subtitle">Grouped by phase instead of every week at once.</p>
+              <div class="tabs"><div class="tab">Overview</div><div class="tab active">Phases</div><div class="tab">Weeks</div></div>
+              <div class="phase-card card">
+                <div class="phase-top"><div class="phase-name"><span class="dot long"></span>Base</div><div class="phase-range">W1-W3</div></div>
+                <div class="phase-copy">Hold the template steady while the routine settles.</div>
+                <div class="phase-dots"><i style="background: var(--forest)"></i><i style="background: var(--clay)"></i><i style="background: var(--forest)"></i><i style="background: var(--amber)"></i><i style="background: var(--border)"></i><i style="background: var(--forest)"></i><i style="background: var(--navy)"></i></div>
+              </div>
+              <div class="phase-card card">
+                <div class="phase-top"><div class="phase-name"><span class="dot interval"></span>Build</div><div class="phase-range">W4-W12</div></div>
+                <div class="phase-copy">Main progression. Volume moves from 76km to 88km before peak.</div>
+                <div class="phase-dots"><i style="background: var(--forest)"></i><i style="background: var(--clay)"></i><i style="background: var(--forest)"></i><i style="background: var(--amber)"></i><i style="background: var(--border)"></i><i style="background: var(--forest)"></i><i style="background: var(--navy)"></i></div>
+              </div>
+              <div class="phase-card card">
+                <div class="phase-top"><div class="phase-name"><span class="dot tempo"></span>Peak</div><div class="phase-range">W13-W14</div></div>
+                <div class="phase-copy">Highest load. Long run and tempo week sit here.</div>
+                <div class="phase-dots"><i style="background: var(--forest)"></i><i style="background: var(--clay)"></i><i style="background: var(--forest)"></i><i style="background: var(--amber)"></i><i style="background: var(--border)"></i><i style="background: var(--forest)"></i><i style="background: var(--navy)"></i></div>
+              </div>
+              <div class="phase-card card">
+                <div class="phase-top"><div class="phase-name"><span class="dot"></span>Taper</div><div class="phase-range">W15-W16</div></div>
+                <div class="phase-copy">Reduce volume and keep rhythm into race day.</div>
+                <div class="phase-dots"><i style="background: var(--forest)"></i><i style="background: var(--clay)"></i><i style="background: var(--forest)"></i><i style="background: var(--border)"></i><i style="background: var(--border)"></i><i style="background: var(--forest)"></i><i style="background: var(--navy)"></i></div>
+              </div>
+              <div class="structure">
+                <div><div class="label">Block structure</div><div class="value">3w base · 9w build · 2w peak · 2w taper</div></div>
+                <div class="change">Edit</div>
+              </div>
+              <div class="button">Save plan →</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="frame">
+          <div class="frame-label">8. Review by week</div>
+          <div class="phone">
+            <div class="status"><span>10:08</span><div class="icons"><span class="bars"><i></i><i></i><i></i></span><span class="wifi"></span><span class="battery">98</span></div></div>
+            <div class="screen scroll">
+              <div class="step muted-step">Step 6 of 6</div>
+              <h2>Review your block</h2>
+              <p class="subtitle">Detailed week list stays available, but no longer leads the screen.</p>
+              <div class="tabs"><div class="tab">Overview</div><div class="tab">Phases</div><div class="tab active">Weeks</div></div>
+              <div class="week-list">
+                <div class="week-row"><div class="week-row-top"><div class="week-no">W1</div><div class="run-dots"><i></i><i class="interval"></i><i></i><i class="tempo"></i><i class="rest"></i><i></i><i class="long"></i></div><div><span class="mono">70km</span> <span class="phase-tag">Base</span></div></div><div class="week-bar" style="width: 76%;"></div></div>
+                <div class="week-row"><div class="week-row-top"><div class="week-no">W2</div><div class="run-dots"><i></i><i class="interval"></i><i></i><i class="tempo"></i><i class="rest"></i><i></i><i class="long"></i></div><div><span class="mono">74km</span> <span class="phase-tag">Base</span></div></div><div class="week-bar" style="width: 80%;"></div></div>
+                <div class="week-row"><div class="week-row-top"><div class="week-no">W3</div><div class="run-dots"><i></i><i class="interval"></i><i></i><i class="tempo"></i><i class="rest"></i><i></i><i class="long"></i></div><div><span class="mono">76km</span> <span class="phase-tag">Base</span></div></div><div class="week-bar" style="width: 82%;"></div></div>
+                <div class="week-row"><div class="week-row-top"><div class="week-no">W4</div><div class="run-dots"><i></i><i class="interval"></i><i></i><i class="tempo"></i><i class="rest"></i><i></i><i class="long"></i></div><div><span class="mono">78km</span> <span class="phase-tag build">Build</span></div></div><div class="week-bar build" style="width: 84%;"></div></div>
+                <div class="week-row"><div class="week-row-top"><div class="week-no">W5</div><div class="run-dots"><i></i><i class="interval"></i><i></i><i class="tempo"></i><i class="rest"></i><i></i><i class="long"></i></div><div><span class="mono">82km</span> <span class="phase-tag build">Build</span></div></div><div class="week-bar build" style="width: 89%;"></div></div>
+                <div class="week-row"><div class="week-row-top"><div class="week-no">W6</div><div class="run-dots"><i></i><i class="interval"></i><i></i><i class="tempo"></i><i class="rest"></i><i></i><i class="long"></i></div><div><span class="mono">84km</span> <span class="phase-tag build">Build</span></div></div><div class="week-bar build" style="width: 91%;"></div></div>
+                <div class="week-row"><div class="week-row-top"><div class="week-no">W13</div><div class="run-dots"><i></i><i class="interval"></i><i></i><i class="tempo"></i><i class="rest"></i><i></i><i class="long"></i></div><div><span class="mono">92km</span> <span class="phase-tag peak">Peak</span></div></div><div class="week-bar peak" style="width: 100%;"></div></div>
+                <div class="week-row"><div class="week-row-top"><div class="week-no">W16</div><div class="run-dots"><i></i><i class="interval"></i><i class="rest"></i><i class="rest"></i><i class="rest"></i><i></i><i class="long"></i></div><div><span class="mono">42km</span> <span class="phase-tag taper">Taper</span></div></div><div class="week-bar taper" style="width: 46%;"></div></div>
+              </div>
+              <div class="button">Save plan →</div>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

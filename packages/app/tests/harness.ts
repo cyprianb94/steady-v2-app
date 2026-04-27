@@ -124,7 +124,75 @@ vi.mock('expo-linear-gradient', () => ({
     React.createElement(React.Fragment, null, children),
 }));
 
+vi.mock('react-native-reanimated', () => {
+  function resolveAnimatedStyle(style: any): any {
+    if (typeof style?.value === 'number') return style.value;
+    if (typeof style === 'function') return resolveAnimatedStyle(style());
+    if (Array.isArray(style)) {
+      return Object.assign({}, ...style.filter(Boolean).map(resolveAnimatedStyle));
+    }
+    if (!style || typeof style !== 'object') return style;
+    return Object.fromEntries(
+      Object.entries(style).map(([key, value]) => [key, resolveAnimatedStyle(value)]),
+    );
+  }
+
+  function ReanimatedView({
+    children,
+    entering: _entering,
+    exiting: _exiting,
+    layout: _layout,
+    style,
+    ...props
+  }: any) {
+    const resolvedStyle = resolveAnimatedStyle(style);
+
+    return React.createElement(
+      'div',
+      {
+        'data-rn': 'Reanimated.View',
+        style: resolvedStyle,
+        ...props,
+      },
+      children,
+    );
+  }
+
+  const animated = {
+    View: ReanimatedView,
+  };
+
+  return {
+    default: animated,
+    Easing: {
+      cubic: (value: number) => value,
+      in: (fn: (value: number) => number) => fn,
+      out: (fn: (value: number) => number) => fn,
+    },
+    interpolate: (value: number, inputRange: number[], outputRange: number[]) => {
+      const [inputStart, inputEnd] = inputRange;
+      const [outputStart, outputEnd] = outputRange;
+      const ratio = inputEnd === inputStart ? 0 : (value - inputStart) / (inputEnd - inputStart);
+      return outputStart + ((outputEnd - outputStart) * ratio);
+    },
+    ReduceMotion: {
+      System: 'system',
+    },
+    runOnJS: (fn: (...args: any[]) => void) => fn,
+    useAnimatedStyle: (factory: () => any) => factory(),
+    useSharedValue: (value: any) => ({ value }),
+    withTiming: (value: any, _config?: any, callback?: (finished: boolean) => void) => {
+      callback?.(true);
+      return value;
+    },
+  };
+});
+
 vi.mock('expo-haptics', () => ({
+  ImpactFeedbackStyle: {
+    Light: 'light',
+  },
+  impactAsync: vi.fn().mockResolvedValue(undefined),
   selectionAsync: vi.fn().mockResolvedValue(undefined),
 }));
 

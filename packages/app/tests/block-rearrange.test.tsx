@@ -1,5 +1,6 @@
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import * as Haptics from 'expo-haptics';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PlannedSession, TrainingPlanWithAnnotation } from '@steady/types';
 
@@ -135,6 +136,7 @@ describe('BlockTab session rearrange', () => {
     mockRefresh.mockReset();
     mockUpdatePlanWeeks.mockReset();
     mockActivityListQuery.mockReset();
+    vi.mocked(Haptics.selectionAsync).mockClear();
     mockRouterPush.mockReset();
     routeParams.current = {};
     consumeSessionEditReturn();
@@ -195,6 +197,19 @@ describe('BlockTab session rearrange', () => {
     expect(screen.getByText('6×400m @ 3:50')).toBeTruthy();
     expect(screen.getByText('Easy Run')).toBeTruthy();
     expect(screen.getByText('Intervals')).toBeTruthy();
+  });
+
+  it('emits a light haptic when expanding a week, but not when collapsing it', () => {
+    render(<BlockTab />);
+
+    fireEvent.click(screen.getByText('W1'));
+    expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByText('W1'));
+    expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByText('W2'));
+    expect(Haptics.selectionAsync).toHaveBeenCalledTimes(2);
   });
 
   it('stages a reschedule locally and persists following weeks only after apply', async () => {

@@ -41,10 +41,12 @@ describe('ResolveSessionSheet', () => {
       <ResolveSessionSheet
         open
         session={intervalSession()}
+        status="missed"
         possibleMatches={[]}
         onDismiss={vi.fn()}
         onLogSession={vi.fn()}
         onMarkSkipped={vi.fn()}
+        onEditSkipped={vi.fn()}
         onAttachMatch={vi.fn()}
       />,
     );
@@ -52,7 +54,7 @@ describe('ResolveSessionSheet', () => {
     expect(await screen.findByText('UNLOGGED')).toBeTruthy();
     expect(screen.getByText('Thu 23 Apr')).toBeTruthy();
     expect(screen.getByText('Intervals')).toBeTruthy();
-    expect(screen.getByText('Planned: 5×8min · 10km')).toBeTruthy();
+    expect(screen.queryByText('Planned: 5×8min · 10km')).toBeNull();
     expect(screen.getByText('No matching activity found')).toBeTruthy();
     expect(screen.getByText('Planned session')).toBeTruthy();
     expect(screen.getByText('WARM-UP')).toBeTruthy();
@@ -60,6 +62,60 @@ describe('ResolveSessionSheet', () => {
     expect(screen.getByText('5×8min @ 4:10/km')).toBeTruthy();
     expect(screen.getByText('Log session')).toBeTruthy();
     expect(screen.getByText('Mark skipped')).toBeTruthy();
+  });
+
+  it('tints the planned session area with the session type colour', async () => {
+    render(
+      <ResolveSessionSheet
+        open
+        session={intervalSession({ type: 'LONG', distance: 22, pace: '5:05' })}
+        status="upcoming"
+        possibleMatches={[]}
+        onDismiss={vi.fn()}
+        onLogSession={vi.fn()}
+        onMarkSkipped={vi.fn()}
+        onEditSkipped={vi.fn()}
+        onAttachMatch={vi.fn()}
+      />,
+    );
+
+    const plannedCard = await screen.findByTestId('planned-session-card');
+    expect(plannedCard.style.backgroundColor).toBe('rgb(237, 241, 248)');
+    expect(plannedCard.style.borderColor).toBe('rgba(27, 58, 107, 0.38)');
+    expect(screen.getByText('PLANNED')).toBeTruthy();
+    expect(screen.getByText('Planned for later this week')).toBeTruthy();
+    expect(screen.queryByText('Log session')).toBeNull();
+    expect(screen.queryByText('Mark skipped')).toBeNull();
+  });
+
+  it('renders skipped sessions as editable and still loggable', async () => {
+    const onEditSkipped = vi.fn();
+
+    render(
+      <ResolveSessionSheet
+        open
+        session={intervalSession({
+          skipped: {
+            reason: 'busy',
+            markedAt: '2026-04-23T12:00:00.000Z',
+          },
+        })}
+        status="skipped"
+        possibleMatches={[]}
+        onDismiss={vi.fn()}
+        onLogSession={vi.fn()}
+        onMarkSkipped={vi.fn()}
+        onEditSkipped={onEditSkipped}
+        onAttachMatch={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText('SKIPPED')).toBeTruthy();
+    expect(screen.getByText('Marked skipped: Busy')).toBeTruthy();
+    expect(screen.getByText('Log session instead')).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId('resolve-session-edit-skipped'));
+    expect(onEditSkipped).toHaveBeenCalledTimes(1);
   });
 
   it('renders selectable possible matches and attaches the selected run', async () => {
@@ -74,10 +130,12 @@ describe('ResolveSessionSheet', () => {
       <ResolveSessionSheet
         open
         session={session}
+        status="missed"
         possibleMatches={matches}
         onDismiss={vi.fn()}
         onLogSession={vi.fn()}
         onMarkSkipped={vi.fn()}
+        onEditSkipped={vi.fn()}
         onAttachMatch={onAttachMatch}
       />,
     );

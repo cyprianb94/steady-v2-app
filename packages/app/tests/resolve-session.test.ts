@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { Activity, PlannedSession, PlanWeek } from '@steady/types';
 import {
+  canOpenHomeSessionRow,
   canOpenResolveSessionSheet,
+  clearSessionSkippedInWeeks,
   markSessionSkippedInWeeks,
   possibleActivityMatchesForSession,
 } from '../features/home/resolve-session';
@@ -37,12 +39,24 @@ function activity(overrides: Partial<Activity>): Activity {
 }
 
 describe('home resolve-session helpers', () => {
-  it('opens the resolve sheet only for past unlogged planned sessions', () => {
+  it('opens the resolve sheet for unlogged planned sessions in the current week', () => {
     expect(canOpenResolveSessionSheet(intervalSession(), 'missed')).toBe(true);
+    expect(canOpenResolveSessionSheet(intervalSession(), 'today')).toBe(true);
+    expect(canOpenResolveSessionSheet(intervalSession(), 'upcoming')).toBe(true);
     expect(canOpenResolveSessionSheet(intervalSession({ actualActivityId: 'activity-1' }), 'missed')).toBe(false);
-    expect(canOpenResolveSessionSheet(intervalSession(), 'today')).toBe(false);
-    expect(canOpenResolveSessionSheet(intervalSession({ skipped: { reason: 'tired', markedAt: '2026-04-24T12:00:00.000Z' } }), 'skipped')).toBe(false);
+    expect(canOpenResolveSessionSheet(intervalSession(), 'completed')).toBe(false);
+    expect(canOpenResolveSessionSheet(intervalSession({ skipped: { reason: 'tired', markedAt: '2026-04-24T12:00:00.000Z' } }), 'skipped')).toBe(true);
     expect(canOpenResolveSessionSheet({ ...intervalSession(), type: 'REST' }, 'rest')).toBe(false);
+  });
+
+  it('keeps completed rows openable through run detail even when resolve is not available', () => {
+    expect(
+      canOpenHomeSessionRow({
+        session: intervalSession({ actualActivityId: 'activity-1' }),
+        status: 'completed',
+        hasRunDetail: true,
+      }),
+    ).toBe(true);
   });
 
   it('finds same-date unmatched activities and orders closest distance first', () => {
@@ -82,5 +96,33 @@ describe('home resolve-session helpers', () => {
       markedAt: '2026-04-24T12:00:00.000Z',
     });
     expect(weeks[0].sessions[0]?.skipped).toBeUndefined();
+  });
+
+  it('clears a skipped session without mutating the original weeks', () => {
+    const session = intervalSession({
+      skipped: {
+        reason: 'busy',
+        markedAt: '2026-04-24T12:00:00.000Z',
+      },
+    });
+    const weeks: PlanWeek[] = [
+      {
+        weekNumber: 2,
+        phase: 'BASE',
+        sessions: [session, null, null, null, null, null, null],
+        plannedKm: 10,
+      },
+    ];
+
+    const nextWeeks = clearSessionSkippedInWeeks({
+      weeks,
+      sessionId: session.id,
+    });
+
+    expect(nextWeeks[0].sessions[0]?.skipped).toBeUndefined();
+    expect(weeks[0].sessions[0]?.skipped).toEqual({
+      reason: 'busy',
+      markedAt: '2026-04-24T12:00:00.000Z',
+    });
   });
 });

@@ -110,6 +110,24 @@ describe('createActivityResolution', () => {
     expect(resolution.statusForDay(session, 0, 0)).toBe('completed');
   });
 
+  it('treats a linked run as completed even if an old skipped marker is still present', () => {
+    const resolution = createActivityResolution([]);
+    const session = {
+      id: 'session-1',
+      type: 'EASY' as const,
+      date: '2026-04-15',
+      distance: 8,
+      pace: '5:20',
+      actualActivityId: 'activity-1',
+      skipped: {
+        reason: 'busy' as const,
+        markedAt: '2026-04-15T12:00:00.000Z',
+      },
+    };
+
+    expect(resolution.statusForDay(session, 0, 0)).toBe('completed');
+  });
+
   it('ignores a loaded linked activity when its local date no longer matches the session date', () => {
     const resolution = createActivityResolution([
       {

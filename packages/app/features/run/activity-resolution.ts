@@ -186,13 +186,13 @@ export function createActivityResolution(
       return 'rest';
     }
 
-    if (session.skipped) {
-      return 'skipped';
-    }
-
     const completionStatus = completionStatusForSession(session);
     if (completionStatus) {
       return completionStatus;
+    }
+
+    if (session.skipped) {
+      return 'skipped';
     }
 
     if (dayIndex < todayIndex) {

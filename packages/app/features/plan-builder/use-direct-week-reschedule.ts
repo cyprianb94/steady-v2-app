@@ -7,7 +7,7 @@ import {
   type PlannedSession,
   type SwapLogEntry,
 } from '@steady/types';
-import { triggerSelectionHaptic } from '../../lib/haptics';
+import { triggerDragSlotHaptic, triggerDragStartHaptic } from '../../lib/haptics';
 
 export interface WeekRescheduleDragState {
   fromIndex: number;
@@ -121,7 +121,7 @@ export function useDirectWeekReschedule({
 
     dragY.setValue(0);
     setCurrentDragState({ fromIndex: index, overIndex: index });
-    triggerSelectionHaptic();
+    triggerDragStartHaptic();
     return true;
   }
 
@@ -143,7 +143,7 @@ export function useDirectWeekReschedule({
     if (current.overIndex !== overIndex) {
       setCurrentDragState({ ...current, overIndex });
       if (canDropIndex(overIndex)) {
-        triggerSelectionHaptic();
+        triggerDragSlotHaptic();
       }
     }
   }

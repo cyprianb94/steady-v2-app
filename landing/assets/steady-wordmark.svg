@@ -1,0 +1,8 @@
+<svg width="120" height="60" viewBox="0 0 120 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <text x="50%" y="35" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="32" fill="#1A1A1A">Steady</text>
+  <circle cx="44" cy="50" r="2.5" fill="#2B4570"></circle>
+  <circle cx="52" cy="50" r="2.5" fill="#BC4749"></circle>
+  <circle cx="60" cy="50" r="2.5" fill="#8A7EBE"></circle>
+  <circle cx="68" cy="50" r="2.5" fill="#D4A373"></circle>
+  <circle cx="76" cy="50" r="2.5" fill="#2D5A47"></circle>
+</svg>

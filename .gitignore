@@ -20,3 +20,5 @@ supabase/.temp/
 
 # Claude Code
 .claude/
+.vercel
+landing-v2/assets/test-crop*.png

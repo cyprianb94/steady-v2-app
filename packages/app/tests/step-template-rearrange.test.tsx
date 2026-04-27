@@ -27,6 +27,7 @@ describe('StepTemplate direct week reorder', () => {
   beforeEach(() => {
     vi.mocked(router.push).mockReset();
     vi.mocked(useLocalSearchParams).mockReturnValue(baseParams);
+    vi.mocked(Haptics.impactAsync).mockClear();
     vi.mocked(Haptics.selectionAsync).mockClear();
   });
 
@@ -51,11 +52,13 @@ describe('StepTemplate direct week reorder', () => {
     render(<StepTemplate />);
 
     fireEvent.click(screen.getByTestId('starter-choice-template'));
+    vi.mocked(Haptics.impactAsync).mockClear();
     vi.mocked(Haptics.selectionAsync).mockClear();
 
     dragHandle('template-drag-handle-0', 360);
 
-    expect(Haptics.selectionAsync).toHaveBeenCalledTimes(2);
+    expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
+    expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
   });
 
   it('lets the user cancel the regeneration warning when per-week edits exist', () => {

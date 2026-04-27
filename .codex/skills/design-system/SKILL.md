@@ -185,6 +185,28 @@ Metadata:         DM Sans 400, 10–11px, muted colour
 - Modal backdrop: `rgba(28,21,16,0.60)` — warm ink, never black.
 - No glassmorphism in cards. No translucent panels.
 
+### Haptics
+
+Default to no haptic. Steady haptics should feel like a stopwatch detent: short, precise, and tied to a real change.
+
+Use haptics only for:
+- Discrete value changes in controls such as chips, segmented units, steppers, and preset selectors.
+- Physical manipulation, especially picking up a session and crossing valid slots while rearranging a week.
+- Repeated but sparse detents in time-based controls, such as 5-minute fuelling ticks.
+- Important explicit task outcomes, if the visual result alone is not enough.
+
+Do not use haptics for:
+- Tab navigation, route changes, opening rows, expanding/collapsing accordions, or closing sheets.
+- No-op taps, active chips, disabled controls, scrolling, text input focus, keyboard input, or passive status changes.
+- Routine buttons where the visual pressed state and resulting screen change are already clear.
+- AI messages, nudges, recovery warnings, missed runs, or injury flows as reward/punishment feedback.
+
+Implementation rules:
+- Use semantic helpers from `packages/app/lib/haptics.ts`; do not call `expo-haptics` directly from components.
+- Fire haptics only after confirming the interaction is allowed and will change state.
+- Haptics must complement visible feedback, never replace it.
+- Keep every haptic optional by design: the app must remain fully understandable when device or user settings suppress haptics.
+
 ### Layout
 
 - Fixed elements: status bar at top, tab bar at bottom. Everything else scrolls.

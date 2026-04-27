@@ -1,11 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
-import { expectedDistance, normalizeSessionDuration, type Activity, type PlannedSession } from '@steady/types';
+import {
+  expectedDistance,
+  normalizeSessionDuration,
+  type Activity,
+  type PlannedSession,
+  type SkippedSessionReason,
+} from '@steady/types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C } from '../../constants/colours';
 import { SESSION_TYPE } from '../../constants/session-types';
 import { FONTS } from '../../constants/typography';
 import { usePreferences } from '../../providers/preferences-context';
+import type { ActivityDayStatus } from '../../features/run/activity-resolution';
 import {
   formatDistance,
   formatIntervalRepLength,
@@ -20,13 +27,19 @@ const MAX_SHEET_HEIGHT = Math.floor(Dimensions.get('window').height * 0.82);
 interface ResolveSessionSheetProps {
   open: boolean;
   session: PlannedSession | null;
+  status: ActivityDayStatus;
   possibleMatches: Activity[];
   busy?: boolean;
   onDismiss: () => void;
   onLogSession: (session: PlannedSession) => void;
   onMarkSkipped: (session: PlannedSession) => void;
+  onEditSkipped: (session: PlannedSession) => void;
   onAttachMatch: (session: PlannedSession, activityId: string) => void | Promise<void>;
 }
+
+type LoadedResolveSessionSheetProps = Omit<ResolveSessionSheetProps, 'session'> & {
+  session: PlannedSession;
+};
 
 interface PlannedSessionRow {
   label: string;
@@ -34,6 +47,14 @@ interface PlannedSessionRow {
   kind: 'dot' | 'main' | 'recovery';
   emphasized?: boolean;
 }
+
+const SKIPPED_REASON_LABELS: Record<SkippedSessionReason, string> = {
+  tired: 'Tired',
+  ill: 'Ill',
+  busy: 'Busy',
+  sore: 'Sore',
+  other: 'Other',
+};
 
 function formatSessionDate(date: string): string {
   const value = new Date(`${date}T00:00:00Z`);
@@ -119,15 +140,6 @@ function formatMainSet(session: PlannedSession, units: DistanceUnits): string {
   return `${formatDistance(session.distance ?? 0, units)} @ ${formatPaceValue(session.pace, units)}`;
 }
 
-function formatSessionSummary(session: PlannedSession, units: DistanceUnits): string {
-  const distance = formatDistance(session.distance ?? expectedDistance(session), units);
-  if (session.type === 'INTERVAL') {
-    return `Planned: ${session.reps ?? 6}×${formatIntervalRepLength(session)} · ${distance}`;
-  }
-
-  return `Planned: ${distance} · ${formatPaceValue(session.pace, units)}`;
-}
-
 function buildPlannedRows(session: PlannedSession, units: DistanceUnits): PlannedSessionRow[] {
   if (session.type === 'INTERVAL') {
     const warmup = formatDurationValue(session.warmup, units) ?? 'No warm-up';
@@ -168,22 +180,22 @@ function buildPlannedRows(session: PlannedSession, units: DistanceUnits): Planne
   return rows;
 }
 
-function PlannedRowMarker({ kind }: { kind: PlannedSessionRow['kind'] }) {
+function PlannedRowMarker({ kind, color }: { kind: PlannedSessionRow['kind']; color: string }) {
   if (kind === 'main') {
     return (
       <View style={styles.mainMarker}>
-        <View style={[styles.mainMarkerBar, { height: 8 }]} />
-        <View style={[styles.mainMarkerBar, { height: 14 }]} />
-        <View style={[styles.mainMarkerBar, { height: 20 }]} />
+        <View style={[styles.mainMarkerBar, { height: 8, backgroundColor: color }]} />
+        <View style={[styles.mainMarkerBar, { height: 14, backgroundColor: color }]} />
+        <View style={[styles.mainMarkerBar, { height: 20, backgroundColor: color }]} />
       </View>
     );
   }
 
   if (kind === 'recovery') {
-    return <View style={styles.recoveryMarker} />;
+    return <View style={[styles.recoveryMarker, { borderColor: color }]} />;
   }
 
-  return <View style={styles.dotMarker} />;
+  return <View style={[styles.dotMarker, { backgroundColor: `${color}94` }]} />;
 }
 
 function SelectionCircle({ selected }: { selected: boolean }) {
@@ -197,11 +209,13 @@ function SelectionCircle({ selected }: { selected: boolean }) {
 export function ResolveSessionSheet({
   open,
   session,
+  status,
   possibleMatches,
   busy = false,
   onDismiss,
   onLogSession,
   onMarkSkipped,
+  onEditSkipped,
   onAttachMatch,
 }: ResolveSessionSheetProps) {
   if (!open || !session) {
@@ -212,17 +226,19 @@ export function ResolveSessionSheet({
     <ResolveSessionSheetLoader
       open={open}
       session={session}
+      status={status}
       possibleMatches={possibleMatches}
       busy={busy}
       onDismiss={onDismiss}
       onLogSession={onLogSession}
       onMarkSkipped={onMarkSkipped}
+      onEditSkipped={onEditSkipped}
       onAttachMatch={onAttachMatch}
     />
   );
 }
 
-function ResolveSessionSheetLoader(props: ResolveSessionSheetProps) {
+function ResolveSessionSheetLoader(props: LoadedResolveSessionSheetProps) {
   const [bottomSheet, setBottomSheet] = useState<any | null>(null);
 
   useEffect(() => {
@@ -253,14 +269,16 @@ function ResolveSessionSheetLoader(props: ResolveSessionSheetProps) {
 function ResolveSessionSheetMounted({
   open,
   session,
+  status,
   possibleMatches,
   busy = false,
   onDismiss,
   onLogSession,
   onMarkSkipped,
+  onEditSkipped,
   onAttachMatch,
   bottomSheet,
-}: ResolveSessionSheetProps & { bottomSheet: any }) {
+}: LoadedResolveSessionSheetProps & { bottomSheet: any }) {
   const {
     BottomSheetBackdrop,
     BottomSheetModal,
@@ -271,7 +289,10 @@ function ResolveSessionSheetMounted({
   const { units } = usePreferences();
   const matchIds = possibleMatches.map((match) => match.id).join('|');
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(possibleMatches[0]?.id ?? null);
-  const hasMatches = possibleMatches.length > 0;
+  const canLogSession = status === 'missed' || status === 'today' || status === 'skipped';
+  const canMarkSkipped = status === 'missed' || status === 'today';
+  const canEditSkipped = status === 'skipped';
+  const hasMatches = canLogSession && possibleMatches.length > 0;
 
   useEffect(() => {
     setSelectedMatchId(possibleMatches[0]?.id ?? null);
@@ -301,9 +322,10 @@ function ResolveSessionSheetMounted({
     () => (session ? buildPlannedRows(session, units) : []),
     [session, units],
   );
+  const sessionTheme = SESSION_TYPE[session.type];
 
   const handlePrimaryPress = useCallback(() => {
-    if (!session || busy) {
+    if (!session || busy || !canLogSession) {
       return;
     }
 
@@ -317,15 +339,67 @@ function ResolveSessionSheetMounted({
     }
 
     onLogSession(session);
-  }, [busy, hasMatches, onAttachMatch, onLogSession, selectedMatchId, session]);
+  }, [busy, canLogSession, hasMatches, onAttachMatch, onLogSession, selectedMatchId, session]);
 
   const handleSkippedPress = useCallback(() => {
-    if (session && !busy) {
+    if (!session || busy) {
+      return;
+    }
+
+    if (canEditSkipped) {
+      onEditSkipped(session);
+      return;
+    }
+
+    if (canMarkSkipped) {
       onMarkSkipped(session);
     }
-  }, [busy, onMarkSkipped, session]);
+  }, [busy, canEditSkipped, canMarkSkipped, onEditSkipped, onMarkSkipped, session]);
 
-  const primaryDisabled = busy || (hasMatches && !selectedMatchId);
+  const primaryDisabled = !canLogSession || busy || (hasMatches && !selectedMatchId);
+  const statusLabel = status === 'upcoming'
+    ? 'PLANNED'
+    : status === 'skipped'
+      ? 'SKIPPED'
+      : 'UNLOGGED';
+  const statusChipStyle = status === 'upcoming'
+    ? {
+        borderColor: C.border,
+      }
+    : status === 'skipped'
+      ? {
+          borderColor: 'rgba(196,82,42,0.48)',
+          backgroundColor: 'rgba(196,82,42,0.08)',
+        }
+    : null;
+  const statusChipTextStyle = status === 'upcoming'
+    ? {
+        color: C.muted,
+      }
+    : status === 'skipped'
+      ? {
+          color: C.clay,
+        }
+    : null;
+  const skippedReasonLabel = session.skipped ? SKIPPED_REASON_LABELS[session.skipped.reason] : null;
+  const helperText = status === 'upcoming'
+    ? 'Planned for later this week'
+    : status === 'skipped'
+      ? skippedReasonLabel
+        ? `Marked skipped: ${skippedReasonLabel}`
+        : 'Marked skipped'
+    : hasMatches
+      ? 'Choose the run that matches this session'
+      : status === 'today'
+        ? 'No synced activity yet'
+        : 'No matching activity found';
+  const primaryButtonLabel = busy
+    ? 'Logging…'
+    : hasMatches
+      ? 'Log this run'
+      : status === 'skipped'
+        ? 'Log session instead'
+        : 'Log session';
 
   return (
     <BottomSheetModal
@@ -350,15 +424,12 @@ function ResolveSessionSheetMounted({
         {session ? (
           <>
             <View style={styles.header}>
-              <View style={styles.statusChip}>
-                <Text style={styles.statusChipText}>UNLOGGED</Text>
+              <View style={[styles.statusChip, statusChipStyle]}>
+                <Text style={[styles.statusChipText, statusChipTextStyle]}>{statusLabel}</Text>
               </View>
               <Text style={styles.dateText}>{formatSessionDate(session.date)}</Text>
               <Text style={styles.title}>{SESSION_TYPE[session.type].label}</Text>
-              <Text style={styles.summary}>{formatSessionSummary(session, units)}</Text>
-              <Text style={styles.helper}>
-                {hasMatches ? 'Choose the run that matches this session' : 'No matching activity found'}
-              </Text>
+              <Text style={styles.helper}>{helperText}</Text>
             </View>
 
             {hasMatches ? (
@@ -391,15 +462,28 @@ function ResolveSessionSheetMounted({
                 })}
               </View>
             ) : (
-              <View style={styles.plannedCard}>
-                <Text style={styles.plannedTitle}>Planned session</Text>
+              <View
+                style={[
+                  styles.plannedCard,
+                  {
+                    backgroundColor: sessionTheme.bg,
+                    borderColor: `${sessionTheme.color}61`,
+                  },
+                ]}
+                testID="planned-session-card"
+              >
+                <Text style={[styles.plannedTitle, { color: sessionTheme.color }]}>Planned session</Text>
                 <View style={styles.plannedRows}>
                   {plannedRows.map((row) => (
                     <View
                       key={row.label}
-                      style={[styles.plannedRow, row.emphasized && styles.plannedRowEmphasized]}
+                      style={[
+                        styles.plannedRow,
+                        row.emphasized && styles.plannedRowEmphasized,
+                        row.emphasized && { borderColor: `${sessionTheme.color}2E` },
+                      ]}
                     >
-                      <PlannedRowMarker kind={row.kind} />
+                      <PlannedRowMarker kind={row.kind} color={sessionTheme.color} />
                       <Text style={styles.plannedLabel}>{row.label}</Text>
                       <Text style={[styles.plannedValue, row.emphasized && styles.plannedValueEmphasized]}>
                         {row.value}
@@ -410,36 +494,42 @@ function ResolveSessionSheetMounted({
               </View>
             )}
 
-            <View style={styles.actions}>
-              <Pressable
-                accessibilityRole="button"
-                disabled={primaryDisabled}
-                onPress={handlePrimaryPress}
-                style={({ pressed }) => [
-                  styles.primaryButton,
-                  pressed && !primaryDisabled && styles.pressed,
-                  primaryDisabled && styles.buttonDisabled,
-                ]}
-                testID="resolve-session-primary"
-              >
-                <Text style={styles.primaryButtonText}>
-                  {busy ? 'Logging…' : hasMatches ? 'Log this run' : 'Log session'}
-                </Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                disabled={busy}
-                onPress={handleSkippedPress}
-                style={({ pressed }) => [
-                  styles.secondaryButton,
-                  pressed && !busy && styles.pressed,
-                  busy && styles.buttonDisabled,
-                ]}
-                testID="resolve-session-skip"
-              >
-                <Text style={styles.secondaryButtonText}>Mark skipped</Text>
-              </Pressable>
-            </View>
+            {canLogSession || canMarkSkipped || canEditSkipped ? (
+              <View style={styles.actions}>
+                {canLogSession ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={primaryDisabled}
+                    onPress={handlePrimaryPress}
+                    style={({ pressed }) => [
+                      styles.primaryButton,
+                      pressed && !primaryDisabled && styles.pressed,
+                      primaryDisabled && styles.buttonDisabled,
+                    ]}
+                    testID="resolve-session-primary"
+                  >
+                    <Text style={styles.primaryButtonText}>{primaryButtonLabel}</Text>
+                  </Pressable>
+                ) : null}
+                {canMarkSkipped || canEditSkipped ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={busy}
+                    onPress={handleSkippedPress}
+                    style={({ pressed }) => [
+                      styles.secondaryButton,
+                      pressed && !busy && styles.pressed,
+                      busy && styles.buttonDisabled,
+                    ]}
+                    testID={canEditSkipped ? 'resolve-session-edit-skipped' : 'resolve-session-skip'}
+                  >
+                    <Text style={styles.secondaryButtonText}>
+                      {canEditSkipped ? 'Edit skipped status' : 'Mark skipped'}
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
           </>
         ) : null}
       </BottomSheetScrollView>
@@ -501,12 +591,6 @@ const styles = StyleSheet.create({
     lineHeight: 36,
     color: C.ink,
     marginBottom: 8,
-  },
-  summary: {
-    fontFamily: FONTS.sans,
-    fontSize: 15,
-    color: C.muted,
-    marginBottom: 10,
   },
   helper: {
     fontFamily: FONTS.sans,
@@ -637,7 +721,6 @@ const styles = StyleSheet.create({
   mainMarkerBar: {
     width: 3,
     borderRadius: 2,
-    backgroundColor: C.clay,
   },
   plannedLabel: {
     width: 86,

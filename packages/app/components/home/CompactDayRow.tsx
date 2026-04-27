@@ -1,9 +1,10 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import React, { useMemo, useRef } from 'react';
+import { Animated, Easing, View, Text, StyleSheet, Pressable } from 'react-native';
 import type { PlannedSession } from '@steady/types';
 import { SESSION_TYPE } from '../../constants/session-types';
 import { FONTS } from '../../constants/typography';
 import { C } from '../../constants/colours';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { usePreferences } from '../../providers/preferences-context';
 import { formatCompactSessionLabel } from '../../lib/units';
 import { RunStatusIcon, type RunStatusIconStatus } from '../run/RunStatusIcon';
@@ -32,10 +33,52 @@ function StatusIcon({ status }: { status: 'completed' | 'off-target' | 'missed' 
 
 export function CompactDayRow({ dayName, dateLabel, session, status, metricLabel, onPress }: CompactDayRowProps) {
   const { units } = usePreferences();
+  const reducedMotion = useReducedMotion();
+  const pressProgress = useRef(new Animated.Value(0)).current;
   const isRest = !session || session.type === 'REST';
   const meta = session && !isRest ? SESSION_TYPE[session.type] : null;
   const rowStatus = status ?? (session?.actualActivityId ? 'completed' : isRest ? 'rest' : 'upcoming');
   const isPressable = typeof onPress === 'function';
+  const animatedPressStyle = useMemo(
+    () => ({
+      opacity: pressProgress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [1, 0.94],
+        extrapolate: 'clamp',
+      }),
+      transform: [
+        {
+          translateY: pressProgress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, 1],
+            extrapolate: 'clamp',
+          }),
+        },
+      ],
+    }),
+    [pressProgress],
+  );
+
+  function animatePress(toValue: number, duration: number) {
+    pressProgress.stopAnimation();
+
+    if (reducedMotion) {
+      pressProgress.setValue(toValue);
+      return;
+    }
+
+    Animated.timing(pressProgress, {
+      toValue,
+      duration,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }
+
+  function handlePress() {
+    onPress?.();
+  }
+
   const rowContent = (
     <View
       style={[styles.row, rowStatus === 'today' && styles.todayRow]}
@@ -76,11 +119,15 @@ export function CompactDayRow({ dayName, dateLabel, session, status, metricLabel
     return (
       <Pressable
         accessibilityRole="button"
-        onPress={onPress}
-        style={({ pressed }) => [pressed && styles.rowPressed]}
+        onPress={handlePress}
+        onPressIn={() => animatePress(1, 90)}
+        onPressOut={() => animatePress(0, 150)}
+        style={({ pressed }) => [styles.pressableRow, pressed && styles.rowPressed]}
         testID="compact-day-row-pressable"
       >
-        {rowContent}
+        <Animated.View style={animatedPressStyle}>
+          {rowContent}
+        </Animated.View>
       </Pressable>
     );
   }
@@ -96,8 +143,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     gap: 10,
   },
+  pressableRow: {
+    borderRadius: 10,
+  },
   rowPressed: {
-    opacity: 0.82,
+    backgroundColor: 'rgba(196,82,42,0.04)',
   },
   todayRow: {
     backgroundColor: 'rgba(212,136,42,0.08)',
