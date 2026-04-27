@@ -1,5 +1,6 @@
 import os from 'node:os';
 import path from 'node:path';
+import fs from 'node:fs';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
@@ -8,6 +9,7 @@ const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '..');
 const apiPort = Number(process.env.PORT) || 3000;
 const apiHealthTimeoutMs = Number(process.env.STEADY_DEV_API_HEALTH_TIMEOUT_MS) || 30_000;
+const envApiUrlKey = 'EXPO_PUBLIC_API_URL';
 
 const preferredInterfacePatterns = [
   /^en0$/i,
@@ -84,6 +86,47 @@ function getLanIp() {
   return candidates[0]?.address ?? null;
 }
 
+function readEnvValue(filePath, key) {
+  try {
+    const contents = fs.readFileSync(filePath, 'utf8');
+
+    for (const rawLine of contents.split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith('#')) {
+        continue;
+      }
+
+      const match = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
+      if (!match || match[1] !== key) {
+        continue;
+      }
+
+      const value = match[2].trim();
+      if (
+        (value.startsWith('"') && value.endsWith('"'))
+        || (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        return value.slice(1, -1);
+      }
+
+      return value;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function getExpoApiUrl(fallbackUrl) {
+  return (
+    process.env[envApiUrlKey]?.trim()
+    || readEnvValue(path.join(repoRoot, 'packages/app/.env'), envApiUrlKey)
+    || readEnvValue(path.join(repoRoot, '.env'), envApiUrlKey)
+    || fallbackUrl
+  );
+}
+
 const args = process.argv.slice(2);
 const shouldPrint = args.includes('--print');
 const shouldSkipServer = args.includes('--no-server') || process.env.STEADY_DEV_SKIP_SERVER === '1';
@@ -98,6 +141,7 @@ if (!lanIp) {
 }
 
 const apiUrl = `http://${lanIp}:${apiPort}`;
+const expoApiUrl = getExpoApiUrl(apiUrl);
 
 if (shouldPrint) {
   console.log(apiUrl);
@@ -178,13 +222,13 @@ async function main() {
     console.log(`Fastify API is reachable at ${apiUrl}`);
   }
 
-  console.log(`Starting Expo in LAN mode with EXPO_PUBLIC_API_URL=${apiUrl}`);
+  console.log(`Starting Expo in LAN mode with EXPO_PUBLIC_API_URL=${expoApiUrl}`);
   expoChild = spawnChild(
     npmCommand,
     ['run', 'start', '-w', 'packages/app', '--', '--host', 'lan', ...forwardedArgs],
     {
       ...process.env,
-      EXPO_PUBLIC_API_URL: apiUrl,
+      EXPO_PUBLIC_API_URL: expoApiUrl,
       REACT_NATIVE_PACKAGER_HOSTNAME: lanIp,
       STEADY_DEV_LAN_IP: lanIp,
     },
