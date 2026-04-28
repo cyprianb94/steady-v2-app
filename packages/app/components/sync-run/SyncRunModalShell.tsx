@@ -1,6 +1,6 @@
 import React, { type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import { BottomSheetScrollView, type BottomSheetScrollViewMethods } from '@gorhom/bottom-sheet';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { GorhomSheet } from '../ui/GorhomSheet';
@@ -14,6 +14,7 @@ interface SyncRunModalShellProps {
   onRightAction?: () => void;
   rightActionDisabled?: boolean;
   keyboardBehavior?: 'extend' | 'fillParent' | 'interactive';
+  scrollViewRef?: React.Ref<BottomSheetScrollViewMethods>;
   children: ReactNode;
   bottomBar?: ReactNode;
 }
@@ -27,6 +28,7 @@ export function SyncRunModalShell({
   onRightAction,
   rightActionDisabled = false,
   keyboardBehavior,
+  scrollViewRef,
   children,
   bottomBar,
 }: SyncRunModalShellProps) {
@@ -66,6 +68,7 @@ export function SyncRunModalShell({
           </Pressable>
         </View>
         <BottomSheetScrollView
+          ref={scrollViewRef}
           contentContainerStyle={[
             styles.scrollContent,
             bottomBar ? styles.scrollContentWithBottomBar : null,

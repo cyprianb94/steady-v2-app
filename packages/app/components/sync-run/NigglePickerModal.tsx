@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { BottomSheetTextInput, type BottomSheetScrollViewMethods } from '@gorhom/bottom-sheet';
 import {
   BODY_PART_LABELS,
   NIGGLE_OTHER_BODY_PART_MAX_LENGTH,
@@ -42,6 +42,7 @@ const BODY_PART_GROUPS: readonly {
 ];
 
 const SIDE_OPTIONS: readonly NiggleSide[] = ['left', 'right', null];
+const OTHER_INPUT_KEYBOARD_OFFSET = 320;
 
 interface NigglePickerModalProps {
   visible: boolean;
@@ -85,6 +86,7 @@ function buildDraftSummary({
 }
 
 export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModalProps) {
+  const scrollViewRef = useRef<BottomSheetScrollViewMethods>(null);
   const [bodyPart, setBodyPart] = useState<BodyPart | null>(null);
   const [bodyPartOtherText, setBodyPartOtherText] = useState('');
   const [side, setSide] = useState<NiggleSide>(null);
@@ -126,6 +128,12 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
     });
   }
 
+  function revealOtherInput() {
+    setOtherInputFocused(true);
+    setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 80);
+    setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 280);
+  }
+
   return (
     <SyncRunModalShell
       visible={visible}
@@ -133,6 +141,7 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
       onClose={onClose}
       rightActionDisabled
       keyboardBehavior="extend"
+      scrollViewRef={scrollViewRef}
       bottomBar={showBottomBar ? (
         <View style={styles.bottomBar}>
           <Text style={[styles.summaryLine, !draftSummary && styles.summaryLineEmpty]}>
@@ -211,7 +220,7 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
             <BottomSheetTextInput
               value={bodyPartOtherText}
               onChangeText={setBodyPartOtherText}
-              onFocus={() => setOtherInputFocused(true)}
+              onFocus={revealOtherInput}
               onBlur={() => setOtherInputFocused(false)}
               placeholder="e.g. Groin or upper calf"
               placeholderTextColor={C.muted}
@@ -439,7 +448,7 @@ const styles = StyleSheet.create({
     color: C.ink,
   },
   otherKeyboardSpacer: {
-    height: 176,
+    height: OTHER_INPUT_KEYBOARD_OFFSET,
   },
   sideRow: {
     flexDirection: 'row',
