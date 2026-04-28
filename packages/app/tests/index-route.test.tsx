@@ -40,7 +40,8 @@ describe('first-run index route', () => {
     expect(screen.getByText('Bring your own plan.')).toBeTruthy();
     expect(screen.getByText('Build the training, sync the runs, adapt and track.')).toBeTruthy();
     expect(screen.getByText('Beta')).toBeTruthy();
-    expect(screen.getByText('Block')).toBeTruthy();
+    expect(screen.getByText('Steady')).toBeTruthy();
+    expect(screen.queryByText('Block')).toBeNull();
     expect(screen.getByText('Build')).toBeTruthy();
     expect(screen.getByText('Sync')).toBeTruthy();
     expect(screen.getByText('Adapt')).toBeTruthy();

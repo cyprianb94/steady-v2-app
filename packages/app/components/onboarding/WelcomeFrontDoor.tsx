@@ -4,6 +4,7 @@ import {
   Alert,
   Animated,
   Easing,
+  type LayoutChangeEvent,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -27,17 +28,34 @@ const AnimatedPath = Animated.createAnimatedComponent(Path);
 const TICKER_TOP = ['BASE', '08KM', '5:30/KM', 'TEMPO', '10KM', '4:20/KM', 'LONG', '22KM'];
 const TICKER_BOTTOM = ['ADAPT', 'BUILD', 'PEAK', 'TAPER', 'SYNCED', 'PLANNED', 'ACTUAL'];
 
-function BrandMark() {
+function BrandMark({ variant = 'small' }: { variant?: 'small' | 'hero' }) {
   return (
-    <View style={styles.brandMark} accessibilityLabel="Steady">
-      <Text style={styles.brandText}>Steady</Text>
-      <View style={styles.brandDots}>
-        <View style={[styles.brandDot, { backgroundColor: '#2B4570' }]} />
-        <View style={[styles.brandDot, { backgroundColor: '#BC4749' }]} />
-        <View style={[styles.brandDot, { backgroundColor: '#8A7EBE' }]} />
-        <View style={[styles.brandDot, { backgroundColor: '#D4A373' }]} />
-        <View style={[styles.brandDot, { backgroundColor: '#2D5A47' }]} />
+    <View
+      style={[styles.brandMark, variant === 'hero' ? styles.brandMarkHero : null]}
+      accessibilityLabel="Steady"
+    >
+      <Text style={[styles.brandText, variant === 'hero' ? styles.brandTextHero : null]}>
+        Steady
+      </Text>
+      <View style={[styles.brandDots, variant === 'hero' ? styles.brandDotsHero : null]}>
+        <View style={[styles.brandDot, variant === 'hero' ? styles.brandDotHero : null, { backgroundColor: '#2B4570' }]} />
+        <View style={[styles.brandDot, variant === 'hero' ? styles.brandDotHero : null, { backgroundColor: '#BC4749' }]} />
+        <View style={[styles.brandDot, variant === 'hero' ? styles.brandDotHero : null, { backgroundColor: '#8A7EBE' }]} />
+        <View style={[styles.brandDot, variant === 'hero' ? styles.brandDotHero : null, { backgroundColor: '#D4A373' }]} />
+        <View style={[styles.brandDot, variant === 'hero' ? styles.brandDotHero : null, { backgroundColor: '#2D5A47' }]} />
       </View>
+    </View>
+  );
+}
+
+function TickerGroup({ items, onLayout }: { items: string[]; onLayout?: (event: LayoutChangeEvent) => void }) {
+  return (
+    <View style={styles.tickerGroup} onLayout={onLayout}>
+      {items.map((item, index) => (
+        <Text key={`${item}-${index}`} style={styles.tickerText}>
+          {item}
+        </Text>
+      ))}
     </View>
   );
 }
@@ -50,17 +68,19 @@ function TickerRow({
   direction: 'left' | 'right';
 }) {
   const reducedMotion = useReducedMotion();
-  const progress = useRef(new Animated.Value(direction === 'left' ? 0 : 1)).current;
+  const [loopWidth, setLoopWidth] = useState(360);
+  const progress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (reducedMotion) {
-      progress.setValue(direction === 'left' ? 0 : 1);
+      progress.setValue(0);
       return undefined;
     }
 
+    progress.setValue(0);
     const animation = Animated.loop(
       Animated.timing(progress, {
-        toValue: direction === 'left' ? 1 : 0,
+        toValue: 1,
         duration: direction === 'left' ? 15000 : 17000,
         easing: Easing.linear,
         useNativeDriver: true,
@@ -68,22 +88,26 @@ function TickerRow({
     );
     animation.start();
     return () => animation.stop();
-  }, [direction, progress, reducedMotion]);
+  }, [direction, loopWidth, progress, reducedMotion]);
 
   const translateX = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: direction === 'left' ? [0, -220] : [-220, 0],
+    outputRange: direction === 'left' ? [0, -loopWidth] : [-loopWidth, 0],
   });
-  const repeated = [...items, ...items, ...items, ...items];
 
   return (
     <View style={[styles.tickerRow, direction === 'left' ? styles.tickerTop : styles.tickerBottom]}>
       <Animated.View style={[styles.tickerTrack, { transform: [{ translateX }] }]}>
-        {repeated.map((item, index) => (
-          <Text key={`${item}-${index}`} style={styles.tickerText}>
-            {item}
-          </Text>
-        ))}
+        <TickerGroup
+          items={items}
+          onLayout={(event) => {
+            const nextWidth = event.nativeEvent.layout.width;
+            if (nextWidth > 0) {
+              setLoopWidth(nextWidth);
+            }
+          }}
+        />
+        <TickerGroup items={items} />
       </Animated.View>
     </View>
   );
@@ -212,15 +236,14 @@ function TrainingMotif() {
 
         <Animated.View
           style={[
-            styles.typeStack,
+            styles.heroMarkWrap,
             {
               opacity: textOpacity,
               transform: [{ translateY: textTranslateY }],
             },
           ]}
         >
-          <Text style={styles.kickerLine}>16W · 48KM · 3:30</Text>
-          <Text style={styles.bigWord}>Block</Text>
+          <BrandMark variant="hero" />
         </Animated.View>
 
         <View style={styles.wordRow}>
@@ -268,7 +291,6 @@ export function WelcomeFrontDoor({ onAuthenticated }: WelcomeFrontDoorProps) {
       {step === 'welcome' ? (
         <View style={styles.welcomeScreen}>
           <View style={styles.top}>
-            <BrandMark />
             <View style={styles.betaChip}>
               <View style={styles.betaDot} />
               <Text style={styles.betaText}>Beta</Text>
@@ -370,12 +392,17 @@ const styles = StyleSheet.create({
   top: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'center',
     paddingHorizontal: 2,
   },
   brandMark: {
     width: 112,
     gap: 2,
+  },
+  brandMarkHero: {
+    width: 188,
+    alignItems: 'center',
+    gap: 4,
   },
   brandText: {
     fontFamily: FONTS.serif,
@@ -384,15 +411,27 @@ const styles = StyleSheet.create({
     lineHeight: 34,
     color: C.ink,
   },
+  brandTextHero: {
+    fontSize: 54,
+    lineHeight: 58,
+  },
   brandDots: {
     flexDirection: 'row',
     gap: 4,
     paddingLeft: 2,
   },
+  brandDotsHero: {
+    gap: 7,
+    paddingLeft: 0,
+  },
   brandDot: {
     width: 5,
     height: 5,
     borderRadius: 999,
+  },
+  brandDotHero: {
+    width: 7,
+    height: 7,
   },
   betaChip: {
     flexDirection: 'row',
@@ -437,7 +476,11 @@ const styles = StyleSheet.create({
   },
   tickerTrack: {
     flexDirection: 'row',
+  },
+  tickerGroup: {
+    flexDirection: 'row',
     gap: 18,
+    paddingRight: 18,
   },
   tickerText: {
     fontFamily: FONTS.monoBold,
@@ -464,24 +507,12 @@ const styles = StyleSheet.create({
     height: 13,
     borderRadius: 999,
   },
-  typeStack: {
+  heroMarkWrap: {
     position: 'absolute',
     left: 0,
     right: 0,
-    top: 42,
+    top: 44,
     alignItems: 'center',
-  },
-  kickerLine: {
-    fontFamily: FONTS.monoBold,
-    fontSize: 11,
-    color: C.muted,
-  },
-  bigWord: {
-    marginTop: 0,
-    fontFamily: FONTS.serifBold,
-    fontSize: 50,
-    lineHeight: 52,
-    color: C.ink,
   },
   wordRow: {
     position: 'absolute',
@@ -506,7 +537,7 @@ const styles = StyleSheet.create({
   welcomeCopy: {
     marginTop: 'auto',
     alignItems: 'center',
-    paddingBottom: 2,
+    paddingBottom: 18,
   },
   title: {
     maxWidth: 330,
