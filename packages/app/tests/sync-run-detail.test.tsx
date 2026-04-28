@@ -347,6 +347,92 @@ describe('SyncRunDetailScreen', () => {
     expect(screen.getByText('No planned session matched')).toBeTruthy();
   });
 
+  it('shows structured planned targets in planned-vs-actual without collapsing range or effort cues', async () => {
+    const today = todayIsoLocal();
+    const sessions = [null, null, null, null, null, null, null] as any[];
+    const index = dayIndexForIsoDate(today);
+    sessions[index] = {
+      id: 'today-session',
+      type: 'TEMPO',
+      date: today,
+      distance: 10,
+      pace: '4:05',
+      intensityTarget: {
+        source: 'manual',
+        mode: 'both',
+        profileKey: 'threshold',
+        paceRange: { min: '4:00', max: '4:10' },
+        effortCue: 'controlled hard',
+      },
+    };
+    mockPlanState.currentWeek = {
+      weekNumber: 1,
+      phase: 'BASE',
+      plannedKm: 10,
+      sessions,
+    };
+    mockActivityGet.mockResolvedValue({
+      id: 'activity-1',
+      source: 'strava',
+      startTime: `${today}T07:15:00.000Z`,
+      distance: 10,
+      duration: 2450,
+      avgPace: 245,
+      avgHR: 164,
+      splits: [],
+      matchedSessionId: null,
+    });
+
+    render(<SyncRunDetailScreen />);
+
+    expect(await screen.findByText('Planned vs actual')).toBeTruthy();
+    expect(screen.getByText('4:00-4:10/km · controlled hard')).toBeTruthy();
+    expect(screen.queryByText('4:05/km')).toBeNull();
+  });
+
+  it('shows effort-only planned targets without a broken planned pace placeholder', async () => {
+    const today = todayIsoLocal();
+    const sessions = [null, null, null, null, null, null, null] as any[];
+    const index = dayIndexForIsoDate(today);
+    sessions[index] = {
+      id: 'today-session',
+      type: 'EASY',
+      date: today,
+      distance: 8,
+      pace: undefined,
+      intensityTarget: {
+        source: 'manual',
+        mode: 'effort',
+        profileKey: 'easy',
+        effortCue: 'conversational',
+      },
+    };
+    mockPlanState.currentWeek = {
+      weekNumber: 1,
+      phase: 'BASE',
+      plannedKm: 8,
+      sessions,
+    };
+    mockActivityGet.mockResolvedValue({
+      id: 'activity-1',
+      source: 'strava',
+      startTime: `${today}T07:15:00.000Z`,
+      distance: 8,
+      duration: 3000,
+      avgPace: 375,
+      avgHR: 136,
+      splits: [],
+      matchedSessionId: null,
+    });
+
+    render(<SyncRunDetailScreen />);
+
+    expect(await screen.findByText('Planned vs actual')).toBeTruthy();
+    expect(screen.getByText('conversational')).toBeTruthy();
+    expect(screen.getAllByText('6:15 /km').length).toBeGreaterThan(0);
+    expect(screen.queryByText('—/km')).toBeNull();
+  });
+
   it('shows the slot-corrected weekday for stale session dates in the match picker', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-26T12:00:00.000Z'));

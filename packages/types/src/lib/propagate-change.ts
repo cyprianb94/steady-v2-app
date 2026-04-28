@@ -1,5 +1,6 @@
 import type { PlannedSession } from '../session';
 import type { PhaseName, PlanWeek } from '../plan';
+import { normalizeSessionIntensityTarget } from './intensity-targets';
 import { sessionKm } from './session-km';
 
 export type PropagateScope = 'this' | 'remaining' | 'build';
@@ -10,6 +11,31 @@ interface PropagateChangeOptions {
     weekIndex: number,
     dayIndex: number,
   ) => boolean;
+}
+
+function copyIntensityMetadata(
+  session: PlannedSession,
+  updated: PlannedSession,
+): PlannedSession {
+  const next: PlannedSession = { ...session };
+
+  if ('pace' in updated) {
+    if (updated.pace == null) {
+      delete next.pace;
+    } else {
+      next.pace = updated.pace;
+    }
+  }
+
+  if ('intensityTarget' in updated) {
+    if (updated.intensityTarget == null) {
+      delete next.intensityTarget;
+    } else {
+      next.intensityTarget = updated.intensityTarget;
+    }
+  }
+
+  return normalizeSessionIntensityTarget(next, { applyDefaults: true });
 }
 
 /**
@@ -33,6 +59,9 @@ export function propagateChange(
   options: PropagateChangeOptions = {},
 ): PlanWeek[] {
   const phaseScope = targetPhase ?? plan[weekIndex]?.phase ?? 'BUILD';
+  const normalizedUpdated = updated
+    ? normalizeSessionIntensityTarget(updated, { applyDefaults: true })
+    : null;
   const shouldPreserveSession =
     options.shouldPreserveSession
     ?? ((session: PlannedSession) => Boolean(session.actualActivityId));
@@ -50,30 +79,33 @@ export function propagateChange(
       if (d && shouldPreserveSession(d, wi, di)) return d;
 
       // Target week gets the exact updated session
-      if (wi === weekIndex) return updated;
+      if (wi === weekIndex) return normalizedUpdated;
 
       const base = template[dayIndex];
-      if (!d || d.type === 'REST' || !base || base.type === 'REST') return updated;
+      if (!d || d.type === 'REST' || !base || base.type === 'REST') return normalizedUpdated;
 
       // Apply delta for INTERVAL reps
-      if (updated?.type === 'INTERVAL' && d.type === 'INTERVAL') {
-        const dr = (updated.reps ?? 6) - (base.reps ?? 6);
-        return {
+      if (normalizedUpdated?.type === 'INTERVAL' && d.type === 'INTERVAL') {
+        const dr = (normalizedUpdated.reps ?? 6) - (base.reps ?? 6);
+        return copyIntensityMetadata({
           ...d,
           reps: Math.max(2, (d.reps ?? 6) + dr),
-          repDist: updated.repDist ?? d.repDist,
-          repDuration: updated.repDuration ?? d.repDuration,
-          recovery: updated.recovery ?? d.recovery,
-        };
+          repDist: normalizedUpdated.repDist ?? d.repDist,
+          repDuration: normalizedUpdated.repDuration ?? d.repDuration,
+          recovery: normalizedUpdated.recovery ?? d.recovery,
+        }, normalizedUpdated);
       }
 
       // Apply delta for distance-based sessions
-      if (d.distance !== undefined && updated?.distance !== undefined) {
-        const dd = (updated.distance ?? 8) - (base.distance ?? 8);
-        return { ...d, distance: Math.max(2, (d.distance ?? 8) + dd) };
+      if (d.distance !== undefined && normalizedUpdated?.distance !== undefined) {
+        const dd = (normalizedUpdated.distance ?? 8) - (base.distance ?? 8);
+        return copyIntensityMetadata({
+          ...d,
+          distance: Math.max(2, (d.distance ?? 8) + dd),
+        }, normalizedUpdated);
       }
 
-      return updated;
+      return normalizedUpdated;
     });
 
     const km = sessions.reduce((acc, d) => acc + sessionKm(d), 0);

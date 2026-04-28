@@ -1,6 +1,6 @@
 import {
-  DISTANCE_TOLERANCE_PCT,
   expectedDistance,
+  summariseVsPlan,
   type Activity,
   type PlannedSession,
 } from '@steady/types';
@@ -35,30 +35,8 @@ export interface ActivityResolution {
   weekActualKm: (sessions: readonly (PlannedSession | null)[]) => number;
 }
 
-function paceToSeconds(pace: string | undefined): number | null {
-  if (!pace) {
-    return null;
-  }
-
-  const [minutes, seconds] = pace.split(':').map(Number);
-  if (!Number.isFinite(minutes) || !Number.isFinite(seconds)) {
-    return null;
-  }
-
-  return (minutes * 60) + seconds;
-}
-
 function isOffTarget(session: PlannedSession, activity: Activity): boolean {
-  const plannedKm = expectedDistance(session);
-  const distanceRatio = plannedKm > 0
-    ? Number((Math.abs(activity.distance - plannedKm) / plannedKm).toFixed(4))
-    : 0;
-  const plannedPaceSeconds = paceToSeconds(session.pace);
-  const paceRatio = plannedPaceSeconds && plannedPaceSeconds > 0
-    ? Number((Math.abs(activity.avgPace - plannedPaceSeconds) / plannedPaceSeconds).toFixed(4))
-    : 0;
-
-  return distanceRatio > DISTANCE_TOLERANCE_PCT || paceRatio > DISTANCE_TOLERANCE_PCT;
+  return summariseVsPlan(session, activity).headline !== 'on-target';
 }
 
 function isActivityCompatibleWithSession(

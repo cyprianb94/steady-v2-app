@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { deriveTrainingPaceProfile } from '@steady/types';
 import type { TrainingPlan } from '@steady/types';
 import type { PlanRepo } from '../src/repos/plan-repo';
 import { InMemoryPlanRepo } from '../src/repos/plan-repo.memory';
@@ -50,10 +51,95 @@ function runPlanRepoTests(name: string, createRepo: () => PlanRepo) {
 
       expect(saved.id).toBe(plan.id);
       expect(saved.raceName).toBe('Test Marathon');
+      expect(saved.trainingPaceProfile).toBeNull();
 
       const active = await repo.getActive('user-1');
       expect(active).not.toBeNull();
       expect(active!.id).toBe(plan.id);
+      expect(active!.trainingPaceProfile).toBeNull();
+    });
+
+    it('persists and updates the training pace profile on the active plan', async () => {
+      const profile = deriveTrainingPaceProfile({
+        raceDistance: 'Marathon',
+        targetTime: 'sub-3:15',
+      });
+      const plan = makePlan('user-1', {
+        targetTime: 'sub-3:15',
+        trainingPaceProfile: profile,
+      });
+
+      await repo.save(plan);
+
+      expect((await repo.getActive('user-1'))!.trainingPaceProfile).toEqual(profile);
+
+      const updatedProfile = {
+        ...profile,
+        bands: {
+          ...profile.bands,
+          easy: {
+            ...profile.bands.easy,
+            paceRange: { min: '5:20', max: '5:45' },
+          },
+        },
+      };
+      const updated = await repo.updateTrainingPaceProfile(plan.id, updatedProfile);
+
+      expect(updated?.trainingPaceProfile?.bands.easy.paceRange).toEqual({
+        min: '5:20',
+        max: '5:45',
+      });
+      expect((await repo.getActive('user-1'))!.trainingPaceProfile).toEqual(updated!.trainingPaceProfile);
+    });
+
+    it('can clear a stored training pace profile without changing plan sessions', async () => {
+      const profile = deriveTrainingPaceProfile({
+        raceDistance: 'Marathon',
+        targetTime: 'sub-3:15',
+      });
+      const plan = makePlan('user-1', { trainingPaceProfile: profile });
+
+      await repo.save(plan);
+      const beforeClear = await repo.getActive('user-1');
+
+      const cleared = await repo.updateTrainingPaceProfile(plan.id, null);
+
+      expect(cleared?.trainingPaceProfile).toBeNull();
+      expect(cleared?.weeks).toEqual(beforeClear?.weeks);
+      expect((await repo.getActive('user-1'))!.trainingPaceProfile).toBeNull();
+    });
+
+    it('can persist a training pace profile update with propagated week changes', async () => {
+      const profile = deriveTrainingPaceProfile({
+        raceDistance: 'Marathon',
+        targetTime: 'sub-3:15',
+      });
+      const plan = makePlan('user-1', { trainingPaceProfile: profile });
+
+      await repo.save(plan);
+
+      const updatedWeeks = [{
+        ...plan.weeks[0],
+        plannedKm: 10,
+        sessions: [
+          {
+            id: 's1',
+            type: 'EASY' as const,
+            date: '2026-03-23',
+            distance: 10,
+            pace: '5:30',
+          },
+          null, null, null, null, null, null,
+        ],
+      }];
+      const updated = await repo.updateTrainingPaceProfile(plan.id, profile, updatedWeeks);
+
+      expect(updated?.weeks[0].plannedKm).toBe(10);
+      expect(updated?.weeks[0].sessions[0]).toMatchObject({
+        distance: 10,
+        pace: '5:30',
+      });
+      expect((await repo.getActive('user-1'))?.weeks[0].plannedKm).toBe(10);
     });
 
     it('deactivates old plan when saving a new one for the same user', async () => {
@@ -140,6 +226,64 @@ function runPlanRepoTests(name: string, createRepo: () => PlanRepo) {
       const retrieved = await repo.getActive('user-1');
       expect(retrieved!.weeks[0].sessions[0]!.warmup).toEqual({ unit: 'min', value: 15 });
       expect(retrieved!.weeks[0].sessions[0]!.cooldown).toEqual({ unit: 'min', value: 10 });
+    });
+
+    it('normalizes structured intensity targets and keeps legacy pace readable', async () => {
+      const plan = makePlan('user-1', {
+        templateWeek: [
+          {
+            id: 't1',
+            type: 'TEMPO',
+            date: '',
+            distance: 10,
+            intensityTarget: {
+              source: 'manual',
+              mode: 'both',
+              profileKey: 'threshold',
+              paceRange: { min: '4:25', max: '4:15' },
+              effortCue: 'controlled hard',
+            },
+          },
+          null, null, null, null, null, null,
+        ],
+        weeks: [{
+          weekNumber: 1,
+          phase: 'BUILD',
+          sessions: [
+            {
+              id: 's1',
+              type: 'TEMPO',
+              date: '2026-03-23',
+              distance: 10,
+              intensityTarget: {
+                source: 'manual',
+                mode: 'both',
+                profileKey: 'threshold',
+                paceRange: { min: '4:25', max: '4:15' },
+                effortCue: 'controlled hard',
+              },
+            },
+            null, null, null, null, null, null,
+          ],
+          plannedKm: 10,
+        }],
+      });
+
+      await repo.save(plan);
+
+      const retrieved = await repo.getActive('user-1');
+      expect(retrieved!.templateWeek[0]).toMatchObject({
+        pace: '4:20',
+        intensityTarget: {
+          paceRange: { min: '4:15', max: '4:25' },
+        },
+      });
+      expect(retrieved!.weeks[0].sessions[0]).toMatchObject({
+        pace: '4:20',
+        intensityTarget: {
+          paceRange: { min: '4:15', max: '4:25' },
+        },
+      });
     });
 
     it('strips warmup and cooldown values from easy and long runs on updateWeeks', async () => {

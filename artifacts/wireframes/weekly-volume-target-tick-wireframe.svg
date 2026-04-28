@@ -1,0 +1,124 @@
+<svg width="943" height="1320" viewBox="0 0 943 1320" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    @font-face {
+      font-family: "DM Sans";
+      src: url("file:///Users/cyprianbrytan/Projects/steady-v2-app/packages/app/assets/fonts/DMSans-Regular.ttf");
+      font-weight: 400;
+    }
+    @font-face {
+      font-family: "DM Sans";
+      src: url("file:///Users/cyprianbrytan/Projects/steady-v2-app/packages/app/assets/fonts/DMSans-SemiBold.ttf");
+      font-weight: 600 700;
+    }
+    @font-face {
+      font-family: "Space Mono";
+      src: url("file:///Users/cyprianbrytan/Projects/steady-v2-app/packages/app/assets/fonts/SpaceMono-Regular.ttf");
+      font-weight: 400;
+    }
+    @font-face {
+      font-family: "Space Mono";
+      src: url("file:///Users/cyprianbrytan/Projects/steady-v2-app/packages/app/assets/fonts/SpaceMono-Bold.ttf");
+      font-weight: 700;
+    }
+    @font-face {
+      font-family: "Playfair Display";
+      src: url("file:///Users/cyprianbrytan/Projects/steady-v2-app/packages/app/assets/fonts/PlayfairDisplay-Bold.ttf");
+      font-weight: 600 700;
+    }
+    .dm { font-family: "DM Sans", "Avenir Next", sans-serif; }
+    .mono { font-family: "Space Mono", "SFMono-Regular", monospace; }
+    .serif { font-family: Georgia, serif; }
+    .label { font-size: 20px; letter-spacing: 5px; fill: #9A8E7E; font-weight: 600; }
+    .tick-label { font-size: 16px; fill: #6B5E52; }
+    .day { font-size: 22px; fill: #9A8E7E; }
+  </style>
+
+  <rect width="943" height="1320" fill="#F4EFE6"/>
+
+  <!-- Status bar approximation -->
+  <text x="104" y="92" class="mono" font-size="41" font-weight="700" fill="#000000">21:21</text>
+  <rect x="675" y="67" width="8" height="20" rx="3" fill="#000000"/>
+  <rect x="690" y="59" width="8" height="28" rx="3" fill="#000000"/>
+  <rect x="705" y="74" width="8" height="13" rx="3" fill="#000000"/>
+  <rect x="720" y="59" width="8" height="28" rx="3" fill="#B8B2A9"/>
+  <path d="M742 70C769 48 804 48 831 70" stroke="#000000" stroke-width="7" stroke-linecap="round"/>
+  <path d="M757 84C775 70 798 70 816 84" stroke="#000000" stroke-width="7" stroke-linecap="round"/>
+  <path d="M773 98C781 92 792 92 800 98" stroke="#000000" stroke-width="7" stroke-linecap="round"/>
+  <rect x="795" y="60" width="63" height="34" rx="15" fill="#000000"/>
+  <text x="812" y="86" class="mono" font-size="27" font-weight="700" fill="#FFFFFF">57</text>
+
+  <!-- Screen header -->
+  <text x="52" y="199" class="dm" font-size="22" letter-spacing="5" font-weight="600" fill="#9A8E7E">APR 27 - 3 - 2026</text>
+  <text x="52" y="291" class="serif" font-family="Georgia" font-size="60" font-weight="600" fill="#1C1510">Week 1 - Base Phase</text>
+
+  <!-- Main card -->
+  <rect x="42" y="338" width="859" height="626" rx="43" fill="#FDFAF5" stroke="#E5DDD0" stroke-width="3"/>
+
+  <text x="88" y="401" class="label">WEEKLY VOLUME</text>
+  <path d="M328 397L336 389L344 397" stroke="#9A8E7E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="88" y="449" class="dm" font-size="23" font-weight="400" fill="#3D3028">A little over planned mileage</text>
+
+  <text x="638" y="406" class="mono" font-size="30" font-weight="700" fill="#2A5C45">21.8km</text>
+  <text x="752" y="406" class="mono" font-size="30" font-weight="700" fill="#9A8E7E">/ 70km</text>
+
+  <!-- Chart grid -->
+  <line x1="181" y1="495" x2="855" y2="495" stroke="#EFE8DD" stroke-width="2"/>
+  <line x1="181" y1="612" x2="855" y2="612" stroke="#EFE8DD" stroke-width="2"/>
+  <line x1="181" y1="729" x2="855" y2="729" stroke="#EFE8DD" stroke-width="2"/>
+  <line x1="181" y1="846" x2="855" y2="846" stroke="#EFE8DD" stroke-width="2"/>
+
+  <text x="120" y="510" class="mono tick-label">30km</text>
+  <text x="120" y="627" class="mono tick-label">20km</text>
+  <text x="120" y="744" class="mono tick-label">10km</text>
+  <text x="120" y="839" class="mono tick-label">0km</text>
+
+  <!-- Recommended encoding: actual bars with planned target ticks -->
+  <!-- Monday: actual 12.6km, planned 12km -->
+  <rect x="187" y="698" width="56" height="148" rx="16" fill="#2A5C45"/>
+  <line x1="198" y1="705" x2="232" y2="705" stroke="#FDFAF5" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- Tuesday: actual 9.2km, planned 8km -->
+  <rect x="289" y="738" width="56" height="108" rx="16" fill="#C4522A"/>
+  <line x1="300" y1="752" x2="334" y2="752" stroke="#FDFAF5" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- Upcoming planned sessions remain pale planned bars -->
+  <rect x="389" y="754" width="56" height="92" rx="16" fill="#EEF4F1" stroke="#2A5C45" stroke-opacity="0.23" stroke-width="3"/>
+  <rect x="491" y="707" width="56" height="139" rx="16" fill="#FDF6EB" stroke="#D4882A" stroke-opacity="0.24" stroke-width="3"/>
+  <circle cx="620" cy="833" r="8" fill="#E5DDD0"/>
+  <rect x="694" y="707" width="56" height="139" rx="16" fill="#EEF4F1" stroke="#2A5C45" stroke-opacity="0.23" stroke-width="3"/>
+  <rect x="795" y="636" width="56" height="210" rx="16" fill="#EDF1F8" stroke="#1B3A6B" stroke-opacity="0.24" stroke-width="3"/>
+
+  <!-- X labels -->
+  <text x="207" y="875" class="dm day">M</text>
+  <text x="310" y="875" class="dm day">T</text>
+  <text x="410" y="875" class="dm day">W</text>
+  <text x="515" y="875" class="dm day">T</text>
+  <text x="614" y="875" class="dm day">F</text>
+  <text x="716" y="875" class="dm day">S</text>
+  <text x="817" y="875" class="dm day">S</text>
+
+  <!-- Subtle live legend inside the chart card -->
+  <g transform="translate(556 888)">
+    <rect x="0" y="0" width="23" height="23" rx="7" fill="#2A5C45"/>
+    <text x="34" y="18" class="dm" font-size="17" font-weight="600" fill="#6B5E52">Actual</text>
+    <line x1="126" y1="12" x2="162" y2="12" stroke="#9A8E7E" stroke-width="4" stroke-linecap="round"/>
+    <text x="174" y="18" class="dm" font-size="17" font-weight="600" fill="#6B5E52">Planned target</text>
+  </g>
+
+  <!-- Nearby session card fragment for context -->
+  <rect x="42" y="1003" width="859" height="270" rx="38" fill="#FDF0EB" stroke="#EBCFC5" stroke-width="3"/>
+  <rect x="94" y="1053" width="213" height="58" rx="29" fill="#EEF4F1" stroke="#BFD8D0" stroke-width="2"/>
+  <text x="131" y="1089" class="dm" font-size="19" letter-spacing="4" font-weight="700" fill="#2A5C45">COMPLETED</text>
+  <rect x="695" y="1053" width="154" height="58" rx="29" fill="#FDF0EB" stroke="#EBCFC5" stroke-width="2"/>
+  <text x="721" y="1089" class="dm" font-size="20" letter-spacing="3" font-weight="700" fill="#C4522A">INTERVAL</text>
+  <text x="94" y="1207" class="serif" font-family="Georgia" font-size="56" font-weight="600" fill="#C4522A">Longer than planned</text>
+  <text x="94" y="1269" class="mono" font-size="25" font-weight="700" fill="#1C1510">9.2km</text>
+  <text x="185" y="1269" class="dm" font-size="25" fill="#3D3028">at</text>
+  <text x="219" y="1269" class="mono" font-size="25" font-weight="700" fill="#1C1510">5:29 /km</text>
+
+  <!-- Designer explanation panel -->
+  <rect x="42" y="1182" width="859" height="0" rx="0" fill="none"/>
+  <g transform="translate(52 1014)" opacity="0">
+    <text x="0" y="0">reserved</text>
+  </g>
+</svg>

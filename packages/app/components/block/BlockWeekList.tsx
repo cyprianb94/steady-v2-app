@@ -14,11 +14,12 @@ import { PHASE_COLOR } from '../../constants/phase-meta';
 import { SESSION_TYPE } from '../../constants/session-types';
 import { FONTS } from '../../constants/typography';
 import { useDirectWeekReschedule } from '../../features/plan-builder/use-direct-week-reschedule';
-import { DAYS, sessionLabel } from '../../lib/plan-helpers';
+import { DAYS } from '../../lib/plan-helpers';
 import { formatDistance, type DistanceUnits } from '../../lib/units';
 import { DragHandle } from '../plan-builder/DragHandle';
 import { AnimatedProgressFill } from '../ui/AnimatedProgressFill';
 import { AnimatedWeekExpansion } from './AnimatedWeekExpansion';
+import { formatBlockSessionRowText } from './session-row-text';
 
 export interface BlockWeekListWeek {
   id?: string | number;
@@ -96,13 +97,12 @@ function dayDotColor(type: SessionType): string {
   return type === 'REST' ? C.slate : SESSION_TYPE[type].color;
 }
 
-function defaultSessionMeta(session: Partial<PlannedSession> | null): string {
-  const type = sessionType(session);
-  return type === 'REST' ? 'Recovery slot locked in for this day' : SESSION_TYPE[type].label;
+function defaultSessionMeta(session: Partial<PlannedSession> | null, units: DistanceUnits): string {
+  return formatBlockSessionRowText(session, units).caption;
 }
 
 function defaultSessionLabel(session: Partial<PlannedSession> | null, units: DistanceUnits): string {
-  return session && session.type !== 'REST' ? sessionLabel(session, units) : 'Rest day';
+  return formatBlockSessionRowText(session, units).title;
 }
 
 function normalizeSessions(
@@ -408,7 +408,7 @@ export function BlockWeekExpandedBody({
           : defaultSessionLabel(session, units);
         const meta = formatSessionMeta
           ? formatSessionMeta(session, dayIndex, week)
-          : defaultSessionMeta(session);
+          : defaultSessionMeta(session, units);
         const dateLabel = formatShortDate(resolveDayDate(week, session, dayIndex));
         const dragging = dragState?.fromIndex === dayIndex;
         const dropTarget =

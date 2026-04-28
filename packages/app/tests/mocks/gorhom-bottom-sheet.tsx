@@ -51,19 +51,25 @@ export const BottomSheetModal = React.forwardRef(function MockBottomSheetModal(
   );
 });
 
-export function BottomSheetScrollView({
-  children,
-  ...props
-}: React.ComponentProps<typeof ScrollView>) {
-  return <ScrollView {...props}>{children}</ScrollView>;
-}
+export const BottomSheetScrollView = React.forwardRef(function MockBottomSheetScrollView(
+  {
+    children,
+    ...props
+  }: React.ComponentProps<typeof ScrollView>,
+  ref: React.ForwardedRef<ScrollView>,
+) {
+  return <ScrollView ref={ref} {...props}>{children}</ScrollView>;
+});
 
 export const BottomSheetTextInput = TextInput;
 
 export function BottomSheetFooter({
   children,
+  animatedFooterPosition: _animatedFooterPosition,
   ...props
-}: React.ComponentProps<typeof View>) {
+}: React.ComponentProps<typeof View> & {
+  animatedFooterPosition?: unknown;
+}) {
   return <View {...props}>{children}</View>;
 }
 

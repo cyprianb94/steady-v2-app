@@ -1,6 +1,16 @@
-import type { User, TrainingPlan, Activity, PlanWeek, PlannedSession, ConversationType, SubjectiveInput } from '@steady/types';
-import { expectedDistance } from '@steady/types';
-import { secondsToPace } from './pace-utils';
+import {
+  expectedDistance,
+  getSessionIntensityTarget,
+  secondsToPace,
+  summariseVsPlan,
+  type User,
+  type TrainingPlan,
+  type Activity,
+  type PlanWeek,
+  type PlannedSession,
+  type ConversationType,
+  type SubjectiveInput,
+} from '@steady/types';
 import { getCoachingKnowledge } from './coaching-knowledge';
 
 /**
@@ -52,7 +62,7 @@ export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
-const PERSONA = `You are Steady, an AI running coach in the Steady app. You are direct, specific, knowledgeable, and concise. You never give generic advice. You always reference specific data from the runner's plan and runs.
+const PERSONA = `You are Steady, the Steady AI running assistant in the Steady app. You are direct, specific, knowledgeable, and concise. You never give generic advice. You always reference specific data from the runner's plan and runs.
 
 Guidelines:
 - Keep responses under 150 words unless the runner asks for detail
@@ -203,8 +213,11 @@ function buildConversationFrame(
       const planned = formatSession(session);
       const actual = `${activity.distance.toFixed(1)}km in ${formatDuration(activity.duration)} @ ${secondsToPace(activity.avgPace)}`;
       const distDev = ((activity.distance - (expectedDistance(session))) / expectedDistance(session) * 100).toFixed(0);
+      const summary = summariseVsPlan(session, activity);
+      const execution = summary.verdicts.map((verdict) => sentenceCase(verdict.fact)).join('; ');
 
       let frame = `JUST COMPLETED:\n${session.type}: ${actual}\nPlanned: ${planned}\nDistance deviation: ${distDev}%`;
+      if (execution) frame += `\nExecution: ${summary.headline}; ${execution}`;
       if (activity.avgHR) frame += `\nAvg HR: ${activity.avgHR} bpm`;
       if (activity.subjectiveInput) frame += `\nActivity felt: ${formatSubjectiveInput(activity.subjectiveInput)}`;
       frame += '\n\nProvide a brief debrief. Comment on execution vs plan. Highlight anything notable.';
@@ -225,12 +238,38 @@ function formatSession(s: PlannedSession): string {
   if (s.type === 'REST') return 'REST';
   if (s.type === 'INTERVAL') {
     let desc = `INTERVAL ${s.reps ?? 6}×${formatIntervalRepLength(s)}`;
-    if (s.pace) desc += ` @ ${s.pace}`;
+    const target = formatSessionTarget(s);
+    if (target) desc += ` @ ${target}`;
     return desc;
   }
   let desc = `${s.type} ${s.distance ?? '?'}km`;
-  if (s.pace) desc += ` @ ${s.pace}`;
+  const target = formatSessionTarget(s);
+  if (target) desc += ` @ ${target}`;
   return desc;
+}
+
+function formatSessionTarget(session: PlannedSession): string | null {
+  const target = getSessionIntensityTarget(session);
+  if (!target) {
+    return null;
+  }
+
+  const parts: string[] = [];
+  if (target.paceRange) {
+    parts.push(`${target.paceRange.min}-${target.paceRange.max}`);
+  } else if (target.pace) {
+    parts.push(target.pace);
+  }
+  if (target.effortCue) {
+    parts.push(target.effortCue);
+  }
+
+  if (parts.length === 0) {
+    return null;
+  }
+
+  const meta = [target.mode, target.profileKey, target.source].filter(Boolean);
+  return meta.length > 0 ? `${parts.join(' · ')} [${meta.join(', ')}]` : parts.join(' · ');
 }
 
 function formatIntervalRepLength(session: PlannedSession): string {
@@ -257,6 +296,10 @@ function formatDuration(seconds: number): string {
 
 function formatSubjectiveInput(input: SubjectiveInput): string {
   return `felt: legs ${input.legs}, breathing ${input.breathing}, overall ${input.overall}`;
+}
+
+function sentenceCase(value: string): string {
+  return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`;
 }
 
 function findCurrentWeekIndex(plan: TrainingPlan): number {

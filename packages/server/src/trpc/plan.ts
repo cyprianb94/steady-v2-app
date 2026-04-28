@@ -1,7 +1,18 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, authedProcedure } from './trpc';
-import { generatePlan, getDisplayWeekIndex, propagateChange } from '@steady/types';
+import {
+  EFFORT_CUES,
+  INTENSITY_TARGET_MODES,
+  INTENSITY_TARGET_SOURCES,
+  TRAINING_PACE_PROFILE_BAND_ORDER,
+  TRAINING_PACE_PROFILE_KEYS,
+  generatePlan,
+  getDisplayWeekIndex,
+  normalizeTrainingPaceProfile,
+  propagateChange,
+  propagateTrainingPaceProfileUpdate,
+} from '@steady/types';
 import type { TrainingPlan, TrainingPlanWithAnnotation, PlanWeek, PhaseConfig, PlannedSession } from '@steady/types';
 import type { ActivityRepo } from '../repos/activity-repo';
 import type { PlanRepo } from '../repos/plan-repo';
@@ -34,6 +45,47 @@ const SessionDurationSchema = z.object({
 });
 const IntervalRecoverySchema = z.union([RecoveryDurationSchema, SessionDurationSchema]);
 const SessionDurationInputSchema = z.union([z.number().positive(), SessionDurationSchema]);
+const PaceRangeSchema = z.object({
+  min: z.string(),
+  max: z.string(),
+});
+const IntensityTargetSchema = z.object({
+  source: z.enum(INTENSITY_TARGET_SOURCES),
+  mode: z.enum(INTENSITY_TARGET_MODES),
+  profileKey: z.enum(TRAINING_PACE_PROFILE_KEYS).optional(),
+  pace: z.string().optional(),
+  paceRange: PaceRangeSchema.optional(),
+  effortCue: z.enum(EFFORT_CUES).optional(),
+});
+const TrainingPaceProfileBandEditabilitySchema = z.union([
+  z.object({ editable: z.literal(true) }),
+  z.object({
+    editable: z.literal(false),
+    reason: z.literal('race-target-derived'),
+  }),
+]);
+const TrainingPaceProfileBandSchema = z.object({
+  profileKey: z.enum(TRAINING_PACE_PROFILE_KEYS),
+  label: z.string(),
+  order: z.number(),
+  pace: z.string().optional(),
+  paceRange: PaceRangeSchema.optional(),
+  defaultEffortCue: z.enum(EFFORT_CUES),
+  editability: TrainingPaceProfileBandEditabilitySchema,
+});
+const TrainingPaceProfileBandsSchema = z.object(
+  TRAINING_PACE_PROFILE_BAND_ORDER.reduce((shape, profileKey) => {
+    shape[profileKey] = TrainingPaceProfileBandSchema;
+    return shape;
+  }, {} as Record<typeof TRAINING_PACE_PROFILE_BAND_ORDER[number], typeof TrainingPaceProfileBandSchema>),
+);
+const TrainingPaceProfileSchema = z.object({
+  raceDistance: z.enum(['5K', '10K', 'Half Marathon', 'Marathon', 'Ultra']),
+  targetTime: z.string(),
+  targetTimeSeconds: z.number().positive(),
+  racePace: z.string(),
+  bands: TrainingPaceProfileBandsSchema,
+});
 const SubjectiveInputSchema = z.object({
   legs: z.enum(['fresh', 'normal', 'heavy', 'dead']),
   breathing: z.enum(['easy', 'controlled', 'labored']),
@@ -49,6 +101,7 @@ const PlannedSessionSchema = z.object({
   date: z.string(),
   distance: z.number().optional(),
   pace: z.string().optional(),
+  intensityTarget: IntensityTargetSchema.optional(),
   reps: z.number().int().optional(),
   repDist: z.number().int().optional(),
   repDuration: SessionDurationSchema.optional(),
@@ -132,6 +185,43 @@ export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo, a
       return withHomeAnnotations(plan, currentIsoDateInTimezone(profile?.timezone ?? 'UTC'));
     }),
 
+    /** Read the stored training pace profile for the user's active plan. */
+    getTrainingPaceProfile: authedProcedure.query(async ({ ctx }) => {
+      const plan = await planRepo.getActive(ctx.userId);
+      return plan?.trainingPaceProfile ?? null;
+    }),
+
+    /** Persist the training pace profile on the user's active plan. */
+    updateTrainingPaceProfile: authedProcedure
+      .input(
+        z.object({
+          trainingPaceProfile: TrainingPaceProfileSchema.nullable(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const plan = await planRepo.getActive(ctx.userId);
+        if (!plan) return null;
+
+        const normalizedProfile = normalizeTrainingPaceProfile(input.trainingPaceProfile);
+        const [profile, activities] = await Promise.all([
+          profileRepo.getById(ctx.userId),
+          activityRepo.getByUserId(ctx.userId),
+        ]);
+        const propagatedPlan = propagateTrainingPaceProfileUpdate(plan, normalizedProfile, {
+          today: currentIsoDateInTimezone(profile?.timezone ?? 'UTC'),
+          completedSessionIds: activities
+            .map((activity) => activity.matchedSessionId)
+            .filter((sessionId): sessionId is string => Boolean(sessionId)),
+        });
+        const updated = await planRepo.updateTrainingPaceProfile(
+          plan.id,
+          propagatedPlan.trainingPaceProfile ?? null,
+          propagatedPlan.weeks,
+        );
+
+        return updated?.trainingPaceProfile ?? null;
+      }),
+
     /** Generate a plan server-side from a template. */
     generate: authedProcedure
       .input(
@@ -165,8 +255,9 @@ export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo, a
           phases: PhaseConfigSchema,
           progressionPct: z.number().min(0).max(30),
           progressionEveryWeeks: z.number().min(1).max(12).optional(),
+          trainingPaceProfile: TrainingPaceProfileSchema.nullable().optional(),
           templateWeek: z.array(z.any()),
-          weeks: z.array(z.any()),
+          weeks: z.array(PlanWeekSchema),
         }),
       )
       .mutation(async ({ ctx, input }) => {
@@ -207,6 +298,9 @@ export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo, a
           progressionEveryWeeks: input.progressionEveryWeeks ?? 2,
           templateWeek: input.templateWeek as (PlannedSession | null)[],
           weeks,
+          trainingPaceProfile: input.trainingPaceProfile === undefined
+            ? existing?.trainingPaceProfile ?? null
+            : normalizeTrainingPaceProfile(input.trainingPaceProfile),
           activeInjury: existing?.activeInjury ?? null,
         };
 

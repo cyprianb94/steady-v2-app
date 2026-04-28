@@ -5,7 +5,12 @@ import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { isSessionSelectable } from '../../features/sync/sync-run-detail';
 import { usePreferences } from '../../providers/preferences-context';
-import { formatDistance, formatPace, formatSessionTitle, formatStoredPace } from '../../lib/units';
+import {
+  formatDistance,
+  formatIntensityTargetDisplay,
+  formatPace,
+  formatSessionTitle,
+} from '../../lib/units';
 import { SyncRunModalShell } from './SyncRunModalShell';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
@@ -85,6 +90,10 @@ export function MatchPickerModal({
             : session.id === todaySessionId
               ? 'TODAY'
               : 'PAST';
+        const target = formatIntensityTargetDisplay(session, units, {
+          withUnit: true,
+          fallbackToLegacyPace: true,
+        });
 
         return (
           <Pressable
@@ -106,7 +115,7 @@ export function MatchPickerModal({
                 {session.id === todaySessionId ? 'Today' : WEEKDAYS[new Date(`${session.date}T00:00:00Z`).getUTCDay()]} · {formatSessionTitle(session, units)}
               </Text>
               <Text style={styles.optionSub}>
-                {formatSessionDate(session.date)} · target {formatStoredPace(session.pace, units, { withUnit: true })}
+                {formatSessionDate(session.date)}{target ? ` · target ${target}` : ''}
               </Text>
             </View>
             <Text

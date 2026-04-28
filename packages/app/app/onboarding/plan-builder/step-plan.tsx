@@ -8,6 +8,7 @@ import type { PhaseConfig, PlannedSession, PlanWeek, PropagateScope } from '@ste
 import {
   buildSessionEditDescription,
   materializeEditedSession,
+  parseTrainingPaceProfileRouteParam,
 } from '../../../features/plan-builder/session-editing';
 import {
   getSharedPlanBuilderReviewComponent,
@@ -47,11 +48,13 @@ export default function StepPlan() {
     targetTime: string;
     phases: string;
     template: string;
+    trainingPaceProfile?: string | string[];
   }>();
 
   const weeks = Number(params.weeks) || 16;
   const routePhases: PhaseConfig = JSON.parse(params.phases || '{}');
   const template: (PlannedSession | null)[] = JSON.parse(params.template || '[]');
+  const trainingPaceProfile = parseTrainingPaceProfileRouteParam(params.trainingPaceProfile);
 
   const [phaseState, setPhaseState] = useState<PhaseConfig>(() => routePhases);
   const [plan, setPlan] = useState<PlanWeek[]>(() => generatePlan(template, weeks, 0, routePhases));
@@ -190,6 +193,7 @@ export default function StepPlan() {
         progressionEveryWeeks: progEveryWeeks,
         templateWeek: template,
         weeks: datedWeeks,
+        trainingPaceProfile,
       });
       router.replace('/(tabs)/home');
     } catch (err) {
@@ -210,6 +214,7 @@ export default function StepPlan() {
       <SessionEditorScreen
         dayIndex={editing.dayIndex}
         existing={plan[editing.weekIndex]?.sessions[editing.dayIndex] ?? null}
+        trainingPaceProfile={trainingPaceProfile}
         onSave={handleEditorSave}
         onClose={() => setEditing(null)}
       />

@@ -84,6 +84,65 @@ describe('summariseVsPlan', () => {
     ]);
   });
 
+  it('treats a structured pace range as a band for pace verdicts', () => {
+    const session = makeSession({
+      type: 'TEMPO',
+      distance: 10,
+      pace: '4:05',
+      intensityTarget: {
+        source: 'manual',
+        mode: 'both',
+        profileKey: 'threshold',
+        paceRange: { min: '4:00', max: '4:10' },
+        effortCue: 'controlled hard',
+      },
+    });
+
+    expect(summariseVsPlan(session, makeActivity({ distance: 10, avgPace: 245, avgHR: 164 })).headline).toBe('on-target');
+    expect(summariseVsPlan(session, makeActivity({ distance: 10, avgPace: 235, avgHR: 164 })).headline).toBe('over-pace');
+    expect(summariseVsPlan(session, makeActivity({ distance: 10, avgPace: 260, avgHR: 164 })).headline).toBe('eased-in');
+    expect(summariseVsPlan(session, makeActivity({ distance: 10, avgPace: 245, avgHR: 164 })).rows).toContainEqual({
+      label: 'Pace',
+      planned: '4:00-4:10',
+      actual: '4:05',
+    });
+  });
+
+  it('does not invent a pace grade for effort-only targets', () => {
+    const result = summariseVsPlan(
+      makeSession({
+        pace: undefined,
+        intensityTarget: {
+          source: 'manual',
+          mode: 'effort',
+          profileKey: 'easy',
+          effortCue: 'conversational',
+        },
+      }),
+      makeActivity({ distance: 8.1, avgPace: 410, avgHR: 142 }),
+    );
+
+    expect(result.headline).toBe('on-target');
+    expect(result.verdicts.some((verdict) => verdict.kind === 'pace')).toBe(false);
+    expect(result.rows.some((row) => row.label === 'Pace')).toBe(false);
+  });
+
+  it('does not punish easy effort-led sessions for being slower than a pace guardrail', () => {
+    const session = makeSession({
+      pace: '5:45',
+      intensityTarget: {
+        source: 'profile',
+        mode: 'both',
+        profileKey: 'recovery',
+        paceRange: { min: '5:30', max: '6:00' },
+        effortCue: 'very easy',
+      },
+    });
+
+    expect(summariseVsPlan(session, makeActivity({ distance: 8, avgPace: 375, avgHR: 136 })).headline).toBe('on-target');
+    expect(summariseVsPlan(session, makeActivity({ distance: 8, avgPace: 320, avgHR: 146 })).headline).toBe('over-pace');
+  });
+
   it('is pure for identical inputs', () => {
     const session = makeSession();
     const activity = makeActivity();

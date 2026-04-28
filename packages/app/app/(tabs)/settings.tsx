@@ -5,7 +5,14 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { PhaseName, TrainingPlan, WeeklyVolumeMetric } from '@steady/types';
+import {
+  deriveTrainingPaceProfile,
+  normalizeTrainingPaceProfile,
+  type PhaseName,
+  type TrainingPlan,
+  type TrainingPaceProfile,
+  type WeeklyVolumeMetric,
+} from '@steady/types';
 import { usePlan } from '../../hooks/usePlan';
 import { useStravaSync } from '../../hooks/useStravaSync';
 import { C } from '../../constants/colours';
@@ -15,6 +22,7 @@ import { useAuth } from '../../lib/auth';
 import { getStravaOAuthRedirects } from '../../lib/strava-auth';
 import { trpc } from '../../lib/trpc';
 import { usePreferences, type Units } from '../../providers/preferences-context';
+import { trainingPaceProfileSummary } from '../../components/pace-profile/TrainingPaceProfileEditor';
 
 const SETTINGS_TOP_SPACING = 18;
 const SETTINGS_BOTTOM_SPACING = 24;
@@ -27,6 +35,7 @@ type RowTone = 'default' | 'danger';
 
 interface SettingsRowProps {
   title: string;
+  subtitle?: string;
   onPress?: () => void;
   disabled?: boolean;
   tone?: RowTone;
@@ -44,6 +53,7 @@ function Chevron() {
 
 function SettingsRow({
   title,
+  subtitle,
   onPress,
   disabled = false,
   tone = 'default',
@@ -62,7 +72,10 @@ function SettingsRow({
         pressed && onPress && !disabled ? styles.rowPressed : null,
       ]}
     >
-      <Text style={[styles.rowTitle, tone === 'danger' ? styles.rowTitleDanger : null]}>{title}</Text>
+      <View style={styles.rowTextWrap}>
+        <Text style={[styles.rowTitle, tone === 'danger' ? styles.rowTitleDanger : null]}>{title}</Text>
+        {subtitle ? <Text style={styles.rowSubtitle}>{subtitle}</Text> : null}
+      </View>
       <Chevron />
     </Pressable>
   );
@@ -120,6 +133,20 @@ function getPhaseSegments(plan: TrainingPlan | null | undefined) {
   return segments.filter((segment) => segment.count > 0);
 }
 
+function getPlanTrainingPaceProfile(
+  plan: TrainingPlan | null | undefined,
+): TrainingPaceProfile | null {
+  if (!plan) {
+    return null;
+  }
+
+  return normalizeTrainingPaceProfile(plan.trainingPaceProfile)
+    ?? deriveTrainingPaceProfile({
+      raceDistance: plan.raceDistance,
+      targetTime: plan.targetTime,
+    });
+}
+
 function LastSyncText({ lastSyncedAt }: { lastSyncedAt: string | null | undefined }) {
   if (!lastSyncedAt) {
     return <Text style={styles.syncMeta}>No sync recorded yet.</Text>;
@@ -161,6 +188,7 @@ function PlanCard({
   const currentWeekNumber = currentWeek?.weekNumber ?? safeWeekIndex + 1;
   const weekCount = plan?.weeks?.length ?? 0;
   const phaseSegments = getPhaseSegments(plan);
+  const trainingPaceProfile = getPlanTrainingPaceProfile(plan);
 
   return (
     <View style={styles.card}>
@@ -205,6 +233,15 @@ function PlanCard({
           <Text style={styles.emptyPlanCopy}>Build a plan to see your current block here.</Text>
         )}
       </View>
+
+      {hasPlan && trainingPaceProfile ? (
+        <SettingsRow
+          testID="settings-training-paces"
+          title="Training paces"
+          subtitle={trainingPaceProfileSummary(trainingPaceProfile)}
+          onPress={() => router.push('/settings/training-paces')}
+        />
+      ) : null}
 
       <SettingsRow
         title={hasPlan ? 'Replace plan' : 'Build plan'}
@@ -731,11 +768,20 @@ const styles = StyleSheet.create({
     opacity: 0.55,
   },
   rowTitle: {
-    flex: 1,
     fontFamily: FONTS.sansMedium,
     fontSize: 14,
     lineHeight: 18,
     color: C.ink,
+  },
+  rowTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  rowSubtitle: {
+    fontFamily: FONTS.sans,
+    fontSize: 11,
+    lineHeight: 15,
+    color: C.muted,
   },
   rowTitleDanger: {
     color: C.clay,

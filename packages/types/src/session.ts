@@ -5,6 +5,45 @@ export type SubjectiveOverall = 'could-go-again' | 'done' | 'shattered';
 export type SessionDurationUnit = 'km' | 'min';
 export type SkippedSessionReason = 'tired' | 'ill' | 'busy' | 'sore' | 'other';
 
+export const INTENSITY_TARGET_SOURCES = ['profile', 'manual'] as const;
+export const INTENSITY_TARGET_MODES = ['pace', 'effort', 'both'] as const;
+export const TRAINING_PACE_PROFILE_KEYS = [
+  'recovery',
+  'easy',
+  'steady',
+  'marathon',
+  'threshold',
+  'interval',
+] as const;
+export const EFFORT_CUES = [
+  'very easy',
+  'conversational',
+  'steady',
+  'race pace',
+  'controlled hard',
+  'hard repeatable',
+  'sharp',
+] as const;
+
+export type IntensityTargetSource = typeof INTENSITY_TARGET_SOURCES[number];
+export type IntensityTargetMode = typeof INTENSITY_TARGET_MODES[number];
+export type TrainingPaceProfileKey = typeof TRAINING_PACE_PROFILE_KEYS[number];
+export type EffortCue = typeof EFFORT_CUES[number];
+
+export interface PaceRange {
+  min: string;
+  max: string;
+}
+
+export interface IntensityTarget {
+  source: IntensityTargetSource;
+  mode: IntensityTargetMode;
+  profileKey?: TrainingPaceProfileKey;
+  pace?: string;
+  paceRange?: PaceRange;
+  effortCue?: EffortCue;
+}
+
 export interface SessionDurationSpec {
   unit: SessionDurationUnit;
   value: number;
@@ -29,6 +68,7 @@ export interface PlannedSession {
   // EASY, TEMPO, LONG
   distance?: number; // km
   pace?: string; // 'M:SS' format e.g. '4:20'
+  intensityTarget?: IntensityTarget;
 
   // INTERVAL
   reps?: number;

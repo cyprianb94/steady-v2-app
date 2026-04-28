@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { Alert } from 'react-native';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { deriveTrainingPaceProfile } from '@steady/types';
 
 const mockAuth = {
   session: null as any,
@@ -149,6 +150,10 @@ describe('SettingsTab', () => {
       targetTime: '3:15',
       phases: { BASE: 1, BUILD: 2, RECOVERY: 0, PEAK: 0, TAPER: 0 },
       progressionPct: 0,
+      trainingPaceProfile: deriveTrainingPaceProfile({
+        raceDistance: 'Marathon',
+        targetTime: '3:15',
+      }),
       templateWeek: [],
       weeks: [
         { weekNumber: 1, phase: 'BASE', sessions: [], plannedKm: 40 },
@@ -169,6 +174,8 @@ describe('SettingsTab', () => {
     expect(screen.getAllByText('runner@example.com')).toHaveLength(1);
     expect(screen.getByText('Valencia Marathon')).toBeTruthy();
     expect(screen.getByText('3:15')).toBeTruthy();
+    expect(screen.getByText('Training paces')).toBeTruthy();
+    expect(screen.getByText('5 training ranges · MP 4:37/km')).toBeTruthy();
     expect(screen.getByTestId('settings-phase-strip')).toBeTruthy();
     expect(screen.getAllByText('Strava')).toHaveLength(1);
 
@@ -195,6 +202,35 @@ describe('SettingsTab', () => {
     expect(activitySync.compareDocumentPosition(units) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(units.compareDocumentPosition(weeklyVolume) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(weeklyVolume.compareDocumentPosition(account) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('opens the Training paces screen from the active plan card', () => {
+    mockPlan.plan = {
+      id: 'plan-1',
+      userId: 'user-1',
+      createdAt: '2026-04-01T00:00:00.000Z',
+      raceName: 'Valencia Marathon',
+      raceDate: '2026-12-06',
+      raceDistance: 'Marathon',
+      targetTime: '3:15',
+      phases: { BASE: 1, BUILD: 2, RECOVERY: 0, PEAK: 0, TAPER: 0 },
+      progressionPct: 0,
+      trainingPaceProfile: deriveTrainingPaceProfile({
+        raceDistance: 'Marathon',
+        targetTime: '3:15',
+      }),
+      templateWeek: [],
+      weeks: [
+        { weekNumber: 1, phase: 'BASE', sessions: [], plannedKm: 40 },
+      ],
+      activeInjury: null,
+    };
+
+    render(<SettingsTab />);
+
+    fireEvent.click(screen.getByTestId('settings-training-paces'));
+
+    expect(router.push).toHaveBeenCalledWith('/settings/training-paces');
   });
 
   it('updates units from the segmented unit control without requiring sign in', async () => {

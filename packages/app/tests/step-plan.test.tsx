@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLocalSearchParams } from 'expo-router';
+import { deriveTrainingPaceProfile } from '@steady/types';
 
 import StepPlan from '../app/onboarding/plan-builder/step-plan';
 import { savePlan } from '../lib/plan-api';
@@ -98,7 +99,7 @@ describe('StepPlan session editing', () => {
     fireEvent.click(screen.getByText('Apply reschedule'));
 
     expect(screen.getByTestId('block-week-day-1-0').textContent).toContain('Rest day');
-    expect(screen.getByTestId('block-week-day-1-4').textContent).toContain('8km @ 5:20');
+    expect(screen.getByTestId('block-week-day-1-4').textContent).toContain('8km easy · 5:20');
 
     fireEvent.click(screen.getByTestId('block-week-row-press-2'));
     expect(screen.getByTestId('block-week-day-2-0').textContent).toContain('Rest day');
@@ -177,5 +178,33 @@ describe('StepPlan session editing', () => {
     ]);
     expect(savedPlan.weeks[0].sessions[0]?.date).toBe('2026-08-10');
     expect(savedPlan.weeks[5].sessions[6]?.date).toBe('2026-09-20');
+  });
+
+  it('persists the onboarding training pace profile with the saved plan', async () => {
+    const trainingPaceProfile = deriveTrainingPaceProfile({
+      raceDistance: '10K',
+      targetTime: '00:45:00',
+    });
+    trainingPaceProfile.bands.threshold.paceRange = { min: '4:08', max: '4:18' };
+    vi.mocked(useLocalSearchParams).mockReturnValue({
+      ...baseParams,
+      trainingPaceProfile: JSON.stringify(trainingPaceProfile),
+    });
+
+    render(<StepPlan />);
+
+    fireEvent.click(screen.getByText('Review weeks →'));
+    fireEvent.click(screen.getByText('Save plan and start training →'));
+
+    await waitFor(() => expect(savePlan).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(savePlan).mock.calls[0][0].trainingPaceProfile).toMatchObject({
+      raceDistance: '10K',
+      targetTime: '00:45:00',
+      bands: {
+        threshold: {
+          paceRange: { min: '4:08', max: '4:18' },
+        },
+      },
+    });
   });
 });

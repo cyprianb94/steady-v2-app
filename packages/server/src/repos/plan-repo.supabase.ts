@@ -1,9 +1,18 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { TrainingPlan, PlanWeek, PhaseConfig, PlannedSession, Injury, InjuryUpdate } from '@steady/types';
+import type {
+  TrainingPlan,
+  PlanWeek,
+  PhaseConfig,
+  PlannedSession,
+  Injury,
+  InjuryUpdate,
+  TrainingPaceProfile,
+} from '@steady/types';
 import {
   normalizePlanWeekSessionDurations,
   normalizeSessionIds,
   normalizeTrainingPlanSessionDurations,
+  normalizeTrainingPaceProfile,
 } from '@steady/types';
 import type { PlanRepo } from './plan-repo';
 
@@ -32,6 +41,7 @@ function rowToPlan(row: Record<string, unknown>): TrainingPlan {
     progressionEveryWeeks: (row.progression_every_weeks as number | null) ?? 2,
     templateWeek: row.template_week as (PlannedSession | null)[],
     weeks,
+    trainingPaceProfile: normalizeTrainingPaceProfile(row.training_pace_profile),
     activeInjury: (row.active_injury as Injury | null) ?? null,
   });
 }
@@ -51,6 +61,7 @@ function planToRow(plan: TrainingPlan, isActive: boolean): Record<string, unknow
     progression_every_weeks: normalized.progressionEveryWeeks ?? 2,
     template_week: normalized.templateWeek,
     weeks: normalized.weeks,
+    training_pace_profile: normalizeTrainingPaceProfile(normalized.trainingPaceProfile),
     active_injury: normalized.activeInjury,
     is_active: isActive,
   };
@@ -105,6 +116,29 @@ export class SupabasePlanRepo implements PlanRepo {
     const { data, error } = await this.supabase
       .from('training_plans')
       .update({ weeks: normalizedWeeks })
+      .eq('id', planId)
+      .select()
+      .single();
+
+    if (error || !data) return null;
+    return rowToPlan(data);
+  }
+
+  async updateTrainingPaceProfile(
+    planId: string,
+    trainingPaceProfile: TrainingPaceProfile | null,
+    weeks?: PlanWeek[],
+  ): Promise<TrainingPlan | null> {
+    const update: Record<string, unknown> = {
+      training_pace_profile: normalizeTrainingPaceProfile(trainingPaceProfile),
+    };
+    if (weeks) {
+      update.weeks = weeks.map(normalizePlanWeekSessionDurations);
+    }
+
+    const { data, error } = await this.supabase
+      .from('training_plans')
+      .update(update)
       .eq('id', planId)
       .select()
       .single();

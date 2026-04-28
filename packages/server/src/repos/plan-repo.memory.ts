@@ -1,5 +1,10 @@
-import type { TrainingPlan, PlanWeek, Injury, InjuryUpdate } from '@steady/types';
-import { normalizeSessionIds, normalizePlanWeekSessionDurations, normalizeTrainingPlanSessionDurations } from '@steady/types';
+import type { TrainingPlan, PlanWeek, Injury, InjuryUpdate, TrainingPaceProfile } from '@steady/types';
+import {
+  normalizeSessionIds,
+  normalizePlanWeekSessionDurations,
+  normalizeTrainingPlanSessionDurations,
+  normalizeTrainingPaceProfile,
+} from '@steady/types';
 import type { PlanRepo } from './plan-repo';
 
 interface StoredPlan {
@@ -9,6 +14,14 @@ interface StoredPlan {
 
 function clonePlan(plan: TrainingPlan): TrainingPlan {
   return structuredClone(plan);
+}
+
+function normalizePlanForStorage(plan: TrainingPlan): TrainingPlan {
+  return normalizeTrainingPlanSessionDurations({
+    ...plan,
+    trainingPaceProfile: normalizeTrainingPaceProfile(plan.trainingPaceProfile),
+    weeks: normalizeSessionIds(plan.weeks),
+  });
 }
 
 function createActiveInjury(name: string): Injury {
@@ -51,10 +64,7 @@ export class InMemoryPlanRepo implements PlanRepo {
       }
     }
 
-    const normalized = normalizeTrainingPlanSessionDurations({
-      ...plan,
-      weeks: normalizeSessionIds(plan.weeks),
-    });
+    const normalized = normalizePlanForStorage(plan);
     this.store.set(plan.id, { plan: clonePlan(normalized), isActive: true });
     return clonePlan(normalized);
   }
@@ -63,6 +73,20 @@ export class InMemoryPlanRepo implements PlanRepo {
     const entry = this.store.get(planId);
     if (!entry) return null;
     entry.plan.weeks = structuredClone(weeks.map(normalizePlanWeekSessionDurations));
+    return clonePlan(entry.plan);
+  }
+
+  async updateTrainingPaceProfile(
+    planId: string,
+    trainingPaceProfile: TrainingPaceProfile | null,
+    weeks?: PlanWeek[],
+  ): Promise<TrainingPlan | null> {
+    const entry = this.store.get(planId);
+    if (!entry) return null;
+    entry.plan.trainingPaceProfile = normalizeTrainingPaceProfile(trainingPaceProfile);
+    if (weeks) {
+      entry.plan.weeks = structuredClone(weeks.map(normalizePlanWeekSessionDurations));
+    }
     return clonePlan(entry.plan);
   }
 

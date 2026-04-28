@@ -1,5 +1,6 @@
 import type { TrainingPlan, PlanWeek } from '../plan';
 import { normalizeSessionDuration, sessionSupportsWarmupCooldown, type PlannedSession } from '../session';
+import { normalizeSessionIntensityTarget } from './intensity-targets';
 
 export function normalizeSessionDurations(
   session: PlannedSession | null,
@@ -22,7 +23,7 @@ export function normalizeSessionDurations(
     normalizedSession.cooldown = normalizeSessionDuration(cooldown);
   }
 
-  return normalizedSession;
+  return normalizeSessionIntensityTarget(normalizedSession);
 }
 
 export function normalizePlanWeekSessionDurations(week: PlanWeek): PlanWeek {

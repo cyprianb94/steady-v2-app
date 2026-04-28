@@ -225,6 +225,164 @@ describe('createActivityResolution', () => {
     ).toBe('off-target');
   });
 
+  it('keeps a range-target run completed when the actual pace lands inside the band', () => {
+    const resolution = createActivityResolution([
+      {
+        id: 'activity-1',
+        userId: 'user-1',
+        source: 'strava',
+        externalId: 'strava-1',
+        startTime: '2026-04-15T07:15:00.000Z',
+        distance: 10,
+        duration: 2450,
+        avgPace: 245,
+        splits: [],
+        matchedSessionId: 'session-1',
+      },
+    ]);
+
+    expect(
+      resolution.statusForDay(
+        {
+          id: 'session-1',
+          type: 'TEMPO',
+          date: '2026-04-15',
+          distance: 10,
+          pace: '4:05',
+          intensityTarget: {
+            source: 'manual',
+            mode: 'both',
+            profileKey: 'threshold',
+            paceRange: { min: '4:00', max: '4:10' },
+            effortCue: 'controlled hard',
+          },
+          actualActivityId: 'activity-1',
+        },
+        0,
+        0,
+      ),
+    ).toBe('completed');
+  });
+
+  it('marks a range-target run off-target when the actual pace is faster than the band', () => {
+    const resolution = createActivityResolution([
+      {
+        id: 'activity-1',
+        userId: 'user-1',
+        source: 'strava',
+        externalId: 'strava-1',
+        startTime: '2026-04-15T07:15:00.000Z',
+        distance: 10,
+        duration: 2350,
+        avgPace: 235,
+        splits: [],
+        matchedSessionId: 'session-1',
+      },
+    ]);
+
+    expect(
+      resolution.statusForDay(
+        {
+          id: 'session-1',
+          type: 'TEMPO',
+          date: '2026-04-15',
+          distance: 10,
+          pace: '4:05',
+          intensityTarget: {
+            source: 'manual',
+            mode: 'both',
+            profileKey: 'threshold',
+            paceRange: { min: '4:00', max: '4:10' },
+            effortCue: 'controlled hard',
+          },
+          actualActivityId: 'activity-1',
+        },
+        0,
+        0,
+      ),
+    ).toBe('off-target');
+  });
+
+  it('keeps easy effort-led sessions completed when the run is slower than a guardrail', () => {
+    const resolution = createActivityResolution([
+      {
+        id: 'activity-1',
+        userId: 'user-1',
+        source: 'strava',
+        externalId: 'strava-1',
+        startTime: '2026-04-15T07:15:00.000Z',
+        distance: 8,
+        duration: 3000,
+        avgPace: 375,
+        avgHR: 136,
+        splits: [],
+        matchedSessionId: 'session-1',
+      },
+    ]);
+
+    expect(
+      resolution.statusForDay(
+        {
+          id: 'session-1',
+          type: 'EASY',
+          date: '2026-04-15',
+          distance: 8,
+          pace: '5:45',
+          intensityTarget: {
+            source: 'profile',
+            mode: 'both',
+            profileKey: 'recovery',
+            paceRange: { min: '5:30', max: '6:00' },
+            effortCue: 'very easy',
+          },
+          actualActivityId: 'activity-1',
+        },
+        0,
+        0,
+      ),
+    ).toBe('completed');
+  });
+
+  it('marks easy effort-led sessions off-target when the run is faster than the guardrail', () => {
+    const resolution = createActivityResolution([
+      {
+        id: 'activity-1',
+        userId: 'user-1',
+        source: 'strava',
+        externalId: 'strava-1',
+        startTime: '2026-04-15T07:15:00.000Z',
+        distance: 8,
+        duration: 2560,
+        avgPace: 320,
+        avgHR: 146,
+        splits: [],
+        matchedSessionId: 'session-1',
+      },
+    ]);
+
+    expect(
+      resolution.statusForDay(
+        {
+          id: 'session-1',
+          type: 'EASY',
+          date: '2026-04-15',
+          distance: 8,
+          pace: '5:45',
+          intensityTarget: {
+            source: 'profile',
+            mode: 'both',
+            profileKey: 'recovery',
+            paceRange: { min: '5:30', max: '6:00' },
+            effortCue: 'very easy',
+          },
+          actualActivityId: 'activity-1',
+        },
+        0,
+        0,
+      ),
+    ).toBe('off-target');
+  });
+
   it('computes weekly actual distance from resolved activities', () => {
     const resolution = createActivityResolution([
       {

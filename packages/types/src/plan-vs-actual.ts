@@ -1,5 +1,6 @@
 import type { Activity } from './activity';
-import type { PlannedSession } from './session';
+import type { IntensityTarget, PlannedSession } from './session';
+import { getSessionIntensityTarget, parsePaceSeconds, secondsToPace } from './lib/intensity-targets';
 import { sessionKm } from './lib/session-km';
 
 // Distance within +/-5% is considered "close enough" to plan.
@@ -44,15 +45,27 @@ export interface PvaResult {
   rows: PvaRow[];
 }
 
-function paceToSeconds(pace: string): number {
-  const [minutes, seconds] = pace.split(':').map(Number);
-  return minutes * 60 + seconds;
-}
+type PaceRelation = 'fast' | 'slow' | null;
 
-function secondsToPace(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  const remainder = seconds % 60;
-  return `${minutes}:${String(remainder).padStart(2, '0')}`;
+type ResolvedPaceTarget = {
+  plannedLabel: string;
+  effortLedEasyRecovery: boolean;
+} & (
+  | {
+      kind: 'single';
+      seconds: number;
+    }
+  | {
+      kind: 'range';
+      fastestSeconds: number;
+      slowestSeconds: number;
+    }
+);
+
+interface PaceAssessment {
+  target: ResolvedPaceTarget | null;
+  relation: PaceRelation;
+  verdict: PvaVerdict | null;
 }
 
 function formatDistance(distance: number): string {
@@ -68,6 +81,67 @@ function formatDistance(distance: number): string {
 
 function formatSignedPaceDelta(deltaSeconds: number): string {
   return `${Math.abs(deltaSeconds)} sec/km`;
+}
+
+function lowerSessionType(session: PlannedSession): string {
+  switch (session.type) {
+    case 'INTERVAL':
+      return 'interval';
+    case 'TEMPO':
+      return 'tempo';
+    case 'LONG':
+      return 'long run';
+    case 'EASY':
+    default:
+      return 'easy';
+  }
+}
+
+function isEasyRecoveryEffortLedTarget(session: PlannedSession, target: IntensityTarget): boolean {
+  if (session.type !== 'EASY' && session.type !== 'LONG') {
+    return false;
+  }
+
+  const easyRecoveryProfile = target.profileKey === 'easy' || target.profileKey === 'recovery';
+  const easyRecoveryCue = target.effortCue === 'very easy' || target.effortCue === 'conversational';
+  return Boolean(target.effortCue && (easyRecoveryProfile || easyRecoveryCue));
+}
+
+function resolvePaceTarget(session: PlannedSession): ResolvedPaceTarget | null {
+  const target = getSessionIntensityTarget(session);
+  if (!target) {
+    return null;
+  }
+
+  const effortLedEasyRecovery = isEasyRecoveryEffortLedTarget(session, target);
+
+  if (target.paceRange) {
+    const fastestSeconds = parsePaceSeconds(target.paceRange.min);
+    const slowestSeconds = parsePaceSeconds(target.paceRange.max);
+    if (fastestSeconds == null || slowestSeconds == null) {
+      return null;
+    }
+
+    return {
+      kind: 'range',
+      fastestSeconds,
+      slowestSeconds,
+      plannedLabel: `${secondsToPace(fastestSeconds)}-${secondsToPace(slowestSeconds)}`,
+      effortLedEasyRecovery,
+    };
+  }
+
+  const seconds = parsePaceSeconds(target.pace);
+  if (seconds == null) {
+    return null;
+  }
+
+  return {
+    kind: 'single',
+    seconds,
+    plannedLabel: secondsToPace(seconds),
+    effortLedEasyRecovery,
+  };
 }
 
 function getPlannedHeartRateLabel(session: PlannedSession): string {
@@ -124,32 +198,109 @@ function buildDistanceVerdict(plannedDistance: number, actualDistance: number): 
   };
 }
 
-function buildPaceVerdict(plannedPaceSeconds: number | null, actualPaceSeconds: number): PvaVerdict | null {
-  if (plannedPaceSeconds == null) return null;
+function slowerEffortLedVerdict(): PvaVerdict {
+  return {
+    kind: 'pace',
+    status: 'ok',
+    fact: 'Effort target led this session; slower pace is not auto-graded',
+  };
+}
 
-  const delta = plannedPaceSeconds - actualPaceSeconds;
+function assessPace(session: PlannedSession, actualPaceSeconds: number): PaceAssessment {
+  const target = resolvePaceTarget(session);
+  if (!target) {
+    return { target: null, relation: null, verdict: null };
+  }
+
+  if (target.kind === 'range') {
+    if (actualPaceSeconds < target.fastestSeconds) {
+      const delta = target.fastestSeconds - actualPaceSeconds;
+      return {
+        target,
+        relation: 'fast',
+        verdict: {
+          kind: 'pace',
+          status: 'warn',
+          fact: `Pace ${formatSignedPaceDelta(delta)} faster than target range`,
+        },
+      };
+    }
+
+    if (actualPaceSeconds > target.slowestSeconds) {
+      const delta = actualPaceSeconds - target.slowestSeconds;
+      if (target.effortLedEasyRecovery) {
+        return {
+          target,
+          relation: null,
+          verdict: slowerEffortLedVerdict(),
+        };
+      }
+
+      return {
+        target,
+        relation: 'slow',
+        verdict: {
+          kind: 'pace',
+          status: 'info',
+          fact: `Eased off ${formatSignedPaceDelta(delta)} slower than ${lowerSessionType(session)} range`,
+        },
+      };
+    }
+
+    return {
+      target,
+      relation: null,
+      verdict: {
+        kind: 'pace',
+        status: 'ok',
+        fact: 'Pace inside target range',
+      },
+    };
+  }
+
+  const delta = target.seconds - actualPaceSeconds;
   const direction = delta >= 0 ? 'faster' : 'slower';
 
   if (delta > PACE_FAST_SEC) {
     return {
-      kind: 'pace',
-      status: 'warn',
-      fact: `Pace ${formatSignedPaceDelta(delta)} ${direction} than planned`,
+      target,
+      relation: 'fast',
+      verdict: {
+        kind: 'pace',
+        status: 'warn',
+        fact: `Pace ${formatSignedPaceDelta(delta)} ${direction} than planned`,
+      },
     };
   }
 
   if (delta < -PACE_SLOW_SEC) {
+    if (target.effortLedEasyRecovery) {
+      return {
+        target,
+        relation: null,
+        verdict: slowerEffortLedVerdict(),
+      };
+    }
+
     return {
-      kind: 'pace',
-      status: 'info',
-      fact: `Pace ${formatSignedPaceDelta(delta)} ${direction} than planned`,
+      target,
+      relation: 'slow',
+      verdict: {
+        kind: 'pace',
+        status: 'info',
+        fact: `Pace ${formatSignedPaceDelta(delta)} ${direction} than planned`,
+      },
     };
   }
 
   return {
-    kind: 'pace',
-    status: 'ok',
-    fact: `Pace ${formatSignedPaceDelta(delta)} ${direction} than planned`,
+    target,
+    relation: null,
+    verdict: {
+      kind: 'pace',
+      status: 'ok',
+      fact: `Pace ${formatSignedPaceDelta(delta)} ${direction} than planned`,
+    },
   };
 }
 
@@ -179,7 +330,7 @@ function buildHeartRateVerdict(session: PlannedSession, avgHR: number | undefine
   };
 }
 
-function buildRows(session: PlannedSession, activity: Activity, plannedDistance: number, plannedPaceSeconds: number | null): PvaRow[] {
+function buildRows(session: PlannedSession, activity: Activity, plannedDistance: number, paceTarget: ResolvedPaceTarget | null): PvaRow[] {
   const rows: PvaRow[] = [
     {
       label: 'Distance',
@@ -188,10 +339,10 @@ function buildRows(session: PlannedSession, activity: Activity, plannedDistance:
     },
   ];
 
-  if (plannedPaceSeconds != null) {
+  if (paceTarget) {
     rows.push({
       label: 'Pace',
-      planned: secondsToPace(plannedPaceSeconds),
+      planned: paceTarget.plannedLabel,
       actual: secondsToPace(activity.avgPace),
     });
   }
@@ -210,18 +361,16 @@ function buildRows(session: PlannedSession, activity: Activity, plannedDistance:
 function pickHeadline(
   plannedDistance: number,
   actualDistance: number,
-  plannedPaceSeconds: number | null,
-  actualPaceSeconds: number,
-  avgHR: number | undefined,
+  paceRelation: PaceRelation,
+  heartRateVerdict: PvaVerdict | null,
 ): PvaHeadline {
   const distanceDeltaPct = plannedDistance === 0
     ? 0
     : Number((((actualDistance - plannedDistance) / plannedDistance)).toFixed(4));
   const shortfallPct = -distanceDeltaPct;
-  const paceDelta = plannedPaceSeconds == null ? 0 : plannedPaceSeconds - actualPaceSeconds;
-  const isFast = plannedPaceSeconds != null && paceDelta > PACE_FAST_SEC;
-  const isSlow = plannedPaceSeconds != null && paceDelta < -PACE_SLOW_SEC;
-  const isHrHigh = avgHR != null && avgHR > HR_ZONE2_MAX_BPM;
+  const isFast = paceRelation === 'fast';
+  const isSlow = paceRelation === 'slow';
+  const isHrHigh = heartRateVerdict?.kind === 'hr' && heartRateVerdict.status === 'warn';
 
   if (shortfallPct >= DISTANCE_SHORT_PCT) return 'cut-short';
   if (shortfallPct > DISTANCE_TOLERANCE_PCT) return 'under-distance';
@@ -235,21 +384,25 @@ function pickHeadline(
 
 export function summariseVsPlan(session: PlannedSession, activity: Activity): PvaResult {
   const plannedDistance = sessionKm(session);
-  const plannedPaceSeconds = session.pace ? paceToSeconds(session.pace) : null;
+  const paceAssessment = assessPace(session, activity.avgPace);
 
   const verdicts: PvaVerdict[] = [
     buildDistanceVerdict(plannedDistance, activity.distance),
   ];
 
-  const paceVerdict = buildPaceVerdict(plannedPaceSeconds, activity.avgPace);
-  if (paceVerdict) verdicts.push(paceVerdict);
+  if (paceAssessment.verdict) verdicts.push(paceAssessment.verdict);
 
   const heartRateVerdict = buildHeartRateVerdict(session, activity.avgHR);
   if (heartRateVerdict) verdicts.push(heartRateVerdict);
 
   return {
-    headline: pickHeadline(plannedDistance, activity.distance, plannedPaceSeconds, activity.avgPace, activity.avgHR),
+    headline: pickHeadline(
+      plannedDistance,
+      activity.distance,
+      paceAssessment.relation,
+      heartRateVerdict,
+    ),
     verdicts,
-    rows: buildRows(session, activity, plannedDistance, plannedPaceSeconds),
+    rows: buildRows(session, activity, plannedDistance, paceAssessment.target),
   };
 }

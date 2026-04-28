@@ -1,0 +1,1432 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Steady Interval Session Analysis Wireframe</title>
+    <style>
+      @font-face {
+        font-family: "Playfair Display";
+        src: url("../../packages/app/assets/fonts/PlayfairDisplay-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "Playfair Display";
+        src: url("../../packages/app/assets/fonts/PlayfairDisplay-Bold.ttf") format("truetype");
+        font-weight: 700;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-Medium.ttf") format("truetype");
+        font-weight: 500;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-SemiBold.ttf") format("truetype");
+        font-weight: 700;
+      }
+
+      @font-face {
+        font-family: "Space Mono";
+        src: url("../../packages/app/assets/fonts/SpaceMono-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "Space Mono";
+        src: url("../../packages/app/assets/fonts/SpaceMono-Bold.ttf") format("truetype");
+        font-weight: 700;
+      }
+
+      :root {
+        --cream: #f4efe6;
+        --surface: #fdfaf5;
+        --card: #f0eae0;
+        --ink: #1c1510;
+        --ink2: #3d3028;
+        --muted: #9a8e7e;
+        --border: #e5ddd0;
+        --forest: #2a5c45;
+        --forest-bg: #eef4f1;
+        --clay: #c4522a;
+        --clay-bg: #fdf0eb;
+        --amber: #d4882a;
+        --amber-bg: #fdf6eb;
+        --navy: #1b3a6b;
+        --navy-bg: #edf1f8;
+        --slate: #8a8e9a;
+        --slate-bg: #f2f2f4;
+        --serif: "Playfair Display", Georgia, serif;
+        --sans: "DM Sans", sans-serif;
+        --mono: "Space Mono", monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #e8dfd2;
+        color: var(--ink);
+        font-family: var(--sans);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .board {
+        width: 1640px;
+        min-height: 1060px;
+        margin: 0 auto;
+        padding: 34px 40px 42px;
+      }
+
+      .board-head {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        gap: 32px;
+        align-items: end;
+        margin-bottom: 24px;
+      }
+
+      .board-title {
+        margin: 0;
+        font-family: var(--serif);
+        font-size: 38px;
+        line-height: 1.02;
+        font-weight: 700;
+        letter-spacing: 0;
+      }
+
+      .board-copy {
+        max-width: 780px;
+        margin: 0 0 4px;
+        color: #6f6255;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 280px 393px 393px 1fr;
+        gap: 28px;
+        align-items: start;
+      }
+
+      .annotation {
+        min-height: 852px;
+        padding: 22px 20px;
+        border: 1px solid rgba(28, 21, 16, 0.09);
+        border-radius: 28px;
+        background: rgba(253, 250, 245, 0.68);
+      }
+
+      .annotation h2 {
+        margin: 0 0 8px;
+        font-family: var(--serif);
+        font-size: 25px;
+        line-height: 1.08;
+      }
+
+      .annotation p {
+        margin: 0;
+        color: #66594d;
+        font-size: 12px;
+        line-height: 1.52;
+      }
+
+      .rule {
+        margin-top: 18px;
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--surface);
+      }
+
+      .rule-label,
+      .frame-label,
+      .label,
+      .table-head,
+      .micro-label {
+        color: var(--muted);
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 1.35px;
+        text-transform: uppercase;
+      }
+
+      .rule strong {
+        display: block;
+        margin-bottom: 5px;
+        color: var(--ink);
+        font-size: 13px;
+        line-height: 1.28;
+      }
+
+      .rule p {
+        color: var(--ink2);
+        font-size: 11.5px;
+        line-height: 1.45;
+      }
+
+      .token-row {
+        display: grid;
+        grid-template-columns: 14px 1fr;
+        gap: 8px;
+        margin-top: 10px;
+        align-items: start;
+      }
+
+      .dot {
+        width: 9px;
+        height: 9px;
+        margin-top: 4px;
+        border-radius: 50%;
+        background: var(--clay);
+      }
+
+      .dot.forest {
+        background: var(--forest);
+      }
+
+      .dot.amber {
+        background: var(--amber);
+      }
+
+      .dot.navy {
+        background: var(--navy);
+      }
+
+      .frame {
+        display: grid;
+        gap: 10px;
+      }
+
+      .frame-label {
+        padding-left: 8px;
+        color: #6f6255;
+      }
+
+      .phone {
+        position: relative;
+        width: 393px;
+        height: 852px;
+        overflow: hidden;
+        background: var(--cream);
+        border: 1px solid rgba(28, 21, 16, 0.1);
+        border-radius: 36px;
+        box-shadow: 0 18px 52px -30px rgba(28, 21, 16, 0.34);
+      }
+
+      .status-bar {
+        position: absolute;
+        inset: 0 0 auto 0;
+        z-index: 20;
+        height: 48px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        padding: 0 26px 8px;
+        background: var(--cream);
+        color: var(--ink);
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .status-icons {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+
+      .bars {
+        display: grid;
+        grid-template-columns: repeat(4, 4px);
+        gap: 3px;
+        align-items: end;
+        height: 16px;
+      }
+
+      .bars span {
+        width: 4px;
+        border-radius: 3px;
+        background: var(--ink);
+      }
+
+      .bars span:nth-child(1) { height: 8px; }
+      .bars span:nth-child(2) { height: 12px; }
+      .bars span:nth-child(3) { height: 16px; opacity: 0.28; }
+      .bars span:nth-child(4) { height: 16px; opacity: 0.28; }
+
+      .battery {
+        min-width: 34px;
+        padding: 2px 7px 3px;
+        border-radius: 9px;
+        background: var(--ink);
+        color: var(--surface);
+        font-family: var(--sans);
+        font-size: 12px;
+        line-height: 1;
+      }
+
+      .home-scroll,
+      .detail-scroll {
+        height: 100%;
+        overflow: hidden;
+        padding: 72px 18px 96px;
+      }
+
+      .detail-scroll {
+        padding: 60px 18px 94px;
+      }
+
+      .date-kicker {
+        margin: 4px 0 12px;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 2.2px;
+        text-transform: uppercase;
+      }
+
+      .screen-title {
+        margin: 0 0 18px;
+        font-family: var(--serif);
+        font-size: 30px;
+        line-height: 1.08;
+        font-weight: 700;
+      }
+
+      .load-card,
+      .hero-card,
+      .section,
+      .note-card {
+        border: 1.5px solid var(--border);
+        border-radius: 16px;
+        background: var(--surface);
+      }
+
+      .load-card {
+        padding: 18px 20px;
+        margin-bottom: 18px;
+      }
+
+      .load-top {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .load-value {
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .load-value strong {
+        color: var(--forest);
+      }
+
+      .load-track {
+        height: 7px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: var(--border);
+      }
+
+      .load-fill {
+        width: 31%;
+        height: 100%;
+        border-radius: 999px;
+        background: var(--forest);
+      }
+
+      .load-copy {
+        margin-top: 11px;
+        color: var(--ink2);
+        font-size: 13px;
+      }
+
+      .hero-card {
+        position: relative;
+        padding: 20px;
+        margin-bottom: 14px;
+        background: var(--clay-bg);
+        border-color: rgba(196, 82, 42, 0.18);
+      }
+
+      .hero-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 28px;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+      }
+
+      .chip.completed {
+        color: var(--forest);
+        border: 1px solid rgba(42, 92, 69, 0.2);
+        background: var(--forest-bg);
+      }
+
+      .chip.interval {
+        color: var(--clay);
+        border: 1px solid rgba(196, 82, 42, 0.25);
+        background: rgba(253, 250, 245, 0.42);
+      }
+
+      .headline {
+        margin: 0 0 8px;
+        color: var(--forest);
+        font-family: var(--serif);
+        font-size: 30px;
+        line-height: 1.05;
+        font-weight: 700;
+      }
+
+      .hero-copy {
+        margin: 0 0 16px;
+        color: var(--ink2);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .mono {
+        color: var(--ink);
+        font-family: var(--mono);
+        font-weight: 700;
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .home-metrics {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .metric {
+        min-width: 0;
+        padding: 11px 10px 10px;
+        border: 1px solid rgba(28, 21, 16, 0.08);
+        border-radius: 12px;
+        background: rgba(253, 250, 245, 0.56);
+      }
+
+      .metric-value {
+        margin-bottom: 4px;
+        color: var(--ink);
+        font-family: var(--mono);
+        font-size: 15px;
+        line-height: 1;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .metric-label {
+        color: var(--muted);
+        font-size: 8px;
+        font-weight: 700;
+        letter-spacing: 1.1px;
+        text-transform: uppercase;
+      }
+
+      .review-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        padding-top: 14px;
+        border-top: 1px solid rgba(28, 21, 16, 0.1);
+      }
+
+      .review-title {
+        margin-bottom: 4px;
+        color: var(--forest);
+        font-size: 15px;
+        font-weight: 500;
+      }
+
+      .review-copy {
+        color: var(--ink2);
+        font-size: 12px;
+        line-height: 1.42;
+      }
+
+      .chevron {
+        align-self: center;
+        color: var(--forest);
+        font-size: 24px;
+        line-height: 1;
+      }
+
+      .injury-card {
+        display: grid;
+        grid-template-columns: 40px 1fr;
+        gap: 14px;
+        align-items: center;
+        padding: 14px 16px;
+        border: 1.5px solid rgba(196, 82, 42, 0.24);
+        border-radius: 14px;
+        background: var(--clay-bg);
+      }
+
+      .alert-dot {
+        display: grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        color: var(--surface);
+        background: var(--clay);
+        font-family: var(--mono);
+        font-size: 16px;
+        font-weight: 700;
+      }
+
+      .injury-copy {
+        color: var(--ink2);
+        font-size: 12.5px;
+        line-height: 1.45;
+      }
+
+      .week-list {
+        margin-top: 34px;
+      }
+
+      .week-label {
+        margin-bottom: 18px;
+      }
+
+      .day-row {
+        display: grid;
+        grid-template-columns: 82px 1fr auto;
+        gap: 12px;
+        align-items: center;
+        margin-bottom: 22px;
+      }
+
+      .day {
+        color: var(--muted);
+        font-size: 11px;
+        letter-spacing: 1.4px;
+        text-transform: uppercase;
+      }
+
+      .day small {
+        display: block;
+        margin-top: 3px;
+        letter-spacing: 0.6px;
+      }
+
+      .session-name {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--ink2);
+        font-size: 14px;
+      }
+
+      .session-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--clay);
+      }
+
+      .right-stat {
+        color: var(--amber);
+        font-family: var(--mono);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .nav-bar {
+        position: absolute;
+        inset: auto 0 0;
+        height: 66px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        align-items: center;
+        border-top: 1px solid var(--border);
+        background: var(--surface);
+      }
+
+      .tab {
+        text-align: center;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .tab.active {
+        color: var(--clay);
+      }
+
+      .tab-icon {
+        width: 22px;
+        height: 18px;
+        margin: 0 auto 6px;
+        border-radius: 4px 4px 2px 2px;
+        background: currentColor;
+        opacity: 0.96;
+      }
+
+      .tab:nth-child(2) .tab-icon {
+        width: 24px;
+        height: 17px;
+        background: linear-gradient(currentColor 0 4px, transparent 4px 7px, currentColor 7px 11px, transparent 11px 14px, currentColor 14px);
+      }
+
+      .tab:nth-child(3) .tab-icon {
+        width: 26px;
+        height: 18px;
+        background: transparent;
+        border-top: 3px solid currentColor;
+        border-bottom: 3px solid currentColor;
+        border-radius: 0;
+        position: relative;
+      }
+
+      .tab:nth-child(3) .tab-icon::before,
+      .tab:nth-child(3) .tab-icon::after {
+        content: "";
+        position: absolute;
+        width: 6px;
+        height: 6px;
+        border: 2px solid currentColor;
+        border-radius: 50%;
+        background: var(--surface);
+        top: -6px;
+      }
+
+      .tab:nth-child(3) .tab-icon::before {
+        left: 4px;
+      }
+
+      .tab:nth-child(3) .tab-icon::after {
+        right: 4px;
+        top: 9px;
+      }
+
+      .detail-nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+
+      .back {
+        color: var(--ink2);
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .nav-title {
+        font-family: var(--serif);
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .done {
+        color: var(--forest);
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .detail-header {
+        padding: 4px 2px 18px;
+      }
+
+      .detail-chip-row {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin-bottom: 12px;
+      }
+
+      .run-title {
+        margin: 0 0 6px;
+        font-family: var(--serif);
+        font-size: 30px;
+        line-height: 1.05;
+        font-weight: 700;
+      }
+
+      .run-meta {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .summary-card {
+        padding: 16px;
+        margin-bottom: 12px;
+        border: 1.5px solid rgba(42, 92, 69, 0.2);
+        border-radius: 16px;
+        background: var(--forest-bg);
+      }
+
+      .summary-title {
+        margin: 0 0 7px;
+        color: var(--forest);
+        font-family: var(--serif);
+        font-size: 20px;
+        line-height: 1.1;
+        font-weight: 700;
+      }
+
+      .summary-copy {
+        margin: 0;
+        color: var(--ink2);
+        font-size: 12.5px;
+        line-height: 1.48;
+      }
+
+      .section {
+        padding: 16px;
+        margin-bottom: 12px;
+      }
+
+      .section-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 13px;
+      }
+
+      .section-title {
+        margin: 0;
+        font-family: var(--serif);
+        font-size: 18px;
+        line-height: 1.1;
+        font-weight: 700;
+      }
+
+      .section-action {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .quality-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+
+      .quality-grid .metric {
+        background: var(--surface);
+      }
+
+      .submetric-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        margin-top: 8px;
+      }
+
+      .submetric {
+        padding: 9px 10px;
+        border: 1px solid rgba(28, 21, 16, 0.08);
+        border-radius: 10px;
+        background: rgba(240, 234, 224, 0.42);
+      }
+
+      .submetric-value {
+        margin-bottom: 3px;
+        font-family: var(--mono);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .chart {
+        position: relative;
+        height: 154px;
+        margin-top: 4px;
+        padding: 18px 4px 16px 26px;
+        border: 1px solid rgba(28, 21, 16, 0.08);
+        border-radius: 12px;
+        background: linear-gradient(to bottom, rgba(42, 92, 69, 0.08) 35%, transparent 35% 60%, rgba(196, 82, 42, 0.08) 60%);
+      }
+
+      .target-band {
+        position: absolute;
+        left: 26px;
+        right: 12px;
+        top: 48px;
+        height: 42px;
+        border-top: 1px dashed rgba(196, 82, 42, 0.35);
+        border-bottom: 1px dashed rgba(196, 82, 42, 0.35);
+        background: rgba(196, 82, 42, 0.05);
+      }
+
+      .target-label {
+        position: absolute;
+        top: 34px;
+        right: 14px;
+        color: var(--clay);
+        font-family: var(--mono);
+        font-size: 9px;
+        font-weight: 700;
+      }
+
+      .bars-row {
+        position: relative;
+        z-index: 2;
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 8px;
+        height: 100%;
+        align-items: end;
+      }
+
+      .rep-column {
+        display: grid;
+        grid-template-rows: 1fr auto auto;
+        height: 100%;
+        align-items: end;
+        justify-items: center;
+      }
+
+      .rep-bar {
+        width: 22px;
+        border-radius: 7px 7px 3px 3px;
+        background: var(--clay);
+      }
+
+      .rep-column:nth-child(1) .rep-bar { height: 63px; }
+      .rep-column:nth-child(2) .rep-bar { height: 60px; }
+      .rep-column:nth-child(3) .rep-bar { height: 62px; }
+      .rep-column:nth-child(4) .rep-bar { height: 58px; }
+      .rep-column:nth-child(5) .rep-bar { height: 54px; }
+      .rep-column:nth-child(6) .rep-bar { height: 59px; }
+
+      .rep-time {
+        margin-top: 7px;
+        color: var(--ink);
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 700;
+      }
+
+      .rep-label {
+        color: var(--muted);
+        font-size: 8px;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+      }
+
+      .chart-axis {
+        position: absolute;
+        left: 8px;
+        top: 20px;
+        bottom: 34px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 8px;
+      }
+
+      .breakdown {
+        display: grid;
+        gap: 9px;
+      }
+
+      .break-row {
+        display: grid;
+        grid-template-columns: 76px 1fr 46px;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .break-name {
+        color: var(--ink2);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .break-track {
+        height: 8px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: var(--card);
+      }
+
+      .break-fill {
+        height: 100%;
+        border-radius: 999px;
+        background: var(--clay);
+      }
+
+      .break-fill.easy {
+        background: var(--forest);
+      }
+
+      .break-fill.recovery {
+        background: var(--amber);
+      }
+
+      .break-value {
+        color: var(--ink);
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 700;
+        text-align: right;
+      }
+
+      .segmented {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+        padding: 4px;
+        margin-bottom: 10px;
+        border-radius: 999px;
+        background: var(--card);
+      }
+
+      .segment {
+        padding: 7px 8px;
+        border-radius: 999px;
+        color: var(--muted);
+        text-align: center;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .segment.active {
+        color: var(--clay);
+        border: 1px solid rgba(196, 82, 42, 0.2);
+        background: var(--surface);
+      }
+
+      .rep-table {
+        display: grid;
+        gap: 0;
+        overflow: hidden;
+        border: 1px solid rgba(28, 21, 16, 0.08);
+        border-radius: 12px;
+      }
+
+      .rep-row {
+        display: grid;
+        grid-template-columns: 44px 74px 1fr 44px;
+        gap: 8px;
+        align-items: center;
+        min-height: 42px;
+        padding: 9px 10px;
+        border-top: 1px dashed var(--border);
+        background: rgba(253, 250, 245, 0.55);
+      }
+
+      .rep-row:first-child {
+        border-top: 0;
+      }
+
+      .rep-id {
+        color: var(--muted);
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.9px;
+        text-transform: uppercase;
+      }
+
+      .elapsed {
+        color: var(--ink);
+        font-family: var(--mono);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .pace-cell {
+        color: var(--ink2);
+        font-family: var(--mono);
+        font-size: 11px;
+      }
+
+      .pace-cell span {
+        display: block;
+        margin-top: 2px;
+        color: var(--muted);
+        font-family: var(--sans);
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+      }
+
+      .hr-cell {
+        color: var(--ink);
+        font-family: var(--mono);
+        font-size: 11px;
+        font-weight: 700;
+        text-align: right;
+      }
+
+      .steady-read {
+        background: var(--card);
+      }
+
+      .steady-row {
+        display: grid;
+        grid-template-columns: 30px 1fr;
+        gap: 12px;
+        align-items: start;
+      }
+
+      .steady-avatar {
+        display: grid;
+        place-items: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 999px;
+        color: var(--cream);
+        background: var(--ink);
+        font-family: var(--serif);
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .steady-copy {
+        margin: 0;
+        color: var(--ink2);
+        font-size: 12.5px;
+        line-height: 1.5;
+      }
+
+      .bottom-fade {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 66px;
+        height: 54px;
+        background: linear-gradient(rgba(244, 239, 230, 0), var(--cream));
+        pointer-events: none;
+      }
+
+      .tiny-note {
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 10.5px;
+        line-height: 1.4;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="board">
+      <header class="board-head">
+        <h1 class="board-title">Interval analysis wireframe</h1>
+        <p class="board-copy">
+          Home judges whether the intended training stimulus happened. Run Detail explains the structured workout: work reps, recoveries, warmup/cooldown, and interval-specific heart rate. Whole-run average pace remains visible, but it stops driving the verdict.
+        </p>
+      </header>
+
+      <section class="layout">
+        <aside class="annotation">
+          <h2>Product logic</h2>
+          <p>
+            The session has two truths. Total distance is load. Rep execution is quality. The UI should not collapse both into one average pace.
+          </p>
+
+          <div class="rule">
+            <div class="rule-label">Home verdict</div>
+            <strong>Use quality-work analysis first.</strong>
+            <p>If all 400m reps are inside range, the headline is On target. Home shows only total distance, reps in range, rep average, and interval BPM.</p>
+          </div>
+
+          <div class="rule">
+            <div class="rule-label">Run detail</div>
+            <strong>Show the workout anatomy.</strong>
+            <p>Separate work reps, recoveries, and bookends. The runner should see why 5:29/km is not a failed interval session.</p>
+          </div>
+
+          <div class="rule">
+            <div class="rule-label">Linear scope</div>
+            <strong>STV2-185 + STV2-67.</strong>
+            <p>Interval-specific HR belongs beside work-rep pace and elapsed split time. For short reps, elapsed time is the most natural primary value.</p>
+          </div>
+
+          <div class="rule">
+            <div class="rule-label">Fallback</div>
+            <strong>No structured laps, no fake grade.</strong>
+            <p>When we only have kilometre splits, show total run data and a neutral prompt to inspect splits. Do not say Eased off.</p>
+          </div>
+
+          <div class="token-row">
+            <span class="dot"></span>
+            <p><strong>Clay</strong> marks interval work and target-band analysis.</p>
+          </div>
+          <div class="token-row">
+            <span class="dot forest"></span>
+            <p><strong>Forest</strong> marks the completion verdict.</p>
+          </div>
+          <div class="token-row">
+            <span class="dot amber"></span>
+            <p><strong>Amber</strong> marks recoveries and secondary watch points.</p>
+          </div>
+        </aside>
+
+        <div class="frame">
+          <div class="frame-label">Home - corrected completed card</div>
+          <article class="phone">
+            <div class="status-bar">
+              <span>21:09</span>
+              <div class="status-icons">
+                <div class="bars"><span></span><span></span><span></span><span></span></div>
+                <span>5G</span>
+                <span class="battery">58</span>
+              </div>
+            </div>
+
+            <div class="home-scroll">
+              <div class="date-kicker">Apr 27 - 3, 2026</div>
+              <h2 class="screen-title">Week 1 · Base Phase</h2>
+
+              <section class="load-card">
+                <div class="load-top">
+                  <div class="label">Weekly volume</div>
+                  <div class="load-value"><strong>21.8km</strong> / 70km</div>
+                </div>
+                <div class="load-track"><div class="load-fill"></div></div>
+                <div class="load-copy">A little over planned mileage</div>
+              </section>
+
+              <section class="hero-card">
+                <div class="hero-top">
+                  <div class="chip completed">✓ Completed</div>
+                  <div class="chip interval">Interval</div>
+                </div>
+
+                <h3 class="headline">On target</h3>
+                <p class="hero-copy">
+                  All <span class="mono">6x400m</span> reps landed inside the planned <span class="mono">3:47-4:10/km</span> range.
+                </p>
+
+                <div class="metrics home-metrics">
+                  <div class="metric">
+                    <div class="metric-value">9.2km</div>
+                    <div class="metric-label">total distance</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-value">6/6</div>
+                    <div class="metric-label">in range</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-value">3:59</div>
+                    <div class="metric-label">rep avg</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-value">172</div>
+                    <div class="metric-label">interval bpm</div>
+                  </div>
+                </div>
+
+                <div class="review-row">
+                  <div>
+                    <div class="review-title">Review run</div>
+                    <div class="review-copy">Open interval splits, work HR, and pacing drift.</div>
+                  </div>
+                  <div class="chevron">›</div>
+                </div>
+              </section>
+
+              <section class="injury-card">
+                <div class="alert-dot">!</div>
+                <div class="injury-copy">
+                  You flagged <span style="color: var(--clay);">Right Calf · Niggle · Before</span>. We will keep an eye on it across your next few sessions.
+                </div>
+              </section>
+
+              <div class="week-list">
+                <div class="label week-label">This week</div>
+                <div class="day-row">
+                  <div class="day">Mon<small>Apr 27</small></div>
+                  <div class="session-name"><span class="session-dot" style="background: var(--forest);"></span>Easy 12k</div>
+                  <div class="right-stat">12.6k</div>
+                </div>
+                <div class="day-row">
+                  <div class="day">Tue<small>Apr 28</small></div>
+                  <div class="session-name"><span class="session-dot"></span>6x400m · 3:47-4:10</div>
+                  <div class="right-stat">9.2k</div>
+                </div>
+              </div>
+            </div>
+
+            <nav class="nav-bar">
+              <div class="tab active"><div class="tab-icon"></div>Home</div>
+              <div class="tab"><div class="tab-icon"></div>Block</div>
+              <div class="tab"><div class="tab-icon"></div>Settings</div>
+            </nav>
+          </article>
+        </div>
+
+        <div class="frame">
+          <div class="frame-label">Run Detail - interval analytics</div>
+          <article class="phone">
+            <div class="status-bar">
+              <span>21:09</span>
+              <div class="status-icons">
+                <div class="bars"><span></span><span></span><span></span><span></span></div>
+                <span>5G</span>
+                <span class="battery">58</span>
+              </div>
+            </div>
+
+            <div class="detail-scroll">
+              <div class="detail-nav">
+                <div class="back">Back</div>
+                <div class="nav-title">Run detail</div>
+                <div class="done">Done</div>
+              </div>
+
+              <header class="detail-header">
+                <div class="detail-chip-row">
+                  <div class="chip completed">Matched</div>
+                  <div class="chip interval">Interval</div>
+                </div>
+                <h2 class="run-title">6x400m intervals</h2>
+                <div class="run-meta">Tue Apr 28 · 9.2km total · 50:28 elapsed · Strava laps</div>
+              </header>
+
+              <section class="summary-card">
+                <h3 class="summary-title">Quality work on target</h3>
+                <p class="summary-copy">
+                  The reps were the session. Whole-run average pace was <span class="mono">5:29/km</span> because <span class="mono">5.5km</span> came from warmup, cooldown, and recoveries.
+                </p>
+              </section>
+
+              <section class="section">
+                <div class="section-head">
+                  <h3 class="section-title">Interval read</h3>
+                  <div class="section-action">Target 3:47-4:10/km</div>
+                </div>
+
+                <div class="quality-grid">
+                  <div class="metric">
+                    <div class="metric-value">6/6</div>
+                    <div class="metric-label">reps hit</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-value">3:59</div>
+                    <div class="metric-label">avg pace</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-value">172</div>
+                    <div class="metric-label">avg bpm</div>
+                  </div>
+                </div>
+
+                <div class="submetric-grid">
+                  <div class="submetric">
+                    <div class="submetric-value">1:34-1:37</div>
+                    <div class="metric-label">rep spread</div>
+                  </div>
+                  <div class="submetric">
+                    <div class="submetric-value">+3 bpm</div>
+                    <div class="metric-label">HR drift</div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="section">
+                <div class="section-head">
+                  <h3 class="section-title">Rep pace</h3>
+                  <div class="section-action">400m time shown</div>
+                </div>
+
+                <div class="chart">
+                  <div class="chart-axis"><span>3:45</span><span>4:10</span><span>4:25</span></div>
+                  <div class="target-band"></div>
+                  <div class="target-label">target band</div>
+                  <div class="bars-row">
+                    <div class="rep-column"><div class="rep-bar"></div><div class="rep-time">1:34</div><div class="rep-label">R1</div></div>
+                    <div class="rep-column"><div class="rep-bar"></div><div class="rep-time">1:35</div><div class="rep-label">R2</div></div>
+                    <div class="rep-column"><div class="rep-bar"></div><div class="rep-time">1:35</div><div class="rep-label">R3</div></div>
+                    <div class="rep-column"><div class="rep-bar"></div><div class="rep-time">1:36</div><div class="rep-label">R4</div></div>
+                    <div class="rep-column"><div class="rep-bar"></div><div class="rep-time">1:37</div><div class="rep-label">R5</div></div>
+                    <div class="rep-column"><div class="rep-bar"></div><div class="rep-time">1:36</div><div class="rep-label">R6</div></div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="section">
+                <div class="section-head">
+                  <h3 class="section-title">Load breakdown</h3>
+                  <div class="section-action">9.2km total</div>
+                </div>
+
+                <div class="breakdown">
+                  <div class="break-row">
+                    <div class="break-name">Work reps</div>
+                    <div class="break-track"><div class="break-fill" style="width: 26%;"></div></div>
+                    <div class="break-value">2.4km</div>
+                  </div>
+                  <div class="break-row">
+                    <div class="break-name">Recoveries</div>
+                    <div class="break-track"><div class="break-fill recovery" style="width: 15%;"></div></div>
+                    <div class="break-value">1.3km</div>
+                  </div>
+                  <div class="break-row">
+                    <div class="break-name">W/U + C/D</div>
+                    <div class="break-track"><div class="break-fill easy" style="width: 60%;"></div></div>
+                    <div class="break-value">5.5km</div>
+                  </div>
+                </div>
+                <p class="tiny-note">Total avg pace is shown as load context, not as the interval grade.</p>
+              </section>
+            </div>
+            <div class="bottom-fade"></div>
+          </article>
+        </div>
+
+        <div class="frame">
+          <div class="frame-label">Run Detail - rep rows lower down</div>
+          <article class="phone">
+            <div class="status-bar">
+              <span>21:09</span>
+              <div class="status-icons">
+                <div class="bars"><span></span><span></span><span></span><span></span></div>
+                <span>5G</span>
+                <span class="battery">58</span>
+              </div>
+            </div>
+
+            <div class="detail-scroll">
+              <div class="detail-nav">
+                <div class="back">Back</div>
+                <div class="nav-title">Run detail</div>
+                <div class="done">Done</div>
+              </div>
+
+              <header class="detail-header">
+                <div class="detail-chip-row">
+                  <div class="chip completed">Completed</div>
+                  <div class="chip interval">Intervals</div>
+                </div>
+                <h2 class="run-title">Workout splits</h2>
+                <div class="run-meta">Elapsed time is primary for short laps. Pace and HR stay visible for comparison.</div>
+              </header>
+
+              <section class="section">
+                <div class="section-head">
+                  <h3 class="section-title">Splits</h3>
+                  <div class="section-action">Target 1:31-1:40</div>
+                </div>
+
+                <div class="segmented">
+                  <div class="segment active">Work reps</div>
+                  <div class="segment">All laps</div>
+                </div>
+
+                <div class="rep-table">
+                  <div class="rep-row">
+                    <div class="rep-id">Rep 1</div>
+                    <div class="elapsed">1:34</div>
+                    <div class="pace-cell">3:56/km<span>inside range</span></div>
+                    <div class="hr-cell">166</div>
+                  </div>
+                  <div class="rep-row">
+                    <div class="rep-id">Rep 2</div>
+                    <div class="elapsed">1:35</div>
+                    <div class="pace-cell">3:58/km<span>inside range</span></div>
+                    <div class="hr-cell">170</div>
+                  </div>
+                  <div class="rep-row">
+                    <div class="rep-id">Rep 3</div>
+                    <div class="elapsed">1:35</div>
+                    <div class="pace-cell">3:57/km<span>inside range</span></div>
+                    <div class="hr-cell">172</div>
+                  </div>
+                  <div class="rep-row">
+                    <div class="rep-id">Rep 4</div>
+                    <div class="elapsed">1:36</div>
+                    <div class="pace-cell">4:00/km<span>inside range</span></div>
+                    <div class="hr-cell">174</div>
+                  </div>
+                  <div class="rep-row">
+                    <div class="rep-id">Rep 5</div>
+                    <div class="elapsed">1:37</div>
+                    <div class="pace-cell">4:02/km<span>inside range</span></div>
+                    <div class="hr-cell">176</div>
+                  </div>
+                  <div class="rep-row">
+                    <div class="rep-id">Rep 6</div>
+                    <div class="elapsed">1:36</div>
+                    <div class="pace-cell">3:59/km<span>inside range</span></div>
+                    <div class="hr-cell">177</div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="section steady-read">
+                <div class="section-head">
+                  <h3 class="section-title">Steady's read</h3>
+                  <div class="section-action">Session context</div>
+                </div>
+
+                <div class="steady-row">
+                  <div class="steady-avatar">S</div>
+                  <p class="steady-copy">
+                    Reps 1-6 stayed inside the target band with a 3-second elapsed spread. The slow whole-run average is bookends and recovery volume, not missed quality. Keep Thursday easy if the calf note is still present.
+                  </p>
+                </div>
+              </section>
+
+              <section class="section">
+                <div class="section-head">
+                  <h3 class="section-title">Whole-run data</h3>
+                  <div class="section-action">Context only</div>
+                </div>
+                <div class="quality-grid">
+                  <div class="metric">
+                    <div class="metric-value">9.2km</div>
+                    <div class="metric-label">distance</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-value">5:29</div>
+                    <div class="metric-label">avg pace</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-value">158</div>
+                    <div class="metric-label">avg bpm</div>
+                  </div>
+                </div>
+                <p class="tiny-note">These numbers describe the full activity. Interval judgement uses the work reps above.</p>
+              </section>
+            </div>
+            <div class="bottom-fade"></div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

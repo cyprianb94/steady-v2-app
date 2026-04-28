@@ -25,7 +25,7 @@ export function NiggleBanner({ niggles }: NiggleBannerProps) {
         <Text style={styles.iconText}>!</Text>
       </View>
       <Text style={styles.copy}>
-        You flagged <Text style={styles.copyStrong}>{summary}</Text>. We&apos;ll keep an eye on it across your next few sessions.
+        You flagged <Text style={styles.copyStrong}>{summary}</Text>. Keep an eye on it across your next few sessions.
       </Text>
     </View>
   );

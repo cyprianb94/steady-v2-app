@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { sessionKm, type PlannedSession } from '@steady/types';
+import { sessionKm, type PlannedSession, type TrainingPaceProfile } from '@steady/types';
 import { Btn } from '../../../components/ui/Btn';
 import { DragHandle } from '../../../components/plan-builder/DragHandle';
 import { SessionEditorScreen } from '../../../components/plan-builder/SessionEditorScreen';
@@ -28,10 +28,12 @@ import {
   type TemplateDay,
   type TemplateStarterSelection,
 } from '../../../features/plan-builder/template-starter';
+import { parseTrainingPaceProfileRouteParam } from '../../../features/plan-builder/session-editing';
 import { useDirectWeekReschedule } from '../../../features/plan-builder/use-direct-week-reschedule';
 import { DAYS } from '../../../lib/plan-helpers';
 import {
   formatDistance,
+  formatIntensityTargetDisplay,
   formatSessionTitle,
   formatStoredPace,
   type DistanceUnits,
@@ -70,8 +72,13 @@ function materializeTemplateSession(
 
 function createEditableStarterTemplate(
   selection: TemplateStarterSelection,
+  trainingPaceProfile: TrainingPaceProfile | null = null,
 ): (PlannedSession | null)[] {
-  return createStarterTemplate(selection.mode, selection.runCount).map((session, dayIndex) =>
+  return createStarterTemplate(
+    selection.mode,
+    selection.runCount,
+    trainingPaceProfile,
+  ).map((session, dayIndex) =>
     materializeTemplateSession(dayIndex, session, null),
   );
 }
@@ -98,7 +105,18 @@ function compactSessionMeta(session: PlannedSession | null, units: DistanceUnits
     return 'Recovery slot';
   }
 
-  return `@ ${formatStoredPace(session.pace, units, { withUnit: true })}`;
+  const target = formatIntensityTargetDisplay(session, units, {
+    withUnit: true,
+    hideCompatibilityPace: true,
+  });
+
+  if (target) {
+    return target;
+  }
+
+  return session.pace
+    ? `@ ${formatStoredPace(session.pace, units, { withUnit: true, compactUnit: true })}`
+    : 'Target not set';
 }
 
 export default function StepTemplate() {
@@ -114,7 +132,9 @@ export default function StepTemplate() {
     hasPerWeekTweaks?: string;
     starterMode?: string;
     templateRunCount?: string;
+    trainingPaceProfile?: string | string[];
   }>();
+  const trainingPaceProfile = parseTrainingPaceProfileRouteParam(params.trainingPaceProfile);
   const initialStarterSelection = starterSelectionFromParams(params);
   const [starterSelection, setStarterSelection] = useState<TemplateStarterSelection | null>(
     initialStarterSelection,
@@ -123,6 +143,7 @@ export default function StepTemplate() {
     () =>
       createEditableStarterTemplate(
         initialStarterSelection ?? { mode: 'clean', runCount: DEFAULT_TEMPLATE_RUN_COUNT },
+        trainingPaceProfile,
       ),
   );
   const [editing, setEditing] = useState<number | null>(null);
@@ -177,7 +198,7 @@ export default function StepTemplate() {
 
   function applyStarterSelection(selection: TemplateStarterSelection) {
     setStarterSelection(selection);
-    setTemplateSessions(createEditableStarterTemplate(selection));
+    setTemplateSessions(createEditableStarterTemplate(selection, trainingPaceProfile));
     setStarterPickerVisible(false);
     setPendingStarterChange(null);
     setPendingStarterPreviewReset(null);
@@ -277,6 +298,7 @@ export default function StepTemplate() {
       <SessionEditorScreen
         dayIndex={editing}
         existing={visibleSessions[editing]}
+        trainingPaceProfile={trainingPaceProfile}
         onSave={handleSave}
         onClose={() => setEditing(null)}
       />

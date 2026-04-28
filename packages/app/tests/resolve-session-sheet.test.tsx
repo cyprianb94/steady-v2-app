@@ -59,7 +59,7 @@ describe('ResolveSessionSheet', () => {
     expect(screen.getByText('Planned session')).toBeTruthy();
     expect(screen.getByText('WARM-UP')).toBeTruthy();
     expect(screen.getByText('MAIN SET')).toBeTruthy();
-    expect(screen.getByText('5×8min @ 4:10/km')).toBeTruthy();
+    expect(screen.getByText('5×8min · 4:10/km')).toBeTruthy();
     expect(screen.getByText('Log session')).toBeTruthy();
     expect(screen.getByText('Mark skipped')).toBeTruthy();
   });
@@ -86,6 +86,61 @@ describe('ResolveSessionSheet', () => {
     expect(screen.getByText('Planned for later this week')).toBeTruthy();
     expect(screen.queryByText('Log session')).toBeNull();
     expect(screen.queryByText('Mark skipped')).toBeNull();
+  });
+
+  it('renders structured pace ranges and effort-only targets without missing-pace placeholders', async () => {
+    const { rerender } = render(
+      <ResolveSessionSheet
+        open
+        session={intervalSession({
+          type: 'TEMPO',
+          distance: 10,
+          pace: '4:20',
+          intensityTarget: {
+            source: 'manual',
+            mode: 'both',
+            paceRange: { min: '4:15', max: '4:25' },
+            effortCue: 'controlled hard',
+          },
+        })}
+        status="missed"
+        possibleMatches={[]}
+        onDismiss={vi.fn()}
+        onLogSession={vi.fn()}
+        onMarkSkipped={vi.fn()}
+        onEditSkipped={vi.fn()}
+        onAttachMatch={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText('10km · 4:15-4:25/km · controlled hard')).toBeTruthy();
+
+    rerender(
+      <ResolveSessionSheet
+        open
+        session={intervalSession({
+          type: 'LONG',
+          distance: 22,
+          pace: '5:05',
+          intensityTarget: {
+            source: 'manual',
+            mode: 'effort',
+            profileKey: 'easy',
+            effortCue: 'conversational',
+          },
+        })}
+        status="missed"
+        possibleMatches={[]}
+        onDismiss={vi.fn()}
+        onLogSession={vi.fn()}
+        onMarkSkipped={vi.fn()}
+        onEditSkipped={vi.fn()}
+        onAttachMatch={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText('22km · conversational')).toBeTruthy();
+    expect(screen.queryByText(/—\/km/)).toBeNull();
   });
 
   it('renders skipped sessions as editable and still loggable', async () => {

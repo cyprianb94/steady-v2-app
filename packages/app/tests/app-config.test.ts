@@ -8,6 +8,7 @@ import appConfig, {
 const originalEnv = {
   EAS_BUILD_PROFILE: process.env.EAS_BUILD_PROFILE,
   EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
+  EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL: process.env.EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL,
 };
 
 function restoreEnvValue(name: keyof typeof originalEnv) {
@@ -34,6 +35,7 @@ function baseConfig(): ExpoConfig {
 afterEach(() => {
   restoreEnvValue('EAS_BUILD_PROFILE');
   restoreEnvValue('EXPO_PUBLIC_API_URL');
+  restoreEnvValue('EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL');
 });
 
 describe('app config API URL validation', () => {
@@ -120,6 +122,7 @@ describe('app config API URL validation', () => {
   it('keeps the current dev identity and allows LAN API URLs outside release builds', () => {
     delete process.env.EAS_BUILD_PROFILE;
     process.env.EXPO_PUBLIC_API_URL = 'http://192.168.1.103:3000';
+    process.env.EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL = 'https://oauth-relay.steady.test';
 
     const config = appConfig({ config: baseConfig() });
 
@@ -130,6 +133,7 @@ describe('app config API URL validation', () => {
     expect(config.extra).toMatchObject({
       appVariant: 'development',
       apiUrl: 'http://192.168.1.103:3000',
+      stravaOAuthRelayUrl: 'https://oauth-relay.steady.test',
     });
   });
 });

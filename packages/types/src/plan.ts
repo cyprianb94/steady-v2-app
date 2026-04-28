@@ -1,5 +1,6 @@
 import type { PlannedSession } from './session';
 import type { Injury } from './injury';
+import type { TrainingPaceProfile } from './lib/training-pace-profile';
 
 export interface PhaseConfig {
   BASE: number;
@@ -47,6 +48,9 @@ export interface TrainingPlan {
 
   // Generated weeks
   weeks: PlanWeek[];
+
+  // Training pace profile derived from this plan's race goal and optionally edited by the runner.
+  trainingPaceProfile?: TrainingPaceProfile | null;
 
   // Recovery & injury
   activeInjury: Injury | null;

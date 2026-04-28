@@ -1,4 +1,10 @@
-import type { PlannedSession } from '@steady/types';
+import {
+  defaultIntensityTargetForSessionType,
+  recoveryIntensityTarget,
+  type PlannedSession,
+  type TrainingPaceProfile,
+} from '@steady/types';
+import { applyTrainingPaceProfileTarget } from './session-editing';
 
 export type TemplateStarterMode = 'template' | 'clean';
 export type TemplateRunCount = 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -12,21 +18,27 @@ export interface TemplateStarterSelection {
   runCount: TemplateRunCount;
 }
 
-const EASY_6: TemplateDay = { type: 'EASY', distance: 6, pace: '5:30' };
-const EASY_8: TemplateDay = { type: 'EASY', distance: 8, pace: '5:25' };
-const EASY_10: TemplateDay = { type: 'EASY', distance: 10, pace: '5:20' };
-const RECOVERY_5: TemplateDay = { type: 'EASY', distance: 5, pace: '5:45' };
-const LONG_10: TemplateDay = { type: 'LONG', distance: 10, pace: '5:20' };
-const LONG_12: TemplateDay = { type: 'LONG', distance: 12, pace: '5:15' };
-const LONG_14: TemplateDay = { type: 'LONG', distance: 14, pace: '5:15' };
-const LONG_16: TemplateDay = { type: 'LONG', distance: 16, pace: '5:10' };
-const LONG_18: TemplateDay = { type: 'LONG', distance: 18, pace: '5:10' };
-const LONG_20: TemplateDay = { type: 'LONG', distance: 20, pace: '5:10' };
+const EASY_TARGET = defaultIntensityTargetForSessionType('EASY');
+const LONG_TARGET = defaultIntensityTargetForSessionType('LONG');
+const INTERVAL_TARGET = defaultIntensityTargetForSessionType('INTERVAL');
+const TEMPO_TARGET = defaultIntensityTargetForSessionType('TEMPO');
+
+const EASY_6: TemplateDay = { type: 'EASY', distance: 6, pace: '5:30', intensityTarget: EASY_TARGET };
+const EASY_8: TemplateDay = { type: 'EASY', distance: 8, pace: '5:25', intensityTarget: EASY_TARGET };
+const EASY_10: TemplateDay = { type: 'EASY', distance: 10, pace: '5:20', intensityTarget: EASY_TARGET };
+const RECOVERY_5: TemplateDay = { type: 'EASY', distance: 5, pace: '5:45', intensityTarget: recoveryIntensityTarget() };
+const LONG_10: TemplateDay = { type: 'LONG', distance: 10, pace: '5:20', intensityTarget: LONG_TARGET };
+const LONG_12: TemplateDay = { type: 'LONG', distance: 12, pace: '5:15', intensityTarget: LONG_TARGET };
+const LONG_14: TemplateDay = { type: 'LONG', distance: 14, pace: '5:15', intensityTarget: LONG_TARGET };
+const LONG_16: TemplateDay = { type: 'LONG', distance: 16, pace: '5:10', intensityTarget: LONG_TARGET };
+const LONG_18: TemplateDay = { type: 'LONG', distance: 18, pace: '5:10', intensityTarget: LONG_TARGET };
+const LONG_20: TemplateDay = { type: 'LONG', distance: 20, pace: '5:10', intensityTarget: LONG_TARGET };
 const INTERVAL_6X800: TemplateDay = {
   type: 'INTERVAL',
   reps: 6,
   repDist: 800,
   pace: '3:50',
+  intensityTarget: INTERVAL_TARGET,
   recovery: '90s',
   warmup: { unit: 'km', value: 1.5 },
   cooldown: { unit: 'km', value: 1 },
@@ -35,6 +47,7 @@ const TEMPO_8: TemplateDay = {
   type: 'TEMPO',
   distance: 8,
   pace: '4:25',
+  intensityTarget: TEMPO_TARGET,
   warmup: { unit: 'km', value: 1.5 },
   cooldown: { unit: 'km', value: 1 },
 };
@@ -42,17 +55,18 @@ const TEMPO_10: TemplateDay = {
   type: 'TEMPO',
   distance: 10,
   pace: '4:20',
+  intensityTarget: TEMPO_TARGET,
   warmup: { unit: 'km', value: 2 },
   cooldown: { unit: 'km', value: 1.5 },
 };
 
 export const STEADY_TEMPLATE: ReadonlyArray<TemplateDay> = [
-  { type: 'EASY', distance: 8, pace: '5:20' },
+  { type: 'EASY', distance: 8, pace: '5:20', intensityTarget: EASY_TARGET },
   INTERVAL_6X800,
-  { type: 'EASY', distance: 8, pace: '5:30' },
+  { type: 'EASY', distance: 8, pace: '5:30', intensityTarget: EASY_TARGET },
   TEMPO_10,
   null,
-  { type: 'EASY', distance: 12, pace: '5:20' },
+  { type: 'EASY', distance: 12, pace: '5:20', intensityTarget: EASY_TARGET },
   LONG_20,
 ];
 
@@ -115,9 +129,12 @@ export function createRunCountTemplate(runCount: TemplateRunCount): TemplateDay[
 export function createStarterTemplate(
   mode: TemplateStarterMode,
   runCount: TemplateRunCount = DEFAULT_TEMPLATE_RUN_COUNT,
+  trainingPaceProfile?: TrainingPaceProfile | null,
 ): TemplateDay[] {
   const seed = mode === 'template' ? createRunCountTemplate(runCount) : CLEAN_TEMPLATE;
-  return seed.map(cloneTemplateDay);
+  return seed
+    .map(cloneTemplateDay)
+    .map((session) => applyTrainingPaceProfileTarget(session, trainingPaceProfile));
 }
 
 export function resolveTemplateForStepPlan(template: TemplateDay[]): TemplateDay[] {

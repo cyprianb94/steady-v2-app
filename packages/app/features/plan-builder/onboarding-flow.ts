@@ -1,4 +1,9 @@
-import { defaultPhases, type PhaseConfig } from '@steady/types';
+import {
+  defaultPhases,
+  normalizeTrainingPaceProfile,
+  type PhaseConfig,
+  type TrainingPaceProfile,
+} from '@steady/types';
 import {
   RACE_TARGETS,
   raceDateForPlanStartingThisWeek,
@@ -26,6 +31,7 @@ export interface PlanBuilderGoalParams {
   weeks: string;
   targetTime: string;
   phases: string;
+  trainingPaceProfile?: string;
   ultraPreset?: string;
   customUltraDistance?: string;
 }
@@ -123,4 +129,8 @@ export function buildGoalParams({
     ultraPreset,
     customUltraDistance: customUltraDistance.trim(),
   };
+}
+
+export function serializeTrainingPaceProfileParam(profile: TrainingPaceProfile): string {
+  return JSON.stringify(normalizeTrainingPaceProfile(profile) ?? profile);
 }

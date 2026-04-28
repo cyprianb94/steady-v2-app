@@ -267,13 +267,14 @@ describe('WeeklyVolumeCard', () => {
     expect(screen.getByText('done 7.1km')).toBeTruthy();
     expect(screen.getByText('+0.7km over')).toBeTruthy();
     expect(screen.getByTestId('weekly-volume-overrun-1')).toBeTruthy();
+    expect(screen.getByTestId('weekly-volume-planned-target-1')).toBeTruthy();
   });
 
-  it('uses a closer distance axis ceiling for lower-volume weeks', () => {
+  it('uses a 20km distance axis ceiling when the longest run is 18km', () => {
     const summary = makeSummary();
     summary.days = summary.days.map((day) => (
       day.dayIndex === 6
-        ? { ...day, plannedDistanceKm: 16 }
+        ? { ...day, plannedDistanceKm: 18 }
         : day
     ));
     summary.plannedDistanceKm = summary.days.reduce((sum, day) => sum + day.plannedDistanceKm, 0);
@@ -284,7 +285,7 @@ describe('WeeklyVolumeCard', () => {
 
     expect(within(screen.getByTestId('weekly-volume-y-axis')).getByText('20km')).toBeTruthy();
     expect(within(screen.getByTestId('weekly-volume-y-axis')).queryByText('30km')).toBeNull();
-    expect(screen.getByTestId('weekly-volume-bucket-shell-6').getAttribute('style')).toContain('height: 120px');
+    expect(screen.getByTestId('weekly-volume-bucket-shell-6').getAttribute('style')).toContain('height: 135px');
   });
 
   it('uses minute labels on the time axis while every run is 60 minutes or shorter', () => {

@@ -6,16 +6,22 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import {
+  normalizePaceRange,
   normalizeSessionDuration,
   sessionSupportsWarmupCooldown,
+  type IntensityTarget,
+  type PaceRange,
   type IntervalRecovery,
   type PlannedSession,
   type RecoveryDuration,
   type SessionDurationUnit,
   type SessionType,
+  type TrainingPaceProfile,
+  type TrainingPaceProfileKey,
 } from '@steady/types';
 import { C } from '../../constants/colours';
 import { SESSION_TYPE } from '../../constants/session-types';
@@ -31,11 +37,23 @@ import { SectionLabel } from '../ui/SectionLabel';
 import { UnitTogglePill } from '../ui/UnitTogglePill';
 import { GorhomSheet } from '../ui/GorhomSheet';
 import { DAYS, TYPE_DEFAULTS, sessionLabel } from '../../lib/plan-helpers';
+import { formatIntensityTargetParts } from '../../lib/units';
+import { triggerSegmentTickHaptic } from '../../lib/haptics';
 import { usePreferences } from '../../providers/preferences-context';
+import {
+  defaultSessionEditorIntensityTarget,
+  getSessionEditorProfileBands,
+  initialSessionEditorIntensityTarget,
+  intensityTargetForTrainingPaceProfileKey,
+  manualPaceIntensityTarget,
+  manualPaceRangeIntensityTarget,
+  targetRepresentativePace,
+} from '../../features/plan-builder/session-editing';
 
 interface SessionEditorProps {
   dayIndex: number;
   existing: Partial<PlannedSession> | null;
+  trainingPaceProfile?: TrainingPaceProfile | null;
   onSave: (dayIndex: number, session: Partial<PlannedSession> | null) => void;
   onClose: () => void;
   presentation?: 'sheet' | 'screen';
@@ -43,6 +61,7 @@ interface SessionEditorProps {
 
 type ExpandedRow = 'distance' | 'repetitions' | 'pace' | 'recovery' | 'warmup' | 'cooldown' | null;
 type CustomField = Exclude<ExpandedRow, null> | null;
+type ManualPaceMode = 'single' | 'range';
 
 interface DurationState {
   unit: SessionDurationUnit;
@@ -90,20 +109,6 @@ function typeChipLabel(type: SessionType): string {
     case 'EASY':
     default:
       return 'Easy';
-  }
-}
-
-function targetPaceCaption(type: SessionType): string {
-  switch (type) {
-    case 'INTERVAL':
-      return 'Per rep';
-    case 'LONG':
-      return 'Long effort';
-    case 'TEMPO':
-      return 'Tempo effort';
-    case 'EASY':
-    default:
-      return 'Easy effort';
   }
 }
 
@@ -213,6 +218,33 @@ function normalizeCustomPace(text: string): string | null {
   return total > 0 ? secondsToPace(total) : null;
 }
 
+function isManualRangeTarget(target: IntensityTarget | null | undefined): boolean {
+  return target?.source === 'manual' && Boolean(normalizePaceRange(target.paceRange));
+}
+
+function paceRangeAroundPace(value: string | null | undefined): PaceRange {
+  const baseSeconds = paceToSeconds(value) ?? paceToSeconds('4:30')!;
+  const fasterSeconds = Math.max(MIN_TARGET_PACE_SECONDS, baseSeconds - 5);
+  const slowerSeconds = Math.min(MAX_TARGET_PACE_SECONDS, baseSeconds + 5);
+
+  return {
+    min: secondsToPace(fasterSeconds),
+    max: secondsToPace(Math.max(fasterSeconds, slowerSeconds)),
+  };
+}
+
+function manualPaceRangeDraft(
+  target: IntensityTarget | null | undefined,
+  fallbackPace: string,
+): PaceRange {
+  const range = normalizePaceRange(target?.paceRange);
+  return range ?? paceRangeAroundPace(targetRepresentativePace(target, fallbackPace));
+}
+
+function paceRangeChipLabel(range: PaceRange): string {
+  return `${range.min}-${range.max} /km`;
+}
+
 function pacePresets(currentPace: string, type: SessionType): string[] {
   const fallbackSeconds = paceToSeconds(TYPE_DEFAULTS[type].pace) ?? 270;
   const baseSeconds = paceToSeconds(currentPace) ?? fallbackSeconds;
@@ -256,6 +288,7 @@ function afterNextPaint(callback: () => void) {
 export function SessionEditor({
   dayIndex,
   existing,
+  trainingPaceProfile = null,
   onSave,
   onClose,
   presentation = 'sheet',
@@ -263,12 +296,26 @@ export function SessionEditor({
   const { units } = usePreferences();
   const scrollRef = useRef<ScrollView>(null);
   const init = existing?.type || 'EASY';
+  const initialIntensityTarget = initialSessionEditorIntensityTarget(
+    existing,
+    init,
+    trainingPaceProfile,
+  );
+  const initialPace = targetRepresentativePace(
+    initialIntensityTarget,
+    existing?.pace || TYPE_DEFAULTS[init].pace,
+  ) || '4:30';
+  const initialPaceRange = manualPaceRangeDraft(initialIntensityTarget, initialPace);
+  const initialManualRangeSelected = isManualRangeTarget(initialIntensityTarget);
   const [type, setType] = useState<SessionType>(init);
   const [distance, setDistance] = useState(existing?.distance ?? 8);
   const [reps, setReps] = useState(existing?.reps || 6);
   const [repDist, setRepDist] = useState(existing?.repDist || 800);
   const [repDuration, setRepDuration] = useState<DurationState>(() => buildRepDurationState(existing));
-  const [pace, setPace] = useState(existing?.pace || TYPE_DEFAULTS[init].pace || '4:30');
+  const [intensityTarget, setIntensityTarget] = useState<IntensityTarget | undefined>(
+    initialIntensityTarget,
+  );
+  const [pace, setPace] = useState(initialPace);
   const [recovery, setRecovery] = useState<DurationState>(() => buildRecoveryState(existing?.recovery));
   const [warmup, setWarmup] = useState<DurationState>(() => buildDurationState(existing?.warmup));
   const [cooldown, setCooldown] = useState<DurationState>(() => buildDurationState(existing?.cooldown));
@@ -277,8 +324,14 @@ export function SessionEditor({
   const [customDistance, setCustomDistance] = useState('');
   const [customRepDuration, setCustomRepDuration] = useState('');
   const [customRecovery, setCustomRecovery] = useState('');
+  const [manualPaceMode, setManualPaceMode] = useState<ManualPaceMode>(
+    initialManualRangeSelected ? 'range' : 'single',
+  );
   const [customPace, setCustomPace] = useState('');
-  const [customPaceSelected, setCustomPaceSelected] = useState(false);
+  const [customPaceRangeFaster, setCustomPaceRangeFaster] = useState(initialPaceRange.min);
+  const [customPaceRangeSlower, setCustomPaceRangeSlower] = useState(initialPaceRange.max);
+  const [customPaceRangeError, setCustomPaceRangeError] = useState<string | null>(null);
+  const [customPaceSelected, setCustomPaceSelected] = useState(initialManualRangeSelected);
   const [customWarmup, setCustomWarmup] = useState('');
   const [customCooldown, setCustomCooldown] = useState('');
 
@@ -288,19 +341,55 @@ export function SessionEditor({
   const canEditPace = !isRest;
   const typeMeta = SESSION_TYPE[type];
   const pacePresetValues = pacePresets(pace, type);
-  const visiblePacePresets = customPaceSelected
+  const visiblePacePresets = customPaceSelected && manualPaceMode === 'single'
     ? pacePresetValues.filter((preset) => preset !== pace)
     : pacePresetValues;
+  const currentPaceRange = normalizePaceRange(intensityTarget?.paceRange);
+  const currentManualPaceRange = intensityTarget?.source === 'manual'
+    ? currentPaceRange
+    : undefined;
+  const profileBands = getSessionEditorProfileBands(type, trainingPaceProfile);
+  const selectedProfileKey = intensityTarget?.source === 'profile'
+    ? intensityTarget.profileKey ?? null
+    : null;
+  const hasSelectedProfileOption = Boolean(
+    selectedProfileKey && profileBands.some((band) => band.profileKey === selectedProfileKey),
+  );
+  const targetForDisplay = intensityTarget ?? manualPaceIntensityTarget(pace);
+  const targetDisplay = formatIntensityTargetParts(targetForDisplay, units, {
+    withUnit: true,
+    includeEffort: false,
+  });
+  const targetPaceLabel = targetDisplay.pace ?? (pace ? `${pace}/km` : null);
+  const selectedProfileBand = selectedProfileKey
+    ? profileBands.find((band) => band.profileKey === selectedProfileKey)
+    : null;
+  const targetCaption = selectedProfileBand
+    ? `${selectedProfileBand.label} · profile pace`
+    : 'Manual pace';
+  const profilePaceOptions = profileBands.map((band) => {
+    const target = intensityTargetForTrainingPaceProfileKey(trainingPaceProfile, band.profileKey);
+    const parts = formatIntensityTargetParts(target, units, { withUnit: true });
+    return {
+      key: band.profileKey,
+      label: band.label,
+      caption: parts.label ?? band.defaultEffortCue,
+    };
+  });
 
   const build = (): Partial<PlannedSession> | null => {
     if (isRest) {
       return { type: 'REST' };
     }
 
+    const targetForSave = intensityTarget ?? manualPaceIntensityTarget(pace);
     const session: Partial<PlannedSession> = {
       type,
       pace,
     };
+    if (targetForSave) {
+      session.intensityTarget = targetForSave;
+    }
 
     if (supportsWarmupCooldown) {
       const warmupSpec = durationSpec(warmup);
@@ -346,12 +435,25 @@ export function SessionEditor({
     const defaults = TYPE_DEFAULTS[nextType];
     const defaultWarmup = normalizeSessionDuration(defaults.warmup);
     const defaultCooldown = normalizeSessionDuration(defaults.cooldown);
+    const nextTarget = nextType === 'REST'
+      ? undefined
+      : defaultSessionEditorIntensityTarget(nextType, trainingPaceProfile);
+    const nextPace = targetRepresentativePace(nextTarget, defaults.pace ?? pace)
+      ?? defaults.pace
+      ?? pace;
+    const nextManualRangeSelected = isManualRangeTarget(nextTarget);
+    const nextPaceRange = manualPaceRangeDraft(nextTarget, nextPace);
 
     setType(nextType);
-    setPace(defaults.pace ?? pace);
+    setPace(nextPace);
+    setIntensityTarget(nextTarget);
+    setManualPaceMode(nextManualRangeSelected ? 'range' : 'single');
+    setCustomPaceRangeFaster(nextPaceRange.min);
+    setCustomPaceRangeSlower(nextPaceRange.max);
+    setCustomPaceRangeError(null);
     setExpandedRow(null);
     setCustomField(null);
-    setCustomPaceSelected(false);
+    setCustomPaceSelected(nextManualRangeSelected);
 
     if (nextType === 'INTERVAL') {
       setReps(defaults.reps ?? 6);
@@ -451,6 +553,7 @@ export function SessionEditor({
         return;
       case 'pace':
         setCustomPace('');
+        setCustomPaceRangeError(null);
         return;
       case 'recovery':
         setCustomRecovery('');
@@ -525,6 +628,142 @@ export function SessionEditor({
     }
   }
 
+  function setManualSinglePaceTarget(value: string, selectedFromCustom: boolean) {
+    setPace(value);
+    setIntensityTarget(manualPaceIntensityTarget(value));
+    setManualPaceMode('single');
+    setCustomPaceSelected(selectedFromCustom);
+    setCustomPaceRangeError(null);
+
+    const nextRange = paceRangeAroundPace(value);
+    setCustomPaceRangeFaster(nextRange.min);
+    setCustomPaceRangeSlower(nextRange.max);
+  }
+
+  function commitManualPaceRange(
+    fasterDraft: string,
+    slowerDraft: string,
+    canonicalizeDrafts: boolean,
+  ): boolean {
+    const normalized = normalizePaceRange({ min: fasterDraft, max: slowerDraft });
+    const target = manualPaceRangeIntensityTarget(normalized);
+    if (!target || !normalized) {
+      return false;
+    }
+
+    setIntensityTarget(target);
+    setPace(targetRepresentativePace(target, pace) ?? pace);
+    setManualPaceMode('range');
+    setCustomPaceSelected(true);
+    setCustomPaceRangeError(null);
+
+    if (canonicalizeDrafts) {
+      setCustomPaceRangeFaster(normalized.min);
+      setCustomPaceRangeSlower(normalized.max);
+    }
+
+    return true;
+  }
+
+  function selectManualPaceMode(nextMode: ManualPaceMode) {
+    if (nextMode === manualPaceMode) {
+      return;
+    }
+
+    triggerSegmentTickHaptic();
+
+    if (nextMode === 'single') {
+      setManualSinglePaceTarget(pace, false);
+      setCustomField(null);
+      return;
+    }
+
+    const nextRange = currentPaceRange ?? paceRangeAroundPace(pace);
+    setCustomPace('');
+    setCustomPaceRangeFaster(nextRange.min);
+    setCustomPaceRangeSlower(nextRange.max);
+    setCustomField(null);
+    commitManualPaceRange(nextRange.min, nextRange.max, false);
+  }
+
+  function changeManualPaceRangeBoundary(boundary: 'faster' | 'slower', text: string) {
+    const nextFaster = boundary === 'faster' ? text : customPaceRangeFaster;
+    const nextSlower = boundary === 'slower' ? text : customPaceRangeSlower;
+
+    if (boundary === 'faster') {
+      setCustomPaceRangeFaster(text);
+    } else {
+      setCustomPaceRangeSlower(text);
+    }
+
+    commitManualPaceRange(nextFaster, nextSlower, false);
+  }
+
+  function applyManualPaceRange() {
+    const saved = commitManualPaceRange(customPaceRangeFaster, customPaceRangeSlower, true);
+    if (!saved) {
+      setCustomPaceRangeError('Use pace format like 4:20.');
+    }
+  }
+
+  function selectTargetPaceOption(value: string) {
+    const target = intensityTargetForTrainingPaceProfileKey(
+      trainingPaceProfile,
+      value as TrainingPaceProfileKey,
+    );
+    if (target) {
+      const nextRange = manualPaceRangeDraft(target, targetRepresentativePace(target, pace) ?? pace);
+
+      setIntensityTarget(target);
+      setPace(targetRepresentativePace(target, pace) ?? pace);
+      setManualPaceMode('single');
+      setCustomPaceRangeFaster(nextRange.min);
+      setCustomPaceRangeSlower(nextRange.max);
+      setCustomPaceRangeError(null);
+      setCustomPace('');
+      setCustomPaceSelected(false);
+      closeCustomField('pace');
+      return;
+    }
+
+    const normalized = normalizeCustomPace(value);
+    if (!normalized) {
+      return;
+    }
+
+    setManualSinglePaceTarget(normalized, false);
+    setCustomPace('');
+    closeCustomField('pace');
+  }
+
+  const selectedTargetKey = hasSelectedProfileOption
+    ? selectedProfileKey
+    : customPaceSelected
+      ? null
+      : pace;
+  const customTargetActive = !hasSelectedProfileOption && customPaceSelected;
+  const customTargetLabel = customTargetActive
+    ? currentManualPaceRange
+      ? paceRangeChipLabel(currentManualPaceRange)
+      : `${pace} /km`
+    : 'Custom...';
+  const paceOptions = [
+    ...profilePaceOptions,
+    ...visiblePacePresets.map((preset) => ({
+      key: preset,
+      label: `${preset} /km`,
+    })),
+  ];
+  const headerSession = {
+    type,
+    distance,
+    reps,
+    repDist,
+    repDuration: durationSpec(repDuration),
+    pace,
+    intensityTarget,
+  };
+
   const content = (
     <View style={presentation === 'screen' ? styles.screen : styles.sheet}>
       <View style={[styles.header, presentation === 'screen' && styles.screenHeader]}>
@@ -539,7 +778,7 @@ export function SessionEditor({
         ) : null}
         <Text style={styles.headerDay}>{DAYS[dayIndex]}</Text>
         <Text style={[styles.headerTitle, { color: typeMeta.color }]}>
-          {isRest ? 'Rest day' : sessionLabel({ type, distance, reps, repDist, repDuration: durationSpec(repDuration), pace }, units)}
+          {isRest ? 'Rest day' : sessionLabel(headerSession, units)}
         </Text>
       </View>
 
@@ -660,38 +899,115 @@ export function SessionEditor({
                 editor={
                   expandedRow === 'pace' && canEditPace ? (
                     <View style={styles.editorBlock}>
+                      <View style={styles.paceModeToggle}>
+                        {(['single', 'range'] as const).map((mode) => {
+                          const active = manualPaceMode === mode;
+                          return (
+                            <Pressable
+                              key={mode}
+                              testID={`session-editor-pace-mode-${mode}`}
+                              onPress={() => selectManualPaceMode(mode)}
+                              style={({ pressed }) => [
+                                styles.paceModeOption,
+                                active && {
+                                  borderColor: typeMeta.color,
+                                  backgroundColor: typeMeta.color,
+                                },
+                                pressed && styles.paceModeOptionPressed,
+                              ]}
+                            >
+                              <Text style={[styles.paceModeText, active && styles.paceModeTextActive]}>
+                                {mode === 'single' ? 'Single pace' : 'Range'}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
                       <EditableChipStrip
-                        options={visiblePacePresets.map((preset) => ({
-                          key: preset,
-                          label: `${preset} /km`,
-                        }))}
-                        selectedKey={customPaceSelected ? null : pace}
+                        options={paceOptions}
+                        selectedKey={selectedTargetKey}
                         activeColor={typeMeta.color}
-                        customActive={customPaceSelected}
-                        customEditing={customField === 'pace'}
-                        customLabel={customPaceSelected ? `${pace} /km` : 'Custom...'}
+                        customActive={customTargetActive}
+                        customEditing={customField === 'pace' && manualPaceMode === 'single'}
+                        customLabel={customTargetLabel}
                         customValue={customPace}
                         customUnit="/km"
                         customKeyboardType="numbers-and-punctuation"
-                        onSelect={(value) => {
-                          setPace(value);
-                          setCustomPace('');
-                          setCustomPaceSelected(false);
-                          closeCustomField('pace');
-                        }}
+                        onSelect={selectTargetPaceOption}
                         onCustomPress={() => {
+                          if (manualPaceMode === 'range') {
+                            keepCustomFieldVisible('pace');
+                            return;
+                          }
+
                           openCustomField('pace');
                         }}
                         onCustomChangeText={(text) => {
                           setCustomPace(text);
                           const normalized = normalizeCustomPace(text);
                           if (normalized) {
-                            setPace(normalized);
-                            setCustomPaceSelected(true);
+                            setManualSinglePaceTarget(normalized, true);
                           }
                         }}
                         onCustomBlur={() => closeCustomField('pace')}
                         onCustomFocus={() => keepCustomFieldVisible('pace')}
+                        footer={manualPaceMode === 'range' ? (
+                          <View style={styles.paceRangeEditor} testID="session-editor-pace-range-editor">
+                            <View style={styles.paceRangeInputs}>
+                              <View style={styles.paceRangeInputWrap}>
+                                <Text style={styles.paceRangeInputLabel}>Faster end</Text>
+                                <TextInput
+                                  testID="session-editor-pace-range-faster"
+                                  value={customPaceRangeFaster}
+                                  onChangeText={(text) => changeManualPaceRangeBoundary('faster', text)}
+                                  onFocus={() => {
+                                    setCustomField('pace');
+                                    keepCustomFieldVisible('pace');
+                                  }}
+                                  onBlur={() => closeCustomField('pace')}
+                                  keyboardType="numbers-and-punctuation"
+                                  selectionColor={typeMeta.color}
+                                  style={styles.paceRangeInput}
+                                />
+                              </View>
+                              <View style={styles.paceRangeInputWrap}>
+                                <Text style={styles.paceRangeInputLabel}>Slower end</Text>
+                                <TextInput
+                                  testID="session-editor-pace-range-slower"
+                                  value={customPaceRangeSlower}
+                                  onChangeText={(text) => changeManualPaceRangeBoundary('slower', text)}
+                                  onFocus={() => {
+                                    setCustomField('pace');
+                                    keepCustomFieldVisible('pace');
+                                  }}
+                                  onBlur={() => closeCustomField('pace')}
+                                  keyboardType="numbers-and-punctuation"
+                                  selectionColor={typeMeta.color}
+                                  style={styles.paceRangeInput}
+                                />
+                              </View>
+                            </View>
+                            {customPaceRangeError ? (
+                              <Text style={styles.paceRangeError}>{customPaceRangeError}</Text>
+                            ) : null}
+                            <Pressable
+                              testID="session-editor-pace-range-apply"
+                              onPress={applyManualPaceRange}
+                              style={({ pressed }) => [
+                                styles.paceRangeApply,
+                                {
+                                  borderColor: typeMeta.color,
+                                  backgroundColor: `${typeMeta.color}14`,
+                                },
+                                pressed && styles.paceRangeApplyPressed,
+                              ]}
+                            >
+                              <Text style={[styles.paceRangeApplyText, { color: typeMeta.color }]}>
+                                Apply range
+                              </Text>
+                            </Pressable>
+                          </View>
+                        ) : undefined}
                       />
                     </View>
                   ) : undefined
@@ -701,9 +1017,9 @@ export function SessionEditor({
                   <NotebookRowValue value="—" muted />
                 ) : (
                   <View style={styles.rowCopy}>
-                    <NotebookRowValue value={pace || '—'} unit="/km" />
+                    <NotebookRowValue value={targetPaceLabel ?? '—'} />
                     {canEditPace ? (
-                      <Text style={styles.rowCaption}>{targetPaceCaption(type)}</Text>
+                      <Text style={styles.rowCaption}>{targetCaption}</Text>
                     ) : null}
                   </View>
                 )}
@@ -1010,6 +1326,84 @@ const styles = StyleSheet.create({
   },
   editorBlock: {
     gap: 10,
+  },
+  paceModeToggle: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    backgroundColor: C.surface,
+    overflow: 'hidden',
+  },
+  paceModeOption: {
+    minHeight: 34,
+    paddingHorizontal: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  paceModeOptionPressed: {
+    opacity: 0.82,
+  },
+  paceModeText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 12,
+    lineHeight: 15,
+    color: C.muted,
+  },
+  paceModeTextActive: {
+    color: C.surface,
+  },
+  paceRangeEditor: {
+    gap: 10,
+  },
+  paceRangeInputs: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  paceRangeInputWrap: {
+    flex: 1,
+    gap: 5,
+  },
+  paceRangeInputLabel: {
+    fontFamily: FONTS.sans,
+    fontSize: 10,
+    lineHeight: 12,
+    color: C.muted,
+  },
+  paceRangeInput: {
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    backgroundColor: C.cream,
+    paddingHorizontal: 12,
+    fontFamily: FONTS.mono,
+    fontSize: 13,
+    color: C.ink,
+  },
+  paceRangeError: {
+    fontFamily: FONTS.sans,
+    fontSize: 11,
+    lineHeight: 15,
+    color: C.clay,
+  },
+  paceRangeApply: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1.5,
+  },
+  paceRangeApplyPressed: {
+    opacity: 0.82,
+  },
+  paceRangeApplyText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 12,
+    lineHeight: 15,
   },
   actions: {
     paddingHorizontal: 20,

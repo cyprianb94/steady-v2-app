@@ -18,6 +18,8 @@ import { C } from '../../constants/colours';
 import { usePreferences } from '../../providers/preferences-context';
 import {
   formatDistance,
+  formatIntensityTargetDisplay,
+  formatIntensityTargetParts,
   formatIntervalRepLength,
   formatPace,
   formatSessionLabel,
@@ -59,7 +61,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 const COMPLETED_HEADLINES: Record<PvaHeadline, string> = {
   'on-target': 'On target',
   'crushed-it': 'Crushed it',
-  'eased-in': 'Eased in',
+  'eased-in': 'Eased off',
   'cut-short': 'Cut short',
   'bonus-effort': 'Longer than planned',
   'under-distance': 'Under distance',
@@ -133,9 +135,9 @@ function buildCompletedSummary(session: PlannedSession, activity?: ActivitySumma
 
   const summary = summariseVsPlan(session, toSummaryActivity(activity));
   const primaryFact = (
-    summary.verdicts.find((verdict) => verdict.kind === 'hr')
-    ?? summary.verdicts.find((verdict) => verdict.status !== 'ok')
+    summary.verdicts.find((verdict) => verdict.status === 'warn')
     ?? summary.verdicts.find((verdict) => verdict.kind === 'pace')
+    ?? summary.verdicts.find((verdict) => verdict.kind === 'hr')
     ?? summary.verdicts[0]
   );
 
@@ -147,14 +149,17 @@ function buildCompletedSummary(session: PlannedSession, activity?: ActivitySumma
 
 function buildCompletedMetrics(session: PlannedSession, activity: ActivitySummary | undefined, units: ReturnType<typeof usePreferences>['units']) {
   if (!activity) {
+    const target = formatIntensityTargetDisplay(session, units, {
+      fallbackToLegacyPace: true,
+    }) ?? '—';
     return [
       {
         value: formatDistance(session.distance ?? 0, units),
         label: 'planned km',
       },
       {
-        value: formatStoredPace(session.pace, units),
-        label: 'target pace',
+        value: target,
+        label: target.includes(':') ? 'target pace' : 'target effort',
       },
       {
         value: SESSION_TYPE[session.type].label,
@@ -277,6 +282,9 @@ export function TodayHeroCard({
   const savedSubjectiveInput = activity?.subjectiveInput;
   const completedSummary = buildCompletedSummary(session, activity);
   const completedMetrics = buildCompletedMetrics(session, activity, units);
+  const targetParts = formatIntensityTargetParts(session, units, { hideCompatibilityPace: true });
+  const targetValue = targetParts.pace ?? targetParts.effort ?? formatStoredPace(session.pace, units);
+  const targetLabel = targetParts.pace ? 'target pace' : targetParts.effort ? 'target effort' : 'target pace';
   const showSubjectivePrompt =
     !!session.actualActivityId &&
     !savedSubjectiveInput &&
@@ -418,23 +426,34 @@ export function TodayHeroCard({
 
       <View style={styles.metricGrid}>
         <View style={styles.metricCard}>
-          <Text style={styles.metricValue} numberOfLines={1}>
+          <Text style={[styles.metricValue, styles.metricValueMono]} numberOfLines={1}>
             {isInterval ? `${session.reps}×${formatIntervalRepLength(session)}` : formatDistance(session.distance ?? 0, units)}
           </Text>
           <Text style={styles.metricLabel}>{isInterval ? 'session' : 'distance'}</Text>
         </View>
         <View style={styles.metricCard}>
-          <Text style={styles.metricValue} numberOfLines={1}>{formatStoredPace(session.pace, units)}</Text>
-          <Text style={styles.metricLabel}>target pace</Text>
+          <Text
+            style={[
+              styles.metricValue,
+              targetParts.pace ? styles.metricValueMono : styles.metricValueText,
+            ]}
+            numberOfLines={1}
+          >
+            {targetValue}
+          </Text>
+          <Text style={styles.metricLabel}>{targetLabel}</Text>
         </View>
         <View style={styles.metricCard}>
-          <Text style={styles.metricValue} numberOfLines={1}>{plannedHeartRateZone(session)}</Text>
+          <Text style={[styles.metricValue, styles.metricValueText]} numberOfLines={1}>{plannedHeartRateZone(session)}</Text>
           <Text style={styles.metricLabel}>heart rate</Text>
         </View>
       </View>
 
-      {(warmup || cooldown) && (
+      {(targetParts.effort && targetParts.pace) || warmup || cooldown ? (
         <View style={styles.extras}>
+          {targetParts.effort && targetParts.pace ? (
+            <Text style={styles.extraText}>{targetParts.effort}</Text>
+          ) : null}
           {warmup ? (
             <Text style={styles.extraText}>{formatWarmupCooldown(warmup, units, 'warmup')}</Text>
           ) : null}
@@ -442,7 +461,7 @@ export function TodayHeroCard({
             <Text style={styles.extraText}>{formatWarmupCooldown(cooldown, units, 'cooldown')}</Text>
           ) : null}
         </View>
-      )}
+      ) : null}
       {steadyNote ? (
         <View style={styles.steadyNote} testID="hero-steady-note">
           {steadyNoteContent}
@@ -751,10 +770,17 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   metricValue: {
-    fontFamily: FONTS.serifBold,
+    fontFamily: FONTS.monoBold,
     fontSize: 20,
     color: C.ink,
     marginBottom: 2,
+  },
+  metricValueMono: {
+    fontFamily: FONTS.monoBold,
+  },
+  metricValueText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 16,
   },
   metricLabel: {
     fontFamily: FONTS.sans,

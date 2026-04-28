@@ -15,6 +15,8 @@ import { usePreferences } from '../../providers/preferences-context';
 import type { ActivityDayStatus } from '../../features/run/activity-resolution';
 import {
   formatDistance,
+  formatIntensityTargetDisplay,
+  formatIntensityTargetParts,
   formatIntervalRepLength,
   formatStoredPace,
   type DistanceUnits,
@@ -97,7 +99,7 @@ function formatSourceLabel(source: Activity['source']): string {
 }
 
 function formatPaceValue(pace: string | undefined, units: DistanceUnits): string {
-  return formatStoredPace(pace, units, { withUnit: true }).replace(' /', '/');
+  return formatStoredPace(pace, units, { withUnit: true, compactUnit: true });
 }
 
 function formatDurationValue(
@@ -134,10 +136,27 @@ function formatRecoveryValue(recovery: PlannedSession['recovery'], units: Distan
 
 function formatMainSet(session: PlannedSession, units: DistanceUnits): string {
   if (session.type === 'INTERVAL') {
-    return `${session.reps ?? 6}×${formatIntervalRepLength(session)} @ ${formatPaceValue(session.pace, units)}`;
+    const target = formatIntensityTargetParts(session, units, {
+      withUnit: true,
+      hideCompatibilityPace: true,
+    });
+    const base = `${session.reps ?? 6}×${formatIntervalRepLength(session)}`;
+    if (target.pace) {
+      return `${base} · ${target.pace}${target.effort ? ` · ${target.effort}` : ''}`;
+    }
+    if (target.effort) {
+      return `${base} · ${target.effort}`;
+    }
+
+    return `${base} · ${formatPaceValue(session.pace, units)}`;
   }
 
-  return `${formatDistance(session.distance ?? 0, units)} @ ${formatPaceValue(session.pace, units)}`;
+  const target = formatIntensityTargetDisplay(session, units, {
+    withUnit: true,
+    hideCompatibilityPace: true,
+  });
+  const distance = formatDistance(session.distance ?? 0, units);
+  return target ? `${distance} · ${target}` : `${distance} · ${formatPaceValue(session.pace, units)}`;
 }
 
 function buildPlannedRows(session: PlannedSession, units: DistanceUnits): PlannedSessionRow[] {

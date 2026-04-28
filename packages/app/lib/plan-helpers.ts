@@ -1,5 +1,6 @@
 import {
   addDaysIso,
+  defaultIntensityTargetForSessionType,
   inferWeekStartDate,
   sessionKm,
   startOfWeekIso,
@@ -8,7 +9,7 @@ import {
   type SessionType,
   type PlanWeek,
 } from '@steady/types';
-import { formatDistance, formatIntervalRepLength, formatStoredPace, type DistanceUnits } from './units';
+import { formatSessionLabel, type DistanceUnits } from './units';
 import {
   SCREENSHOT_DEMO_TODAY,
   isScreenshotDemoMode,
@@ -41,12 +42,18 @@ for (let m = 3; m <= 8; m++) {
 }
 
 export const TYPE_DEFAULTS: Record<SessionType, Partial<PlannedSession> & { type: SessionType }> = {
-  EASY: { type: 'EASY', distance: 8, pace: '5:20' },
+  EASY: {
+    type: 'EASY',
+    distance: 8,
+    pace: '5:20',
+    intensityTarget: defaultIntensityTargetForSessionType('EASY'),
+  },
   INTERVAL: {
     type: 'INTERVAL',
     reps: 6,
     repDist: 800,
     pace: '3:50',
+    intensityTarget: defaultIntensityTargetForSessionType('INTERVAL'),
     recovery: '90s',
     warmup: { unit: 'km', value: 1.5 },
     cooldown: { unit: 'km', value: 1 },
@@ -55,10 +62,16 @@ export const TYPE_DEFAULTS: Record<SessionType, Partial<PlannedSession> & { type
     type: 'TEMPO',
     distance: 10,
     pace: '4:20',
+    intensityTarget: defaultIntensityTargetForSessionType('TEMPO'),
     warmup: { unit: 'km', value: 2 },
     cooldown: { unit: 'km', value: 1.5 },
   },
-  LONG: { type: 'LONG', distance: 16, pace: '5:10' },
+  LONG: {
+    type: 'LONG',
+    distance: 16,
+    pace: '5:10',
+    intensityTarget: defaultIntensityTargetForSessionType('LONG'),
+  },
   REST: { type: 'REST' },
 };
 
@@ -79,12 +92,7 @@ export function sessionLabel(
   s: Partial<PlannedSession> | null,
   units: DistanceUnits = 'metric',
 ): string {
-  if (!s || s.type === 'REST') return 'Rest';
-  if (s.type === 'INTERVAL') {
-    return `${s.reps ?? 6}×${formatIntervalRepLength(s)} @ ${formatStoredPace(s.pace, units)}`;
-  }
-  const distanceLabel = s.distance != null ? formatDistance(s.distance, units) : '?';
-  return `${distanceLabel} @ ${formatStoredPace(s.pace, units)}`;
+  return formatSessionLabel(s, units);
 }
 
 export function todayIsoLocal(now: Date = new Date()): string {

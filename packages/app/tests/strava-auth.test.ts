@@ -18,6 +18,7 @@ import { getStravaOAuthRedirects, getStravaRedirectUri } from '../lib/strava-aut
 
 const originalCallbackDomain = process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN;
 const originalApiUrl = process.env.EXPO_PUBLIC_API_URL;
+const originalStravaOAuthRelayUrl = process.env.EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL;
 const originalNodeEnv = process.env.NODE_ENV;
 
 describe('getStravaRedirectUri', () => {
@@ -34,6 +35,12 @@ describe('getStravaRedirectUri', () => {
       delete process.env.EXPO_PUBLIC_API_URL;
     } else {
       process.env.EXPO_PUBLIC_API_URL = originalApiUrl;
+    }
+
+    if (originalStravaOAuthRelayUrl === undefined) {
+      delete process.env.EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL;
+    } else {
+      process.env.EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL = originalStravaOAuthRelayUrl;
     }
 
     if (originalNodeEnv === undefined) {
@@ -84,7 +91,22 @@ describe('getStravaRedirectUri', () => {
     );
   });
 
-  it('uses the public API relay so Expo Go can keep its real return URL', () => {
+  it('uses the Strava OAuth relay so Expo Go can keep its real return URL while API calls stay on LAN', () => {
+    delete process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN;
+    process.env.EXPO_PUBLIC_API_URL = 'http://10.0.0.1:3000';
+    process.env.EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL = 'https://oauth-relay.steady.test';
+    process.env.NODE_ENV = 'development';
+    mockCreateURL.mockImplementation((path: string) => (
+      path ? `exp://10.0.0.1:8081/--/${path}` : 'exp://10.0.0.1:8081/--/'
+    ));
+
+    expect(getStravaOAuthRedirects()).toEqual({
+      authorizationRedirectUri: 'https://oauth-relay.steady.test/oauth/strava/callback?return_to=exp%3A%2F%2F10.0.0.1%3A8081%2F--%2Fstrava-callback',
+      authSessionCallbackUri: 'exp://10.0.0.1:8081/--/strava-callback',
+    });
+  });
+
+  it('falls back to a public HTTPS API URL for legacy Expo Go relay config', () => {
     delete process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN;
     process.env.EXPO_PUBLIC_API_URL = 'https://api.steady.test';
     process.env.NODE_ENV = 'development';
@@ -98,7 +120,7 @@ describe('getStravaRedirectUri', () => {
     });
   });
 
-  it('requires a public HTTPS API URL for Expo Go relay redirects', () => {
+  it('requires a public HTTPS OAuth relay for Expo Go relay redirects', () => {
     delete process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN;
     process.env.EXPO_PUBLIC_API_URL = 'http://10.0.0.1:3000';
     process.env.NODE_ENV = 'development';
@@ -107,7 +129,7 @@ describe('getStravaRedirectUri', () => {
     ));
 
     expect(() => getStravaRedirectUri()).toThrow(
-      'Expo Go Strava OAuth needs EXPO_PUBLIC_API_URL to be a public HTTPS URL.',
+      'Expo Go Strava OAuth needs EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL set to a public HTTPS API relay URL.',
     );
   });
 });

@@ -179,6 +179,8 @@ const styles = StyleSheet.create({
   },
   label: {
     flex: 1,
+    minWidth: 0,
+    flexShrink: 1,
     fontFamily: FONTS.sansMedium,
     fontSize: 13,
     color: C.ink2,
@@ -188,6 +190,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     minWidth: 40,
+    flexShrink: 0,
     justifyContent: 'flex-end',
   },
   metricLabel: {

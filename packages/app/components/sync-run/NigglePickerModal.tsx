@@ -92,7 +92,7 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
     >
       <Text style={styles.screenTitle}>Flag a niggle</Text>
       <Text style={styles.screenSub}>
-        Small catches early. We&apos;ll use this to watch for patterns and protect your recovery.
+        Log what showed up, then watch how it changes over your next few sessions.
       </Text>
 
       <View style={styles.block}>

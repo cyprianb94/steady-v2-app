@@ -37,6 +37,38 @@ interface SessionDurationSpec {
 type RecoveryDuration = '45s' | '60s' | '90s' | '2min' | '3min' | '4min' | '5min'
 type IntervalRecovery = RecoveryDuration | SessionDurationSpec
 
+type IntensityTargetSource = 'profile' | 'manual'
+type IntensityTargetMode = 'pace' | 'effort' | 'both'
+type TrainingPaceProfileKey =
+  | 'recovery'
+  | 'easy'
+  | 'steady'
+  | 'marathon'
+  | 'threshold'
+  | 'interval'
+type EffortCue =
+  | 'very easy'
+  | 'conversational'
+  | 'steady'
+  | 'race pace'
+  | 'controlled hard'
+  | 'hard repeatable'
+  | 'sharp'
+
+interface PaceRange {
+  min: string                    // fast bound, 'M:SS'
+  max: string                    // slow bound, 'M:SS'
+}
+
+interface IntensityTarget {
+  source: IntensityTargetSource
+  mode: IntensityTargetMode      // primary target mode
+  profileKey?: TrainingPaceProfileKey
+  pace?: string                  // single pace target, 'M:SS'
+  paceRange?: PaceRange          // pace band, 'M:SS' strings
+  effortCue?: EffortCue
+}
+
 interface SubjectiveInput {
   legs: 'fresh' | 'normal' | 'heavy' | 'dead'
   breathing: 'easy' | 'controlled' | 'labored'
@@ -50,7 +82,8 @@ interface PlannedSession {
   
   // EASY, TEMPO, LONG
   distance?: number               // km
-  pace?: string                   // 'M:SS' format e.g. '4:20'
+  pace?: string                   // legacy compatibility fallback, 'M:SS'
+  intensityTarget?: IntensityTarget
   
   // INTERVAL
   reps?: number                   // count
@@ -72,6 +105,10 @@ interface PlannedSession {
 ```
 
 `normalizeSessionDuration()` accepts legacy numeric warm-up/cool-down values and normalises them to `{ unit: 'km', value }`. New UI writes `SessionDurationSpec` objects. Warm-up/cool-down are workout bookends for interval and tempo sessions only; easy and long runs should not carry, display, or count those fields.
+
+`pace` remains readable and writable as the compatibility fallback for older surfaces and persisted plans. New intensity logic should read `intensityTarget` through the shared helpers in `packages/types/src/lib/intensity-targets.ts`; those helpers normalise malformed targets safely, derive a manual pace target from legacy `pace` when needed, sync single/range pace targets back into `pace` for old readers, and expose representative pace helpers for calculations.
+
+Recovery is represented as an intensity band or cue (`profileKey: 'recovery'`, often `effortCue: 'very easy'`) on an EASY session, not as another `SessionType`.
 
 ---
 
@@ -256,8 +293,8 @@ training_plans
   target_time text
   phases jsonb              -- {BASE: n, BUILD: n, RECOVERY: n, PEAK: n, TAPER: n}
   progression_pct integer default 0
-  template_week jsonb       -- array of 7 session objects or null
-  weeks jsonb               -- array of PlanWeek objects
+  template_week jsonb       -- array of 7 session objects or null, including intensityTarget
+  weeks jsonb               -- array of PlanWeek objects, including intensityTarget
   created_at timestamptz
   updated_at timestamptz
 
@@ -388,7 +425,7 @@ Store `matched_session_id` on the activity. This enables planned vs actual compa
 
 ---
 
-## Pace format
+## Intensity and pace helpers
 
 All paces stored as `'M:SS'` strings (e.g. `'4:20'`). For display, always show as-is. For calculation, convert:
 
@@ -404,3 +441,20 @@ function secondsToPace(seconds) {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 ```
+
+Use the shared helpers exported from `@steady/types` instead of hand-rolling parsing or display:
+
+- `normalizePace`, `parsePaceSeconds`, `secondsToPace`
+- `normalizePaceRange`
+- `normalizeIntensityTarget`, `normalizeSessionIntensityTarget`
+- `getSessionIntensityTarget`, `detectIntensityTargetType`
+- `representativePaceSeconds`, `representativeSessionPaceSeconds`
+- `formatIntensityTarget`, `intensityTargetContext`
+
+Default target intent:
+
+- Easy: effort-led and conservative (`profileKey: 'easy'`, `effortCue: 'conversational'`).
+- Recovery band: effort-led (`profileKey: 'recovery'`, `effortCue: 'very easy'`) on an EASY session.
+- Interval: pace-led range plus cue (`profileKey: 'interval'`, `paceRange`, `effortCue: 'hard repeatable'`).
+- Tempo: both pace range and effort cue (`profileKey: 'threshold'`, `effortCue: 'controlled hard'`).
+- Long: effort-led and conservative unless a future profile-linked target makes it both.

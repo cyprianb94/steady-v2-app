@@ -32,11 +32,12 @@ import {
 import { consumeSessionEditReturn } from '../../features/plan-builder/session-edit-return';
 import { useDirectWeekReschedule } from '../../features/plan-builder/use-direct-week-reschedule';
 import { deriveLiveBlockReviewModel } from '../../features/block-review/live-block-review-model';
+import { formatBlockSessionRowText } from '../../components/block/session-row-text';
 import { useAuth } from '../../lib/auth';
 import { triggerSelectionChangeHaptic } from '../../lib/haptics';
 import { createId } from '../../lib/id';
 import { updatePlanWeeks } from '../../lib/plan-api';
-import { addDaysIso, inferWeekStartDate, sessionLabel, todayIsoLocal, weekKm } from '../../lib/plan-helpers';
+import { addDaysIso, inferWeekStartDate, todayIsoLocal, weekKm } from '../../lib/plan-helpers';
 import { usePreferences } from '../../providers/preferences-context';
 import { formatDistance } from '../../lib/units';
 import {
@@ -973,12 +974,7 @@ export default function BlockTab() {
                     canDragIndex: canDragVisibleDay,
                     hasRunDetail: runDetailNavigation.canOpenRunDetail(session),
                   });
-                  const sessionMainLabel = detail.isRest || !session
-                    ? 'Rest day'
-                    : sessionLabel(session, units);
-                  const sessionCaption = detail.isRest
-                    ? 'Recovery slot locked in for this day'
-                    : SESSION_TYPE[detail.sessionType].label;
+                  const sessionRowText = formatBlockSessionRowText(session, units);
                   const dayPressHandler = canReviewRun
                     ? () => { void runDetailNavigation.openRunDetail(session); }
                     : canEditDay
@@ -1041,13 +1037,13 @@ export default function BlockTab() {
                                 style={[styles.daySessionLabel, detail.isRest && styles.daySessionLabelRest]}
                                 numberOfLines={1}
                               >
-                                {sessionMainLabel}
+                                {sessionRowText.title}
                               </Text>
                               <Text
                                 style={[styles.daySessionCaption, detail.isRest && styles.daySessionCaptionRest]}
                                 numberOfLines={1}
                               >
-                                {sessionCaption}
+                                {sessionRowText.caption}
                               </Text>
                             </View>
                           </View>

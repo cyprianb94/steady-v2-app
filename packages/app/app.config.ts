@@ -132,6 +132,7 @@ export default function appConfig({ config }: ExpoConfigContext): ExpoConfig {
     process.env.EXPO_PUBLIC_API_URL,
     process.env.EAS_BUILD_PROFILE,
   );
+  const stravaOAuthRelayUrl = process.env.EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL?.trim() || null;
 
   return {
     ...config,
@@ -150,6 +151,7 @@ export default function appConfig({ config }: ExpoConfigContext): ExpoConfig {
       ...config.extra,
       appVariant: appIdentity.appVariant,
       apiUrl,
+      stravaOAuthRelayUrl,
     },
   };
 }

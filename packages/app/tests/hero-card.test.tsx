@@ -25,6 +25,53 @@ describe('TodayHeroCard', () => {
     expect(screen.getByText('5:20')).toBeTruthy();
   });
 
+  it('shows structured target ranges and effort cues on the planned hero', () => {
+    render(
+      <TodayHeroCard
+        session={{
+          id: 'tempo-target',
+          type: 'TEMPO',
+          date: '2026-04-09',
+          distance: 10,
+          pace: '4:20',
+          intensityTarget: {
+            source: 'manual',
+            mode: 'both',
+            paceRange: { min: '4:15', max: '4:25' },
+            effortCue: 'controlled hard',
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText('4:15-4:25')).toBeTruthy();
+    expect(screen.getByText('controlled hard')).toBeTruthy();
+    expect(screen.queryByText('4:20')).toBeNull();
+  });
+
+  it('shows effort-only targets without a pace placeholder on the planned hero', () => {
+    render(
+      <TodayHeroCard
+        session={{
+          id: 'easy-effort',
+          type: 'EASY',
+          date: '2026-04-09',
+          distance: 8,
+          pace: '5:45',
+          intensityTarget: {
+            source: 'manual',
+            mode: 'effort',
+            profileKey: 'easy',
+            effortCue: 'conversational',
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText('conversational')).toBeTruthy();
+    expect(screen.queryByText('—')).toBeNull();
+  });
+
   it.each([
     { type: 'EASY' as const, title: '8km Easy Run', distance: 8, pace: '5:20' },
     { type: 'LONG' as const, title: '16km Long Run', distance: 16, pace: '5:10' },
@@ -212,7 +259,7 @@ describe('TodayHeroCard', () => {
     expect(screen.getByText('Completed')).toBeTruthy();
     expect(screen.getByText('Run saved')).toBeTruthy();
     expect(screen.getByText('Easy Run')).toBeTruthy();
-    expect(screen.getByText(/8km @ 5:20/)).toBeTruthy();
+    expect(screen.getByText(/8km easy · 5:20/)).toBeTruthy();
   });
 
   it('shows completed state from resolved activity data even before actualActivityId lands in the plan', () => {
@@ -262,6 +309,71 @@ describe('TodayHeroCard', () => {
 
     expect(screen.getByText('Longer than planned')).toBeTruthy();
     expect(screen.queryByText('Bonus effort')).toBeNull();
+  });
+
+  it('summarises a completed range-target run as on target when pace is inside the band', () => {
+    render(
+      <TodayHeroCard
+        session={{
+          id: 's-range',
+          type: 'TEMPO',
+          date: '2026-04-09',
+          distance: 10,
+          pace: '4:05',
+          intensityTarget: {
+            source: 'manual',
+            mode: 'both',
+            profileKey: 'threshold',
+            paceRange: { min: '4:00', max: '4:10' },
+            effortCue: 'controlled hard',
+          },
+          actualActivityId: 'act-range',
+        }}
+        activity={{
+          id: 'act-range',
+          distance: 10,
+          avgPace: 245,
+          duration: 2450,
+          avgHR: 164,
+        }}
+      />,
+    );
+
+    expect(screen.getByText('On target')).toBeTruthy();
+    expect(screen.getByText(/Pace inside target range/)).toBeTruthy();
+  });
+
+  it('does not call an easy effort-led run off target just because GPS pace was slower', () => {
+    render(
+      <TodayHeroCard
+        session={{
+          id: 's-effort',
+          type: 'EASY',
+          date: '2026-04-09',
+          distance: 8,
+          pace: '5:45',
+          intensityTarget: {
+            source: 'profile',
+            mode: 'both',
+            profileKey: 'recovery',
+            paceRange: { min: '5:30', max: '6:00' },
+            effortCue: 'very easy',
+          },
+          actualActivityId: 'act-effort',
+        }}
+        activity={{
+          id: 'act-effort',
+          distance: 8,
+          avgPace: 375,
+          duration: 3000,
+          avgHR: 136,
+        }}
+      />,
+    );
+
+    expect(screen.getByText('On target')).toBeTruthy();
+    expect(screen.queryByText('Eased off')).toBeNull();
+    expect(screen.queryByText('Went out hot')).toBeNull();
   });
 
   it('opens the Steady action when the planned hero is tapped', () => {

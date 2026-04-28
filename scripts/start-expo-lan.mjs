@@ -9,7 +9,10 @@ const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '..');
 const apiPort = Number(process.env.PORT) || 3000;
 const apiHealthTimeoutMs = Number(process.env.STEADY_DEV_API_HEALTH_TIMEOUT_MS) || 30_000;
+const relayHealthTimeoutMs = Number(process.env.STEADY_DEV_STRAVA_RELAY_HEALTH_TIMEOUT_MS) || 2_000;
 const envApiUrlKey = 'EXPO_PUBLIC_API_URL';
+const envStravaOAuthRelayUrlKey = 'EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL';
+const devApiUrlOverrideKey = 'STEADY_DEV_API_URL';
 
 const preferredInterfacePatterns = [
   /^en0$/i,
@@ -119,12 +122,66 @@ function readEnvValue(filePath, key) {
 }
 
 function getExpoApiUrl(fallbackUrl) {
-  return (
-    process.env[envApiUrlKey]?.trim()
-    || readEnvValue(path.join(repoRoot, 'packages/app/.env'), envApiUrlKey)
-    || readEnvValue(path.join(repoRoot, '.env'), envApiUrlKey)
-    || fallbackUrl
-  );
+  const explicitDevApiUrl = process.env[devApiUrlOverrideKey]?.trim();
+  if (explicitDevApiUrl) {
+    return explicitDevApiUrl;
+  }
+
+  const explicitExpoApiUrl = process.env[envApiUrlKey]?.trim();
+  if (explicitExpoApiUrl) {
+    try {
+      const parsed = new URL(explicitExpoApiUrl);
+      if (parsed.protocol !== 'https:') {
+        return explicitExpoApiUrl;
+      }
+    } catch {
+      return explicitExpoApiUrl;
+    }
+  }
+
+  return fallbackUrl;
+}
+
+function isHttpsUrl(value) {
+  try {
+    return new URL(value).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function getUrlOrigin(value) {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return value;
+  }
+}
+
+function getStravaOAuthRelayUrl() {
+  const explicitRelayUrl = process.env[envStravaOAuthRelayUrlKey]?.trim();
+  if (explicitRelayUrl) {
+    return explicitRelayUrl;
+  }
+
+  const envFiles = [
+    path.join(repoRoot, 'packages/app/.env'),
+    path.join(repoRoot, '.env'),
+  ];
+
+  for (const filePath of envFiles) {
+    const relayUrl = readEnvValue(filePath, envStravaOAuthRelayUrlKey);
+    if (relayUrl) {
+      return relayUrl;
+    }
+  }
+
+  const legacyApiUrls = [
+    process.env[envApiUrlKey]?.trim(),
+    ...envFiles.map((filePath) => readEnvValue(filePath, envApiUrlKey)),
+  ];
+
+  return legacyApiUrls.find((value) => value && isHttpsUrl(value)) ?? null;
 }
 
 const args = process.argv.slice(2);
@@ -142,6 +199,7 @@ if (!lanIp) {
 
 const apiUrl = `http://${lanIp}:${apiPort}`;
 const expoApiUrl = getExpoApiUrl(apiUrl);
+const stravaOAuthRelayUrl = getStravaOAuthRelayUrl();
 
 if (shouldPrint) {
   console.log(apiUrl);
@@ -159,6 +217,24 @@ function delay(ms) {
 async function isApiHealthy() {
   try {
     const response = await fetch(`${apiUrl}/health`, { signal: AbortSignal.timeout(1_000) });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function isStravaRelayHealthy(relayUrl) {
+  let relayOrigin;
+  try {
+    relayOrigin = new URL(relayUrl).origin;
+  } catch {
+    return false;
+  }
+
+  try {
+    const response = await fetch(`${relayOrigin}/health`, {
+      signal: AbortSignal.timeout(relayHealthTimeoutMs),
+    });
     return response.ok;
   } catch {
     return false;
@@ -222,6 +298,22 @@ async function main() {
     console.log(`Fastify API is reachable at ${apiUrl}`);
   }
 
+  if (stravaOAuthRelayUrl) {
+    console.log(`Using Strava OAuth relay ${stravaOAuthRelayUrl}`);
+    if (!(await isStravaRelayHealthy(stravaOAuthRelayUrl))) {
+      console.warn(
+        `Strava OAuth relay is not reachable at ${getUrlOrigin(stravaOAuthRelayUrl)}/health. `
+        + `Start or update your public tunnel and set ${envStravaOAuthRelayUrlKey} to the live HTTPS origin. `
+        + `Normal Expo Go API calls will still use ${expoApiUrl}.`,
+      );
+    }
+  } else {
+    console.warn(
+      `No Strava OAuth relay configured. Expo Go Strava connect needs ${envStravaOAuthRelayUrlKey}=https://... `
+      + `pointing at the local API server.`,
+    );
+  }
+
   console.log(`Starting Expo in LAN mode with EXPO_PUBLIC_API_URL=${expoApiUrl}`);
   expoChild = spawnChild(
     npmCommand,
@@ -229,6 +321,7 @@ async function main() {
     {
       ...process.env,
       EXPO_PUBLIC_API_URL: expoApiUrl,
+      ...(stravaOAuthRelayUrl ? { EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL: stravaOAuthRelayUrl } : {}),
       REACT_NATIVE_PACKAGER_HOSTNAME: lanIp,
       STEADY_DEV_LAN_IP: lanIp,
     },

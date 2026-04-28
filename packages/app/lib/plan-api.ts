@@ -1,9 +1,15 @@
 import {
+  normalizePlanWeekSessionDurations,
+  normalizeSessionDurations,
   normalizeSessionIds,
+  normalizeTrainingPlanSessionDurations,
+  normalizeTrainingPaceProfile,
+  propagateTrainingPaceProfileUpdate,
   type PhaseConfig,
   type PlannedSession,
   type PlanWeek,
   type TrainingPlan,
+  type TrainingPaceProfile,
   type TrainingPlanWithAnnotation,
 } from '@steady/types';
 import { trpc } from './trpc';
@@ -12,6 +18,7 @@ import {
   getScreenshotDemoPlan,
   isScreenshotDemoMode,
 } from '../demo/screenshot-demo';
+import { todayIsoLocal } from './plan-helpers';
 
 export interface SavePlanInput {
   raceName: string;
@@ -21,6 +28,7 @@ export interface SavePlanInput {
   phases: PhaseConfig;
   progressionPct: number;
   progressionEveryWeeks?: number;
+  trainingPaceProfile?: TrainingPaceProfile | null;
   templateWeek: (PlannedSession | null)[];
   weeks: PlanWeek[];
 }
@@ -34,7 +42,7 @@ function validateWeeks(weeks: PlanWeek[]) {
 }
 
 function rowToPlan(row: Record<string, unknown>): TrainingPlan {
-  return {
+  return normalizeTrainingPlanSessionDurations({
     id: row.id as string,
     userId: row.user_id as string,
     createdAt: row.created_at as string,
@@ -47,8 +55,9 @@ function rowToPlan(row: Record<string, unknown>): TrainingPlan {
     progressionEveryWeeks: (row.progression_every_weeks as number | null) ?? 2,
     templateWeek: row.template_week as (PlannedSession | null)[],
     weeks: normalizeSessionIds(row.weeks as PlanWeek[]),
+    trainingPaceProfile: normalizeTrainingPaceProfile(row.training_pace_profile),
     activeInjury: (row.active_injury as TrainingPlan['activeInjury']) ?? null,
-  };
+  });
 }
 
 function withClientAnnotations(plan: TrainingPlan | null): TrainingPlanWithAnnotation | null {
@@ -75,6 +84,25 @@ function validateSaveInput(input: SavePlanInput) {
   }
 
   validateWeeks(input.weeks);
+}
+
+function normalizeTemplateWeek(templateWeek: (PlannedSession | null)[]): (PlannedSession | null)[] {
+  return templateWeek.map(normalizeSessionDurations);
+}
+
+function normalizeWeeks(weeks: PlanWeek[]): PlanWeek[] {
+  return normalizeSessionIds(weeks.map(normalizePlanWeekSessionDurations));
+}
+
+function trainingPaceProfileForSave(
+  input: SavePlanInput,
+  existing: Record<string, unknown> | null,
+): TrainingPaceProfile | null {
+  if (input.trainingPaceProfile !== undefined) {
+    return normalizeTrainingPaceProfile(input.trainingPaceProfile);
+  }
+
+  return normalizeTrainingPaceProfile(existing?.training_pace_profile);
 }
 
 async function getPlanViaSupabase(): Promise<TrainingPlanWithAnnotation | null> {
@@ -110,6 +138,8 @@ async function getPlanViaSupabase(): Promise<TrainingPlanWithAnnotation | null> 
 
 async function savePlanViaSupabase(input: SavePlanInput): Promise<TrainingPlan> {
   validateSaveInput(input);
+  const templateWeek = normalizeTemplateWeek(input.templateWeek);
+  const weeks = normalizeWeeks(input.weeks);
 
   const supabase = getSupabaseClient();
   if (!supabase) {
@@ -147,8 +177,9 @@ async function savePlanViaSupabase(input: SavePlanInput): Promise<TrainingPlan> 
     phases: input.phases,
     progression_pct: input.progressionPct,
     progression_every_weeks: input.progressionEveryWeeks ?? 2,
-    template_week: input.templateWeek,
-    weeks: input.weeks,
+    template_week: templateWeek,
+    weeks,
+    training_pace_profile: trainingPaceProfileForSave(input, existing),
     active_injury: (existing?.active_injury as TrainingPlan['activeInjury']) ?? null,
     is_active: true,
   };
@@ -181,8 +212,122 @@ async function savePlanViaSupabase(input: SavePlanInput): Promise<TrainingPlan> 
   return rowToPlan(data);
 }
 
+async function getTrainingPaceProfileViaSupabase(): Promise<TrainingPaceProfile | null> {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return trpc.plan.getTrainingPaceProfile.query();
+  }
+
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) {
+    throw sessionError;
+  }
+
+  const userId = sessionData.session?.user.id;
+  if (!userId) {
+    throw new Error('Not authenticated');
+  }
+
+  const { data, error } = await supabase
+    .from('training_plans')
+    .select('training_pace_profile')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to load training pace profile: ${error.message}`);
+  }
+
+  return normalizeTrainingPaceProfile(data?.training_pace_profile);
+}
+
+async function completedSessionIdsViaSupabase(
+  supabase: NonNullable<ReturnType<typeof getSupabaseClient>>,
+  userId: string,
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('activities')
+    .select('matched_session_id')
+    .eq('user_id', userId);
+
+  if (error) {
+    throw new Error(`Failed to load matched activities: ${error.message}`);
+  }
+
+  return (Array.isArray(data) ? data : [])
+    .map((row) => row.matched_session_id)
+    .filter((sessionId): sessionId is string => typeof sessionId === 'string' && sessionId.length > 0);
+}
+
+async function saveTrainingPaceProfileViaSupabase(
+  trainingPaceProfile: TrainingPaceProfile | null,
+): Promise<TrainingPaceProfile | null> {
+  const normalizedProfile = normalizeTrainingPaceProfile(trainingPaceProfile);
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return trpc.plan.updateTrainingPaceProfile.mutate({
+      trainingPaceProfile: normalizedProfile,
+    });
+  }
+
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) {
+    throw sessionError;
+  }
+
+  const userId = sessionData.session?.user.id;
+  if (!userId) {
+    throw new Error('Not authenticated');
+  }
+
+  const { data: existing, error: existingError } = await supabase
+    .from('training_plans')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .limit(1)
+    .maybeSingle();
+
+  if (existingError) {
+    throw new Error(`Failed to load existing plan: ${existingError.message}`);
+  }
+
+  if (!existing) {
+    return null;
+  }
+
+  const completedSessionIds = await completedSessionIdsViaSupabase(supabase, userId);
+  const propagatedPlan = propagateTrainingPaceProfileUpdate(
+    rowToPlan(existing),
+    normalizedProfile,
+    {
+      today: todayIsoLocal(),
+      completedSessionIds,
+    },
+  );
+
+  const { data, error } = await supabase
+    .from('training_plans')
+    .update({
+      training_pace_profile: propagatedPlan.trainingPaceProfile,
+      weeks: propagatedPlan.weeks,
+    })
+    .eq('id', existing.id as string)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to save training pace profile: ${error.message}`);
+  }
+
+  return normalizeTrainingPaceProfile(data.training_pace_profile);
+}
+
 async function updatePlanWeeksViaSupabase(weeks: PlanWeek[]): Promise<TrainingPlan | null> {
   validateWeeks(weeks);
+  const normalizedWeeks = normalizeWeeks(weeks);
 
   const supabase = getSupabaseClient();
   if (!supabase) {
@@ -217,7 +362,7 @@ async function updatePlanWeeksViaSupabase(weeks: PlanWeek[]): Promise<TrainingPl
 
   const { data, error } = await supabase
     .from('training_plans')
-    .update({ weeks })
+    .update({ weeks: normalizedWeeks })
     .eq('id', existing.id as string)
     .select('*')
     .single();
@@ -251,6 +396,37 @@ export async function savePlan(input: SavePlanInput): Promise<TrainingPlan> {
   }
 
   return trpc.plan.save.mutate(input);
+}
+
+export async function getTrainingPaceProfile(): Promise<TrainingPaceProfile | null> {
+  if (isScreenshotDemoMode()) {
+    const demoPlan = await getScreenshotDemoPlan();
+    return normalizeTrainingPaceProfile(demoPlan.trainingPaceProfile);
+  }
+
+  if (__DEV__) {
+    return getTrainingPaceProfileViaSupabase();
+  }
+
+  return trpc.plan.getTrainingPaceProfile.query();
+}
+
+export async function saveTrainingPaceProfile(
+  trainingPaceProfile: TrainingPaceProfile | null,
+): Promise<TrainingPaceProfile | null> {
+  const normalizedProfile = normalizeTrainingPaceProfile(trainingPaceProfile);
+
+  if (isScreenshotDemoMode()) {
+    return normalizedProfile;
+  }
+
+  if (__DEV__) {
+    return saveTrainingPaceProfileViaSupabase(normalizedProfile);
+  }
+
+  return trpc.plan.updateTrainingPaceProfile.mutate({
+    trainingPaceProfile: normalizedProfile,
+  });
 }
 
 export async function updatePlanWeeks(weeks: PlanWeek[]): Promise<TrainingPlan | null> {

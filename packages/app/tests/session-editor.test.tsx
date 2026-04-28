@@ -4,7 +4,11 @@ import * as Haptics from 'expo-haptics';
 import { describe, expect, it, vi } from 'vitest';
 
 import { SessionEditor } from '../components/plan-builder/SessionEditor';
-import type { PlannedSession } from '@steady/types';
+import {
+  deriveTrainingPaceProfile,
+  trainingPaceBandToIntensityTarget,
+  type PlannedSession,
+} from '@steady/types';
 
 function renderSessionEditor(existing: Partial<PlannedSession>) {
   render(
@@ -183,6 +187,227 @@ describe('SessionEditor warmup and cooldown availability', () => {
 });
 
 describe('SessionEditor target pace editing', () => {
+  it('shows profile band context and saves custom paces as manual targets', () => {
+    const onSave = vi.fn();
+    const profile = deriveTrainingPaceProfile({
+      raceDistance: '10K',
+      targetTime: '00:45:00',
+    });
+
+    render(
+      <SessionEditor
+        dayIndex={3}
+        existing={{
+          type: 'TEMPO',
+          distance: 10,
+          pace: '4:21',
+          intensityTarget: trainingPaceBandToIntensityTarget(profile.bands.threshold),
+        }}
+        trainingPaceProfile={profile}
+        onSave={onSave}
+        onClose={vi.fn()}
+        presentation="screen"
+      />,
+    );
+
+    expect(screen.getByText('4:14-4:27/km')).toBeTruthy();
+    expect(screen.getByText('Threshold · profile pace')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Target pace'));
+    expect(screen.getByText('Threshold')).toBeTruthy();
+    expect(screen.getByText('4:14-4:27/km · controlled hard')).toBeTruthy();
+    expect(screen.getByText('Race pace')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Custom...'));
+    const customInput = screen.getByTestId('editable-chip-custom-input');
+    fireEvent.change(customInput, {
+      target: { value: '4:08' },
+    });
+    fireEvent.blur(customInput);
+    fireEvent.click(screen.getByText('Update session'));
+
+    expect(onSave).toHaveBeenCalledWith(3, expect.objectContaining({
+      type: 'TEMPO',
+      distance: 10,
+      pace: '4:08',
+      intensityTarget: {
+        source: 'manual',
+        mode: 'pace',
+        pace: '4:08',
+      },
+    }));
+  });
+
+  it('re-selects a profile chip to put the session back onto profile pace updates', () => {
+    const onSave = vi.fn();
+    const profile = deriveTrainingPaceProfile({
+      raceDistance: '10K',
+      targetTime: '00:45:00',
+    });
+
+    render(
+      <SessionEditor
+        dayIndex={3}
+        existing={{
+          type: 'TEMPO',
+          distance: 10,
+          pace: '4:08',
+          intensityTarget: {
+            source: 'manual',
+            mode: 'pace',
+            pace: '4:08',
+          },
+        }}
+        trainingPaceProfile={profile}
+        onSave={onSave}
+        onClose={vi.fn()}
+        presentation="screen"
+      />,
+    );
+
+    expect(screen.getByText('Manual pace')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Target pace'));
+    fireEvent.click(screen.getByText('Threshold'));
+    fireEvent.click(screen.getByText('Update session'));
+
+    expect(onSave).toHaveBeenCalledWith(3, expect.objectContaining({
+      type: 'TEMPO',
+      distance: 10,
+      pace: '4:21',
+      intensityTarget: trainingPaceBandToIntensityTarget(profile.bands.threshold),
+    }));
+  });
+
+  it('keeps manual single pace chips available alongside profile pace chips', () => {
+    const onSave = vi.fn();
+    const profile = deriveTrainingPaceProfile({
+      raceDistance: '10K',
+      targetTime: '00:45:00',
+    });
+
+    render(
+      <SessionEditor
+        dayIndex={3}
+        existing={{
+          type: 'TEMPO',
+          distance: 10,
+          pace: '4:21',
+          intensityTarget: trainingPaceBandToIntensityTarget(profile.bands.threshold),
+        }}
+        trainingPaceProfile={profile}
+        onSave={onSave}
+        onClose={vi.fn()}
+        presentation="screen"
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Target pace'));
+
+    expect(screen.getByText('Threshold')).toBeTruthy();
+    expect(screen.getByText('4:16 /km')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('4:16 /km'));
+    fireEvent.click(screen.getByText('Update session'));
+
+    expect(onSave).toHaveBeenCalledWith(3, expect.objectContaining({
+      type: 'TEMPO',
+      distance: 10,
+      pace: '4:16',
+      intensityTarget: {
+        source: 'manual',
+        mode: 'pace',
+        pace: '4:16',
+      },
+    }));
+  });
+
+  it('saves manual pace ranges from faster and slower boundaries', () => {
+    const onSave = vi.fn();
+    const profile = deriveTrainingPaceProfile({
+      raceDistance: '10K',
+      targetTime: '00:45:00',
+    });
+
+    render(
+      <SessionEditor
+        dayIndex={1}
+        existing={{
+          type: 'INTERVAL',
+          reps: 6,
+          repDist: 800,
+          recovery: '90s',
+          pace: '3:50',
+        }}
+        trainingPaceProfile={profile}
+        onSave={onSave}
+        onClose={vi.fn()}
+        presentation="screen"
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Rep target pace'));
+    expect(screen.getAllByText('Interval').length).toBeGreaterThan(1);
+    expect(screen.getByText('3:50 /km')).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId('session-editor-pace-mode-range'));
+    fireEvent.change(screen.getByTestId('session-editor-pace-range-faster'), {
+      target: { value: '3:40' },
+    });
+    fireEvent.change(screen.getByTestId('session-editor-pace-range-slower'), {
+      target: { value: '3:50' },
+    });
+    fireEvent.click(screen.getByTestId('session-editor-pace-range-apply'));
+
+    expect(screen.getByText('3:40-3:50 /km')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Update session'));
+
+    expect(onSave).toHaveBeenCalledWith(1, expect.objectContaining({
+      type: 'INTERVAL',
+      reps: 6,
+      repDist: 800,
+      repDuration: { unit: 'km', value: 0.8 },
+      recovery: { unit: 'min', value: 1.5 },
+      pace: '3:45',
+      intensityTarget: {
+        source: 'manual',
+        mode: 'pace',
+        paceRange: { min: '3:40', max: '3:50' },
+      },
+    }));
+  });
+
+  it('defaults newly added sessions to profile targets when a profile exists', () => {
+    const onSave = vi.fn();
+    const profile = deriveTrainingPaceProfile({
+      raceDistance: '10K',
+      targetTime: '00:45:00',
+    });
+
+    render(
+      <SessionEditor
+        dayIndex={0}
+        existing={null}
+        trainingPaceProfile={profile}
+        onSave={onSave}
+        onClose={vi.fn()}
+        presentation="screen"
+      />,
+    );
+
+    expect(screen.getByText('5:24-5:56/km')).toBeTruthy();
+    expect(screen.getByText('Easy · profile pace')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Add session'));
+
+    expect(onSave).toHaveBeenCalledWith(0, expect.objectContaining({
+      type: 'EASY',
+      pace: '5:40',
+      intensityTarget: trainingPaceBandToIntensityTarget(profile.bands.easy),
+    }));
+  });
+
   it('saves a changed target pace for tempo sessions', () => {
     const onSave = vi.fn();
 

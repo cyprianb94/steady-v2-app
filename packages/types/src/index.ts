@@ -11,10 +11,20 @@ export type {
   SubjectiveOverall,
   SkippedSession,
   SkippedSessionReason,
+  EffortCue,
+  IntensityTarget,
+  IntensityTargetMode,
+  IntensityTargetSource,
+  PaceRange,
+  TrainingPaceProfileKey,
 } from './session';
 export {
+  EFFORT_CUES,
+  INTENSITY_TARGET_MODES,
+  INTENSITY_TARGET_SOURCES,
   RECOVERY_KM,
   RECOVERY_KM_PER_MIN,
+  TRAINING_PACE_PROFILE_KEYS,
   normalizeSessionDuration,
   sessionDurationKm,
   sessionSupportsWarmupCooldown,
@@ -98,6 +108,49 @@ export {
   normalizeSessionDurations,
   normalizeTrainingPlanSessionDurations,
 } from './lib/normalize-session-durations';
+export {
+  defaultIntensityTargetForSessionType,
+  detectIntensityTargetType,
+  formatIntensityTarget,
+  getSessionIntensityTarget,
+  intensityTargetContext,
+  normalizeIntensityTarget,
+  normalizePace,
+  normalizePaceRange,
+  normalizeSessionIntensityTarget,
+  parsePaceSeconds,
+  recoveryIntensityTarget,
+  representativePace,
+  representativePaceSeconds,
+  representativeSessionPace,
+  representativeSessionPaceSeconds,
+  secondsToPace,
+} from './lib/intensity-targets';
+export type {
+  IntensityTargetType,
+  NormalizeIntensityTargetOptions,
+  NormalizeSessionIntensityTargetOptions,
+} from './lib/intensity-targets';
+export {
+  TRAINING_PACE_PROFILE_BAND_ORDER,
+  TRAINING_PACE_PROFILE_DEFAULT_EFFORT_CUES,
+  deriveTrainingPaceProfile,
+  getOrderedTrainingPaceProfileBands,
+  normalizeTrainingPaceProfile,
+  parseRaceTargetTimeSeconds,
+  trainingPaceBandRepresentativePaceSeconds,
+  trainingPaceBandToIntensityTarget,
+} from './lib/training-pace-profile';
+export { propagateTrainingPaceProfileUpdate } from './lib/training-pace-profile-propagation';
+export type { PropagateTrainingPaceProfileUpdateOptions } from './lib/training-pace-profile-propagation';
+export type {
+  DeriveTrainingPaceProfileInput,
+  TrainingPaceProfile,
+  TrainingPaceProfileBand,
+  TrainingPaceProfileBandEditability,
+  TrainingPaceProfileBands,
+  TrainingPaceProfileRaceDistance,
+} from './lib/training-pace-profile';
 export { propagateChange } from './lib/propagate-change';
 export type { PropagateScope } from './lib/propagate-change';
 export { getRtrProgression, RTR_STEPS } from './lib/rtr-progression';

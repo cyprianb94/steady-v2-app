@@ -94,7 +94,7 @@ describe('buildSystemPrompt — structure', () => {
   it('contains the persona section', () => {
     const prompt = buildSystemPrompt(USER, PLAN, [], 'free_form');
     expect(prompt).toContain('You are Steady');
-    expect(prompt).toContain('AI running coach');
+    expect(prompt).toContain('Steady AI running assistant');
   });
 
   it('contains runner context with race details', () => {
@@ -129,6 +129,30 @@ describe('buildSystemPrompt — structure', () => {
   it('formats INTERVAL sessions with reps and distance', () => {
     const prompt = buildSystemPrompt(USER, PLAN, [], 'free_form');
     expect(prompt).toContain('INTERVAL 6×800m @ 3:52');
+  });
+
+  it('formats structured target context with mode, range, effort, profile, and source', () => {
+    const tempo = makeSession({
+      type: 'TEMPO',
+      distance: 10,
+      pace: '4:25',
+      date: '2026-03-22',
+      intensityTarget: {
+        source: 'profile',
+        mode: 'both',
+        profileKey: 'threshold',
+        paceRange: { min: '4:20', max: '4:30' },
+        effortCue: 'controlled hard',
+      },
+    });
+    const plan = makePlan([
+      makeWeek(10, 'BUILD', [tempo, null, null, null, null, null, null]),
+    ]);
+
+    const prompt = buildSystemPrompt(USER, plan, [], 'free_form');
+
+    expect(prompt).toContain('TEMPO 10km @ 4:20-4:30 · controlled hard [both, threshold, profile]');
+    expect(prompt).not.toContain('TEMPO 10km @ 4:25');
   });
 
   it('shows REST for null sessions', () => {
@@ -206,6 +230,35 @@ describe('buildSystemPrompt — conversation types', () => {
     expect(prompt).toContain('EASY');
     expect(prompt).toContain('10.5km');
     expect(prompt).toContain('deviation');
+  });
+
+  it('adds range-aware execution context for post-run debriefs', () => {
+    const session = makeSession({
+      type: 'TEMPO',
+      distance: 10,
+      pace: '4:05',
+      date: '2026-03-22',
+      intensityTarget: {
+        source: 'profile',
+        mode: 'both',
+        profileKey: 'threshold',
+        paceRange: { min: '4:00', max: '4:10' },
+        effortCue: 'controlled hard',
+      },
+    });
+    const activity = makeActivity({
+      distance: 10,
+      duration: 2450,
+      avgPace: 245,
+      avgHR: 164,
+    });
+    const prompt = buildSystemPrompt(USER, PLAN, [activity], 'post_run_debrief', {
+      session,
+      activity,
+    });
+
+    expect(prompt).toContain('Planned: TEMPO 10km @ 4:00-4:10 · controlled hard [both, threshold, profile]');
+    expect(prompt).toContain('Execution: on-target; On target distance; Pace inside target range; Avg HR 164 bpm');
   });
 
   it('adds weekly preview framing', () => {

@@ -14,6 +14,7 @@ import { triggerSelectionChangeHaptic } from '../../lib/haptics';
 export interface EditableChipOption {
   key: string;
   label: string;
+  caption?: string;
 }
 
 interface EditableChipStripProps {
@@ -27,6 +28,7 @@ interface EditableChipStripProps {
   customUnit?: string;
   customPlaceholder?: string;
   customKeyboardType?: KeyboardTypeOptions;
+  footer?: React.ReactNode;
   onSelect: (key: string) => void;
   onCustomPress: () => void;
   onCustomChangeText: (value: string) => void;
@@ -45,6 +47,7 @@ export function EditableChipStrip({
   customUnit,
   customPlaceholder = '',
   customKeyboardType = 'default',
+  footer,
   onSelect,
   onCustomPress,
   onCustomChangeText,
@@ -70,9 +73,21 @@ export function EditableChipStrip({
                 active && { borderColor: activeColor, backgroundColor: activeColor },
               ]}
             >
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>
+              <Text
+                style={[
+                  styles.chipText,
+                  option.caption && styles.chipTextWithCaption,
+                  active && styles.chipTextActive,
+                  active && option.caption && styles.chipTextWithCaptionActive,
+                ]}
+              >
                 {option.label}
               </Text>
+              {option.caption ? (
+                <Text style={[styles.chipCaption, active && styles.chipCaptionActive]}>
+                  {option.caption}
+                </Text>
+              ) : null}
             </Pressable>
           );
         })}
@@ -122,6 +137,7 @@ export function EditableChipStrip({
           </Pressable>
         )}
       </View>
+      {footer ? <View style={styles.footer}>{footer}</View> : null}
     </View>
   );
 }
@@ -139,6 +155,12 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 6,
   },
+  footer: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: C.border,
+  },
   chip: {
     minHeight: 42,
     paddingVertical: 10,
@@ -155,9 +177,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: C.ink,
   },
+  chipTextWithCaption: {
+    fontFamily: FONTS.sansMedium,
+    fontSize: 12,
+  },
   chipTextActive: {
     color: C.surface,
     fontFamily: FONTS.monoBold,
+  },
+  chipTextWithCaptionActive: {
+    fontFamily: FONTS.sansSemiBold,
+  },
+  chipCaption: {
+    marginTop: 3,
+    fontFamily: FONTS.sans,
+    fontSize: 10.5,
+    color: C.muted,
+  },
+  chipCaptionActive: {
+    color: C.surface,
   },
   customChip: {
     borderStyle: 'dashed',

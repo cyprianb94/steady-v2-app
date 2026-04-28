@@ -7,6 +7,7 @@ import type {
   SessionType,
 } from '../session';
 import type { WeeklyVolumeMetric } from '../user';
+import { representativeSessionPaceSeconds } from './intensity-targets';
 import { sessionKm } from './session-km';
 import { addDaysIso } from './week-dates';
 
@@ -75,15 +76,8 @@ function roundDistance(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
-function parsePaceSeconds(value: string | null | undefined): number | null {
-  if (!value) return null;
-  const match = value.trim().match(/^(\d{1,2}):([0-5]\d)$/);
-  if (!match) return null;
-  return Number(match[1]) * 60 + Number(match[2]);
-}
-
 function paceSecondsFor(session: PlannedSession): number {
-  return parsePaceSeconds(session.pace) ?? FALLBACK_PACE_SECONDS[session.type];
+  return representativeSessionPaceSeconds(session) ?? FALLBACK_PACE_SECONDS[session.type];
 }
 
 function durationSpecSeconds(

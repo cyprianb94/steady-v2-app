@@ -4,24 +4,29 @@ import * as Linking from 'expo-linking';
 export const STRAVA_CALLBACK_PATH = 'strava-callback';
 const LOCAL_STRAVA_CALLBACK_DOMAIN = 'localhost';
 const STRAVA_RELAY_CALLBACK_PATH = '/oauth/strava/callback';
+const STRAVA_OAUTH_RELAY_URL_ENV = 'EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL';
 
 type ExpoConstantsShape = {
   expoConfig?: {
     extra?: {
       apiUrl?: string | null;
+      stravaOAuthRelayUrl?: string | null;
     };
   };
   manifest?: {
     extra?: {
       apiUrl?: string | null;
+      stravaOAuthRelayUrl?: string | null;
     };
   };
   manifest2?: {
     extra?: {
       apiUrl?: string | null;
+      stravaOAuthRelayUrl?: string | null;
       expoClient?: {
         extra?: {
           apiUrl?: string | null;
+          stravaOAuthRelayUrl?: string | null;
         };
       };
     };
@@ -101,24 +106,57 @@ function getRuntimeConfiguredApiUrl(): string | null {
   return null;
 }
 
-function getPublicApiBaseUrl(): string {
-  const apiUrl = getRuntimeConfiguredApiUrl();
-  if (!apiUrl) {
+function getRuntimeConfiguredStravaOAuthRelayUrl(): string | null {
+  const envValue = process.env.EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL?.trim();
+  if (envValue) {
+    return envValue;
+  }
+
+  const expoConstants = Constants as ExpoConstantsShape;
+  const candidates = [
+    expoConstants.expoConfig?.extra?.stravaOAuthRelayUrl,
+    expoConstants.manifest2?.extra?.stravaOAuthRelayUrl,
+    expoConstants.manifest2?.extra?.expoClient?.extra?.stravaOAuthRelayUrl,
+    expoConstants.manifest?.extra?.stravaOAuthRelayUrl,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  const legacyApiUrl = getRuntimeConfiguredApiUrl();
+  if (!legacyApiUrl) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(legacyApiUrl);
+    return parsed.protocol === 'https:' ? legacyApiUrl : null;
+  } catch {
+    return null;
+  }
+}
+
+function getPublicStravaOAuthRelayBaseUrl(): string {
+  const relayUrl = getRuntimeConfiguredStravaOAuthRelayUrl();
+  if (!relayUrl) {
     throw new Error(
-      'Expo Go Strava OAuth needs EXPO_PUBLIC_API_URL set to the public Steady API URL.',
+      `Expo Go Strava OAuth needs ${STRAVA_OAUTH_RELAY_URL_ENV} set to a public HTTPS API relay URL.`,
     );
   }
 
   let parsed: URL;
   try {
-    parsed = new URL(apiUrl);
+    parsed = new URL(relayUrl);
   } catch {
-    throw new Error(`Invalid EXPO_PUBLIC_API_URL for Strava OAuth: ${apiUrl}`);
+    throw new Error(`Invalid ${STRAVA_OAUTH_RELAY_URL_ENV} for Strava OAuth: ${relayUrl}`);
   }
 
   if (parsed.protocol !== 'https:') {
     throw new Error(
-      'Expo Go Strava OAuth needs EXPO_PUBLIC_API_URL to be a public HTTPS URL.',
+      `Expo Go Strava OAuth needs ${STRAVA_OAUTH_RELAY_URL_ENV} to be a public HTTPS URL.`,
     );
   }
 
@@ -126,7 +164,7 @@ function getPublicApiBaseUrl(): string {
 }
 
 function buildExpoGoRelayRedirectUri(returnTo: string): string {
-  const relay = new URL(STRAVA_RELAY_CALLBACK_PATH, getPublicApiBaseUrl());
+  const relay = new URL(STRAVA_RELAY_CALLBACK_PATH, getPublicStravaOAuthRelayBaseUrl());
   relay.searchParams.set('return_to', returnTo);
   return relay.toString();
 }

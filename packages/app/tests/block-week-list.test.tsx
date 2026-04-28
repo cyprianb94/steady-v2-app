@@ -88,14 +88,60 @@ describe('BlockWeekList', () => {
 
     expect(screen.getByTestId('block-week-expanded-1')).toBeTruthy();
     expect(screen.queryByText('Edit sessions · any change will ask where to apply')).toBeNull();
-    expect(screen.getAllByText('8km @ 5:20').length).toBeGreaterThan(0);
-    expect(screen.getByText('6×800m @ 3:50')).toBeTruthy();
+    expect(screen.getAllByText('8km easy · 5:20').length).toBeGreaterThan(0);
+    expect(screen.getByText('6×800m · 3:50')).toBeTruthy();
     expect(screen.getByText('Rest day')).toBeTruthy();
     expect(screen.getByText('Recovery slot locked in for this day')).toBeTruthy();
 
     fireEvent.click(screen.getByTestId('block-week-day-1-1'));
 
     expect(onDayPress).toHaveBeenCalledWith(0, 1, weeks[0].sessions[1], weeks[0]);
+  });
+
+  it('renders structured targets in expanded rows through the shared label helper', () => {
+    const baseWeek = week(0, 'BUILD', 82);
+    const weeks = [{
+      ...baseWeek,
+      sessions: baseWeek.sessions.map((sessionValue, index) => {
+        if (index === 0) {
+          return {
+            ...sessionValue,
+            intensityTarget: {
+              source: 'manual',
+              mode: 'effort',
+              profileKey: 'easy',
+              effortCue: 'conversational',
+            } as const,
+          };
+        }
+
+        if (index === 3) {
+          return {
+            ...sessionValue,
+            intensityTarget: {
+              source: 'manual',
+              mode: 'both',
+              paceRange: { min: '4:15', max: '4:25' },
+              effortCue: 'controlled hard',
+            } as const,
+          };
+        }
+
+        return sessionValue;
+      }),
+    }];
+
+    render(
+      <BlockWeekList
+        weeks={weeks}
+        expandedWeekIndex={0}
+      />,
+    );
+
+    expect(screen.getByTestId('block-week-day-1-0').textContent).toContain('8km easy · 5:20');
+    expect(screen.getByTestId('block-week-day-1-0').textContent).toContain('Easy Run · conversational');
+    expect(screen.getByText('10km tempo · 4:15-4:25')).toBeTruthy();
+    expect(screen.getByText('Tempo · controlled hard')).toBeTruthy();
   });
 
   it('lets consumers adapt labels without owning editing or propagation state', () => {

@@ -21,7 +21,14 @@ import { trpc } from '../../lib/trpc';
 import { usePlan } from '../../hooks/usePlan';
 import { findSessionForDateOrWeekday, todayIsoLocal } from '../../lib/plan-helpers';
 import { usePreferences } from '../../providers/preferences-context';
-import { formatDistance, formatPace, formatSessionTitle, formatSplitLabel, formatStoredPace, inferSplitLabelMode } from '../../lib/units';
+import {
+  formatDistance,
+  formatIntensityTargetDisplay,
+  formatPace,
+  formatSessionTitle,
+  formatSplitLabel,
+  inferSplitLabelMode,
+} from '../../lib/units';
 import { type EditableNiggle, isActivityDateCompatibleWithSession, isRunnableSession, isSessionSelectable, listMatchableSessions, resolveDefaultMatchSessionId, shoeWearState, toEditableNiggles } from '../../features/sync/sync-run-detail';
 import { buildCurrentDisplayWeek } from '../../features/run/display-week';
 import { MatchPickerModal } from '../../components/sync-run/MatchPickerModal';
@@ -492,6 +499,12 @@ export default function SyncRunDetailScreen() {
   const matchedChipTextStyle = selectedSession ? styles.matchChipTextActive : styles.matchChipTextNeutral;
   const splitLabelMode = inferSplitLabelMode(selectedSession, activity.splits);
   const splitSummaryLabel = splitLabelMode === 'segment' ? 'segments' : 'per km';
+  const selectedTargetDisplay = selectedSession
+    ? formatIntensityTargetDisplay(selectedSession, units, {
+        withUnit: true,
+        fallbackToLegacyPace: true,
+      }) ?? '—'
+    : '—';
 
   return (
     <View style={styles.container}>
@@ -595,7 +608,7 @@ export default function SyncRunDetailScreen() {
             <View style={styles.pvaRow}>
               <Text style={styles.pvaLabel}>Planned</Text>
               <Text style={styles.pvaValue}>{formatDistance(expectedDistance(selectedSession), units, { spaced: true })}</Text>
-              <Text style={styles.pvaValue}>{formatStoredPace(selectedSession.pace, units, { withUnit: true })}</Text>
+              <Text style={styles.pvaValue}>{selectedTargetDisplay}</Text>
             </View>
             <View style={styles.pvaRow}>
               <Text style={styles.pvaLabel}>Actual</Text>

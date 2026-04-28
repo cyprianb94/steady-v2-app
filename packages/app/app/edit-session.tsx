@@ -86,7 +86,15 @@ export default function EditSessionScreen() {
     );
   }
 
-  return <SessionEditorScreen dayIndex={dayIndex} existing={existing} onSave={save} onClose={close} />;
+  return (
+    <SessionEditorScreen
+      dayIndex={dayIndex}
+      existing={existing}
+      trainingPaceProfile={plan?.trainingPaceProfile ?? null}
+      onSave={save}
+      onClose={close}
+    />
+  );
 }
 
 const styles = StyleSheet.create({

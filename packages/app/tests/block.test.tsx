@@ -224,4 +224,28 @@ describe('BlockTab', () => {
     expect(screen.getByText('Weekly volume')).toBeTruthy();
     expect(screen.getByTestId('block-day-1-0')).toBeTruthy();
   });
+
+  it('keeps pace ranges in the Block row title and moves effort cues to the caption', () => {
+    mockAuth.session = { user: { id: 'runner-1' } };
+    const currentPlan = plan();
+    currentPlan.weeks[0].sessions[3] = {
+      ...currentPlan.weeks[0].sessions[3]!,
+      intensityTarget: {
+        source: 'manual',
+        mode: 'both',
+        paceRange: { min: '4:15', max: '4:25' },
+        effortCue: 'controlled hard',
+      },
+    };
+    mockPlan.plan = currentPlan;
+    mockPlan.currentWeekIndex = 0;
+
+    render(<BlockTab />);
+    fireEvent.click(screen.getByTestId('block-week-row-press-1'));
+
+    const tempoRow = screen.getByTestId('block-day-1-3');
+    expect(tempoRow.textContent).toContain('8km tempo · 4:15-4:25');
+    expect(tempoRow.textContent).toContain('Tempo · controlled hard');
+    expect(tempoRow.textContent).not.toContain('4:15-4:25 · controlled hard');
+  });
 });

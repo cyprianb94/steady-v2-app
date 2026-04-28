@@ -40,7 +40,8 @@ const CHART_PLOT_HEIGHT = 150;
 const BUCKET_MAX_HEIGHT = CHART_PLOT_HEIGHT;
 const BUCKET_MIN_HEIGHT = 12;
 const CHART_TOUCH_HEIGHT = CHART_PLOT_HEIGHT + 30;
-const OVERFLOW_CAP_MAX_HEIGHT = 16;
+const PLANNED_TARGET_TICK_HEIGHT = 2;
+const DISTANCE_AXIS_MAX_FILL_RATIO = 0.96;
 const TOOLTIP_WIDTH = 132;
 const PLOT_FALLBACK_WIDTH = 280;
 const STATUS_EXPANDED_TOP = 23;
@@ -140,6 +141,10 @@ function niceCeil(rawValue: number, options: { allowFraction?: boolean } = {}): 
   return step * magnitude;
 }
 
+function nextNiceCeil(axisMax: number): number {
+  return niceCeil(axisMax * 1.001);
+}
+
 type TimeAxisUnit = 'minutes' | 'hours';
 
 function timeAxisUnitForSummary(summary: WeeklyVolumeSummary): TimeAxisUnit {
@@ -157,6 +162,15 @@ function axisMaxForMetric(
 ): number {
   if (metric === 'time' && timeAxisUnit === 'hours') {
     return niceCeil(Math.max(1 / 60, maxValue / 3600) * 1.12) * 3600;
+  }
+
+  if (metric === 'distance') {
+    const displayValue = Math.max(1, maxValue);
+    const axisMax = niceCeil(displayValue);
+
+    return displayValue / axisMax > DISTANCE_AXIS_MAX_FILL_RATIO
+      ? nextNiceCeil(axisMax)
+      : axisMax;
   }
 
   const displayValue = metric === 'time'
@@ -381,9 +395,17 @@ function WeeklyVolumeBucket({
   const fillHeight = values.planned > 0
     ? Math.min(plannedHeight, (values.actual / values.planned) * plannedHeight)
     : 0;
-  const overCapHeight = values.over > 0
-    ? Math.min(OVERFLOW_CAP_MAX_HEIGHT, (values.over / axisMax) * BUCKET_MAX_HEIGHT)
+  const hasOverrun = values.over > 0;
+  const actualHeight = hasOverrun
+    ? Math.max(plannedHeight, (values.actual / axisMax) * BUCKET_MAX_HEIGHT)
     : 0;
+  const plannedTargetBottom = Math.max(
+    0,
+    Math.min(
+      actualHeight - PLANNED_TARGET_TICK_HEIGHT,
+      plannedHeight - (PLANNED_TARGET_TICK_HEIGHT / 2),
+    ),
+  );
   const isRest = day.plannedType === 'REST' || values.planned <= 0;
 
   return (
@@ -400,39 +422,45 @@ function WeeklyVolumeBucket({
           <View style={styles.restDot} />
         ) : (
           <>
-            {overCapHeight > 0 ? (
+            {hasOverrun ? (
               <View
                 style={[
-                  styles.overCap,
+                  styles.overrunBucket,
                   {
-                    height: overCapHeight,
+                    height: actualHeight,
                     backgroundColor: actualColour.solid,
                   },
                 ]}
                 testID={`weekly-volume-overrun-${day.dayIndex}`}
-              />
-            ) : null}
-            <View
-              style={[
-                styles.bucketShell,
-                {
-                  height: plannedHeight,
-                  backgroundColor: plannedColour.pale,
-                  borderColor: `${plannedColour.solid}35`,
-                },
-              ]}
-              testID={`weekly-volume-bucket-shell-${day.dayIndex}`}
-            >
+              >
+                <View
+                  style={[styles.plannedTargetTick, { bottom: plannedTargetBottom }]}
+                  testID={`weekly-volume-planned-target-${day.dayIndex}`}
+                />
+              </View>
+            ) : (
               <View
                 style={[
-                  styles.bucketFill,
+                  styles.bucketShell,
                   {
-                    height: fillHeight,
-                    backgroundColor: actualColour.solid,
+                    height: plannedHeight,
+                    backgroundColor: plannedColour.pale,
+                    borderColor: `${plannedColour.solid}35`,
                   },
                 ]}
-              />
-            </View>
+                testID={`weekly-volume-bucket-shell-${day.dayIndex}`}
+              >
+                <View
+                  style={[
+                    styles.bucketFill,
+                    {
+                      height: fillHeight,
+                      backgroundColor: actualColour.solid,
+                    },
+                  ]}
+                />
+              </View>
+            )}
           </>
         )}
       </View>
@@ -1332,11 +1360,18 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 7,
   },
-  overCap: {
+  overrunBucket: {
     width: 24,
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
-    marginBottom: 2,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  plannedTargetTick: {
+    position: 'absolute',
+    left: 5,
+    right: 5,
+    height: PLANNED_TARGET_TICK_HEIGHT,
+    borderRadius: 999,
+    backgroundColor: WEEKLY_VOLUME_SURFACE,
   },
   restDot: {
     width: 7,

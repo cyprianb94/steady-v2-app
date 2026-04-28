@@ -50,6 +50,8 @@ describe('StepTemplate starter choice', () => {
     render(<StepTemplate />);
 
     expect(screen.getByText('6-run template')).toBeTruthy();
+    expect(screen.getAllByText('conversational').length).toBeGreaterThan(0);
+    expect(screen.getByText('4:15-4:25/km · controlled hard')).toBeTruthy();
 
     fireEvent.click(screen.getByText('Generate 8-week plan →'));
 

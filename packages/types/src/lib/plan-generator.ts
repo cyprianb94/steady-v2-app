@@ -1,5 +1,6 @@
 import { sessionSupportsWarmupCooldown, type PlannedSession } from '../session';
 import type { PhaseConfig, PhaseName, PlanWeek } from '../plan';
+import { normalizeSessionIntensityTarget } from './intensity-targets';
 import { sessionKm } from './session-km';
 import { normalizeSessionIds } from './normalize-session-ids';
 
@@ -115,7 +116,7 @@ export function generatePlan(
         if (out.distance != null) out.distance = Math.max(3, Math.round(out.distance * f));
       }
 
-      return out;
+      return normalizeSessionIntensityTarget(out, { applyDefaults: true });
     });
 
     const km = sessions.reduce((acc, d) => acc + sessionKm(d), 0);
