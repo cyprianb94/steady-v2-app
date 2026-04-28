@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { PlannedSession, TrainingPlanWithAnnotation } from '@steady/types';
 
 const {
   mockRouterPush,
@@ -88,6 +89,63 @@ vi.mock('../components/plan-builder/SessionEditor', () => ({
 
 import BlockTab from '../app/(tabs)/block';
 
+function session(id: string, type: PlannedSession['type'], dayIndex: number): PlannedSession {
+  return {
+    id,
+    type,
+    date: `2026-05-${String(dayIndex + 1).padStart(2, '0')}`,
+    distance: type === 'LONG' ? 16 : 8,
+    pace: '5:20',
+  };
+}
+
+function week(
+  weekNumber: number,
+  phase: TrainingPlanWithAnnotation['weeks'][number]['phase'],
+  plannedKm: number,
+): TrainingPlanWithAnnotation['weeks'][number] {
+  return {
+    weekNumber,
+    phase,
+    plannedKm,
+    sessions: [
+      session(`w${weekNumber}-easy`, 'EASY', 0),
+      session(`w${weekNumber}-interval`, 'INTERVAL', 1),
+      session(`w${weekNumber}-easy-2`, 'EASY', 2),
+      session(`w${weekNumber}-tempo`, 'TEMPO', 3),
+      null,
+      session(`w${weekNumber}-easy-3`, 'EASY', 5),
+      session(`w${weekNumber}-long`, 'LONG', 6),
+    ],
+  };
+}
+
+function plan(): TrainingPlanWithAnnotation {
+  const weeks = [
+    week(1, 'BASE', 42),
+    week(2, 'BUILD', 48),
+    week(3, 'PEAK', 56),
+    week(4, 'TAPER', 30),
+  ];
+
+  return {
+    id: 'plan-1',
+    userId: 'runner-1',
+    createdAt: '2026-04-01',
+    raceName: 'Spring 10K',
+    raceDate: '2026-06-01',
+    raceDistance: '10K',
+    targetTime: 'sub-45',
+    phases: { BASE: 1, BUILD: 1, RECOVERY: 0, PEAK: 1, TAPER: 1 },
+    progressionPct: 7,
+    templateWeek: weeks[0].sessions,
+    weeks,
+    activeInjury: null,
+    todayAnnotation: 'Keep the easy days easy.',
+    coachAnnotation: 'Keep going.',
+  };
+}
+
 describe('BlockTab', () => {
   beforeEach(() => {
     mockRouterPush.mockReset();
@@ -127,5 +185,43 @@ describe('BlockTab', () => {
     fireEvent.click(screen.getByText('Build a plan'));
 
     expect(mockRouterPush).toHaveBeenCalledWith('/onboarding/plan-builder/step-goal');
+  });
+
+  it('renders one continuous block view with race details, graph, phase timeline, and weeks', () => {
+    mockAuth.session = { user: { id: 'runner-1' } };
+    mockPlan.plan = plan();
+    mockPlan.currentWeekIndex = 1;
+
+    render(<BlockTab />);
+
+    expect(screen.getByText('GOAL RACE')).toBeTruthy();
+    expect(screen.getByText('Spring 10K')).toBeTruthy();
+    expect(screen.getByText('Jun 1, 2026')).toBeTruthy();
+    expect(screen.getByText('3 weeks out')).toBeTruthy();
+    expect(screen.getByText('sub-45')).toBeTruthy();
+    expect(screen.queryByTestId('block-review-tab-structure')).toBeNull();
+    expect(screen.queryByTestId('block-review-tab-weeks')).toBeNull();
+    expect(screen.getByText('Weekly volume')).toBeTruthy();
+    expect(screen.getByTestId('block-review-volume-current-guide')).toBeTruthy();
+    expect(screen.queryByText('Current')).toBeNull();
+    expect(screen.queryByTestId('block-review-phase-strip')).toBeNull();
+    expect(screen.getByText('Current phase:')).toBeTruthy();
+    expect(screen.getByTestId('block-week-row-1')).toBeTruthy();
+    expect(screen.getByTestId('block-week-row-press-1')).toBeTruthy();
+    expect(screen.queryByText('Phase structure')).toBeNull();
+    expect(screen.queryByText('Progression')).toBeNull();
+    expect(screen.queryByTestId('block-review-edit-structure')).toBeNull();
+  });
+
+  it('keeps the existing week expansion behavior below the graph', () => {
+    mockAuth.session = { user: { id: 'runner-1' } };
+    mockPlan.plan = plan();
+    mockPlan.currentWeekIndex = 1;
+
+    render(<BlockTab />);
+    fireEvent.click(screen.getByTestId('block-week-row-press-1'));
+
+    expect(screen.getByText('Weekly volume')).toBeTruthy();
+    expect(screen.getByTestId('block-day-1-0')).toBeTruthy();
   });
 });

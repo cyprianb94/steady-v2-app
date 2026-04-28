@@ -9,6 +9,7 @@ import {
   type SessionType,
 } from '@steady/types';
 import {
+  BlockVolumeChart,
   BlockReviewOverloadCard,
   BlockReviewSurface,
   buildReviewVolumeChartModel,
@@ -111,6 +112,7 @@ describe('BlockReviewSurface', () => {
       ],
       phases: { BASE: 2, BUILD: 1, RECOVERY: 0, PEAK: 1, TAPER: 2 },
       progressionPct: 7,
+      currentWeekIndex: 2,
     });
     const chartModel = buildReviewVolumeChartModel(model, 300);
 
@@ -134,6 +136,10 @@ describe('BlockReviewSurface', () => {
 
     const chart = screen.getByTestId('block-review-volume-scrub-surface');
     expect(screen.getByTestId('block-review-volume-line')).toBeTruthy();
+    expect(screen.getByTestId('block-review-volume-current-guide')).toBeTruthy();
+    expect(screen.getAllByTestId('block-review-volume-current-guide-segment')).toHaveLength(2);
+    expect(screen.getAllByTestId('block-review-volume-current-guide-dot').length).toBeGreaterThan(12);
+    expect(screen.queryByText('Current')).toBeNull();
     expect(screen.getByTestId('block-review-volume-y-axis')).toBeTruthy();
     expect(screen.getAllByTestId('block-review-volume-grid-line').length).toBeGreaterThan(2);
     expect(screen.getAllByTestId('block-review-volume-y-tick').map((tick) => tick.textContent)).toEqual(
@@ -156,6 +162,32 @@ describe('BlockReviewSurface', () => {
     fireEvent.mouseUp(chart, { clientX: 300, clientY: 72 });
     expect(onScrubActiveChange).toHaveBeenLastCalledWith(false);
     expect(screen.queryByTestId('block-review-volume-tooltip')).toBeNull();
+  });
+
+  it('does not mark the first week on the graph because the point already anchors the start', () => {
+    const weeks = Array.from({ length: 30 }, (_, index) => {
+      const weekNumber = index + 1;
+      const phase: PhaseName = weekNumber <= 6
+        ? 'BASE'
+        : weekNumber <= 22
+          ? 'BUILD'
+          : weekNumber <= 26
+            ? 'PEAK'
+            : 'TAPER';
+
+      return week(weekNumber, phase, 70 + index);
+    });
+    const model = buildBlockReviewModel({
+      weeks,
+      phases: { BASE: 6, BUILD: 16, RECOVERY: 0, PEAK: 4, TAPER: 4 },
+      progressionPct: 7,
+      currentWeekIndex: 0,
+    });
+
+    render(<BlockVolumeChart model={model} formatDistance={(km) => `${km}km`} />);
+
+    expect(screen.queryByTestId('block-review-volume-current-guide')).toBeNull();
+    expect(screen.queryByText('Current')).toBeNull();
   });
 
   it('renders phase summary edits and week review views without owning navigation', () => {

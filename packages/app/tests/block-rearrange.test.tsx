@@ -67,6 +67,14 @@ import {
   stashSessionEditReturn,
 } from '../features/plan-builder/session-edit-return';
 
+function renderBlockTab() {
+  return render(<BlockTab />);
+}
+
+function openWeek(weekNumber: number) {
+  fireEvent.click(screen.getByTestId(`block-week-row-press-${weekNumber}`));
+}
+
 function dragHandle(testId: string, pageY: number) {
   const handle = screen.getByTestId(testId);
   fireEvent.mouseDown(handle, { clientY: 0 });
@@ -167,7 +175,7 @@ describe('BlockTab session rearrange', () => {
   });
 
   it('formats the race date and uses the wireframe-style phase caption copy', () => {
-    render(<BlockTab />);
+    renderBlockTab();
 
     expect(screen.getByText('Jun 1, 2026')).toBeTruthy();
     expect(screen.getByText('Current phase:')).toBeTruthy();
@@ -189,9 +197,9 @@ describe('BlockTab session rearrange', () => {
       ]),
     ]);
 
-    render(<BlockTab />);
+    renderBlockTab();
 
-    fireEvent.click(screen.getByText('W1'));
+    openWeek(1);
 
     expect(screen.getByText('8km @ 5:20')).toBeTruthy();
     expect(screen.getByText('6×400m @ 3:50')).toBeTruthy();
@@ -200,22 +208,22 @@ describe('BlockTab session rearrange', () => {
   });
 
   it('emits a light haptic when expanding a week, but not when collapsing it', () => {
-    render(<BlockTab />);
+    renderBlockTab();
 
-    fireEvent.click(screen.getByText('W1'));
+    openWeek(1);
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByText('W1'));
+    openWeek(1);
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByText('W2'));
+    openWeek(2);
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(2);
   });
 
   it('stages a reschedule locally and persists following weeks only after apply', async () => {
-    render(<BlockTab />);
+    renderBlockTab();
 
-    fireEvent.click(screen.getByText('W1'));
+    openWeek(1);
     expect(screen.queryByText('Rearrange sessions')).toBeNull();
 
     dragHandle('block-drag-handle-1-0', 120);
@@ -247,9 +255,9 @@ describe('BlockTab session rearrange', () => {
   });
 
   it('respects this-week scope from the propagation picker', async () => {
-    render(<BlockTab />);
+    renderBlockTab();
 
-    fireEvent.click(screen.getByText('W1'));
+    openWeek(1);
     dragHandle('block-drag-handle-1-0', 120);
     fireEvent.click(screen.getByTestId('block-apply-reschedule'));
     fireEvent.click(screen.getByText('Just this week'));
@@ -276,9 +284,9 @@ describe('BlockTab session rearrange', () => {
       ]),
     ]);
 
-    render(<BlockTab />);
+    renderBlockTab();
 
-    fireEvent.click(screen.getByText('W1'));
+    openWeek(1);
 
     expect(screen.getByTestId('block-day-status-1-0')).toBeTruthy();
     expect(screen.queryByText('Logged')).toBeNull();
@@ -289,9 +297,9 @@ describe('BlockTab session rearrange', () => {
   });
 
   it('lets the user drag a rest day to move the gap within the week', () => {
-    render(<BlockTab />);
+    renderBlockTab();
 
-    fireEvent.click(screen.getByText('W1'));
+    openWeek(1);
     dragHandle('block-drag-handle-1-1', 60);
 
     expect(screen.getByText('Do you want to apply reschedule?')).toBeTruthy();
@@ -301,9 +309,9 @@ describe('BlockTab session rearrange', () => {
   it('keeps past weeks review-only even when some sessions were never logged', () => {
     planState.currentWeekIndex = 1;
 
-    render(<BlockTab />);
+    renderBlockTab();
 
-    fireEvent.click(screen.getByText('W1'));
+    openWeek(1);
     expect(screen.getByText('Past weeks are locked. Tap a logged session to review synced run details.')).toBeTruthy();
 
     fireEvent.click(screen.getByTestId('block-day-1-0'));
@@ -355,9 +363,9 @@ describe('BlockTab session rearrange', () => {
       },
     ]);
 
-    render(<BlockTab />);
+    renderBlockTab();
 
-    fireEvent.click(screen.getByText('W1'));
+    openWeek(1);
 
     await waitFor(() => expect(screen.getByTestId('block-review-run-1-0')).toBeTruthy());
 
@@ -399,9 +407,9 @@ describe('BlockTab session rearrange', () => {
       },
     ]);
 
-    render(<BlockTab />);
+    renderBlockTab();
 
-    fireEvent.click(screen.getByText('W1'));
+    openWeek(1);
     await waitFor(() => expect(screen.getByTestId('block-day-status-1-0')).toBeTruthy());
 
     fireEvent.click(screen.getByTestId('block-day-1-0'));
@@ -448,11 +456,11 @@ describe('BlockTab session rearrange', () => {
       },
     ]);
 
-    render(<BlockTab />);
+    renderBlockTab();
 
     await waitFor(() => expect(screen.getByText('16km')).toBeTruthy());
 
-    fireEvent.click(screen.getByText('W1'));
+    openWeek(1);
 
     await waitFor(() => expect(screen.getAllByTestId(/block-day-status-1-/)).toHaveLength(2));
 
@@ -492,9 +500,9 @@ describe('BlockTab session rearrange', () => {
       },
     ]);
 
-    render(<BlockTab />);
+    renderBlockTab();
 
-    fireEvent.click(screen.getByText('W1'));
+    openWeek(1);
 
     await waitFor(() => expect(mockActivityListQuery).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.queryByTestId('block-day-status-1-6')).toBeNull());
@@ -544,7 +552,7 @@ describe('BlockTab session rearrange', () => {
         },
       ]);
 
-      render(<BlockTab />);
+      renderBlockTab();
 
       await act(async () => {
         await Promise.resolve();
@@ -552,7 +560,7 @@ describe('BlockTab session rearrange', () => {
 
       expect(screen.getByText('21.5km')).toBeTruthy();
 
-      fireEvent.click(screen.getByText('W1'));
+      openWeek(1);
 
       expect(mockActivityListQuery).toHaveBeenCalledTimes(1);
       expect(screen.getAllByTestId(/block-day-status-1-/)).toHaveLength(2);
@@ -563,9 +571,9 @@ describe('BlockTab session rearrange', () => {
   });
 
   it('resets the staged reschedule back to the saved order', () => {
-    render(<BlockTab />);
+    renderBlockTab();
 
-    fireEvent.click(screen.getByText('W1'));
+    openWeek(1);
     dragHandle('block-drag-handle-1-0', 120);
 
     expect(screen.getByTestId('block-day-1-0').textContent).toContain('Long Run');
@@ -610,9 +618,9 @@ describe('BlockTab session rearrange', () => {
       ]),
     ]);
 
-    const { rerender } = render(<BlockTab />);
+    const { rerender } = renderBlockTab();
 
-    fireEvent.click(screen.getByText('W1'));
+    openWeek(1);
     fireEvent.click(screen.getByTestId('block-day-1-0'));
     expect(mockRouterPush).toHaveBeenLastCalledWith({
       pathname: '/edit-session',
@@ -655,7 +663,7 @@ describe('BlockTab session rearrange', () => {
       ]),
     ]);
     focusState.current = false;
-    const { rerender } = render(<BlockTab />);
+    const { rerender } = renderBlockTab();
 
     stashSessionEditReturn({
       weekIndex: 0,
@@ -676,9 +684,9 @@ describe('BlockTab session rearrange', () => {
   });
 
   it('lets the user add a session on an empty rest slot from the expanded week editor', async () => {
-    const { rerender } = render(<BlockTab />);
+    const { rerender } = renderBlockTab();
 
-    fireEvent.click(screen.getByText('W1'));
+    openWeek(1);
     fireEvent.click(screen.getByTestId('block-day-1-1'));
     expect(mockRouterPush).toHaveBeenLastCalledWith({
       pathname: '/edit-session',
@@ -703,12 +711,12 @@ describe('BlockTab session rearrange', () => {
       makeWeek(3, [session('w3-easy', 'EASY'), null, null, null, null, null, null]),
     ]);
 
-    const { rerender } = render(<BlockTab />);
+    const { rerender } = renderBlockTab();
 
-    fireEvent.click(screen.getByText('W2'));
+    openWeek(2);
     expect(screen.getByTestId('block-day-2-0')).toBeTruthy();
 
-    fireEvent.click(screen.getByText('W3'));
+    openWeek(3);
     fireEvent.click(screen.getByTestId('block-day-3-0'));
     returnEditResult(rerender, 2, 0, { type: 'EASY', distance: 10, pace: '5:20' });
 
@@ -731,9 +739,9 @@ describe('BlockTab session rearrange', () => {
       makeWeek(3, [session('w3-easy', 'EASY'), null, null, null, null, null, null]),
     ]);
 
-    const { rerender } = render(<BlockTab />);
+    const { rerender } = renderBlockTab();
 
-    fireEvent.click(screen.getByText('W3'));
+    openWeek(3);
     expect(screen.getByTestId('block-day-3-0')).toBeTruthy();
 
     focusState.current = false;
@@ -765,9 +773,9 @@ describe('BlockTab session rearrange', () => {
       makeWeek(4, [session('w4-easy', 'EASY'), null, null, null, null, null, null], 'PEAK'),
     ]);
 
-    const { rerender } = render(<BlockTab />);
+    const { rerender } = renderBlockTab();
 
-    fireEvent.click(screen.getByText('W2'));
+    openWeek(2);
     fireEvent.click(screen.getByTestId('block-day-2-0'));
     returnEditResult(rerender, 1, 0, null);
 
@@ -794,9 +802,9 @@ describe('BlockTab session rearrange', () => {
       makeWeek(5, [session('w5-easy', 'EASY'), null, null, null, null, null, null], 'TAPER'),
     ]);
 
-    const { rerender } = render(<BlockTab />);
+    const { rerender } = renderBlockTab();
 
-    fireEvent.click(screen.getByText('W4'));
+    openWeek(4);
     fireEvent.click(screen.getByTestId('block-day-4-0'));
     returnEditResult(rerender, 3, 0, null);
 
@@ -823,9 +831,9 @@ describe('BlockTab session rearrange', () => {
       makeWeek(4, [session('w4-easy', 'EASY'), null, null, null, null, null, null], 'BUILD'),
     ]);
 
-    const { rerender } = render(<BlockTab />);
+    const { rerender } = renderBlockTab();
 
-    fireEvent.click(screen.getByText('W3'));
+    openWeek(3);
     fireEvent.click(screen.getByTestId('block-day-3-0'));
     returnEditResult(rerender, 2, 0, null);
 
@@ -851,9 +859,9 @@ describe('BlockTab session rearrange', () => {
       makeWeek(4, [session('w4-easy', 'EASY'), null, null, null, null, null, null], 'TAPER'),
     ]);
 
-    const { rerender } = render(<BlockTab />);
+    const { rerender } = renderBlockTab();
 
-    fireEvent.click(screen.getByText('W4'));
+    openWeek(4);
     fireEvent.click(screen.getByTestId('block-day-4-0'));
     returnEditResult(rerender, 3, 0, null);
 

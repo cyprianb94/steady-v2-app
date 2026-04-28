@@ -15,6 +15,7 @@ import { usePlan } from '../../hooks/usePlan';
 import { useStravaSync } from '../../hooks/useStravaSync';
 import { useTodayIso } from '../../hooks/useTodayIso';
 import { AnimatedWeekExpansion } from '../../components/block/AnimatedWeekExpansion';
+import { BlockVolumeChart } from '../../components/block-review';
 import { DragHandle } from '../../components/plan-builder/DragHandle';
 import { PropagateModal } from '../../components/plan-builder/PropagateModal';
 import { RunStatusIcon, type RunStatusIconStatus } from '../../components/run/RunStatusIcon';
@@ -30,6 +31,7 @@ import {
 } from '../../features/plan-builder/session-editing';
 import { consumeSessionEditReturn } from '../../features/plan-builder/session-edit-return';
 import { useDirectWeekReschedule } from '../../features/plan-builder/use-direct-week-reschedule';
+import { deriveLiveBlockReviewModel } from '../../features/block-review/live-block-review-model';
 import { useAuth } from '../../lib/auth';
 import { triggerSelectionChangeHaptic } from '../../lib/haptics';
 import { createId } from '../../lib/id';
@@ -341,6 +343,7 @@ export default function BlockTab() {
   const [isSavingRearrange, setIsSavingRearrange] = useState(false);
   const [pendingEdit, setPendingEdit] = useState<PendingEdit | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isScrubbingVolumeChart, setIsScrubbingVolumeChart] = useState(false);
   const [preservedReschedule, setPreservedReschedule] = useState<PreservedRescheduleDraft | null>(null);
   const processedEditNonceRef = useRef<string | null>(null);
   const today = useTodayIso();
@@ -493,6 +496,19 @@ export default function BlockTab() {
     syncRefreshErrorMessage: 'Failed to refresh block plan after Strava sync:',
     manualRefreshErrorMessage: 'Failed to refresh block screen:',
   });
+  const safeCurrentWeekIndex = plan?.weeks.length
+    ? Math.min(currentWeekIndex, plan.weeks.length - 1)
+    : 0;
+  const reviewModel = useMemo(() => {
+    if (!plan || plan.weeks.length === 0) {
+      return null;
+    }
+
+    return deriveLiveBlockReviewModel({
+      plan,
+      currentWeekIndex: safeCurrentWeekIndex,
+    });
+  }, [plan, safeCurrentWeekIndex]);
 
   if (authLoading || loading) {
     return (
@@ -531,7 +547,10 @@ export default function BlockTab() {
     );
   }
 
-  const safeCurrentWeekIndex = Math.min(currentWeekIndex, plan.weeks.length - 1);
+  if (!reviewModel) {
+    return null;
+  }
+
   const phases = buildBlockPhaseSegments(plan.weeks, safeCurrentWeekIndex, historicalInjury, today);
   const currentPhase = isInjuryWeek(safeCurrentWeekIndex, injuryRange)
     ? 'INJURY'
@@ -674,7 +693,7 @@ export default function BlockTab() {
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.content}
-        scrollEnabled={!reschedule.isHandleActive}
+        scrollEnabled={!reschedule.isHandleActive && !isScrubbingVolumeChart}
         refreshControl={
           <RefreshControl
             refreshing={refreshing || syncing}
@@ -695,6 +714,14 @@ export default function BlockTab() {
             <Text style={[styles.metaValue, { color: C.navy }]}>{plan.targetTime}</Text>
           </View>
         </View>
+
+      <BlockVolumeChart
+        model={reviewModel}
+        raceDate={plan.raceDate}
+        onScrubActiveChange={setIsScrubbingVolumeChart}
+        formatDistance={(km) => formatDistance(km, units)}
+        showPhaseStrip={false}
+      />
 
       {/* Phase strip */}
       <View style={styles.phaseSection}>
@@ -803,6 +830,7 @@ export default function BlockTab() {
         return (
           <View
             key={week.weekNumber}
+            testID={`block-week-row-${week.weekNumber}`}
             style={[
               styles.weekRow,
               isCurrent && styles.weekRowCurrent,
@@ -812,7 +840,11 @@ export default function BlockTab() {
               shouldRenderExpandedWeek && styles.weekRowExpanded,
             ]}
           >
-            <Pressable onPress={() => toggleWeek(week.weekNumber)} style={styles.weekPressable}>
+            <Pressable
+              onPress={() => toggleWeek(week.weekNumber)}
+              style={styles.weekPressable}
+              testID={`block-week-row-press-${week.weekNumber}`}
+            >
               <View style={styles.weekRowMain}>
                 <View style={styles.weekLeft}>
                   <Text
@@ -1201,6 +1233,7 @@ const styles = StyleSheet.create({
 
   // Phase strip
   phaseSection: {
+    marginTop: 10,
     marginBottom: 18,
   },
   phaseStrip: {

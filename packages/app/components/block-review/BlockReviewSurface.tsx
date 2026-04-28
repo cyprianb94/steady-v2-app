@@ -44,6 +44,10 @@ const CHART_PHASE_MARKER_SIZE = 8;
 const CHART_SELECTED_MARKER_SIZE = 12;
 const CHART_X_AXIS_LABEL_WIDTH = 40;
 const CHART_TOOLTIP_WIDTH = 132;
+const CHART_CURRENT_GUIDE_POINT_GAP = 9;
+const CHART_CURRENT_GUIDE_EDGE_INSET = 7;
+const CHART_CURRENT_GUIDE_DOT_SIZE = 2;
+const CHART_CURRENT_GUIDE_DOT_SPACING = 4;
 const CHART_SCRUB_TOP = CHART_TOP - 16;
 const CHART_SCRUB_BOTTOM = CHART_BOTTOM + 30;
 const TAB_PRESS_EXPANSION = typeof document !== 'undefined'
@@ -354,6 +358,17 @@ function weekIndexFromX(x: number, chartWidth: number, totalWeeks: number): numb
   return clampNumber(Math.round(ratio * (totalWeeks - 1)), 0, totalWeeks - 1);
 }
 
+function currentGuideDotIndexes(height: number): number[] {
+  if (height <= 0) {
+    return [];
+  }
+
+  return Array.from(
+    { length: Math.max(1, Math.floor(height / CHART_CURRENT_GUIDE_DOT_SPACING)) },
+    (_, index) => index,
+  );
+}
+
 function isoFromDate(value: Date): string {
   return value.toISOString().slice(0, 10);
 }
@@ -553,6 +568,7 @@ interface BlockVolumeChartProps {
   formatDistance: FormatDistance;
   raceDate?: string;
   onScrubActiveChange?: (active: boolean) => void;
+  showPhaseStrip?: boolean;
 }
 
 export function BlockVolumeChart({
@@ -560,6 +576,7 @@ export function BlockVolumeChart({
   formatDistance,
   raceDate,
   onScrubActiveChange,
+  showPhaseStrip = true,
 }: BlockVolumeChartProps) {
   const [chartWidth, setChartWidth] = useState(CHART_WIDTH_FALLBACK);
   const [selectedWeekIndex, setSelectedWeekIndex] = useState<number | null>(null);
@@ -573,7 +590,32 @@ export function BlockVolumeChart({
   );
   const selectedPoint = selectedWeekIndex == null ? null : chartModel.points[selectedWeekIndex] ?? null;
   const selectedWeek = selectedWeekIndex == null ? null : model.weeks[selectedWeekIndex] ?? null;
+  const currentWeek = model.weeks.find((week) => week.isCurrentWeek) ?? null;
+  const currentPoint = currentWeek ? chartModel.points[currentWeek.weekIndex] ?? null : null;
+  const shouldShowCurrentGuide = Boolean(currentPoint && currentWeek && currentWeek.weekIndex > 0);
   const selectedX = scrubX ?? selectedPoint?.x ?? 0;
+  const currentGuideInset = Math.min(CHART_CURRENT_GUIDE_EDGE_INSET, plotWidth / 2);
+  const currentGuidePlotX = currentPoint
+    ? clampNumber(
+        currentPoint.x,
+        currentGuideInset,
+        Math.max(plotWidth - currentGuideInset, currentGuideInset),
+      )
+    : 0;
+  const currentGuideLeft = currentPoint
+    ? CHART_Y_AXIS_WIDTH + currentGuidePlotX - CHART_CURRENT_GUIDE_DOT_SIZE / 2
+    : 0;
+  const currentGuideTopHeight = currentPoint
+    ? Math.max(currentPoint.y - CHART_CURRENT_GUIDE_POINT_GAP - CHART_TOP, 0)
+    : 0;
+  const currentGuideBottomTop = currentPoint
+    ? currentPoint.y + CHART_CURRENT_GUIDE_POINT_GAP
+    : 0;
+  const currentGuideBottomHeight = currentPoint
+    ? Math.max(CHART_BOTTOM - currentGuideBottomTop, 0)
+    : 0;
+  const currentGuideTopDots = currentGuideDotIndexes(currentGuideTopHeight);
+  const currentGuideBottomDots = currentGuideDotIndexes(currentGuideBottomHeight);
   const tooltipLeft = clampNumber(
     CHART_Y_AXIS_WIDTH + selectedX - CHART_TOOLTIP_WIDTH / 2,
     0,
@@ -687,6 +729,56 @@ export function BlockVolumeChart({
             testID="block-review-volume-grid-line"
           />
         ))}
+
+        {shouldShowCurrentGuide ? (
+          <View
+            pointerEvents="none"
+            testID="block-review-volume-current-guide"
+            style={[
+              styles.chartCurrentWeekGuide,
+              { left: currentGuideLeft },
+            ]}
+          >
+            <View
+              pointerEvents="none"
+              testID="block-review-volume-current-guide-segment"
+              style={[
+                styles.chartCurrentWeekGuideSegment,
+                {
+                  top: CHART_TOP,
+                  height: currentGuideTopHeight,
+                },
+              ]}
+            >
+              {currentGuideTopDots.map((dotIndex) => (
+                <View
+                  key={`top-${dotIndex}`}
+                  testID="block-review-volume-current-guide-dot"
+                  style={styles.chartCurrentWeekGuideDot}
+                />
+              ))}
+            </View>
+            <View
+              pointerEvents="none"
+              testID="block-review-volume-current-guide-segment"
+              style={[
+                styles.chartCurrentWeekGuideSegment,
+                {
+                  top: currentGuideBottomTop,
+                  height: currentGuideBottomHeight,
+                },
+              ]}
+            >
+              {currentGuideBottomDots.map((dotIndex) => (
+                <View
+                  key={`bottom-${dotIndex}`}
+                  testID="block-review-volume-current-guide-dot"
+                  style={styles.chartCurrentWeekGuideDot}
+                />
+              ))}
+            </View>
+          </View>
+        ) : null}
 
         {chartModel.pathD ? (
           <Svg
@@ -805,7 +897,7 @@ export function BlockVolumeChart({
         <VolumeStat label="Race" value={formatDistance(model.volume.stats.raceKm)} />
       </View>
 
-      <BlockReviewPhaseStrip model={model} />
+      {showPhaseStrip ? <BlockReviewPhaseStrip model={model} /> : null}
     </View>
   );
 }
@@ -1270,6 +1362,25 @@ const styles = StyleSheet.create({
     borderRadius: CHART_SELECTED_MARKER_SIZE / 2,
     borderWidth: 2,
     borderColor: C.surface,
+  },
+  chartCurrentWeekGuide: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: CHART_CURRENT_GUIDE_DOT_SIZE,
+  },
+  chartCurrentWeekGuideSegment: {
+    position: 'absolute',
+    left: 0,
+    width: CHART_CURRENT_GUIDE_DOT_SIZE,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  chartCurrentWeekGuideDot: {
+    width: CHART_CURRENT_GUIDE_DOT_SIZE,
+    height: CHART_CURRENT_GUIDE_DOT_SIZE,
+    borderRadius: CHART_CURRENT_GUIDE_DOT_SIZE / 2,
+    backgroundColor: `${C.forest}78`,
   },
   chartTooltipLayer: {
     position: 'absolute',
