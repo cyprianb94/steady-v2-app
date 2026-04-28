@@ -111,6 +111,10 @@ vi.mock('expo-router', () => ({
   router: appTestHarness.router,
   useRouter: () => appTestHarness.router,
   useLocalSearchParams: appTestHarness.useLocalSearchParams,
+  Stack: Object.assign(
+    ({ children }: { children: any }) => children,
+    { Screen: ({ name: _name }: { name: string }) => null },
+  ),
   Tabs: Object.assign(
     ({ children }: { children: any }) => children,
     { Screen: ({ name: _name }: { name: string }) => null },

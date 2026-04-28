@@ -235,12 +235,17 @@ function TrainingMotif() {
 }
 
 export function WelcomeFrontDoor({ onAuthenticated }: WelcomeFrontDoorProps) {
-  const { signInWithGoogle, isLoading } = useAuth();
+  const { session, signInWithGoogle, isLoading } = useAuth();
   const [step, setStep] = useState<WelcomeStep>('welcome');
   const [submitting, setSubmitting] = useState(false);
   const busy = isLoading || submitting;
 
   async function handleGoogleSignIn() {
+    if (session) {
+      onAuthenticated();
+      return;
+    }
+
     try {
       setSubmitting(true);
       const session = await signInWithGoogle();
