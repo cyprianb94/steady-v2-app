@@ -42,7 +42,8 @@ const BODY_PART_GROUPS: readonly {
 ];
 
 const SIDE_OPTIONS: readonly NiggleSide[] = ['left', 'right', null];
-const OTHER_INPUT_KEYBOARD_OFFSET = 320;
+const OTHER_INPUT_KEYBOARD_OFFSET = 224;
+const OTHER_INPUT_FOCUS_SCROLL_Y = 280;
 
 interface NigglePickerModalProps {
   visible: boolean;
@@ -130,8 +131,8 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
 
   function revealOtherInput() {
     setOtherInputFocused(true);
-    setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 80);
-    setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 280);
+    setTimeout(() => scrollViewRef.current?.scrollTo({ y: OTHER_INPUT_FOCUS_SCROLL_Y, animated: true }), 80);
+    setTimeout(() => scrollViewRef.current?.scrollTo({ y: OTHER_INPUT_FOCUS_SCROLL_Y, animated: true }), 280);
   }
 
   return (
