@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     fontFamily: FONTS.monoBold,
     fontSize: 11,
-    color: C.ink,
+    color: C.metricFuelling,
     lineHeight: 17,
   },
   emptyCopy: {
@@ -529,7 +529,7 @@ const styles = StyleSheet.create({
     width: 54,
     fontFamily: FONTS.monoBold,
     fontSize: 12,
-    color: C.clay,
+    color: C.metricFuelling,
   },
   eventGelBody: {
     flex: 1,
@@ -556,8 +556,8 @@ const styles = StyleSheet.create({
   },
   addToggle: {
     borderWidth: 1,
-    borderColor: C.forest,
-    backgroundColor: C.forestBg,
+    borderColor: C.metricFuelling,
+    backgroundColor: C.surface,
     borderRadius: 999,
     paddingVertical: 10,
     alignItems: 'center',
@@ -565,7 +565,7 @@ const styles = StyleSheet.create({
   addToggleText: {
     fontFamily: FONTS.sansSemiBold,
     fontSize: 12,
-    color: C.forest,
+    color: C.metricFuelling,
   },
   editor: {
     marginTop: 14,
@@ -643,7 +643,7 @@ const styles = StyleSheet.create({
     top: 36,
     height: 6,
     borderRadius: 999,
-    backgroundColor: C.clay,
+    backgroundColor: C.metricFuelling,
   },
   tick: {
     position: 'absolute',
@@ -675,7 +675,7 @@ const styles = StyleSheet.create({
     height: 7,
     marginLeft: -3.5,
     borderRadius: 999,
-    backgroundColor: C.forest,
+    backgroundColor: C.metricFuelling,
   },
   thumb: {
     position: 'absolute',
@@ -710,8 +710,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   quickMinuteSelected: {
-    borderColor: C.clay,
-    backgroundColor: C.clayBg,
+    borderColor: C.metricFuelling,
+    backgroundColor: C.surface,
   },
   quickMinuteText: {
     fontFamily: FONTS.monoBold,
@@ -719,7 +719,7 @@ const styles = StyleSheet.create({
     color: C.muted,
   },
   quickMinuteTextSelected: {
-    color: C.clay,
+    color: C.metricFuelling,
   },
   editorBlock: {
     gap: 10,
@@ -748,8 +748,8 @@ const styles = StyleSheet.create({
   },
   selectedBrandChipActive: {
     borderWidth: 1.5,
-    borderColor: C.forest,
-    backgroundColor: C.forestBg,
+    borderColor: C.metricFuelling,
+    backgroundColor: C.surface,
   },
   selectedBrandChipText: {
     fontFamily: FONTS.sansSemiBold,
@@ -757,7 +757,7 @@ const styles = StyleSheet.create({
     color: C.ink2,
   },
   selectedBrandChipTextActive: {
-    color: C.forest,
+    color: C.metricFuelling,
   },
   addBrandButton: {
     borderRadius: 999,
@@ -822,8 +822,8 @@ const styles = StyleSheet.create({
     backgroundColor: C.card,
   },
   usedCardSelected: {
-    borderColor: C.forest,
-    backgroundColor: C.forestBg,
+    borderColor: C.metricFuelling,
+    backgroundColor: C.surface,
   },
   usedName: {
     fontFamily: FONTS.sansSemiBold,
@@ -832,7 +832,7 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   usedNameSelected: {
-    color: C.forest,
+    color: C.metricFuelling,
   },
   usedMeta: {
     fontFamily: FONTS.mono,
@@ -840,7 +840,7 @@ const styles = StyleSheet.create({
     color: C.muted,
   },
   usedMetaSelected: {
-    color: C.forest,
+    color: C.metricFuelling,
   },
   brandSearch: {
     borderWidth: 1,
@@ -880,8 +880,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   brandOptionSelected: {
-    borderColor: C.forest,
-    backgroundColor: C.forestBg,
+    borderColor: C.metricFuelling,
+    backgroundColor: C.surface,
   },
   brandOptionText: {
     flex: 1,
@@ -890,12 +890,12 @@ const styles = StyleSheet.create({
     color: C.ink2,
   },
   brandOptionTextSelected: {
-    color: C.forest,
+    color: C.metricFuelling,
   },
   brandOptionSelectedMark: {
     fontFamily: FONTS.sansSemiBold,
     fontSize: 9,
-    color: C.forest,
+    color: C.metricFuelling,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
@@ -924,8 +924,8 @@ const styles = StyleSheet.create({
   },
   gelCardSelected: {
     borderWidth: 1.5,
-    borderColor: C.forest,
-    backgroundColor: C.forestBg,
+    borderColor: C.metricFuelling,
+    backgroundColor: C.surface,
   },
   gelPacket: {
     width: 38,
@@ -940,7 +940,7 @@ const styles = StyleSheet.create({
   gelPacketText: {
     fontFamily: FONTS.monoBold,
     fontSize: 14,
-    color: C.clay,
+    color: C.metricFuelling,
   },
   gelCardBody: {
     flex: 1,
@@ -952,7 +952,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   gelNameSelected: {
-    color: C.forest,
+    color: C.metricFuelling,
   },
   gelFlavour: {
     fontFamily: FONTS.sans,

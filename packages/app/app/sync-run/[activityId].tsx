@@ -55,14 +55,36 @@ function formatRunMeta(startTime: string): string {
   return `${weekday} ${monthDay} · ${time}`;
 }
 
-function paceBarWidth(splitPace: number, fastestPace: number, slowestPace: number): DimensionValue {
-  if (slowestPace === fastestPace) return '70%';
+function paceBarWidthValue(splitPace: number, fastestPace: number, slowestPace: number): number {
+  if (slowestPace === fastestPace) return 70;
   const ratio = (slowestPace - splitPace) / (slowestPace - fastestPace);
-  return `${35 + ratio * 55}%`;
+  return 35 + ratio * 55;
+}
+
+function paceBarWidth(splitPace: number, fastestPace: number, slowestPace: number): DimensionValue {
+  return `${paceBarWidthValue(splitPace, fastestPace, slowestPace)}%`;
 }
 
 function shoeLabel(shoe: Shoe): string {
   return `${shoe.brand} ${shoe.model}`;
+}
+
+function splitTargetDisplay(value: string): { pace: string | null; effort: string | null } {
+  if (!value || value === '—') {
+    return { pace: value, effort: null };
+  }
+
+  const [first, ...rest] = value.split(' · ');
+  const hasPace = first.includes(':') || first.includes('/km') || first.includes('/mi');
+
+  if (!hasPace) {
+    return { pace: null, effort: value };
+  }
+
+  return {
+    pace: first,
+    effort: rest.length ? rest.join(' · ') : null,
+  };
 }
 
 function firstRouteParamValue(value: string | string[] | undefined): string | null {
@@ -93,6 +115,31 @@ const OVERALL_OPTIONS: { value: SubjectiveOverall; label: string }[] = [
 ];
 
 const RUN_DETAIL_LOAD_TIMEOUT_MS = 8000;
+
+function feelSemanticStyles(value: string | null) {
+  if (!value) {
+    return {};
+  }
+
+  if (value === 'dead' || value === 'shattered') {
+    return {
+      chip: styles.feelChipSelectedHard,
+      text: styles.feelChipTextSelectedHard,
+    };
+  }
+
+  if (value === 'heavy' || value === 'labored' || value === 'done') {
+    return {
+      chip: styles.feelChipSelectedWorked,
+      text: styles.feelChipTextSelectedWorked,
+    };
+  }
+
+  return {
+    chip: styles.feelChipSelectedRecoverable,
+    text: styles.feelChipTextSelectedRecoverable,
+  };
+}
 
 function saveRunFailureCopy(error: unknown): { inline: string; alertTitle: string; alertBody: string } {
   const message = error instanceof Error ? error.message : '';
@@ -148,13 +195,14 @@ function FeelRow<T extends string>({
       <View style={styles.feelChips}>
         {options.map((opt) => {
           const selected = opt.value === value;
+          const semantic = selected ? feelSemanticStyles(opt.value) : {};
           return (
             <Pressable
               key={opt.value}
               onPress={() => onChange(opt.value)}
-              style={[styles.feelChip, selected && styles.feelChipSelected]}
+              style={[styles.feelChip, semantic.chip]}
             >
-              <Text style={[styles.feelChipText, selected && styles.feelChipTextSelected]}>{opt.label}</Text>
+              <Text style={[styles.feelChipText, semantic.text]}>{opt.label}</Text>
             </Pressable>
           );
         })}
@@ -499,12 +547,14 @@ export default function SyncRunDetailScreen() {
   const matchedChipTextStyle = selectedSession ? styles.matchChipTextActive : styles.matchChipTextNeutral;
   const splitLabelMode = inferSplitLabelMode(selectedSession, activity.splits);
   const splitSummaryLabel = splitLabelMode === 'segment' ? 'segments' : 'per km';
+  const averagePaceMarker = paceBarWidth(activity.avgPace, fastestPace, slowestPace);
   const selectedTargetDisplay = selectedSession
     ? formatIntensityTargetDisplay(selectedSession, units, {
         withUnit: true,
         fallbackToLegacyPace: true,
       }) ?? '—'
     : '—';
+  const selectedTargetParts = splitTargetDisplay(selectedTargetDisplay);
 
   return (
     <View style={styles.container}>
@@ -543,25 +593,25 @@ export default function SyncRunDetailScreen() {
 
         <View style={styles.metricGrid}>
           <View style={styles.metricCell}>
-            <Text style={styles.metricValue}>{formatDistance(activity.distance, units, { spaced: true })}</Text>
+            <Text style={[styles.metricValue, styles.metricDistanceValue]}>{formatDistance(activity.distance, units, { spaced: true })}</Text>
             <Text style={styles.metricLabel}>Distance</Text>
           </View>
           <View style={styles.metricCell}>
-            <Text style={styles.metricValue}>{formatDuration(activity.duration)}</Text>
+            <Text style={[styles.metricValue, styles.metricTimeValue]}>{formatDuration(activity.duration)}</Text>
             <Text style={styles.metricLabel}>Duration</Text>
           </View>
           <View style={styles.metricCell}>
-            <Text style={styles.metricValue}>{formatPace(activity.avgPace, units, { withUnit: true })}</Text>
+            <Text style={[styles.metricValue, styles.metricPaceValue]}>{formatPace(activity.avgPace, units, { withUnit: true })}</Text>
             <Text style={styles.metricLabel}>Avg pace</Text>
           </View>
           <View style={styles.metricCell}>
-            <Text style={styles.metricValue}>{activity.avgHR?.toFixed(0) ?? '—'}</Text>
+            <Text style={[styles.metricValue, styles.metricHeartRateValue]}>{activity.avgHR?.toFixed(0) ?? '—'}</Text>
             <Text style={styles.metricLabel}>Avg heart rate</Text>
           </View>
         </View>
         <View style={styles.subMetrics}>
-          <Text style={styles.subMetricsText}>Max HR <Text style={styles.subMetricsBold}>{activity.maxHR ?? '—'}</Text></Text>
-          <Text style={styles.subMetricsText}>Elevation <Text style={styles.subMetricsBold}>{activity.elevationGain ?? 0} m</Text></Text>
+          <Text style={styles.subMetricsText}>Max HR <Text style={[styles.subMetricsBold, styles.metricHeartRateValue]}>{activity.maxHR ?? '—'}</Text></Text>
+          <Text style={styles.subMetricsText}>Elevation <Text style={[styles.subMetricsBold, styles.metricElevationValue]}>{activity.elevationGain ?? 0} m</Text></Text>
         </View>
 
         {hasStaleMatchedSession ? (
@@ -607,13 +657,23 @@ export default function SyncRunDetailScreen() {
             <Text style={[styles.sectionTitle, styles.pvaTitle]}>Planned vs actual</Text>
             <View style={styles.pvaRow}>
               <Text style={styles.pvaLabel}>Planned</Text>
-              <Text style={styles.pvaValue}>{formatDistance(expectedDistance(selectedSession), units, { spaced: true })}</Text>
-              <Text style={styles.pvaValue}>{selectedTargetDisplay}</Text>
+              <Text style={[styles.pvaValue, styles.metricDistanceValue]}>{formatDistance(expectedDistance(selectedSession), units, { spaced: true })}</Text>
+              <Text style={styles.pvaValue}>
+                {selectedTargetParts.pace ? (
+                  <Text style={styles.metricPaceValue}>{selectedTargetParts.pace}</Text>
+                ) : null}
+                {selectedTargetParts.pace && selectedTargetParts.effort ? (
+                  <Text style={styles.pvaTargetSeparator}> · </Text>
+                ) : null}
+                {selectedTargetParts.effort ? (
+                  <Text style={styles.metricEffortValue}>{selectedTargetParts.effort}</Text>
+                ) : null}
+              </Text>
             </View>
             <View style={styles.pvaRow}>
               <Text style={styles.pvaLabel}>Actual</Text>
-              <Text style={styles.pvaValue}>{formatDistance(activity.distance, units, { spaced: true })}</Text>
-              <Text style={styles.pvaValue}>{formatPace(activity.avgPace, units, { withUnit: true })}</Text>
+              <Text style={[styles.pvaValue, styles.metricDistanceValue]}>{formatDistance(activity.distance, units, { spaced: true })}</Text>
+              <Text style={[styles.pvaValue, styles.metricPaceValue]}>{formatPace(activity.avgPace, units, { withUnit: true })}</Text>
             </View>
           </View>
         ) : null}
@@ -630,6 +690,7 @@ export default function SyncRunDetailScreen() {
                 <Text style={styles.splitPace}>{formatPace(split.pace, units)}</Text>
                 <View style={styles.splitBar}>
                   <View style={[styles.splitFill, { width: paceBarWidth(split.pace, fastestPace, slowestPace) }]} />
+                  <View style={[styles.splitAverageMarker, { left: averagePaceMarker }]} />
                 </View>
                 <Text style={styles.splitHr}>{split.hr ? `${Math.round(split.hr)} bpm` : '—'}</Text>
               </View>
@@ -929,6 +990,24 @@ const styles = StyleSheet.create({
     color: C.ink,
     marginBottom: 5,
   },
+  metricDistanceValue: {
+    color: C.metricDistance,
+  },
+  metricTimeValue: {
+    color: C.metricTime,
+  },
+  metricPaceValue: {
+    color: C.metricPace,
+  },
+  metricHeartRateValue: {
+    color: C.metricHeartRate,
+  },
+  metricElevationValue: {
+    color: C.metricElevation,
+  },
+  metricEffortValue: {
+    color: C.metricEffort,
+  },
   metricLabel: {
     fontFamily: FONTS.sansSemiBold,
     fontSize: 10,
@@ -1020,7 +1099,7 @@ const styles = StyleSheet.create({
   sectionActionPrimary: {
     fontFamily: FONTS.sansSemiBold,
     fontSize: 12,
-    color: C.forest,
+    color: C.clay,
   },
   shoeRow: {
     flexDirection: 'row',
@@ -1049,8 +1128,8 @@ const styles = StyleSheet.create({
     gap: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(42,92,69,0.28)',
-    backgroundColor: C.forestBg,
+    borderColor: C.metricShoes,
+    backgroundColor: C.surface,
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
@@ -1064,7 +1143,7 @@ const styles = StyleSheet.create({
   shoeLifetimeValue: {
     fontFamily: FONTS.monoBold,
     fontSize: 12,
-    color: C.forest,
+    color: C.metricShoes,
   },
   shoeBar: {
     marginTop: 6,
@@ -1075,7 +1154,7 @@ const styles = StyleSheet.create({
   },
   shoeBarFill: {
     height: '100%',
-    backgroundColor: C.forest,
+    backgroundColor: C.metricShoes,
     borderRadius: 999,
   },
   shoeBarFillWarn: {
@@ -1087,7 +1166,7 @@ const styles = StyleSheet.create({
   shoeChange: {
     fontFamily: FONTS.sansSemiBold,
     fontSize: 12,
-    color: C.forest,
+    color: C.metricShoes,
     paddingLeft: 8,
   },
   pvaSection: {
@@ -1116,6 +1195,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: C.ink,
   },
+  pvaTargetSeparator: {
+    color: C.muted,
+  },
   splitRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1128,32 +1210,40 @@ const styles = StyleSheet.create({
     width: 58,
     fontFamily: FONTS.mono,
     fontSize: 10,
-    color: C.muted,
+    color: C.metricDistance,
   },
   splitPace: {
     width: 56,
     fontFamily: FONTS.monoBold,
     fontSize: 13,
-    color: C.ink,
+    color: C.metricPace,
   },
   splitBar: {
     flex: 1,
     height: 8,
     borderRadius: 999,
-    backgroundColor: C.card,
+    backgroundColor: C.metricPaceBg,
     overflow: 'hidden',
   },
   splitFill: {
     height: '100%',
     borderRadius: 999,
-    backgroundColor: C.forest,
+    backgroundColor: C.metricPace,
+  },
+  splitAverageMarker: {
+    position: 'absolute',
+    top: -3,
+    width: 2,
+    height: 14,
+    borderRadius: 1,
+    backgroundColor: C.slate,
   },
   splitHr: {
     width: 56,
     textAlign: 'right',
     fontFamily: FONTS.mono,
     fontSize: 11,
-    color: C.ink2,
+    color: C.metricHeartRate,
   },
   feelRow: {
     marginBottom: 14,
@@ -1179,17 +1269,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
-  feelChipSelected: {
-    borderColor: C.forest,
-    backgroundColor: C.forestBg,
-  },
   feelChipText: {
     fontFamily: FONTS.sansMedium,
     fontSize: 13,
     color: C.ink2,
   },
-  feelChipTextSelected: {
-    color: C.forest,
+  feelChipSelectedRecoverable: {
+    borderColor: C.metricEffort,
+    backgroundColor: C.surface,
+  },
+  feelChipTextSelectedRecoverable: {
+    color: C.metricEffort,
+    fontFamily: FONTS.sansSemiBold,
+  },
+  feelChipSelectedWorked: {
+    borderColor: C.amber,
+    backgroundColor: C.amberBg,
+  },
+  feelChipTextSelectedWorked: {
+    color: C.amber,
+    fontFamily: FONTS.sansSemiBold,
+  },
+  feelChipSelectedHard: {
+    borderColor: C.clay,
+    backgroundColor: C.clayBg,
+  },
+  feelChipTextSelectedHard: {
+    color: C.clay,
     fontFamily: FONTS.sansSemiBold,
   },
   notesInput: {

@@ -12,6 +12,17 @@ export const C = {
   // Structure
   border: '#E5DDD0',
 
+  // Metric colours
+  metricDistance: '#3D55A4',
+  metricPace: '#187F7A',
+  metricPaceBg: '#E4F1EF',
+  metricTime: '#9D711F',
+  metricHeartRate: '#BD433B',
+  metricElevation: '#607B38',
+  metricEffort: '#765098',
+  metricFuelling: '#A5612F',
+  metricShoes: '#577080',
+
   // Session types
   clay: '#C4522A',
   clayBg: '#FDF0EB',

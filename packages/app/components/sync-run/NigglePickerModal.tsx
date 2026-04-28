@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   },
   bodyPillSelected: {
     borderColor: C.clay,
-    backgroundColor: C.clay,
+    backgroundColor: C.clayBg,
   },
   bodyPillText: {
     fontFamily: FONTS.sansSemiBold,
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     color: C.ink2,
   },
   bodyPillTextSelected: {
-    color: C.surface,
+    color: C.clay,
   },
   otherInputWrap: {
     marginTop: 12,
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: C.border,
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     paddingHorizontal: 12,
     paddingVertical: 11,
     fontFamily: FONTS.sans,
@@ -362,8 +362,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   whenPillSelected: {
-    borderColor: C.ink,
-    backgroundColor: C.ink,
+    borderColor: C.clay,
+    backgroundColor: C.clayBg,
   },
   whenPillText: {
     fontFamily: FONTS.sansSemiBold,
@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
     color: C.ink2,
   },
   whenPillTextSelected: {
-    color: C.surface,
+    color: C.clay,
   },
   bottomBar: {
     borderTopWidth: 1,

@@ -386,7 +386,8 @@ describe('SyncRunDetailScreen', () => {
     render(<SyncRunDetailScreen />);
 
     expect(await screen.findByText('Planned vs actual')).toBeTruthy();
-    expect(screen.getByText('4:00-4:10/km · controlled hard')).toBeTruthy();
+    expect(screen.getByText('4:00-4:10/km')).toBeTruthy();
+    expect(screen.getByText('controlled hard')).toBeTruthy();
     expect(screen.queryByText('4:05/km')).toBeNull();
   });
 
