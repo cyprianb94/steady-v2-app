@@ -219,6 +219,7 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
               maxLength={NIGGLE_OTHER_BODY_PART_MAX_LENGTH}
               returnKeyType="done"
             />
+            {otherInputFocused ? <View testID="niggle-other-keyboard-spacer" style={styles.otherKeyboardSpacer} /> : null}
           </View>
         ) : null}
       </View>
@@ -436,6 +437,9 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.sans,
     fontSize: 14,
     color: C.ink,
+  },
+  otherKeyboardSpacer: {
+    height: 176,
   },
   sideRow: {
     flexDirection: 'row',

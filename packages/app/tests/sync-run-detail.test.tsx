@@ -830,8 +830,10 @@ describe('SyncRunDetailScreen', () => {
     expect(whereText.indexOf('Where exactly?')).toBeLessThan(whereText.indexOf('Which side'));
     fireEvent.focus(otherInput);
     expect(screen.queryByText('Add niggle')).toBeNull();
+    expect(screen.getByTestId('niggle-other-keyboard-spacer')).toBeTruthy();
     fireEvent.blur(otherInput);
     expect(screen.getByText('Add niggle')).toBeTruthy();
+    expect(screen.queryByTestId('niggle-other-keyboard-spacer')).toBeNull();
 
     fireEvent.click(screen.getByText('Left'));
     fireEvent.click(screen.getByText('Mild'));
