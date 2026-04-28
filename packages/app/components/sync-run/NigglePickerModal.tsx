@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import {
   BODY_PART_LABELS,
-  BODY_PARTS,
   NIGGLE_OTHER_BODY_PART_MAX_LENGTH,
   NIGGLE_SEVERITIES,
   NIGGLE_WHEN_OPTIONS,
@@ -23,10 +22,65 @@ const SEVERITY_DESCRIPTIONS: Record<NiggleSeverity, string> = {
   stop: 'had to stop',
 };
 
+const SEVERITY_LABELS: Record<NiggleSeverity, string> = {
+  niggle: 'Niggle',
+  mild: 'Mild',
+  moderate: 'Moderate',
+  stop: 'Stopped',
+};
+
+const BODY_PART_GROUPS: readonly {
+  label: string;
+  parts: readonly BodyPart[];
+}[] = [
+  { label: 'Back\n& hips', parts: ['back', 'hip', 'glute'] },
+  { label: 'Thigh\n& knee', parts: ['hamstring', 'quad', 'knee'] },
+  { label: 'Lower\nleg', parts: ['calf', 'shin', 'achilles'] },
+  { label: 'Foot\n& ankle', parts: ['foot', 'ankle'] },
+  { label: 'Other', parts: ['other'] },
+];
+
+const SIDE_OPTIONS: readonly NiggleSide[] = ['left', 'right', null];
+
 interface NigglePickerModalProps {
   visible: boolean;
   onClose: () => void;
   onAdd: (niggle: EditableNiggle) => void;
+}
+
+function bodyPartDisplayLabel(part: BodyPart): string {
+  return part === 'other' ? 'Something else' : BODY_PART_LABELS[part];
+}
+
+function sideDisplayLabel(option: NiggleSide): string {
+  return option ? option[0].toUpperCase() + option.slice(1) : 'Both / N/A';
+}
+
+function bodyPartSummaryLabel(part: BodyPart, otherText: string): string {
+  const label = part === 'other' ? otherText : BODY_PART_LABELS[part];
+  return label.slice(0, 1).toLowerCase() + label.slice(1);
+}
+
+function buildDraftSummary({
+  bodyPart,
+  bodyPartOtherText,
+  side,
+  severity,
+  when,
+}: {
+  bodyPart: BodyPart | null;
+  bodyPartOtherText: string;
+  side: NiggleSide;
+  severity: NiggleSeverity | null;
+  when: readonly NiggleWhen[];
+}): string | null {
+  if (!bodyPart || !severity || when.length === 0 || (bodyPart === 'other' && !bodyPartOtherText)) {
+    return null;
+  }
+
+  const sidePrefix = side ? `${sideDisplayLabel(side)} ` : '';
+  const severityLabel = severity === 'stop' ? 'stopped' : severity;
+  return `${sidePrefix}${bodyPartSummaryLabel(bodyPart, bodyPartOtherText)} · ${severityLabel} · ${when.join(', ')}`;
 }
 
 export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModalProps) {
@@ -48,6 +102,13 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
   }, [visible]);
 
   const canAdd = Boolean(bodyPart && severity && when.length > 0 && (bodyPart !== 'other' || trimmedOtherText));
+  const draftSummary = buildDraftSummary({
+    bodyPart,
+    bodyPartOtherText: trimmedOtherText,
+    side,
+    severity,
+    when,
+  });
 
   function toggleWhen(option: NiggleWhen) {
     setWhen((current) => {
@@ -69,6 +130,9 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
       rightActionDisabled
       bottomBar={(
         <View style={styles.bottomBar}>
+          <Text style={[styles.summaryLine, !draftSummary && styles.summaryLineEmpty]}>
+            {draftSummary ?? 'Select where, how bad and when'}
+          </Text>
           <Pressable
             onPress={() => {
               if (!bodyPart || !severity || when.length === 0 || (bodyPart === 'other' && !trimmedOtherText)) {
@@ -90,24 +154,50 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
         </View>
       )}
     >
-      <Text style={styles.screenTitle}>Flag a niggle</Text>
+      <Text style={styles.screenTitle}>What showed up?</Text>
       <Text style={styles.screenSub}>
-        Log what showed up, then watch how it changes over your next few sessions.
+        Log enough detail to spot whether this settles or keeps coming back.
       </Text>
 
       <View style={styles.block}>
-        <Text style={styles.blockLabel}>Where</Text>
-        <View style={styles.bodyGrid}>
-          {BODY_PARTS.map((option) => (
-            <Pressable
-              key={option}
-              onPress={() => setBodyPart(option)}
-              style={[styles.bodyPill, bodyPart === option && styles.bodyPillSelected]}
-            >
-              <Text style={[styles.bodyPillText, bodyPart === option && styles.bodyPillTextSelected]}>
-                {BODY_PART_LABELS[option]}
-              </Text>
-            </Pressable>
+        <View style={styles.blockHead}>
+          <Text style={styles.blockLabel}>Where</Text>
+          {bodyPart ? (
+            <Text style={styles.inlineReadout}>{bodyPartDisplayLabel(bodyPart)}</Text>
+          ) : null}
+        </View>
+        <View style={styles.bodyGroups}>
+          {BODY_PART_GROUPS.map((group) => (
+            <View key={group.label} style={styles.bodyGroup}>
+              <Text style={styles.bodyGroupLabel}>{group.label}</Text>
+              <View style={styles.bodyChipRow}>
+                {group.parts.map((option) => {
+                  const selected = bodyPart === option;
+                  return (
+                    <Pressable
+                      key={option}
+                      onPress={() => setBodyPart(option)}
+                      accessibilityLabel={BODY_PART_LABELS[option]}
+                      style={[
+                        styles.bodyChip,
+                        option === 'other' && styles.bodyChipOther,
+                        selected && styles.bodyChipSelected,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.bodyChipText,
+                          option === 'other' && styles.bodyChipOtherText,
+                          selected && styles.bodyChipTextSelected,
+                        ]}
+                      >
+                        {bodyPartDisplayLabel(option)}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
           ))}
         </View>
         {bodyPart === 'other' ? (
@@ -127,9 +217,11 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
       </View>
 
       <View style={styles.block}>
-        <Text style={styles.blockLabel}>Which side</Text>
+        <View style={styles.blockHead}>
+          <Text style={styles.blockLabel}>Which side</Text>
+        </View>
         <View style={styles.sideRow}>
-          {(['left', 'right', null] as NiggleSide[]).map((option) => {
+          {SIDE_OPTIONS.map((option) => {
             const selected = side === option;
             return (
               <Pressable
@@ -138,7 +230,7 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
                 style={[styles.sidePill, selected && styles.sidePillSelected]}
               >
                 <Text style={[styles.sidePillText, selected && styles.sidePillTextSelected]}>
-                  {option ? option[0].toUpperCase() + option.slice(1) : 'Both / N/A'}
+                  {sideDisplayLabel(option)}
                 </Text>
               </Pressable>
             );
@@ -147,8 +239,10 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
       </View>
 
       <View style={styles.block}>
-        <Text style={styles.blockLabel}>How bad</Text>
-        <View style={styles.severityRow}>
+        <View style={styles.blockHead}>
+          <Text style={styles.blockLabel}>How bad</Text>
+        </View>
+        <View style={styles.severityGrid}>
           {NIGGLE_SEVERITIES.map((option) => {
             const selected = severity === option;
             return (
@@ -157,16 +251,30 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
                 onPress={() => setSeverity(option)}
                 style={[
                   styles.severityPill,
-                  selected && option === 'niggle' && styles.severityPillWarn,
+                  selected && option === 'niggle' && styles.severityPillSelected,
                   selected && option === 'mild' && styles.severityPillWarn,
-                  selected && option === 'moderate' && styles.severityPillModerate,
+                  selected && option === 'moderate' && styles.severityPillWarn,
                   selected && option === 'stop' && styles.severityPillStop,
                 ]}
               >
-                <Text style={[styles.severityLevel, selected && option === 'stop' && styles.severityStopText]}>
-                  {option[0].toUpperCase() + option.slice(1)}
+                <Text
+                  style={[
+                    styles.severityLevel,
+                    selected && option === 'mild' && styles.severityWarnText,
+                    selected && option === 'moderate' && styles.severityWarnText,
+                    selected && option === 'stop' && styles.severityStopText,
+                  ]}
+                >
+                  {SEVERITY_LABELS[option]}
                 </Text>
-                <Text style={[styles.severitySub, selected && option === 'stop' && styles.severityStopSub]}>
+                <Text
+                  style={[
+                    styles.severitySub,
+                    selected && option === 'mild' && styles.severityWarnSub,
+                    selected && option === 'moderate' && styles.severityWarnSub,
+                    selected && option === 'stop' && styles.severityStopSub,
+                  ]}
+                >
                   {SEVERITY_DESCRIPTIONS[option]}
                 </Text>
               </Pressable>
@@ -176,7 +284,10 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
       </View>
 
       <View style={styles.block}>
-        <Text style={styles.blockLabel}>When</Text>
+        <View style={styles.blockHead}>
+          <Text style={styles.blockLabel}>When</Text>
+          <Text style={styles.inlineReadout}>Choose all that apply</Text>
+        </View>
         <View style={styles.whenRow}>
           {NIGGLE_WHEN_OPTIONS.map((option) => {
             const selected = when.includes(option);
@@ -185,12 +296,12 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
                 key={option}
                 onPress={() => toggleWhen(option)}
                 style={[styles.whenPill, selected && styles.whenPillSelected]}
-              >
-                <Text style={[styles.whenPillText, selected && styles.whenPillTextSelected]}>
-                  {option[0].toUpperCase() + option.slice(1)}
-                </Text>
-              </Pressable>
-            );
+            >
+              <Text style={[styles.whenPillText, selected && styles.whenPillTextSelected]}>
+                {option[0].toUpperCase() + option.slice(1)}
+              </Text>
+            </Pressable>
+          );
           })}
         </View>
       </View>
@@ -201,60 +312,102 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
 const styles = StyleSheet.create({
   screenTitle: {
     fontFamily: FONTS.serifBold,
-    fontSize: 26,
+    fontSize: 32,
+    lineHeight: 36,
     color: C.ink,
     paddingHorizontal: 4,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   screenSub: {
     fontFamily: FONTS.sans,
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 14,
+    lineHeight: 20,
     color: C.muted,
     paddingHorizontal: 4,
-    marginBottom: 22,
+    marginBottom: 20,
   },
   block: {
     backgroundColor: C.surface,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: C.border,
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 12,
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 14,
+  },
+  blockHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    gap: 12,
+    marginBottom: 13,
   },
   blockLabel: {
     fontFamily: FONTS.sansSemiBold,
     fontSize: 10,
     color: C.muted,
-    letterSpacing: 1.2,
+    letterSpacing: 1.4,
     textTransform: 'uppercase',
-    marginBottom: 12,
   },
-  bodyGrid: {
+  inlineReadout: {
+    fontFamily: FONTS.monoBold,
+    fontSize: 12,
+    color: C.clay,
+    textAlign: 'right',
+  },
+  bodyGroups: {
+    gap: 9,
+  },
+  bodyGroup: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  bodyGroupLabel: {
+    width: 78,
+    paddingTop: 10,
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 9,
+    lineHeight: 12,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: C.muted,
+  },
+  bodyChipRow: {
+    flex: 1,
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
-  bodyPill: {
-    minWidth: '30%',
-    paddingHorizontal: 8,
-    paddingVertical: 10,
-    borderRadius: 10,
+  bodyChip: {
+    minWidth: 78,
+    minHeight: 38,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    borderRadius: 13,
     borderWidth: 1,
     borderColor: C.border,
     backgroundColor: C.card,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  bodyPillSelected: {
+  bodyChipOther: {
+    minWidth: 118,
+    backgroundColor: C.surface,
+  },
+  bodyChipSelected: {
     borderColor: C.clay,
     backgroundColor: C.clayBg,
+    borderLeftWidth: 3,
   },
-  bodyPillText: {
+  bodyChipText: {
     fontFamily: FONTS.sansSemiBold,
-    fontSize: 12,
+    fontSize: 13,
     color: C.ink2,
   },
-  bodyPillTextSelected: {
+  bodyChipOtherText: {
+    color: C.muted,
+  },
+  bodyChipTextSelected: {
     color: C.clay,
   },
   otherInputWrap: {
@@ -269,7 +422,7 @@ const styles = StyleSheet.create({
   otherInput: {
     borderWidth: 1.5,
     borderColor: C.border,
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: C.surface,
     paddingHorizontal: 12,
     paddingVertical: 11,
@@ -283,8 +436,9 @@ const styles = StyleSheet.create({
   },
   sidePill: {
     flex: 1,
+    minHeight: 48,
     padding: 14,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: C.border,
     backgroundColor: C.card,
@@ -302,51 +456,57 @@ const styles = StyleSheet.create({
   sidePillTextSelected: {
     color: C.surface,
   },
-  severityRow: {
+  severityGrid: {
     flexDirection: 'row',
-    gap: 6,
+    flexWrap: 'wrap',
+    gap: 8,
   },
   severityPill: {
-    flex: 1,
-    paddingHorizontal: 4,
-    paddingVertical: 12,
-    borderRadius: 10,
+    width: '48.5%',
+    minHeight: 64,
+    padding: 10,
+    borderRadius: 15,
     borderWidth: 1,
     borderColor: C.border,
     backgroundColor: C.card,
-    alignItems: 'center',
-    gap: 4,
+    justifyContent: 'center',
+    gap: 3,
+  },
+  severityPillSelected: {
+    borderColor: C.ink2,
+    backgroundColor: C.surface,
   },
   severityPillWarn: {
     borderColor: C.amber,
     backgroundColor: C.amberBg,
   },
-  severityPillModerate: {
+  severityPillStop: {
     borderColor: C.clay,
     backgroundColor: C.clayBg,
   },
-  severityPillStop: {
-    borderColor: C.clay,
-    backgroundColor: C.clay,
-  },
   severityLevel: {
     fontFamily: FONTS.sansSemiBold,
-    fontSize: 12,
+    fontSize: 13,
     color: C.ink,
   },
   severitySub: {
-    fontFamily: FONTS.sans,
+    fontFamily: FONTS.sansSemiBold,
     fontSize: 9,
-    letterSpacing: 0.6,
+    letterSpacing: 1.1,
     textTransform: 'uppercase',
     color: C.muted,
-    textAlign: 'center',
+  },
+  severityWarnText: {
+    color: C.amber,
+  },
+  severityWarnSub: {
+    color: C.muted,
   },
   severityStopText: {
-    color: C.surface,
+    color: C.clay,
   },
   severityStopSub: {
-    color: 'rgba(253,240,235,0.75)',
+    color: C.muted,
   },
   whenRow: {
     flexDirection: 'row',
@@ -354,32 +514,44 @@ const styles = StyleSheet.create({
   },
   whenPill: {
     flex: 1,
+    minHeight: 48,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: C.border,
     backgroundColor: C.card,
     alignItems: 'center',
   },
   whenPillSelected: {
-    borderColor: C.clay,
-    backgroundColor: C.clayBg,
+    borderColor: C.ink,
+    backgroundColor: C.ink,
   },
   whenPillText: {
     fontFamily: FONTS.sansSemiBold,
-    fontSize: 13,
+    fontSize: 14,
     color: C.ink2,
   },
   whenPillTextSelected: {
-    color: C.clay,
+    color: C.surface,
   },
   bottomBar: {
     borderTopWidth: 1,
     borderTopColor: C.border,
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 12,
     paddingBottom: 34,
     backgroundColor: C.surface,
+  },
+  summaryLine: {
+    marginBottom: 10,
+    textAlign: 'center',
+    fontFamily: FONTS.monoBold,
+    fontSize: 11,
+    color: C.ink,
+  },
+  summaryLineEmpty: {
+    fontFamily: FONTS.mono,
+    color: C.muted,
   },
   addButton: {
     width: '100%',

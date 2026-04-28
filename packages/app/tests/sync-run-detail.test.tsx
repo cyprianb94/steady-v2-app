@@ -626,11 +626,39 @@ describe('SyncRunDetailScreen', () => {
     fireEvent.click((await screen.findAllByText('Done')).at(-1)!);
 
     fireEvent.click(screen.getByText('Flag a niggle'));
+    expect(await screen.findByText('What showed up?')).toBeTruthy();
+    expect(screen.getByText('Log enough detail to spot whether this settles or keeps coming back.')).toBeTruthy();
+
+    const modalText = document.body.textContent ?? '';
+    const whereText = modalText.slice(modalText.indexOf('Where'));
+    let lastBodyPartIndex = -1;
+    for (const label of [
+      'Back',
+      'Hip',
+      'Glute',
+      'Hamstring',
+      'Quad',
+      'Knee',
+      'Calf',
+      'Shin',
+      'Achilles',
+      'Foot',
+      'Ankle',
+      'Something else',
+    ]) {
+      const index = whereText.indexOf(label);
+      expect(index).toBeGreaterThan(lastBodyPartIndex);
+      lastBodyPartIndex = index;
+    }
+
     fireEvent.click(await screen.findByText('Hamstring'));
     fireEvent.click(screen.getByText('Left'));
     fireEvent.click(screen.getByText('Mild'));
-    fireEvent.click(screen.getByText('Before'));
     fireEvent.click(screen.getByText('During'));
+    fireEvent.click(screen.getByText('Before'));
+
+    expect(screen.getByText('Left hamstring · mild · before, during')).toBeTruthy();
+
     fireEvent.click(screen.getByText('Add niggle'));
 
     fireEvent.click(screen.getByText('Fresh'));
@@ -792,7 +820,8 @@ describe('SyncRunDetailScreen', () => {
     await screen.findByText('Run detail');
 
     fireEvent.click(screen.getByText('Flag a niggle'));
-    fireEvent.click(await screen.findByText('Other'));
+    expect(screen.getByText('Add niggle').parentElement?.getAttribute('disabled')).not.toBeNull();
+    fireEvent.click(await screen.findByText('Something else'));
 
     expect(screen.getByPlaceholderText('e.g. Groin or upper calf')).toBeTruthy();
 
@@ -806,6 +835,7 @@ describe('SyncRunDetailScreen', () => {
     fireEvent.change(screen.getByPlaceholderText('e.g. Groin or upper calf'), {
       target: { value: 'Upper calf' },
     });
+    expect(screen.getByText('Add niggle').parentElement?.getAttribute('disabled')).toBeNull();
     fireEvent.click(screen.getByText('Add niggle'));
 
     fireEvent.click(screen.getByText('Fresh'));
