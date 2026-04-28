@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import {
   BODY_PART_LABELS,
   NIGGLE_OTHER_BODY_PART_MAX_LENGTH,
@@ -166,6 +167,20 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
             <Text style={styles.inlineReadout}>{bodyPartDisplayLabel(bodyPart)}</Text>
           ) : null}
         </View>
+        {bodyPart === 'other' ? (
+          <View style={styles.otherInputWrap}>
+            <Text style={styles.otherInputLabel}>Where exactly?</Text>
+            <BottomSheetTextInput
+              value={bodyPartOtherText}
+              onChangeText={setBodyPartOtherText}
+              placeholder="e.g. Groin or upper calf"
+              placeholderTextColor={C.muted}
+              style={styles.otherInput}
+              maxLength={NIGGLE_OTHER_BODY_PART_MAX_LENGTH}
+              returnKeyType="done"
+            />
+          </View>
+        ) : null}
         <View style={styles.bodyGroups}>
           {BODY_PART_GROUPS.map((group) => (
             <View key={group.label} style={styles.bodyGroup}>
@@ -200,20 +215,6 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
             </View>
           ))}
         </View>
-        {bodyPart === 'other' ? (
-          <View style={styles.otherInputWrap}>
-            <Text style={styles.otherInputLabel}>Where exactly?</Text>
-            <TextInput
-              value={bodyPartOtherText}
-              onChangeText={setBodyPartOtherText}
-              placeholder="e.g. Groin or upper calf"
-              placeholderTextColor={C.muted}
-              style={styles.otherInput}
-              maxLength={NIGGLE_OTHER_BODY_PART_MAX_LENGTH}
-              returnKeyType="done"
-            />
-          </View>
-        ) : null}
       </View>
 
       <View style={styles.block}>
@@ -296,12 +297,12 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
                 key={option}
                 onPress={() => toggleWhen(option)}
                 style={[styles.whenPill, selected && styles.whenPillSelected]}
-            >
-              <Text style={[styles.whenPillText, selected && styles.whenPillTextSelected]}>
-                {option[0].toUpperCase() + option.slice(1)}
-              </Text>
-            </Pressable>
-          );
+              >
+                <Text style={[styles.whenPillText, selected && styles.whenPillTextSelected]}>
+                  {option[0].toUpperCase() + option.slice(1)}
+                </Text>
+              </Pressable>
+            );
           })}
         </View>
       </View>
@@ -411,7 +412,7 @@ const styles = StyleSheet.create({
     color: C.clay,
   },
   otherInputWrap: {
-    marginTop: 12,
+    marginBottom: 14,
     gap: 8,
   },
   otherInputLabel: {
