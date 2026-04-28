@@ -95,6 +95,13 @@ vi.mock('expo-auth-session/build/QueryParams', () => ({
 }));
 
 import SettingsTab from '../app/(tabs)/settings';
+import OnboardingLayout from '../app/onboarding/_layout';
+import OnboardingReplayScreen from '../app/onboarding/replay';
+import {
+  disableOnboardingReplay,
+  enableOnboardingReplay,
+  isOnboardingReplayActive,
+} from '../features/onboarding/onboarding-replay';
 
 const originalStravaCallbackDomain = process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN;
 const originalApiUrl = process.env.EXPO_PUBLIC_API_URL;
@@ -113,6 +120,7 @@ describe('SettingsTab', () => {
       process.env.EXPO_PUBLIC_API_URL = originalApiUrl;
     }
     vi.mocked(Linking.createURL).mockImplementation(() => 'steady://strava-callback');
+    disableOnboardingReplay();
 
     mockAuth.session = null;
     mockAuth.isLoading = false;
@@ -136,6 +144,40 @@ describe('SettingsTab', () => {
     mockPreferences.updatingWeeklyVolumeMetric = false;
     mockPreferences.setUnits.mockResolvedValue(undefined);
     mockPreferences.setWeeklyVolumeMetric.mockResolvedValue(undefined);
+  });
+
+  it('starts the debug onboarding replay from Settings', () => {
+    render(<SettingsTab />);
+
+    fireEvent.click(screen.getByTestId('settings-replay-onboarding'));
+
+    expect(isOnboardingReplayActive()).toBe(true);
+    expect(router.push).toHaveBeenCalledWith('/onboarding/replay');
+  });
+
+  it('shows a close control across onboarding replay screens', () => {
+    enableOnboardingReplay();
+
+    render(<OnboardingLayout />);
+
+    fireEvent.click(screen.getByTestId('onboarding-replay-close'));
+
+    expect(isOnboardingReplayActive()).toBe(false);
+    expect(router.replace).toHaveBeenCalledWith('/(tabs)/settings');
+  });
+
+  it('replays the welcome and account screens without reauthenticating signed-in testers', () => {
+    mockAuth.session = { user: { email: 'runner@example.com' } };
+
+    render(<OnboardingReplayScreen />);
+
+    fireEvent.click(screen.getByText('Get started'));
+    expect(screen.getByText('Create your account.')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Continue with Google'));
+
+    expect(mockAuth.signInWithGoogle).not.toHaveBeenCalled();
+    expect(router.push).toHaveBeenCalledWith('/onboarding/plan-builder/step-goal');
   });
 
   it('shows the TestFlight settings hierarchy without future or internal surfaces', () => {

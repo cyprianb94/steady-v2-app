@@ -21,6 +21,10 @@ import { trpc } from '../../lib/trpc';
 import { usePreferences, type Units } from '../../providers/preferences-context';
 import { trainingPaceProfileSummary } from '../../components/pace-profile/TrainingPaceProfileEditor';
 import { connectStravaAndRefresh } from '../../features/strava/strava-connection';
+import {
+  enableOnboardingReplay,
+  isOnboardingReplayEntryVisible,
+} from '../../features/onboarding/onboarding-replay';
 
 const SETTINGS_TOP_SPACING = 18;
 const SETTINGS_BOTTOM_SPACING = 24;
@@ -289,6 +293,7 @@ export default function SettingsTab() {
   const busy = isLoading || isSubmitting || stravaSyncing;
   const preferenceBusy = busy || preferencesLoading || updatingUnits || updatingWeeklyVolumeMetric;
   const stravaConnected = Boolean(session && stravaStatus?.connected);
+  const showOnboardingReplay = isOnboardingReplayEntryVisible();
 
   async function handleGoogleSignIn() {
     try {
@@ -414,6 +419,11 @@ export default function SettingsTab() {
         },
       },
     ]);
+  }
+
+  function openOnboardingReplay() {
+    enableOnboardingReplay();
+    router.push('/onboarding/replay');
   }
 
   async function handleSendFeedback() {
@@ -554,12 +564,22 @@ export default function SettingsTab() {
             />
           )}
 
+          {showOnboardingReplay ? (
+            <SettingsRow
+              testID="settings-replay-onboarding"
+              title="Replay onboarding"
+              subtitle="Debug only"
+              onPress={openOnboardingReplay}
+              disabled={busy}
+            />
+          ) : null}
+
           <SettingsRow
             title="Send feedback"
             onPress={() => {
               void handleSendFeedback();
             }}
-            showBorder={Boolean(session)}
+            showBorder={Boolean(session) || showOnboardingReplay}
           />
         </View>
       </View>
