@@ -9,20 +9,43 @@ interface PhaseEditorProps {
   phases: PhaseConfig;
   totalWeeks: number;
   onChange: (phases: PhaseConfig) => void;
+  onDone?: () => void;
 }
 
 const PHASE_ORDER: PhaseName[] = ['BASE', 'BUILD', 'RECOVERY', 'PEAK', 'TAPER'];
 
-export function PhaseEditor({ phases, totalWeeks, onChange }: PhaseEditorProps) {
+const PHASE_LABEL: Record<PhaseName, string> = {
+  BASE: 'Base',
+  BUILD: 'Build',
+  RECOVERY: 'Recovery',
+  PEAK: 'Peak',
+  TAPER: 'Taper',
+};
+
+const PHASE_DESC: Record<PhaseName, string> = {
+  BASE: 'Settle routine and aerobic rhythm.',
+  BUILD: 'Main progression. Auto-adjusts.',
+  RECOVERY: 'Optional deload weeks inside build.',
+  PEAK: 'Final high-load block before taper.',
+  TAPER: 'Reduce volume into race week.',
+};
+
+function phaseMinimum(phase: PhaseName): number {
+  return phase === 'RECOVERY' ? 0 : 1;
+}
+
+export function PhaseEditor({ phases, totalWeeks, onChange, onDone }: PhaseEditorProps) {
+  const assignedWeeks = PHASE_ORDER.reduce((sum, phase) => sum + phases[phase], 0);
+  const isBalanced = assignedWeeks === totalWeeks;
+
   const adjust = (phase: PhaseName, delta: number) => {
-    if (phase === 'BUILD') return; // BUILD absorbs changes from other phases
+    if (phase === 'BUILD') return;
 
     const current = phases[phase];
-    const next = Math.max(phase === 'RECOVERY' ? 0 : 1, current + delta);
+    const next = Math.max(phaseMinimum(phase), current + delta);
     const diff = next - current;
     if (diff === 0) return;
 
-    // Take from / give to BUILD to keep total constant
     const buildNext = phases.BUILD - diff;
     if (buildNext < 1) return;
 
@@ -30,46 +53,92 @@ export function PhaseEditor({ phases, totalWeeks, onChange }: PhaseEditorProps) 
   };
 
   return (
-    <View style={styles.container}>
-      {/* Phase bar visualization */}
+    <View style={styles.container} testID="phase-editor">
+      <View style={styles.header}>
+        <View style={styles.headerCopy}>
+          <Text style={styles.title}>Phase structure</Text>
+          <Text style={styles.subtitle}>
+            Base, recovery, peak, and taper move. Build absorbs the difference.
+          </Text>
+        </View>
+        {onDone ? (
+          <Pressable onPress={onDone} testID="phase-editor-done">
+            <Text style={styles.done}>Done</Text>
+          </Pressable>
+        ) : null}
+      </View>
+
       <View style={styles.bar}>
         {PHASE_ORDER.map((phase) => {
-          const w = phases[phase];
-          if (w === 0) return null;
+          const weekCount = phases[phase];
+          if (weekCount <= 0) return null;
+          const showLabel = weekCount / Math.max(totalWeeks, 1) >= 0.12;
+
           return (
             <View
               key={phase}
-              style={[styles.barSegment, { flex: w, backgroundColor: PHASE_COLOR[phase] }]}
-            />
+              style={[styles.barSegment, { flex: weekCount, backgroundColor: PHASE_COLOR[phase] }]}
+            >
+              {showLabel ? (
+                <Text style={styles.barLabel} numberOfLines={1}>{PHASE_LABEL[phase]}</Text>
+              ) : null}
+            </View>
           );
         })}
       </View>
 
-      {/* Phase controls */}
-      {PHASE_ORDER.map((phase) => {
-        const isBuild = phase === 'BUILD';
-        return (
-          <View key={phase} style={styles.row}>
-            <View style={[styles.dot, { backgroundColor: PHASE_COLOR[phase] }]} />
-            <Text style={styles.phaseName}>{phase}</Text>
-            <View style={[styles.stepper, isBuild && { opacity: 0.4 }]}>
-              <Pressable onPress={() => adjust(phase, -1)} style={styles.stepBtn} disabled={isBuild}>
-                <Text style={styles.stepBtnText}>−</Text>
-              </Pressable>
-              <Text style={styles.weekCount}>{phases[phase]}</Text>
-              <Pressable onPress={() => adjust(phase, 1)} style={styles.stepBtn} disabled={isBuild}>
-                <Text style={styles.stepBtnText}>+</Text>
-              </Pressable>
-            </View>
-            <Text style={styles.weekLabel}>
-              {phases[phase] === 1 ? 'week' : 'weeks'}
-            </Text>
-          </View>
-        );
-      })}
+      <View style={styles.rows}>
+        {PHASE_ORDER.map((phase, index) => {
+          const isBuild = phase === 'BUILD';
+          const weekCount = phases[phase];
+          const canDecrement = !isBuild && weekCount > phaseMinimum(phase);
+          const canIncrement = !isBuild && phases.BUILD > 1;
 
-      <Text style={styles.total}>
-        Total: {Object.values(phases).reduce((a, b) => a + b, 0)} / {totalWeeks} weeks
+          return (
+            <View key={phase} style={[styles.row, index === 0 && styles.firstRow]}>
+              <View style={styles.rowCopy}>
+                <View style={styles.phaseNameLine}>
+                  <View style={[styles.dot, { backgroundColor: PHASE_COLOR[phase] }]} />
+                  <Text style={styles.phaseName}>{PHASE_LABEL[phase]}</Text>
+                </View>
+                <Text style={styles.phaseDesc}>{PHASE_DESC[phase]}</Text>
+              </View>
+
+              {isBuild ? (
+                <View style={styles.auto} testID="phase-editor-build-auto">
+                  <Text style={styles.autoCount} testID="phase-editor-build-count">{weekCount}w</Text>
+                  <Text style={styles.autoLabel}>auto-adjusts</Text>
+                </View>
+              ) : (
+                <View style={styles.stepper}>
+                  <Pressable
+                    onPress={() => adjust(phase, -1)}
+                    disabled={!canDecrement}
+                    style={[styles.stepButton, !canDecrement && styles.stepButtonDisabled]}
+                    testID={`phase-editor-${phase.toLowerCase()}-decrement`}
+                  >
+                    <Text style={[styles.stepText, !canDecrement && styles.stepTextDisabled]}>−</Text>
+                  </Pressable>
+                  <Text style={styles.stepCount} testID={`phase-editor-${phase.toLowerCase()}-count`}>
+                    {weekCount}w
+                  </Text>
+                  <Pressable
+                    onPress={() => adjust(phase, 1)}
+                    disabled={!canIncrement}
+                    style={[styles.stepButton, !canIncrement && styles.stepButtonDisabled]}
+                    testID={`phase-editor-${phase.toLowerCase()}-increment`}
+                  >
+                    <Text style={[styles.stepText, !canIncrement && styles.stepTextDisabled]}>+</Text>
+                  </Pressable>
+                </View>
+              )}
+            </View>
+          );
+        })}
+      </View>
+
+      <Text style={[styles.total, !isBalanced && styles.totalUnbalanced]}>
+        {assignedWeeks} / {totalWeeks} weeks {isBalanced ? '✓' : ''}
       </Text>
     </View>
   );
@@ -77,21 +146,81 @@ export function PhaseEditor({ phases, totalWeeks, onChange }: PhaseEditorProps) 
 
 const styles = StyleSheet.create({
   container: {
-    gap: 10,
+    padding: 14,
+    backgroundColor: C.surface,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    borderRadius: 16,
+  },
+  header: {
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  headerCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  title: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 15,
+    color: C.ink,
+  },
+  subtitle: {
+    fontFamily: FONTS.sans,
+    fontSize: 11,
+    color: C.muted,
+    lineHeight: 15,
+    marginTop: 3,
+  },
+  done: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 11,
+    color: C.clay,
   },
   bar: {
+    height: 29,
     flexDirection: 'row',
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
     gap: 2,
-    marginBottom: 4,
+    overflow: 'hidden',
+    borderRadius: 8,
+    marginBottom: 14,
   },
   barSegment: {
-    height: 6,
-    borderRadius: 3,
+    minWidth: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  barLabel: {
+    paddingHorizontal: 3,
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 8,
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    color: C.surface,
+  },
+  rows: {
+    borderTopWidth: 0,
   },
   row: {
+    minHeight: 48,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: C.border,
+  },
+  firstRow: {
+    borderTopWidth: 0,
+  },
+  rowCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  phaseNameLine: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -102,46 +231,79 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   phaseName: {
-    fontFamily: FONTS.sansMedium,
+    fontFamily: FONTS.sansSemiBold,
     fontSize: 12,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
     color: C.ink,
-    width: 72,
+  },
+  phaseDesc: {
+    marginTop: 2,
+    fontFamily: FONTS.sans,
+    fontSize: 10,
+    color: C.muted,
   },
   stepper: {
+    height: 31,
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: C.cream,
-    borderRadius: 8,
+    overflow: 'hidden',
     borderWidth: 1.5,
     borderColor: C.border,
-    overflow: 'hidden',
+    borderRadius: 9,
+    backgroundColor: C.cream,
   },
-  stepBtn: {
-    width: 28,
-    height: 28,
+  stepButton: {
+    width: 29,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepBtnText: {
-    fontSize: 16,
+  stepButtonDisabled: {
+    opacity: 0.42,
+  },
+  stepText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 15,
     color: C.ink,
   },
-  weekCount: {
-    fontFamily: FONTS.monoBold,
-    fontSize: 13,
-    color: C.ink,
-    minWidth: 20,
-    textAlign: 'center',
-  },
-  weekLabel: {
-    fontFamily: FONTS.sans,
-    fontSize: 11,
+  stepTextDisabled: {
     color: C.muted,
+  },
+  stepCount: {
+    width: 38,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: C.border,
+    textAlign: 'center',
+    fontFamily: FONTS.monoBold,
+    fontSize: 12,
+    lineHeight: 31,
+    color: C.ink,
+  },
+  auto: {
+    minWidth: 96,
+    alignItems: 'flex-end',
+  },
+  autoCount: {
+    fontFamily: FONTS.monoBold,
+    fontSize: 12,
+    color: C.ink,
+  },
+  autoLabel: {
+    fontFamily: FONTS.sans,
+    fontSize: 10,
+    color: C.muted,
+    marginTop: 2,
   },
   total: {
-    fontFamily: FONTS.mono,
+    marginTop: 9,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: C.border,
+    fontFamily: FONTS.monoBold,
     fontSize: 11,
-    color: C.muted,
-    marginTop: 4,
+    color: C.forest,
+  },
+  totalUnbalanced: {
+    color: C.clay,
   },
 });

@@ -369,7 +369,7 @@
         border-bottom: 1px solid var(--border);
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 8px 12px;
+        gap: 7px 12px;
       }
 
       .compact-pace {
@@ -420,6 +420,7 @@
         flex-shrink: 0;
       }
 
+      .dot.recovery { background: var(--slate); }
       .dot.easy { background: var(--forest); }
       .dot.steady { background: var(--navy); }
       .dot.threshold { background: var(--amber); }
@@ -585,7 +586,7 @@
       }
 
       .editor-row {
-        padding: 12px 13px;
+        padding: 11px 13px;
       }
 
       .editor-row + .editor-row {
@@ -685,8 +686,7 @@
         padding-bottom: 78px;
       }
 
-      .settings-title,
-      .block-title {
+      .settings-title {
         font-family: "Playfair Display", serif;
         font-size: 28px;
         font-weight: 700;
@@ -808,6 +808,81 @@
         line-height: 1;
       }
 
+      .row-action {
+        color: var(--clay);
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .top-link {
+        margin: -2px 0 16px;
+        color: var(--clay);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .pace-screen-title {
+        margin: 0;
+        font-family: "Playfair Display", serif;
+        font-size: 30px;
+        font-weight: 700;
+        line-height: 1.06;
+      }
+
+      .screen-copy {
+        margin: 8px 0 18px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.46;
+      }
+
+      .full-pace-card {
+        margin-bottom: 12px;
+        border: 1.5px solid rgba(27, 58, 107, 0.18);
+        border-radius: 12px;
+        background: var(--navy-bg);
+        padding: 13px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+      }
+
+      .full-pace-label {
+        color: var(--navy);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+      }
+
+      .full-pace-copy {
+        margin-top: 4px;
+        color: rgba(27, 58, 107, 0.78);
+        font-size: 11.5px;
+        line-height: 1.35;
+      }
+
+      .full-pace-value {
+        color: var(--navy);
+        font-family: "Space Mono", monospace;
+        font-size: 22px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .screen-info {
+        margin-top: 12px;
+        border: 1.5px solid rgba(42, 92, 69, 0.18);
+        border-radius: 12px;
+        background: var(--forest-bg);
+        padding: 12px 13px;
+        color: var(--forest);
+        font-size: 12px;
+        line-height: 1.42;
+      }
+
       .sync-head {
         padding: 14px;
       }
@@ -918,162 +993,6 @@
       .settings-icon i:nth-child(1)::after { left: 7px; }
       .settings-icon i:nth-child(2)::after { left: 2px; }
 
-      .block-header {
-        padding: 0 0 16px;
-        border-bottom: 1px solid var(--border);
-      }
-
-      .label {
-        color: var(--muted);
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 1.5px;
-        text-transform: uppercase;
-      }
-
-      .race-title {
-        margin-top: 8px;
-        font-family: "Playfair Display", serif;
-        font-size: 23px;
-        font-weight: 700;
-        line-height: 1.1;
-      }
-
-      .block-meta {
-        margin-top: 10px;
-        display: flex;
-        gap: 11px;
-        font-family: "Space Mono", monospace;
-        font-size: 11px;
-        font-weight: 700;
-      }
-
-      .block-meta span:nth-child(1) { color: var(--clay); }
-      .block-meta span:nth-child(2) { color: var(--muted); }
-      .block-meta span:nth-child(3) { color: var(--navy); }
-
-      .pace-shortcut {
-        margin-top: 14px;
-        min-height: 48px;
-        border: 1.5px solid rgba(27, 58, 107, 0.15);
-        border-radius: 12px;
-        background: var(--surface);
-        padding: 10px 12px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-      }
-
-      .shortcut-values {
-        margin-top: 3px;
-        color: var(--ink2);
-        font-family: "Space Mono", monospace;
-        font-size: 10.5px;
-      }
-
-      .phase-copy {
-        margin: 8px 0 14px;
-        color: var(--muted);
-        font-size: 11px;
-      }
-
-      .week-list {
-        display: grid;
-        gap: 8px;
-      }
-
-      .week-card {
-        border: 1.5px solid var(--border);
-        border-radius: 12px;
-        background: var(--surface);
-        padding: 11px 12px;
-      }
-
-      .week-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-      }
-
-      .week-left {
-        min-width: 0;
-      }
-
-      .week-title {
-        color: var(--ink);
-        font-size: 13px;
-        font-weight: 700;
-      }
-
-      .week-date {
-        margin-top: 2px;
-        color: var(--muted);
-        font-size: 10.5px;
-      }
-
-      .dot-grid {
-        display: flex;
-        gap: 5px;
-      }
-
-      .dot-grid span {
-        width: 8px;
-        height: 8px;
-        border-radius: 999px;
-        background: var(--border);
-      }
-
-      .dot-grid .easy { background: var(--forest); }
-      .dot-grid .interval { background: var(--clay); }
-      .dot-grid .tempo { background: var(--amber); }
-      .dot-grid .long { background: var(--navy); }
-
-      .week-km {
-        color: var(--ink2);
-        font-family: "Space Mono", monospace;
-        font-size: 11px;
-        white-space: nowrap;
-      }
-
-      .week-detail {
-        margin-top: 10px;
-        border-top: 1px solid var(--border);
-        padding-top: 9px;
-        display: grid;
-        gap: 7px;
-      }
-
-      .session-mini {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        font-size: 11.5px;
-      }
-
-      .session-mini strong {
-        font-size: 12px;
-        color: var(--ink);
-      }
-
-      .session-mini span:last-child {
-        color: var(--muted);
-        font-family: "Space Mono", monospace;
-        white-space: nowrap;
-      }
-
-      .muted-card {
-        margin-top: 14px;
-        border-radius: 12px;
-        border: 1.5px solid rgba(42, 92, 69, 0.18);
-        background: var(--forest-bg);
-        padding: 12px 13px;
-        color: var(--forest);
-        font-size: 12px;
-        line-height: 1.42;
-      }
     </style>
   </head>
   <body>
@@ -1083,8 +1002,8 @@
           <h1>Pace profile placement</h1>
         </div>
         <p>
-          A shared pace profile component introduced during target selection, reused in Settings,
-          and available as a lightweight Block shortcut after the plan is live.
+          A shared pace profile component introduced during target selection, reused as a full Settings
+          screen after the plan is live.
         </p>
       </div>
 
@@ -1105,7 +1024,7 @@
               <div class="step">Step 3 of 6</div>
               <h2>What are you<br />aiming for?</h2>
               <p class="subtitle">
-                Marathon. Pick the target you want the plan to hold in view.
+                Pick the race target you&rsquo;ll be working towards.
               </p>
 
               <span class="section-label">Target time</span>
@@ -1132,6 +1051,10 @@
                 </div>
 
                 <div class="compact-paces">
+                  <div class="compact-pace">
+                    <div class="compact-pace-label"><span class="dot recovery"></span>Recovery</div>
+                    <div class="compact-pace-value">6:05-6:45/km</div>
+                  </div>
                   <div class="compact-pace">
                     <div class="compact-pace-label"><span class="dot easy"></span>Easy</div>
                     <div class="compact-pace-value">5:25-6:05/km</div>
@@ -1178,7 +1101,7 @@
             <div class="screen dim-content">
               <div class="step">Step 3 of 6</div>
               <h2>What are you<br />aiming for?</h2>
-              <p class="subtitle">Marathon. Pick the target you want the plan to hold in view.</p>
+              <p class="subtitle">Pick the race target you&rsquo;ll be working towards.</p>
               <span class="section-label">Target time</span>
               <div class="chip-grid">
                 <div class="chip">sub-2:45</div>
@@ -1223,6 +1146,22 @@
                 </div>
 
                 <div class="editor-list">
+                  <div class="editor-row">
+                    <div class="editor-row-head">
+                      <div>
+                        <div class="editor-row-title">
+                          <span class="dot recovery"></span>
+                          <span>Recovery range</span>
+                        </div>
+                        <div class="editor-meta">Very easy running and warm-ups.</div>
+                      </div>
+                      <div>
+                        <div class="row-value">6:05-6:45/km</div>
+                        <div class="pace-source">Estimated</div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div class="editor-row">
                     <div class="editor-row-head">
                       <div>
@@ -1339,12 +1278,12 @@
                   </div>
 
                   <div class="settings-row">
-                    <div class="settings-row-main">
-                      <div class="settings-row-title">Training paces</div>
-                      <div class="settings-row-meta">MP 4:37/km &middot; T 4:15-4:25/km &middot; I 3:55-4:05/km</div>
+                      <div class="settings-row-main">
+                        <div class="settings-row-title">Training paces</div>
+                        <div class="settings-row-meta">5 training ranges &middot; MP 4:37/km</div>
+                      </div>
+                      <span class="chevron">&rsaquo;</span>
                     </div>
-                    <span class="chevron">&rsaquo;</span>
-                  </div>
 
                   <div class="settings-row">
                     <div class="settings-row-main">
@@ -1413,7 +1352,7 @@
         </article>
 
         <article class="frame">
-          <div class="frame-label">04 - Block shortcut</div>
+          <div class="frame-label">04 - Settings pace screen</div>
           <div class="phone">
             <div class="status">
               <span>09:42</span>
@@ -1424,107 +1363,120 @@
               </div>
             </div>
 
-            <div class="screen scroll settings-screen">
-              <div class="block-header">
-                <div class="label">Goal race</div>
-                <div class="race-title">London Marathon</div>
-                <div class="block-meta">
-                  <span>Apr 26</span>
-                  <span>11 weeks out</span>
-                  <span>sub-3:15</span>
+            <div class="screen scroll">
+              <div class="top-link">&lsaquo; Settings</div>
+              <h2 class="pace-screen-title">Training paces</h2>
+              <p class="screen-copy">
+                These are estimates only. Change them if recent training gives you a better number.
+                Saving updates future sessions that still use profile paces.
+              </p>
+
+              <div class="full-pace-card">
+                <div>
+                  <div class="full-pace-label">MP</div>
+                  <div class="full-pace-copy">Set by your sub-3:15 marathon target.</div>
+                </div>
+                <div class="full-pace-value">4:37/km</div>
+              </div>
+
+              <div class="editor-list">
+                <div class="editor-row">
+                  <div class="editor-row-head">
+                    <div>
+                      <div class="editor-row-title">
+                        <span class="dot recovery"></span>
+                        <span>Recovery range</span>
+                      </div>
+                      <div class="editor-meta">Very easy running and warm-ups.</div>
+                    </div>
+                    <div>
+                      <div class="row-value">6:05-6:45/km</div>
+                      <div class="pace-source">Estimated</div>
+                    </div>
+                  </div>
                 </div>
 
-                <div class="pace-shortcut">
-                  <div>
-                    <div class="label">Plan paces</div>
-                    <div class="shortcut-values">MP 4:37/km &middot; T 4:15-4:25/km &middot; I 3:55-4:05/km</div>
+                <div class="editor-row">
+                  <div class="editor-row-head">
+                    <div>
+                      <div class="editor-row-title">
+                        <span class="dot easy"></span>
+                        <span>Easy range</span>
+                      </div>
+                      <div class="editor-meta">Conversational running.</div>
+                    </div>
+                    <div>
+                      <div class="row-value">5:25-6:05/km</div>
+                      <div class="pace-source">Estimated</div>
+                    </div>
                   </div>
-                  <span class="chevron">&rsaquo;</span>
+                </div>
+
+                <div class="editor-row">
+                  <div class="editor-row-head">
+                    <div>
+                      <div class="editor-row-title">
+                        <span class="dot steady"></span>
+                        <span>Steady range</span>
+                      </div>
+                      <div class="editor-meta">Aerobic but purposeful.</div>
+                    </div>
+                    <div>
+                      <div class="row-value">5:00-5:20/km</div>
+                      <div class="pace-source">Estimated</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="editor-row expanded">
+                  <div class="editor-row-head">
+                    <div>
+                      <div class="editor-row-title">
+                        <span class="dot threshold"></span>
+                        <span>Threshold</span>
+                      </div>
+                      <div class="editor-meta">Tempo and cruise interval work.</div>
+                    </div>
+                    <div>
+                      <div class="row-value">4:15-4:25/km</div>
+                      <div class="pace-source edited">Edited</div>
+                    </div>
+                  </div>
+
+                  <div class="chip-strip">
+                    <span class="pace-chip">4:10-4:20</span>
+                    <span class="pace-chip selected">4:15-4:25</span>
+                    <span class="pace-chip">4:20-4:30</span>
+                    <span class="pace-chip">Custom...</span>
+                  </div>
+                  <div class="note">Threshold usually sits faster than MP and slower than interval pace.</div>
+                </div>
+
+                <div class="editor-row">
+                  <div class="editor-row-head">
+                    <div>
+                      <div class="editor-row-title">
+                        <span class="dot interval"></span>
+                        <span>Interval</span>
+                      </div>
+                      <div class="editor-meta">Harder reps around 3K-5K effort.</div>
+                    </div>
+                    <div>
+                      <div class="row-value">3:55-4:05/km</div>
+                      <div class="pace-source">Estimated</div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <span class="section-label">Current block</span>
-              <div class="phase-strip" aria-hidden="true">
-                <span></span><span></span><span></span><span></span>
-              </div>
-              <p class="phase-copy">Build phase. Week 5 of 8. Peak volume approaching.</p>
-
-              <div class="week-list">
-                <div class="week-card">
-                  <div class="week-row">
-                    <div class="week-left">
-                      <div class="week-title">W5</div>
-                      <div class="week-date">Feb 9-15</div>
-                    </div>
-                    <div class="dot-grid">
-                      <span class="easy"></span><span class="interval"></span><span class="easy"></span><span class="tempo"></span><span></span><span class="easy"></span><span class="long"></span>
-                    </div>
-                    <div class="week-km">68km</div>
-                  </div>
-                  <div class="week-detail">
-                    <div class="session-mini">
-                      <strong>Tue intervals</strong>
-                      <span>6x800m @ I</span>
-                    </div>
-                    <div class="session-mini">
-                      <strong>Thu tempo</strong>
-                      <span>8km @ T</span>
-                    </div>
-                    <div class="session-mini">
-                      <strong>Sun long</strong>
-                      <span>24km incl. 8km @ MP</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="week-card">
-                  <div class="week-row">
-                    <div class="week-left">
-                      <div class="week-title">W6</div>
-                      <div class="week-date">Feb 16-22</div>
-                    </div>
-                    <div class="dot-grid">
-                      <span class="easy"></span><span class="interval"></span><span class="easy"></span><span class="tempo"></span><span></span><span class="easy"></span><span class="long"></span>
-                    </div>
-                    <div class="week-km">72km</div>
-                  </div>
-                </div>
-
-                <div class="week-card">
-                  <div class="week-row">
-                    <div class="week-left">
-                      <div class="week-title">W7</div>
-                      <div class="week-date">Feb 23-Mar 1</div>
-                    </div>
-                    <div class="dot-grid">
-                      <span class="easy"></span><span class="interval"></span><span class="easy"></span><span class="tempo"></span><span></span><span class="easy"></span><span class="long"></span>
-                    </div>
-                    <div class="week-km">76km</div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="muted-card">
-                Session rows can use runner language after the pace profile exists: MP, T, I, easy and steady.
-              </div>
             </div>
 
-            <nav class="tabbar" aria-label="Tabs">
-              <div class="tab">
-                <span class="tab-icon home-icon"></span>
-                <span>Home</span>
-              </div>
-              <div class="tab active">
-                <span class="tab-icon block-icon"><i></i><i></i><i></i></span>
-                <span>Block</span>
-              </div>
-              <div class="tab">
-                <span class="tab-icon settings-icon"><i></i><i></i></span>
-                <span>Settings</span>
-              </div>
-            </nav>
+            <div class="footer">
+              <div class="button">Save paces</div>
+            </div>
           </div>
         </article>
+
       </section>
     </main>
   </body>

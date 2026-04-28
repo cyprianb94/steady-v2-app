@@ -7,34 +7,61 @@ import {
   Text,
   TextInput,
   View,
+  type GestureResponderEvent,
   type LayoutChangeEvent,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 import {
+  addDaysIso,
   BLOCK_REVIEW_PHASE_ORDER,
   type BlockReviewModel,
-  type BlockReviewPhaseModel,
   type BlockReviewTab,
   type BlockReviewWeekModel,
   type PhaseName,
-  type SessionType,
 } from '@steady/types';
 import { C } from '../../constants/colours';
 import { PHASE_COLOR } from '../../constants/phase-meta';
-import { SESSION_TYPE } from '../../constants/session-types';
 import { FONTS } from '../../constants/typography';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
-import { AnimatedProgressFill } from '../ui/AnimatedProgressFill';
-import { SessionDot } from '../ui/SessionDot';
+import { triggerSelectionChangeHaptic } from '../../lib/haptics';
+import { BlockWeekList } from '../block/BlockWeekList';
 
 const TAB_ITEMS: { key: BlockReviewTab; label: string }[] = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'phases', label: 'Phases' },
+  { key: 'structure', label: 'Structure' },
   { key: 'weeks', label: 'Weeks' },
 ];
 
-const CHART_HEIGHT = 122;
+const CHART_HEIGHT = 150;
+const CHART_WIDTH_FALLBACK = 300;
+const CHART_Y_AXIS_WIDTH = 24;
+const CHART_TOP = 22;
+const CHART_BOTTOM = 122;
+const CHART_LINE_WIDTH = 2.8;
+const CHART_CURVE_SMOOTHING = 0.18;
+const CHART_PHASE_MARKER_SIZE = 8;
+const CHART_SELECTED_MARKER_SIZE = 12;
+const CHART_X_AXIS_LABEL_WIDTH = 40;
+const CHART_TOOLTIP_WIDTH = 132;
+const CHART_SCRUB_TOP = CHART_TOP - 16;
+const CHART_SCRUB_BOTTOM = CHART_BOTTOM + 30;
+const TAB_PRESS_EXPANSION = typeof document !== 'undefined'
+  ? {}
+  : {
+      hitSlop: { top: 10, right: 10, bottom: 10, left: 10 },
+      pressRetentionOffset: { top: 12, right: 12, bottom: 12, left: 12 },
+    };
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+
+const COMPACT_PHASE_LABEL: Record<PhaseName, string> = {
+  BASE: 'B',
+  BUILD: 'BLD',
+  RECOVERY: 'REC',
+  PEAK: 'PK',
+  TAPER: 'TP',
+};
 
 type FormatDistance = (km: number) => string;
 
@@ -57,7 +84,18 @@ export interface BlockReviewSurfaceProps {
   activeTab: BlockReviewTab;
   onTabChange: (tab: BlockReviewTab) => void;
   overload?: BlockReviewOverloadControl | null;
+  expandedWeekIndex?: number | null;
+  raceDate?: string;
+  onScrubActiveChange?: (active: boolean) => void;
   onWeekPress?: (week: BlockReviewWeekModel) => void;
+  onDayPress?: (week: BlockReviewWeekModel, dayIndex: number) => void;
+  onMoveSession?: (
+    week: BlockReviewWeekModel,
+    fromDayIndex: number,
+    toDayIndex: number,
+  ) => void;
+  onWeekDragActiveChange?: (active: boolean) => void;
+  rescheduleResetKey?: number;
   onEditStructure?: () => void;
   formatDistance?: FormatDistance;
   style?: StyleProp<ViewStyle>;
@@ -98,32 +136,286 @@ function phaseLabel(phase: PhaseName): string {
   return `${phase.slice(0, 1)}${phase.slice(1).toLowerCase()}`;
 }
 
-function phaseBackground(phase: PhaseName): string {
-  switch (phase) {
-    case 'BASE':
-      return C.navyBg;
-    case 'BUILD':
-      return C.clayBg;
-    case 'RECOVERY':
-      return `${PHASE_COLOR.RECOVERY}16`;
-    case 'PEAK':
-      return C.amberBg;
-    case 'TAPER':
-      return C.forestBg;
-    default:
-      return C.card;
+function phaseStripLabel(phase: PhaseName, weekCount: number, totalWeeks: number): string {
+  const charsPerWeek = totalWeeks >= 20 ? 2.2 : totalWeeks >= 14 ? 3 : 4.5;
+  const maxFullLabelChars = Math.max(1, Math.floor(weekCount * charsPerWeek));
+
+  return phase.length > maxFullLabelChars ? COMPACT_PHASE_LABEL[phase] : phase;
+}
+
+interface ChartPoint {
+  weekIndex: number;
+  weekNumber: number;
+  phase: PhaseName;
+  km: number;
+  x: number;
+  y: number;
+}
+
+interface ChartTick {
+  value: number;
+  y: number;
+}
+
+interface ChartPhaseMarker {
+  weekIndex: number;
+  weekNumber: number;
+  phase: PhaseName;
+  x: number;
+  y: number;
+}
+
+interface ChartGradientStop {
+  key: string;
+  offset: string;
+  color: string;
+}
+
+interface ReviewVolumeChartModel {
+  points: ChartPoint[];
+  pathD: string;
+  gradientStops: ChartGradientStop[];
+  phaseMarkers: ChartPhaseMarker[];
+  ticks: ChartTick[];
+  axisMax: number;
+}
+
+function niceCeil(rawValue: number): number {
+  const value = Math.max(rawValue, 1);
+  const magnitude = 10 ** Math.floor(Math.log10(value));
+  const normalized = value / magnitude;
+  const steps = [1, 1.5, 2, 3, 5, 10];
+  const step = steps.find((candidate) => normalized <= candidate) ?? 10;
+
+  return step * magnitude;
+}
+
+function axisTicks(axisMax: number): number[] {
+  const step = niceCeil(axisMax / 3);
+  const ticks: number[] = [];
+
+  for (let tick = axisMax; tick > 0; tick -= step) {
+    ticks.push(Math.max(0, tick));
   }
+
+  return [...ticks, 0];
 }
 
-function pointColor(point: { phase: PhaseName; isStart?: boolean; isPeak?: boolean; isRace?: boolean }): string {
-  if (point.isStart) return PHASE_COLOR.BASE;
-  if (point.isPeak) return C.amber;
-  if (point.isRace) return C.forest;
-  return PHASE_COLOR[point.phase];
+function formatSvgNumber(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2);
 }
 
-function sessionDotColor(type: SessionType): string {
-  return type === 'REST' ? C.border : SESSION_TYPE[type].color;
+function formatAxisTickLabel(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function buildContinuousPath(points: ChartPoint[]): string {
+  if (points.length === 0) {
+    return '';
+  }
+
+  if (points.length === 1) {
+    return `M ${formatSvgNumber(points[0].x)} ${formatSvgNumber(points[0].y)}`;
+  }
+
+  const commands = [`M ${formatSvgNumber(points[0].x)} ${formatSvgNumber(points[0].y)}`];
+
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const previous = points[index - 1] ?? points[index];
+    const point = points[index];
+    const next = points[index + 1];
+    const afterNext = points[index + 2] ?? next;
+    const control1 = {
+      x: point.x + ((next.x - previous.x) * CHART_CURVE_SMOOTHING),
+      y: point.y + ((next.y - previous.y) * CHART_CURVE_SMOOTHING),
+    };
+    const control2 = {
+      x: next.x - ((afterNext.x - point.x) * CHART_CURVE_SMOOTHING),
+      y: next.y - ((afterNext.y - point.y) * CHART_CURVE_SMOOTHING),
+    };
+
+    commands.push([
+      'C',
+      formatSvgNumber(control1.x),
+      formatSvgNumber(control1.y),
+      formatSvgNumber(control2.x),
+      formatSvgNumber(control2.y),
+      formatSvgNumber(next.x),
+      formatSvgNumber(next.y),
+    ].join(' '));
+  }
+
+  return commands.join(' ');
+}
+
+function gradientOffset(x: number, chartWidth: number): string {
+  return `${(clampNumber(x / Math.max(chartWidth, 1), 0, 1) * 100).toFixed(2)}%`;
+}
+
+function buildGradientStops(
+  model: BlockReviewModel,
+  points: ChartPoint[],
+  chartWidth: number,
+): ChartGradientStop[] {
+  if (points.length === 0) {
+    return [];
+  }
+
+  return model.phaseSegments.flatMap((segment, index) => {
+    const startPoint = points.find((point) => point.weekNumber === segment.startWeekNumber) ?? points[0];
+    const nextSegment = model.phaseSegments[index + 1];
+    const endPoint = nextSegment
+      ? points.find((point) => point.weekNumber === nextSegment.startWeekNumber) ?? points[points.length - 1]
+      : points[points.length - 1];
+    const color = PHASE_COLOR[segment.phase];
+
+    return [
+      {
+        key: `${segment.phase}-${segment.startWeekNumber}-start`,
+        offset: gradientOffset(startPoint.x, chartWidth),
+        color,
+      },
+      {
+        key: `${segment.phase}-${segment.startWeekNumber}-end`,
+        offset: gradientOffset(endPoint.x, chartWidth),
+        color,
+      },
+    ];
+  });
+}
+
+export function buildReviewVolumeChartModel(
+  model: BlockReviewModel,
+  chartWidth = CHART_WIDTH_FALLBACK,
+): ReviewVolumeChartModel {
+  const width = Math.max(chartWidth, 1);
+  const weeks = model.weeks;
+
+  if (weeks.length === 0) {
+    return { points: [], pathD: '', gradientStops: [], phaseMarkers: [], ticks: [], axisMax: 1 };
+  }
+
+  const axisMax = niceCeil(model.volume.stats.maxKm * 1.12);
+  const ySpan = CHART_BOTTOM - CHART_TOP;
+  const denominator = Math.max(weeks.length - 1, 1);
+  const points = weeks.map<ChartPoint>((week, weekIndex) => ({
+    weekIndex,
+    weekNumber: week.weekNumber,
+    phase: week.phase,
+    km: week.plannedKm,
+    x: (width * weekIndex) / denominator,
+    y: CHART_BOTTOM - (clampNumber(week.plannedKm / axisMax, 0, 1) * ySpan),
+  }));
+
+  const phaseMarkers = model.phaseSegments
+    .map((segment) => points.find((point) => point.weekNumber === segment.startWeekNumber))
+    .filter((point): point is ChartPoint => Boolean(point))
+    .map((point) => ({
+      weekIndex: point.weekIndex,
+      weekNumber: point.weekNumber,
+      phase: point.phase,
+      x: point.x,
+      y: point.y,
+    }));
+
+  return {
+    points,
+    pathD: buildContinuousPath(points),
+    gradientStops: buildGradientStops(model, points, width),
+    phaseMarkers,
+    ticks: axisTicks(axisMax).map((value) => ({
+      value,
+      y: CHART_BOTTOM - (clampNumber(value / axisMax, 0, 1) * ySpan),
+    })),
+    axisMax,
+  };
+}
+
+function eventLocation(event: GestureResponderEvent, axis: 'X' | 'Y'): number {
+  const native = event.nativeEvent as GestureResponderEvent['nativeEvent'] & {
+    clientX?: number;
+    clientY?: number;
+    offsetX?: number;
+    offsetY?: number;
+  };
+  const location = axis === 'X' ? native.locationX : native.locationY;
+  const offset = axis === 'X' ? native.offsetX : native.offsetY;
+  const client = axis === 'X' ? native.clientX : native.clientY;
+
+  return location ?? offset ?? client ?? 0;
+}
+
+function weekIndexFromX(x: number, chartWidth: number, totalWeeks: number): number {
+  if (totalWeeks <= 1) {
+    return 0;
+  }
+
+  const ratio = clampNumber(x, 0, chartWidth) / Math.max(chartWidth, 1);
+  return clampNumber(Math.round(ratio * (totalWeeks - 1)), 0, totalWeeks - 1);
+}
+
+function isoFromDate(value: Date): string {
+  return value.toISOString().slice(0, 10);
+}
+
+function weekStartFromRaceDate(raceDate: string | undefined, totalWeeks: number, weekIndex: number): string | null {
+  if (!raceDate) {
+    return null;
+  }
+
+  const race = new Date(`${raceDate}T00:00:00Z`);
+  if (Number.isNaN(race.getTime())) {
+    return null;
+  }
+
+  const raceDow = race.getUTCDay();
+  const lastSunday = new Date(race);
+  if (raceDow !== 0) {
+    lastSunday.setUTCDate(race.getUTCDate() + (7 - raceDow));
+  }
+
+  const weekStart = new Date(lastSunday);
+  weekStart.setUTCDate(lastSunday.getUTCDate() - 6 - ((totalWeeks - 1 - weekIndex) * 7));
+  return isoFromDate(weekStart);
+}
+
+function inferReviewWeekStartDate(
+  week: BlockReviewWeekModel,
+  fallbackStart?: string | null,
+): string | null {
+  const datedSessionIndex = week.sessions.findIndex((session) => Boolean(session?.date));
+  const datedSession = datedSessionIndex >= 0 ? week.sessions[datedSessionIndex] : null;
+
+  if (datedSession?.date) {
+    return addDaysIso(datedSession.date, -datedSessionIndex);
+  }
+
+  return fallbackStart ?? null;
+}
+
+export function formatReviewWeekDateRange(
+  week: BlockReviewWeekModel,
+  totalWeeks: number,
+  raceDate?: string,
+): string {
+  const fallbackStart = weekStartFromRaceDate(raceDate, totalWeeks, week.weekIndex);
+  const startIso = inferReviewWeekStartDate(week, fallbackStart);
+
+  if (!startIso) {
+    return `Week ${week.weekNumber}`;
+  }
+
+  const start = new Date(`${startIso}T00:00:00Z`);
+  const endIso = addDaysIso(startIso, 7);
+  const end = new Date(`${endIso}T00:00:00Z`);
+  const startMonth = MONTHS[start.getUTCMonth()];
+  const endMonth = MONTHS[end.getUTCMonth()];
+  const startDay = start.getUTCDate();
+  const endDay = end.getUTCDate();
+
+  return startMonth === endMonth
+    ? `${startMonth} ${startDay} - ${endDay}`
+    : `${startMonth} ${startDay} - ${endMonth} ${endDay}`;
 }
 
 export function getBlockReviewTabMotionDuration(reducedMotion: boolean): number {
@@ -135,7 +427,14 @@ export function BlockReviewSurface({
   activeTab,
   onTabChange,
   overload,
+  expandedWeekIndex,
+  raceDate,
+  onScrubActiveChange,
   onWeekPress,
+  onDayPress,
+  onMoveSession,
+  onWeekDragActiveChange,
+  rescheduleResetKey,
   onEditStructure,
   formatDistance = defaultFormatDistance,
   style,
@@ -143,33 +442,29 @@ export function BlockReviewSurface({
 }: BlockReviewSurfaceProps) {
   return (
     <View style={[styles.surface, style]} testID={testID}>
-      {activeTab === 'overview' ? (
-        <>
-          <BlockVolumeChart model={model} formatDistance={formatDistance} />
-          {overload ? <BlockReviewOverloadCard control={overload} /> : null}
-        </>
-      ) : null}
-
       <BlockReviewTabControl activeTab={activeTab} onTabChange={onTabChange} />
 
-      {activeTab === 'overview' ? (
-        <BlockReviewOverview
+      {activeTab === 'structure' ? (
+        <BlockReviewStructure
           model={model}
           formatDistance={formatDistance}
-          onWeekPress={onWeekPress}
-        />
-      ) : null}
-      {activeTab === 'phases' ? (
-        <BlockReviewPhases
-          model={model}
+          raceDate={raceDate}
+          onScrubActiveChange={onScrubActiveChange}
+          overload={overload}
           onEditStructure={onEditStructure}
         />
       ) : null}
       {activeTab === 'weeks' ? (
         <BlockReviewWeeks
           model={model}
+          raceDate={raceDate}
           formatDistance={formatDistance}
+          expandedWeekIndex={expandedWeekIndex}
           onWeekPress={onWeekPress}
+          onDayPress={onDayPress}
+          onMoveSession={onMoveSession}
+          onDragActiveChange={onWeekDragActiveChange}
+          rescheduleResetKey={rescheduleResetKey}
         />
       ) : null}
     </View>
@@ -199,8 +494,8 @@ export function BlockReviewTabControl({ activeTab, onTabChange }: BlockReviewTab
   const tabWidth = trackWidth > 0 ? (trackWidth - 8) / TAB_ITEMS.length : 0;
   const translateX = useMemo(
     () => animatedIndex.interpolate({
-      inputRange: [0, 1, 2],
-      outputRange: [0, tabWidth + 4, (tabWidth + 4) * 2],
+      inputRange: TAB_ITEMS.map((_, index) => index),
+      outputRange: TAB_ITEMS.map((_, index) => (tabWidth + 4) * index),
       extrapolate: 'clamp',
     }),
     [animatedIndex, tabWidth],
@@ -239,6 +534,7 @@ export function BlockReviewTabControl({ activeTab, onTabChange }: BlockReviewTab
             key={tab.key}
             accessibilityRole="button"
             accessibilityState={{ selected: isActive }}
+            {...TAB_PRESS_EXPANSION}
             onPress={() => onTabChange(tab.key)}
             style={styles.tabButton}
             testID={`block-review-tab-${tab.key}`}
@@ -255,72 +551,252 @@ export function BlockReviewTabControl({ activeTab, onTabChange }: BlockReviewTab
 interface BlockVolumeChartProps {
   model: BlockReviewModel;
   formatDistance: FormatDistance;
+  raceDate?: string;
+  onScrubActiveChange?: (active: boolean) => void;
 }
 
-export function BlockVolumeChart({ model, formatDistance }: BlockVolumeChartProps) {
-  const points = model.volume.points;
+export function BlockVolumeChart({
+  model,
+  formatDistance,
+  raceDate,
+  onScrubActiveChange,
+}: BlockVolumeChartProps) {
+  const [chartWidth, setChartWidth] = useState(CHART_WIDTH_FALLBACK);
+  const [selectedWeekIndex, setSelectedWeekIndex] = useState<number | null>(null);
+  const [scrubX, setScrubX] = useState<number | null>(null);
+  const selectedWeekIndexRef = useRef<number | null>(null);
+  const scrubActiveRef = useRef(false);
+  const plotWidth = Math.max(chartWidth - CHART_Y_AXIS_WIDTH, 1);
+  const chartModel = useMemo(
+    () => buildReviewVolumeChartModel(model, plotWidth),
+    [model, plotWidth],
+  );
+  const selectedPoint = selectedWeekIndex == null ? null : chartModel.points[selectedWeekIndex] ?? null;
+  const selectedWeek = selectedWeekIndex == null ? null : model.weeks[selectedWeekIndex] ?? null;
+  const selectedX = scrubX ?? selectedPoint?.x ?? 0;
+  const tooltipLeft = clampNumber(
+    CHART_Y_AXIS_WIDTH + selectedX - CHART_TOOLTIP_WIDTH / 2,
+    0,
+    Math.max(chartWidth - CHART_TOOLTIP_WIDTH, 0),
+  );
+  const tooltipTop = selectedPoint
+    ? clampNumber(selectedPoint.y - 67, 0, CHART_BOTTOM - 58)
+    : 0;
+  useEffect(() => {
+    return () => {
+      onScrubActiveChange?.(false);
+    };
+  }, [onScrubActiveChange]);
+
+  function handleChartLayout(event: LayoutChangeEvent) {
+    const nextWidth = event.nativeEvent.layout.width;
+    if (nextWidth > 0) {
+      setChartWidth(nextWidth);
+    }
+  }
+
+  function selectWeekFromX(x: number) {
+    const clampedX = clampNumber(x - CHART_Y_AXIS_WIDTH, 0, plotWidth);
+    const nextWeekIndex = weekIndexFromX(clampedX, plotWidth, model.weeks.length);
+
+    setScrubX(clampedX);
+    if (selectedWeekIndexRef.current !== nextWeekIndex) {
+      selectedWeekIndexRef.current = nextWeekIndex;
+      setSelectedWeekIndex(nextWeekIndex);
+      triggerSelectionChangeHaptic();
+    }
+  }
+
+  function selectWeekFromEvent(event: GestureResponderEvent) {
+    selectWeekFromX(eventLocation(event, 'X'));
+  }
+
+  function setScrubActive(active: boolean) {
+    if (scrubActiveRef.current === active) {
+      return;
+    }
+
+    scrubActiveRef.current = active;
+    onScrubActiveChange?.(active);
+  }
+
+  function clearScrubSelection() {
+    if (!scrubActiveRef.current) {
+      return;
+    }
+
+    setScrubActive(false);
+    selectedWeekIndexRef.current = null;
+    setSelectedWeekIndex(null);
+    setScrubX(null);
+  }
+
+  function shouldScrubFromEvent(event: GestureResponderEvent) {
+    const y = eventLocation(event, 'Y');
+    return y >= CHART_SCRUB_TOP && y <= CHART_SCRUB_BOTTOM;
+  }
 
   return (
     <View style={[styles.card, styles.chartCard]} testID="block-review-volume-chart">
       <View style={styles.chartHead}>
         <View style={styles.chartTitleGroup}>
           <Text style={styles.chartTitle}>Weekly volume</Text>
-          <Text style={styles.chartSubtitle}>Builds through the middle, then tapers.</Text>
-        </View>
-        <View style={styles.peakPill}>
-          <Text style={styles.peakPillText}>
-            {formatDistance(model.volume.stats.peakKm)} peak
-          </Text>
         </View>
       </View>
 
-      <View style={styles.chartFrame}>
-        <View style={[styles.chartGridLine, { top: 20 }]} />
-        <View style={[styles.chartGridLine, styles.chartGridLineDashed, { top: 58 }]} />
-        <View style={[styles.chartGridLine, styles.chartGridLineDashed, { top: 96 }]} />
-        <Text style={styles.chartAxisLabel}>km</Text>
-
-        {points.slice(0, -1).map((point, index) => {
-          const next = points[index + 1];
-          const dx = Math.max((next.x - point.x) * 100, 1);
-          const dy = (next.y - point.y) * CHART_HEIGHT;
-          const angle = Math.atan2(dy, dx * 3.2) * (180 / Math.PI);
-          return (
-            <View
-              key={`${point.weekNumber}-${next.weekNumber}`}
-              pointerEvents="none"
+      <View
+        style={[styles.chartFrame, styles.chartFrameCompact]}
+        onLayout={handleChartLayout}
+        onStartShouldSetResponder={shouldScrubFromEvent}
+        onMoveShouldSetResponder={shouldScrubFromEvent}
+        onResponderTerminationRequest={() => false}
+        onResponderGrant={(event) => {
+          setScrubActive(true);
+          selectWeekFromEvent(event);
+        }}
+        onResponderMove={selectWeekFromEvent}
+        onResponderRelease={clearScrubSelection}
+        onResponderTerminate={clearScrubSelection}
+        testID="block-review-volume-scrub-surface"
+      >
+        <View pointerEvents="none" style={styles.chartYAxis} testID="block-review-volume-y-axis">
+          <Text style={styles.chartAxisLabel}>km</Text>
+          {chartModel.ticks.map((tick) => (
+            <Text
+              key={`tick-label-${tick.value}`}
               style={[
-                styles.chartSegment,
-                {
-                  left: `${point.x * 100}%`,
-                  top: point.y * CHART_HEIGHT,
-                  width: `${dx}%`,
-                  transform: [{ rotate: `${angle}deg` }],
-                },
+                styles.chartTickLabel,
+                { top: clampNumber(tick.y - 7, CHART_TOP - 8, CHART_BOTTOM - 8) },
               ]}
-            />
-          );
-        })}
+              testID="block-review-volume-y-tick"
+            >
+              {formatAxisTickLabel(tick.value)}
+            </Text>
+          ))}
+        </View>
+        <View pointerEvents="none" style={styles.chartYAxisLine} />
 
-        {points.map((point) => (
+        {chartModel.ticks.map((tick) => (
           <View
-            key={point.weekNumber}
+            key={`grid-${tick.value}`}
+            pointerEvents="none"
             style={[
-              styles.chartPoint,
+              styles.chartGridLine,
+              { top: tick.y },
+            ]}
+            testID="block-review-volume-grid-line"
+          />
+        ))}
+
+        {chartModel.pathD ? (
+          <Svg
+            pointerEvents="none"
+            width={plotWidth}
+            height={CHART_HEIGHT}
+            viewBox={`0 0 ${plotWidth} ${CHART_HEIGHT}`}
+            style={styles.chartSvgPlotLayer}
+          >
+            <Defs>
+              <LinearGradient
+                id="block-review-volume-gradient"
+                x1="0"
+                y1="0"
+                x2={plotWidth}
+                y2="0"
+                gradientUnits="userSpaceOnUse"
+              >
+                {chartModel.gradientStops.map((stop) => (
+                  <Stop key={stop.key} offset={stop.offset} stopColor={stop.color} />
+                ))}
+              </LinearGradient>
+            </Defs>
+            <Path
+              d={chartModel.pathD}
+              fill="none"
+              stroke="url(#block-review-volume-gradient)"
+              strokeWidth={CHART_LINE_WIDTH}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              testID="block-review-volume-line"
+            />
+          </Svg>
+        ) : null}
+
+        {chartModel.phaseMarkers.map((marker) => (
+          <View
+            key={`${marker.phase}-${marker.weekNumber}`}
+            pointerEvents="none"
+            testID="block-review-volume-phase-marker"
+            style={[
+              styles.chartPhaseMarker,
               {
-                left: `${point.x * 100}%`,
-                top: point.y * CHART_HEIGHT,
-                backgroundColor: pointColor(point),
+                left: CHART_Y_AXIS_WIDTH + marker.x - CHART_PHASE_MARKER_SIZE / 2,
+                top: marker.y - CHART_PHASE_MARKER_SIZE / 2,
+                backgroundColor: PHASE_COLOR[marker.phase],
               },
             ]}
           />
         ))}
 
-        {points[0] ? <Text style={[styles.chartMarker, styles.chartMarkerStart]}>W{points[0].weekNumber}</Text> : null}
-        {model.volume.stats.peakWeekNumber > 0 ? (
-          <Text style={[styles.chartMarker, styles.chartMarkerPeak]}>W{model.volume.stats.peakWeekNumber}</Text>
+        {selectedPoint ? (
+          <View pointerEvents="none" style={styles.chartSelectionLayer}>
+            <View style={[styles.chartSelectedGuide, { left: CHART_Y_AXIS_WIDTH + selectedPoint.x }]} />
+            <View
+              style={[
+                styles.chartSelectedMarker,
+                {
+                  left: CHART_Y_AXIS_WIDTH + selectedPoint.x - CHART_SELECTED_MARKER_SIZE / 2,
+                  top: selectedPoint.y - CHART_SELECTED_MARKER_SIZE / 2,
+                  backgroundColor: PHASE_COLOR[selectedPoint.phase],
+                },
+              ]}
+            />
+          </View>
         ) : null}
-        {points.length > 0 ? <Text style={[styles.chartMarker, styles.chartMarkerRace]}>Race</Text> : null}
+
+        {chartModel.phaseMarkers.map((marker) => (
+          <Text
+            key={`label-${marker.phase}-${marker.weekNumber}`}
+            style={[
+              styles.chartMarker,
+              {
+                left: CHART_Y_AXIS_WIDTH
+                  + clampNumber(
+                    marker.x - CHART_X_AXIS_LABEL_WIDTH / 2,
+                    -CHART_X_AXIS_LABEL_WIDTH / 2,
+                    Math.max(plotWidth - CHART_X_AXIS_LABEL_WIDTH / 2, 0),
+                  ),
+              },
+            ]}
+          >
+            W{marker.weekNumber}
+          </Text>
+        ))}
+        {selectedWeek && selectedPoint ? (
+          <View
+            pointerEvents="none"
+            style={[
+              styles.chartTooltipLayer,
+              {
+                left: tooltipLeft,
+                top: tooltipTop,
+              },
+            ]}
+          >
+            <View style={styles.chartTooltip} testID="block-review-volume-tooltip">
+              <Text style={styles.chartTooltipTitle}>
+                <Text>W{selectedWeek.weekNumber} </Text>
+                <Text style={[styles.chartTooltipPhase, { color: PHASE_COLOR[selectedWeek.phase] }]}>
+                  {phaseLabel(selectedWeek.phase)}
+                </Text>
+              </Text>
+              <Text style={styles.chartTooltipLine}>
+                {formatReviewWeekDateRange(selectedWeek, model.totalWeeks, raceDate)}
+              </Text>
+              <Text style={styles.chartTooltipValue}>{formatDistance(selectedWeek.plannedKm)} total</Text>
+            </View>
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.statsGrid}>
@@ -355,53 +831,107 @@ export function BlockReviewPhaseStrip({ model }: { model: BlockReviewModel }) {
           key={`${segment.phase}-${segment.startWeekNumber}-${index}`}
           style={[
             styles.phaseStripSegment,
+            index === 0 && styles.phaseStripFirst,
+            index === model.phaseSegments.length - 1 && styles.phaseStripLast,
             {
               flex: segment.weekCount,
               backgroundColor: PHASE_COLOR[segment.phase],
               opacity: segment.isCurrent ? 1 : 0.92,
             },
           ]}
-        />
+        >
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.phaseStripLabel,
+              phaseStripLabel(segment.phase, segment.weekCount, model.totalWeeks) !== segment.phase
+                && styles.phaseStripLabelCompact,
+            ]}
+          >
+            {phaseStripLabel(segment.phase, segment.weekCount, model.totalWeeks)}
+          </Text>
+        </View>
       ))}
     </View>
   );
 }
 
-function BlockReviewOverview({
+function BlockReviewStructure({
   model,
   formatDistance,
-  onWeekPress,
+  raceDate,
+  onScrubActiveChange,
+  overload,
+  onEditStructure,
 }: {
   model: BlockReviewModel;
   formatDistance: FormatDistance;
-  onWeekPress?: (week: BlockReviewWeekModel) => void;
+  raceDate?: string;
+  onScrubActiveChange?: (active: boolean) => void;
+  overload?: BlockReviewOverloadControl | null;
+  onEditStructure?: () => void;
 }) {
-  if (model.keyWeeks.length === 0) {
+  return (
+    <View style={styles.tabPanel} testID="block-review-structure">
+      <BlockVolumeChart
+        model={model}
+        formatDistance={formatDistance}
+        raceDate={raceDate}
+        onScrubActiveChange={onScrubActiveChange}
+      />
+      {overload ? <BlockReviewOverloadCard control={overload} /> : null}
+      <BlockReviewPhaseSummaryCard model={model} onEditStructure={onEditStructure} />
+    </View>
+  );
+}
+
+function BlockReviewPhaseSummaryCard({
+  model,
+  onEditStructure,
+}: {
+  model: BlockReviewModel;
+  onEditStructure?: () => void;
+}) {
+  if (!model.structureLabel) {
     return null;
   }
 
   return (
-    <View style={styles.keyWeeks} testID="block-review-overview">
-      {model.keyWeeks.map((week) => (
-        <Pressable
-          key={week.id}
-          disabled={!onWeekPress}
-          onPress={() => onWeekPress?.(week)}
-          style={({ pressed }) => [
-            styles.keyWeek,
-            pressed && styles.pressed,
+    <View style={styles.structureCard} testID="block-review-phase-summary">
+      <View style={styles.structureCopy}>
+        <Text style={styles.structureTitle}>Phase structure</Text>
+        <Text style={styles.structureValue}>{model.structureLabel}</Text>
+      </View>
+      <View style={styles.structureAction}>
+        <BlockReviewMiniPhaseStrip model={model} />
+        {onEditStructure ? (
+          <Pressable onPress={onEditStructure} testID="block-review-edit-structure">
+            <Text style={styles.structureEdit}>Edit</Text>
+          </Pressable>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+function BlockReviewMiniPhaseStrip({ model }: { model: BlockReviewModel }) {
+  if (model.phaseSegments.length === 0) {
+    return null;
+  }
+
+  return (
+    <View style={styles.miniPhaseStrip} testID="block-review-mini-phase-strip">
+      {model.phaseSegments.map((segment, index) => (
+        <View
+          key={`${segment.phase}-${segment.startWeekNumber}-${index}`}
+          style={[
+            styles.miniPhaseStripSegment,
+            {
+              flex: segment.weekCount,
+              backgroundColor: PHASE_COLOR[segment.phase],
+            },
           ]}
-          testID={`block-review-key-week-${week.weekNumber}`}
-        >
-          <Text style={styles.keyWeekNumber}>W{week.weekNumber}</Text>
-          <View style={styles.keyWeekCopy}>
-            <Text style={styles.keyWeekTitle}>{week.title}</Text>
-            <Text style={styles.keyWeekDetail}>
-              {formatDistance(week.plannedKm)} · {week.isPeakWeek ? 'Highest load' : phaseLabel(week.phase)}
-            </Text>
-          </View>
-          <Text style={styles.chevron}>›</Text>
-        </Pressable>
+        />
       ))}
     </View>
   );
@@ -434,10 +964,10 @@ export function BlockReviewOverloadCard({ control }: { control: BlockReviewOverl
 
   return (
     <View style={[styles.card, styles.overloadCard]} testID="block-review-overload-card">
-      <Text style={styles.overloadCopy}>
-        <Text style={styles.overloadLead}>Steady</Text>
-        {' — Add progressive overload? Volume builds automatically through build, then tapers.'}
-      </Text>
+      <View>
+        <Text style={styles.overloadTitle}>Progression</Text>
+        <Text style={styles.overloadCopy}>Volume change applied before race-week taper.</Text>
+      </View>
 
       {control.isCustomising ? (
         <View style={styles.customOverload}>
@@ -505,7 +1035,7 @@ export function BlockReviewOverloadCard({ control }: { control: BlockReviewOverl
             style={styles.overloadPrimary}
             testID="block-review-overload-accept"
           >
-            <Text style={styles.overloadPrimaryText}>Yes, +7% / 2w</Text>
+            <Text style={styles.overloadPrimaryText}>+7% / 2w</Text>
           </Pressable>
           <Pressable
             onPress={control.onStartCustom}
@@ -519,7 +1049,7 @@ export function BlockReviewOverloadCard({ control }: { control: BlockReviewOverl
             style={styles.overloadSecondary}
             testID="block-review-overload-flat"
           >
-            <Text style={[styles.overloadSecondaryText, styles.overloadMutedText]}>Keep flat</Text>
+            <Text style={[styles.overloadSecondaryText, styles.overloadMutedText]}>Flat</Text>
           </Pressable>
         </View>
       )}
@@ -527,131 +1057,70 @@ export function BlockReviewOverloadCard({ control }: { control: BlockReviewOverl
   );
 }
 
-function BlockReviewPhases({
-  model,
-  onEditStructure,
-}: {
-  model: BlockReviewModel;
-  onEditStructure?: () => void;
-}) {
-  return (
-    <View style={styles.phaseList} testID="block-review-phases">
-      {model.phases.map((phase) => (
-        <PhaseCard key={phase.phase} phase={phase} />
-      ))}
-
-      {model.structureLabel ? (
-        <View style={styles.structureCard}>
-          <View style={styles.structureCopy}>
-            <Text style={styles.structureTitle}>Block structure</Text>
-            <Text style={styles.structureValue}>{model.structureLabel}</Text>
-          </View>
-          {onEditStructure ? (
-            <Pressable onPress={onEditStructure} testID="block-review-edit-structure">
-              <Text style={styles.structureEdit}>Edit</Text>
-            </Pressable>
-          ) : null}
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-function PhaseCard({ phase }: { phase: BlockReviewPhaseModel }) {
-  const color = PHASE_COLOR[phase.phase];
-
-  return (
-    <View style={[styles.card, styles.phaseCard]} testID={`block-review-phase-${phase.phase.toLowerCase()}`}>
-      <View style={styles.phaseCardTop}>
-        <View style={styles.phaseCardNameGroup}>
-          <View style={[styles.phaseDot, { backgroundColor: color }]} />
-          <Text style={styles.phaseCardName}>{phaseLabel(phase.phase)}</Text>
-        </View>
-        <Text style={styles.phaseRange}>{phase.rangeLabel}</Text>
-      </View>
-      <Text style={styles.phaseSummary}>{phase.summary}</Text>
-      <View style={styles.phaseSessionDots}>
-        {phase.sessionTypes.map((type, index) => (
-          <SessionDot key={`${phase.phase}-${index}`} type={type} size={11} />
-        ))}
-      </View>
-    </View>
-  );
-}
-
 function BlockReviewWeeks({
   model,
+  raceDate,
   formatDistance,
+  expandedWeekIndex,
   onWeekPress,
+  onDayPress,
+  onMoveSession,
+  onDragActiveChange,
+  rescheduleResetKey,
 }: {
   model: BlockReviewModel;
+  raceDate?: string;
   formatDistance: FormatDistance;
+  expandedWeekIndex?: number | null;
   onWeekPress?: (week: BlockReviewWeekModel) => void;
+  onDayPress?: (week: BlockReviewWeekModel, dayIndex: number) => void;
+  onMoveSession?: (
+    week: BlockReviewWeekModel,
+    fromDayIndex: number,
+    toDayIndex: number,
+  ) => void;
+  onDragActiveChange?: (active: boolean) => void;
+  rescheduleResetKey?: number;
 }) {
   return (
-    <View style={styles.weekList} testID="block-review-weeks">
-      {model.weeks.map((week) => (
-        <BlockReviewWeekRow
-          key={week.id}
-          week={week}
-          formatDistance={formatDistance}
-          onPress={onWeekPress}
-        />
-      ))}
-    </View>
-  );
-}
-
-export function BlockReviewWeekRow({
-  week,
-  formatDistance = defaultFormatDistance,
-  onPress,
-}: {
-  week: BlockReviewWeekModel;
-  formatDistance?: FormatDistance;
-  onPress?: (week: BlockReviewWeekModel) => void;
-}) {
-  const color = PHASE_COLOR[week.phase];
-  return (
-    <Pressable
-      disabled={!onPress}
-      onPress={() => onPress?.(week)}
-      style={({ pressed }) => [
-        styles.weekRow,
-        week.isCurrentWeek && styles.weekRowCurrent,
-        pressed && styles.pressed,
-      ]}
-      testID={`block-review-week-${week.weekNumber}`}
-    >
-      <View style={styles.weekRowTop}>
-        <Text style={[styles.weekNumber, week.isCurrentWeek && styles.weekNumberCurrent]}>
-          W{week.weekNumber}
-        </Text>
-        <View style={styles.runDots}>
-          {week.sessionTypes.map((type, index) => (
-            <View
-              key={`${week.weekNumber}-${index}`}
-              style={[
-                styles.runDot,
-                { backgroundColor: sessionDotColor(type) },
-              ]}
-            />
-          ))}
-        </View>
-        <View style={styles.weekRight}>
-          <Text style={styles.weekKm}>{formatDistance(week.plannedKm)}</Text>
-          <View style={[styles.phaseTag, { backgroundColor: phaseBackground(week.phase) }]}>
-            <Text style={[styles.phaseTagText, { color }]}>{phaseLabel(week.phase)}</Text>
-          </View>
-        </View>
-      </View>
-      <View style={styles.weekBar}>
-        <AnimatedProgressFill
-          progress={week.volumeRatio}
-          fillStyle={[styles.weekBarFill, { backgroundColor: color }]}
-        />
-      </View>
-    </Pressable>
+    <BlockWeekList
+      testID="block-review-weeks"
+      weeks={model.weeks.map((week) => ({
+        id: week.id,
+        weekIndex: week.weekIndex,
+        weekNumber: week.weekNumber,
+        phase: week.phase,
+        weekStartDate: weekStartFromRaceDate(raceDate, model.totalWeeks, week.weekIndex),
+        plannedKm: week.plannedKm,
+        volumeRatio: week.volumeRatio,
+        sessions: week.sessions,
+        isCurrent: week.isCurrentWeek,
+        isExpanded: expandedWeekIndex === week.weekIndex,
+      }))}
+      expandedWeekIndex={expandedWeekIndex}
+      formatVolume={(km) => formatDistance(km)}
+      onToggleWeek={(weekIndex) => {
+        const week = model.weeks[weekIndex];
+        if (week) {
+          onWeekPress?.(week);
+        }
+      }}
+      onDayPress={(weekIndex, dayIndex) => {
+        const week = model.weeks[weekIndex];
+        if (week) {
+          onDayPress?.(week, dayIndex);
+        }
+      }}
+      onMoveSession={(weekIndex, fromDayIndex, toDayIndex) => {
+        const week = model.weeks[weekIndex];
+        if (week) {
+          onMoveSession?.(week, fromDayIndex, toDayIndex);
+        }
+      }}
+      onDragActiveChange={onDragActiveChange}
+      rescheduleResetKey={rescheduleResetKey}
+      style={styles.weekList}
+    />
   );
 }
 
@@ -669,8 +1138,10 @@ export function BlockReviewPhaseOrderLegend() {
 }
 
 const styles = StyleSheet.create({
-  surface: {
-    gap: 13,
+  surface: {},
+  tabPanel: {
+    gap: 10,
+    marginTop: 10,
   },
   card: {
     backgroundColor: C.surface,
@@ -679,8 +1150,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   chartCard: {
-    padding: 16,
-    paddingBottom: 14,
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 13,
   },
   chartHead: {
     flexDirection: 'row',
@@ -693,92 +1165,157 @@ const styles = StyleSheet.create({
   },
   chartTitle: {
     fontFamily: FONTS.sansSemiBold,
-    fontSize: 17,
+    fontSize: 18,
     color: C.ink,
-  },
-  chartSubtitle: {
-    fontFamily: FONTS.sans,
-    fontSize: 11,
-    color: C.muted,
-    marginTop: 3,
-  },
-  peakPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 14,
-    backgroundColor: C.amberBg,
-  },
-  peakPillText: {
-    fontFamily: FONTS.monoBold,
-    fontSize: 11,
-    color: C.amber,
   },
   chartFrame: {
     height: CHART_HEIGHT,
-    marginTop: 12,
+    marginTop: 10,
+    marginBottom: 2,
     position: 'relative',
+  },
+  chartFrameCompact: {
+    marginTop: 6,
   },
   chartGridLine: {
     position: 'absolute',
-    left: 0,
+    left: CHART_Y_AXIS_WIDTH,
     right: 0,
     height: 1,
-    backgroundColor: C.border,
-  },
-  chartGridLineDashed: {
     borderTopWidth: 1,
-    borderStyle: 'dashed',
-    borderTopColor: C.border,
-    backgroundColor: 'transparent',
+    borderTopColor: `${C.border}D8`,
+  },
+  chartYAxis: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: CHART_Y_AXIS_WIDTH - 2,
   },
   chartAxisLabel: {
     position: 'absolute',
     top: 0,
-    left: 0,
+    right: 4,
     fontFamily: FONTS.mono,
     fontSize: 9,
     color: C.muted,
   },
-  chartSegment: {
+  chartTickLabel: {
     position: 'absolute',
-    height: 4,
-    borderRadius: 999,
-    backgroundColor: C.clay,
+    right: 4,
+    fontFamily: FONTS.mono,
+    fontSize: 8.5,
+    lineHeight: 12,
+    color: C.muted,
+    textAlign: 'right',
   },
-  chartPoint: {
+  chartYAxisLine: {
     position: 'absolute',
-    width: 10,
-    height: 10,
-    marginLeft: -5,
-    marginTop: -5,
-    borderRadius: 5,
+    top: CHART_TOP,
+    bottom: CHART_HEIGHT - CHART_BOTTOM,
+    left: CHART_Y_AXIS_WIDTH,
+    width: 1,
+    backgroundColor: `${C.border}D8`,
+  },
+  chartSvgLayer: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
+  chartSvgPlotLayer: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: CHART_Y_AXIS_WIDTH,
+  },
+  chartPhaseMarker: {
+    position: 'absolute',
+    width: CHART_PHASE_MARKER_SIZE,
+    height: CHART_PHASE_MARKER_SIZE,
+    borderRadius: CHART_PHASE_MARKER_SIZE / 2,
+    borderWidth: 1.5,
+    borderColor: C.surface,
   },
   chartMarker: {
     position: 'absolute',
-    bottom: 0,
+    top: CHART_BOTTOM + 8,
+    width: CHART_X_AXIS_LABEL_WIDTH,
     fontFamily: FONTS.mono,
     fontSize: 9,
+    lineHeight: 12,
     color: C.muted,
+    textAlign: 'center',
   },
-  chartMarkerStart: {
+  chartSelectionLayer: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
     left: 0,
   },
-  chartMarkerPeak: {
-    left: '63%',
+  chartSelectedGuide: {
+    position: 'absolute',
+    top: CHART_TOP,
+    bottom: CHART_HEIGHT - CHART_BOTTOM,
+    width: 1,
+    backgroundColor: `${C.ink2}24`,
   },
-  chartMarkerRace: {
-    right: 0,
+  chartSelectedMarker: {
+    position: 'absolute',
+    width: CHART_SELECTED_MARKER_SIZE,
+    height: CHART_SELECTED_MARKER_SIZE,
+    borderRadius: CHART_SELECTED_MARKER_SIZE / 2,
+    borderWidth: 2,
+    borderColor: C.surface,
+  },
+  chartTooltipLayer: {
+    position: 'absolute',
+    width: CHART_TOOLTIP_WIDTH,
+  },
+  chartTooltip: {
+    width: CHART_TOOLTIP_WIDTH,
+    paddingHorizontal: 9,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: C.surface,
+  },
+  chartTooltipTitle: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 11,
+    color: C.ink,
+    marginBottom: 2,
+  },
+  chartTooltipPhase: {
+    fontFamily: FONTS.sansSemiBold,
+  },
+  chartTooltipLine: {
+    fontFamily: FONTS.sans,
+    fontSize: 10,
+    lineHeight: 14,
+    color: C.muted,
+  },
+  chartTooltipValue: {
+    fontFamily: FONTS.monoBold,
+    fontSize: 11,
+    lineHeight: 15,
+    color: C.ink2,
+    marginTop: 1,
   },
   statsGrid: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 13,
+    gap: 7,
+    marginTop: 9,
   },
   statBox: {
     flex: 1,
     paddingHorizontal: 8,
-    paddingVertical: 11,
-    borderRadius: 14,
+    paddingVertical: 9,
+    borderRadius: 13,
     borderWidth: 1.5,
     borderColor: C.border,
     backgroundColor: C.surface,
@@ -792,46 +1329,74 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontFamily: FONTS.monoBold,
-    fontSize: 16,
+    fontSize: 14,
     color: C.ink,
-    marginTop: 6,
+    marginTop: 5,
   },
   phaseStrip: {
     flexDirection: 'row',
-    gap: 3,
-    height: 11,
-    marginTop: 15,
+    gap: 2,
+    height: 24,
+    marginTop: 12,
     borderRadius: 7,
     overflow: 'hidden',
   },
   phaseStripSegment: {
     height: '100%',
+    minWidth: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  phaseStripFirst: {
+    borderTopLeftRadius: 7,
+    borderBottomLeftRadius: 7,
+  },
+  phaseStripLast: {
+    borderTopRightRadius: 7,
+    borderBottomRightRadius: 7,
+  },
+  phaseStripLabel: {
+    maxWidth: '100%',
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 8.5,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: `${C.cream}D6`,
+    includeFontPadding: false,
+  },
+  phaseStripLabelCompact: {
+    fontSize: 8,
+    letterSpacing: 0.6,
   },
   overloadCard: {
-    padding: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
     backgroundColor: C.amberBg,
-    borderColor: `${C.amber}30`,
+    borderColor: `${C.amber}57`,
+  },
+  overloadTitle: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 15,
+    color: C.ink,
   },
   overloadCopy: {
     fontFamily: FONTS.sans,
-    fontSize: 13,
-    lineHeight: 19,
-    color: C.ink2,
-  },
-  overloadLead: {
-    fontFamily: FONTS.sansSemiBold,
-    color: C.amber,
+    fontSize: 11,
+    lineHeight: 14,
+    color: C.muted,
+    marginTop: 2,
   },
   overloadButtons: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 7,
-    marginTop: 12,
+    marginTop: 11,
   },
   overloadPrimary: {
-    minHeight: 37,
-    paddingHorizontal: 12,
-    borderRadius: 19,
+    minHeight: 34,
+    paddingHorizontal: 11,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
@@ -844,9 +1409,9 @@ const styles = StyleSheet.create({
     color: C.surface,
   },
   overloadSecondary: {
-    minHeight: 37,
-    paddingHorizontal: 12,
-    borderRadius: 19,
+    minHeight: 34,
+    paddingHorizontal: 11,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
@@ -967,14 +1532,14 @@ const styles = StyleSheet.create({
   },
   tabs: {
     position: 'relative',
-    height: 42,
+    height: 44,
     padding: 4,
     flexDirection: 'row',
     gap: 4,
     backgroundColor: C.card,
     borderWidth: 1.5,
     borderColor: C.border,
-    borderRadius: 22,
+    borderRadius: 24,
     overflow: 'hidden',
   },
   tabIndicator: {
@@ -982,7 +1547,7 @@ const styles = StyleSheet.create({
     top: 4,
     bottom: 4,
     left: 4,
-    borderRadius: 18,
+    borderRadius: 20,
     backgroundColor: C.surface,
   },
   tabButton: {
@@ -990,7 +1555,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 18,
+    borderRadius: 20,
     overflow: 'hidden',
   },
   tabFallbackIndicator: {
@@ -1000,7 +1565,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     backgroundColor: C.surface,
-    borderRadius: 18,
+    borderRadius: 20,
   },
   tabText: {
     fontFamily: FONTS.sansSemiBold,
@@ -1010,97 +1575,10 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: C.ink,
   },
-  keyWeeks: {
-    gap: 8,
-  },
-  keyWeek: {
-    minHeight: 58,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: C.surface,
-    borderWidth: 1.5,
-    borderColor: C.border,
-    borderRadius: 16,
-  },
-  keyWeekNumber: {
-    width: 40,
-    fontFamily: FONTS.monoBold,
-    fontSize: 13,
-    color: C.muted,
-  },
-  keyWeekCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  keyWeekTitle: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 13,
-    color: C.ink,
-  },
-  keyWeekDetail: {
-    fontFamily: FONTS.sans,
-    fontSize: 10.5,
-    color: C.muted,
-    marginTop: 2,
-  },
-  chevron: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 16,
-    color: C.muted,
-  },
-  phaseList: {
-    gap: 11,
-  },
-  phaseCard: {
-    padding: 15,
-  },
-  phaseCardTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  phaseCardNameGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  phaseDot: {
-    width: 11,
-    height: 11,
-    borderRadius: 5.5,
-  },
-  phaseCardName: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 12,
-    letterSpacing: 2.1,
-    textTransform: 'uppercase',
-    color: C.ink,
-  },
-  phaseRange: {
-    fontFamily: FONTS.monoBold,
-    fontSize: 11,
-    color: C.muted,
-  },
-  phaseSummary: {
-    fontFamily: FONTS.sans,
-    fontSize: 13,
-    lineHeight: 18,
-    color: C.ink2,
-    marginTop: 9,
-  },
-  phaseSessionDots: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-  },
   structureCard: {
-    minHeight: 62,
-    paddingHorizontal: 15,
-    paddingVertical: 13,
+    minHeight: 68,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1108,29 +1586,47 @@ const styles = StyleSheet.create({
     backgroundColor: C.card,
     borderWidth: 1.5,
     borderColor: C.border,
-    borderRadius: 16,
+    borderRadius: 14,
   },
   structureCopy: {
     flex: 1,
+    minWidth: 0,
   },
   structureTitle: {
     fontFamily: FONTS.sansSemiBold,
-    fontSize: 13,
+    fontSize: 15,
     color: C.ink,
   },
   structureValue: {
-    fontFamily: FONTS.sans,
-    fontSize: 10.5,
+    fontFamily: FONTS.monoBold,
+    fontSize: 10,
+    lineHeight: 16,
     color: C.muted,
-    marginTop: 2,
+    marginTop: 6,
+  },
+  structureAction: {
+    alignItems: 'flex-end',
+    gap: 9,
   },
   structureEdit: {
     fontFamily: FONTS.sansSemiBold,
-    fontSize: 13,
+    fontSize: 12,
     color: C.clay,
+  },
+  miniPhaseStrip: {
+    width: 78,
+    height: 11,
+    flexDirection: 'row',
+    gap: 2,
+    borderRadius: 7,
+    overflow: 'hidden',
+  },
+  miniPhaseStripSegment: {
+    height: '100%',
   },
   weekList: {
     gap: 8,
+    marginTop: 10,
   },
   weekRow: {
     paddingHorizontal: 13,

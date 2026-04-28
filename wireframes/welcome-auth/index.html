@@ -405,6 +405,186 @@
         margin-top: 25px;
       }
 
+      .welcome-stage {
+        position: relative;
+        height: 410px;
+        margin-top: 25px;
+        overflow: hidden;
+      }
+
+      .ticker-row {
+        position: absolute;
+        left: 0;
+        right: 0;
+        overflow: hidden;
+        height: 22px;
+        color: rgba(61, 48, 40, 0.25);
+      }
+
+      .ticker-track {
+        display: flex;
+        width: max-content;
+        gap: 18px;
+        font-family: "Space Mono", monospace;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        white-space: nowrap;
+      }
+
+      .ticker-row.top {
+        top: 48px;
+      }
+
+      .ticker-row.bottom {
+        bottom: 14px;
+      }
+
+      .ticker-row.top .ticker-track {
+        animation: tickerLeft 15s linear infinite;
+      }
+
+      .ticker-row.bottom .ticker-track {
+        animation: tickerRight 17s linear infinite;
+      }
+
+      .kinetic-core {
+        position: absolute;
+        left: 50%;
+        top: 64px;
+        width: 320px;
+        height: 318px;
+        transform: translateX(-50%);
+      }
+
+      .kinetic-line {
+        position: absolute;
+        left: 7px;
+        right: 7px;
+        top: 100px;
+        width: 100%;
+        height: 180px;
+      }
+
+      .kinetic-path {
+        fill: none;
+        stroke: var(--ink);
+        stroke-width: 1.6;
+        stroke-linecap: round;
+        stroke-dasharray: 430;
+        stroke-dashoffset: 430;
+        opacity: 0.5;
+        animation: lineDraw 1300ms ease 420ms both;
+      }
+
+      .ghost-path {
+        fill: none;
+        stroke: var(--border);
+        stroke-width: 1.3;
+      }
+
+      .pulse-dot {
+        position: absolute;
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        transform: scale(0.6);
+        opacity: 0;
+        animation: dotPop 520ms ease both, dotPulse 2100ms ease-in-out infinite;
+      }
+
+      .pulse-dot:nth-of-type(1) {
+        left: 35px;
+        top: 207px;
+        background: var(--navy);
+        animation-delay: 650ms, 1320ms;
+      }
+
+      .pulse-dot:nth-of-type(2) {
+        left: 105px;
+        top: 142px;
+        background: var(--clay);
+        animation-delay: 790ms, 1510ms;
+      }
+
+      .pulse-dot:nth-of-type(3) {
+        left: 183px;
+        top: 220px;
+        background: var(--amber);
+        animation-delay: 930ms, 1700ms;
+      }
+
+      .pulse-dot:nth-of-type(4) {
+        left: 267px;
+        top: 164px;
+        background: var(--forest);
+        animation-delay: 1070ms, 1890ms;
+      }
+
+      .type-stack {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 42px;
+        display: grid;
+        justify-items: center;
+        text-align: center;
+      }
+
+      .type-stack .kicker-line {
+        color: var(--muted);
+        font-family: "Space Mono", monospace;
+        font-size: 11px;
+        font-weight: 700;
+        opacity: 0;
+        transform: translateY(8px);
+        animation: textRise 520ms ease 900ms both;
+      }
+
+      .type-stack .big-word {
+        margin-top: 0;
+        color: var(--ink);
+        font-family: "Playfair Display", serif;
+        font-size: 50px;
+        font-weight: 700;
+        line-height: 0.96;
+        opacity: 0;
+        transform: translateY(10px);
+        animation: textRise 620ms ease 1060ms both;
+      }
+
+      .type-stack .word-row {
+        display: none;
+      }
+
+      .word-row {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 250px;
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+      }
+
+      .word-chip {
+        padding: 6px 9px;
+        border: 1.5px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--ink2);
+        font-family: "Space Mono", monospace;
+        font-size: 10.5px;
+        font-weight: 700;
+        opacity: 0;
+        transform: translateY(8px);
+        animation: textRise 420ms ease both;
+      }
+
+      .word-chip:nth-child(1) { animation-delay: 1260ms; }
+      .word-chip:nth-child(2) { animation-delay: 1380ms; }
+      .word-chip:nth-child(3) { animation-delay: 1500ms; }
+
       .phase-card {
         position: absolute;
         top: 2px;
@@ -617,66 +797,25 @@
       }
 
       .auth-panel {
-        margin-top: 72px;
-        padding: 16px;
+        margin-top: 28px;
+        padding: 0 2px;
+        border: 0;
+        background: transparent;
       }
 
       .auth-panel .screen-copy {
-        margin-bottom: 18px;
+        max-width: 318px;
+        margin-bottom: 24px;
       }
 
-      .next-card {
-        margin-top: 12px;
-        padding: 13px 14px;
-        background: var(--card);
-      }
-
-      .next-title {
-        font-size: 13px;
-        font-weight: 700;
-      }
-
-      .next-copy {
-        margin-top: 4px;
-        color: var(--muted);
-        font-size: 11.5px;
-        line-height: 1.42;
-      }
-
-      .next-steps {
-        display: flex;
-        align-items: center;
-        gap: 7px;
-        margin-top: 11px;
-        color: var(--ink2);
-        font-family: "Space Mono", monospace;
-        font-size: 10.5px;
-        font-weight: 700;
-      }
-
-      .step-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: var(--clay);
-      }
-
-      .step-rule {
-        flex: 1;
-        height: 1px;
-        background: var(--border);
+      .auth-panel .screen-title {
+        max-width: 320px;
+        font-size: 31px;
       }
 
       .account-card {
         display: grid;
-        gap: 13px;
-      }
-
-      .auth-card-copy {
-        margin: 0;
-        color: var(--ink2);
-        font-size: 12.5px;
-        line-height: 1.48;
+        gap: 11px;
       }
 
       .google-mark {
@@ -687,8 +826,8 @@
         place-items: center;
         border: 1.5px solid var(--border);
         background: var(--surface);
-        color: var(--ink);
-        font-family: "Playfair Display", serif;
+        color: #4285F4;
+        font-family: Arial, sans-serif;
         font-size: 15px;
         font-weight: 700;
       }
@@ -1120,6 +1259,46 @@
         }
       }
 
+      @keyframes tickerLeft {
+        from { transform: translateX(0); }
+        to { transform: translateX(-50%); }
+      }
+
+      @keyframes tickerRight {
+        from { transform: translateX(-50%); }
+        to { transform: translateX(0); }
+      }
+
+      @keyframes dotPop {
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      @keyframes dotPulse {
+        0%, 100% {
+          box-shadow: 0 0 0 0 rgba(196, 82, 42, 0);
+        }
+        45% {
+          box-shadow: 0 0 0 7px rgba(196, 82, 42, 0.08);
+        }
+      }
+
+      @keyframes textRise {
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes textRiseCentered {
+        to {
+          opacity: 1;
+          transform: translate(-50%, 0);
+        }
+      }
+
       @media (prefers-reduced-motion: reduce) {
         *,
         *::before,
@@ -1190,52 +1369,45 @@
                 <div class="build-chip">Beta</div>
               </div>
 
-              <div class="welcome-visual" aria-label="Animated training block preview">
-                <div class="card phase-card">
-                  <div class="card-head">
-                    <div>
-                      <div class="phase-label">Marathon block</div>
-                      <div class="week-title">Week 1 · Build</div>
-                    </div>
-                    <div class="date-copy">27 Apr–3 May</div>
-                  </div>
-                  <div class="phase-strip" aria-hidden="true">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                    <div class="phase-marker"></div>
+              <div class="welcome-stage" aria-label="Animated Steady training motif">
+                <div class="ticker-row top" aria-hidden="true">
+                  <div class="ticker-track">
+                    <span>BASE</span><span>08KM</span><span>5:30/KM</span><span>TEMPO</span><span>10KM</span><span>4:20/KM</span><span>LONG</span><span>22KM</span>
+                    <span>BASE</span><span>08KM</span><span>5:30/KM</span><span>TEMPO</span><span>10KM</span><span>4:20/KM</span><span>LONG</span><span>22KM</span>
+                    <span>BASE</span><span>08KM</span><span>5:30/KM</span><span>TEMPO</span><span>10KM</span><span>4:20/KM</span><span>LONG</span><span>22KM</span>
+                    <span>BASE</span><span>08KM</span><span>5:30/KM</span><span>TEMPO</span><span>10KM</span><span>4:20/KM</span><span>LONG</span><span>22KM</span>
                   </div>
                 </div>
 
-                <div class="card trace-card">
-                  <div class="mini-label">Planned vs actual</div>
-                  <svg class="pace-trace" viewBox="0 0 280 62" aria-hidden="true">
-                    <path class="trace-grid" d="M2 12H278M2 31H278M2 50H278" />
-                    <path class="planned-line" d="M3 39C42 33 65 29 94 28C127 26 149 39 181 35C218 30 238 20 277 23" />
-                    <path class="actual-line" d="M3 44C38 38 62 31 91 30C127 29 151 44 183 39C219 33 239 23 277 26" />
+                <div class="kinetic-core">
+                  <svg class="kinetic-line" viewBox="0 0 306 180" aria-hidden="true">
+                    <path class="ghost-path" d="M34 124C72 72 98 50 126 61C165 76 164 141 205 137C239 134 254 86 278 80" />
+                    <path class="kinetic-path" d="M34 124C72 72 98 50 126 61C165 76 164 141 205 137C239 134 254 86 278 80" />
                   </svg>
-                  <div class="trace-meta">
-                    <span><span class="mono">12km</span> planned</span>
-                    <span><span class="mono">12.2km</span> synced</span>
+                  <span class="pulse-dot"></span>
+                  <span class="pulse-dot"></span>
+                  <span class="pulse-dot"></span>
+                  <span class="pulse-dot"></span>
+
+                  <div class="type-stack">
+                    <div class="kicker-line">16W · 48KM · 3:30</div>
+                    <div class="big-word">Block</div>
                   </div>
+
+                  <div class="word-row">
+                    <span class="word-chip">Build</span>
+                    <span class="word-chip">Sync</span>
+                    <span class="word-chip">Adapt</span>
+                  </div>
+
                 </div>
 
-                <div class="session-stack">
-                  <div class="session-row">
-                    <div class="day">MON</div>
-                    <div class="session-name"><span class="dot easy"></span>Easy run</div>
-                    <div class="session-km">8km</div>
-                  </div>
-                  <div class="session-row today">
-                    <div class="day">TUE</div>
-                    <div class="session-name"><span class="dot tempo"></span>Tempo session</div>
-                    <div class="session-km">10km</div>
-                  </div>
-                  <div class="session-row">
-                    <div class="day">SUN</div>
-                    <div class="session-name"><span class="dot long"></span>Long run</div>
-                    <div class="session-km">22km</div>
+                <div class="ticker-row bottom" aria-hidden="true">
+                  <div class="ticker-track">
+                    <span>ADAPT</span><span>BUILD</span><span>PEAK</span><span>TAPER</span><span>SYNCED</span><span>PLANNED</span><span>ACTUAL</span>
+                    <span>ADAPT</span><span>BUILD</span><span>PEAK</span><span>TAPER</span><span>SYNCED</span><span>PLANNED</span><span>ACTUAL</span>
+                    <span>ADAPT</span><span>BUILD</span><span>PEAK</span><span>TAPER</span><span>SYNCED</span><span>PLANNED</span><span>ACTUAL</span>
+                    <span>ADAPT</span><span>BUILD</span><span>PEAK</span><span>TAPER</span><span>SYNCED</span><span>PLANNED</span><span>ACTUAL</span>
                   </div>
                 </div>
               </div>
@@ -1267,24 +1439,12 @@
             <div class="screen auth-screen">
               <section class="card auth-panel">
                 <h2 class="screen-title">Create your account.</h2>
-                <p class="screen-copy">Sign up first, then build your training block.</p>
+                <p class="screen-copy">Save your plan before you build it. This account keeps your block, settings, and Strava sync attached to you.</p>
                 <div class="account-card">
                   <button class="btn secondary">
                     <span class="google-mark">G</span>
-                    Sign up with Google
+                    Continue with Google
                   </button>
-                </div>
-              </section>
-
-              <section class="card next-card">
-                <div class="next-title">Next: plan builder</div>
-                <div class="next-copy">Set the race, shape the week, review the block.</div>
-                <div class="next-steps" aria-hidden="true">
-                  <span>Goal</span>
-                  <span class="step-rule"></span>
-                  <span class="step-dot"></span>
-                  <span class="step-rule"></span>
-                  <span>Plan</span>
                 </div>
               </section>
 

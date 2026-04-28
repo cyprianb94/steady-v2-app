@@ -212,6 +212,32 @@ vi.mock('@gorhom/bottom-sheet', () => import('./mocks/gorhom-bottom-sheet'));
 
 vi.mock('react-native-ui-datepicker', () => import('./mocks/react-native-ui-datepicker'));
 
+vi.mock('react-native-svg', () => {
+  function createSvgComponent(tagName: string) {
+    return function SvgComponent({ children, testID, ...props }: any) {
+      return React.createElement(
+        tagName,
+        {
+          ...props,
+          ...(testID ? { 'data-testid': testID } : {}),
+        },
+        children,
+      );
+    };
+  }
+
+  const Svg = createSvgComponent('svg');
+
+  return {
+    default: Svg,
+    Svg,
+    Defs: createSvgComponent('defs'),
+    LinearGradient: createSvgComponent('linearGradient'),
+    Path: createSvgComponent('path'),
+    Stop: createSvgComponent('stop'),
+  };
+});
+
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: appTestHarness.asyncStorage,
 }));

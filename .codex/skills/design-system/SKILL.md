@@ -324,6 +324,37 @@ The universal visual shorthand for session types in grids and timelines:
 - REST: `background: C.border`
 - Future/upcoming: full opacity (not faded)
 
+### Interactive volume charts
+
+Use this pattern for weekly volume, block review, load, or phase-over-time charts. Do not draw smooth curves from many rotated `View` segments; that creates dotted, ragged, or doubled strokes. The line must be one continuous vector stroke.
+
+For the complete Review your block screen, use `/review-block`; it documents the chart together with tabs, stats, phase strips, week rows, expansion animation, and drag/reschedule behavior.
+
+Source examples:
+- `packages/app/components/block-review/BlockReviewSurface.tsx` (`BlockVolumeChart`)
+- `packages/app/components/plan-builder/BlockVolumeCard.tsx` for the older scrub/tooltip interaction pattern
+
+Required chart behaviour:
+- Render the main curve as a single `react-native-svg` `Path` with cubic commands.
+- Use `strokeLinecap="round"` and `strokeLinejoin="round"`.
+- If phase colours change along the same curve, use an SVG `LinearGradient` with sharp stops; do not split the line into separate view segments.
+- Keep phase-start markers as separate circular overlays at each phase start.
+- Show x-axis labels at phase-start weeks (`W1`, `W4`, etc.) close to the baseline, centered on the exact marker x coordinate. Do not add a separate `Race` x-axis label if the race value is already represented in stats.
+- Keep the y-axis gutter compact, with the `km` unit above the top tick, y-axis tick values, y-axis line, and horizontal plot/grid lines visible in muted border colour so values are understandable without scrubbing.
+- Add a thick phase strip below summary stats when phases matter. Segment widths are proportional to week counts, labels are uppercase/compact, and label colour is cream-toned text over phase colour.
+
+Required interaction:
+- Scrubbing selects the nearest week from horizontal position.
+- Tooltip shows week number, bold/coloured phase name, week date range, and aggregated weekly volume.
+- Fire `triggerSelectionChangeHaptic()` only when the selected week changes.
+- If the chart lives inside a `ScrollView`, expose `onScrubActiveChange(active)` and set `scrollEnabled={!active}` in the parent while scrubbing.
+- Clear tooltip/scrub state on responder release/terminate and on unmount.
+
+Testing expectations:
+- Test the pure chart model (`pathD`, gradient stops, phase markers).
+- Test scrub start/move/release, tooltip content, and `onScrubActiveChange`.
+- Mock `react-native-svg` in the app test harness if needed; do not weaken tests to ignore the path.
+
 ### Scroll drum picker
 
 Used only where the current app still explicitly uses a wheel/drum picker. Do not use it in the current session editor, which uses notebook rows and chip strips. Key characteristics:

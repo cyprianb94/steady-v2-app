@@ -672,7 +672,8 @@
     }
 
     .block-volume-card {
-      padding: 14px;
+      margin-top: 8px;
+      padding: 12px;
       border: 1.5px solid var(--border);
       border-radius: 16px;
       background: var(--surface);
@@ -688,16 +689,16 @@
     .block-volume-title {
       margin: 0;
       color: var(--ink);
-      font-size: 17px;
-      font-weight: 700;
-      line-height: 21px;
+      font-size: 18px;
+      font-weight: 600;
+      line-height: 22px;
     }
 
     .block-volume-subtitle {
-      margin-top: 3px;
+      margin-top: 2px;
       color: var(--muted);
       font-size: 11px;
-      line-height: 15px;
+      line-height: 1.3;
     }
 
     .peak-pill {
@@ -713,8 +714,8 @@
 
     .volume-chart {
       width: 100%;
-      height: 122px;
-      margin-top: 10px;
+      height: 112px;
+      margin-top: 5px;
       overflow: visible;
     }
 
@@ -726,14 +727,13 @@
 
     .volume-line {
       fill: none;
-      stroke-width: 4;
+      stroke-width: 2.3;
       stroke-linecap: round;
       stroke-linejoin: round;
     }
 
     .volume-point {
-      stroke: var(--surface);
-      stroke-width: 2;
+      stroke-width: 0;
     }
 
     .chart-marker {
@@ -745,42 +745,42 @@
     .block-stats-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin-top: 8px;
+      gap: 7px;
+      margin-top: 5px;
     }
 
     .block-stat {
-      padding: 9px 8px;
+      padding: 7px 8px;
       border: 1.5px solid var(--border);
-      border-radius: 14px;
+      border-radius: 13px;
       background: var(--surface);
     }
 
     .block-stat-label {
       color: var(--muted);
-      font-size: 9px;
+      font-size: 8px;
       font-weight: 700;
-      letter-spacing: 1.25px;
+      letter-spacing: 1.4px;
       text-transform: uppercase;
     }
 
     .block-stat-value {
-      margin-top: 5px;
+      margin-top: 4px;
       color: var(--ink);
       font-family: "Space Mono", monospace;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 700;
     }
 
     .block-tabs {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(2, 1fr);
       gap: 4px;
-      height: 38px;
-      margin: 10px 0 9px;
+      height: 40px;
+      margin-top: 10px;
       padding: 4px;
       border: 1.5px solid var(--border);
-      border-radius: 22px;
+      border-radius: 24px;
       background: var(--card);
     }
 
@@ -788,15 +788,104 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      border-radius: 18px;
+      border-radius: 20px;
       color: var(--muted);
-      font-size: 11.5px;
-      font-weight: 700;
+      font-size: 12px;
+      font-weight: 600;
     }
 
     .block-tab.active {
       background: var(--surface);
       color: var(--ink);
+    }
+
+    .readonly-section-card {
+      margin-top: 8px;
+      padding: 10px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 16px;
+      background: var(--surface);
+    }
+
+    .readonly-section-card.progression {
+      border-color: rgba(212, 136, 42, 0.34);
+      background: var(--amber-bg);
+    }
+
+    .section-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .section-title {
+      color: var(--ink);
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .section-sub {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.3;
+    }
+
+    .choice-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 8px;
+    }
+
+    .choice {
+      height: 30px;
+      padding: 0 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1.5px solid var(--border);
+      border-radius: 18px;
+      background: var(--surface);
+      color: var(--ink2);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .choice.active {
+      border-color: var(--amber);
+      background: var(--amber);
+      color: white;
+    }
+
+    .phase-summary-card {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 12px;
+      margin-top: 8px;
+      padding: 10px 11px;
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      background: var(--card);
+    }
+
+    .phase-summary-line {
+      margin-top: 5px;
+      color: var(--muted);
+      font-family: "Space Mono", monospace;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .mini-strip {
+      display: flex;
+      width: 78px;
+      height: 11px;
+      gap: 2px;
+      overflow: hidden;
+      border-radius: 7px;
     }
 
     .block-week-list {
@@ -899,13 +988,22 @@
       right: 14px;
       bottom: 22px;
       z-index: 4;
-      padding-top: 9px;
+      padding-top: 8px;
       border-top: 1px solid rgba(229, 221, 208, 0.8);
       background: var(--cream);
     }
 
     .preview-footer .readonly-note {
       margin: 0 4px 8px;
+    }
+
+    .preview-footer .action-stack {
+      gap: 7px;
+      margin-top: 0;
+    }
+
+    .preview-footer .button {
+      min-height: 36px;
     }
 
     .summary-grid {
@@ -1508,108 +1606,83 @@
                   </div>
                 </div>
 
+                <div class="block-tabs">
+                  <div class="block-tab active">Structure</div>
+                  <div class="block-tab">Weeks</div>
+                </div>
+
                 <div class="block-volume-card">
                   <div class="block-volume-head">
                     <div>
                       <h3 class="block-volume-title">Weekly volume</h3>
                       <div class="block-volume-subtitle">Builds through the middle, then tapers.</div>
                     </div>
-                    <div class="peak-pill">78km peak</div>
                   </div>
 
-                  <svg class="volume-chart" viewBox="0 0 320 122" aria-hidden="true">
-                    <line class="volume-grid" x1="0" y1="24" x2="320" y2="24"></line>
-                    <line class="volume-grid" x1="0" y1="62" x2="320" y2="62"></line>
-                    <line class="volume-grid" x1="0" y1="100" x2="320" y2="100"></line>
-                    <text class="chart-marker" x="0" y="12">km</text>
-                    <polyline class="volume-line" stroke="var(--navy)" points="0,86 44,82 88,78"></polyline>
-                    <polyline class="volume-line" stroke="var(--clay)" points="88,78 132,64 176,48 220,30"></polyline>
-                    <polyline class="volume-line" stroke="var(--amber)" points="220,30 264,44"></polyline>
-                    <polyline class="volume-line" stroke="var(--forest)" points="264,44 320,82"></polyline>
-                    <circle class="volume-point" cx="0" cy="86" r="5" fill="var(--navy)"></circle>
-                    <circle class="volume-point" cx="88" cy="78" r="5" fill="var(--clay)"></circle>
-                    <circle class="volume-point" cx="220" cy="30" r="5" fill="var(--amber)"></circle>
-                    <circle class="volume-point" cx="320" cy="82" r="5" fill="var(--forest)"></circle>
-                    <text class="chart-marker" x="0" y="119">W1</text>
-                    <text class="chart-marker" x="205" y="119">W12</text>
-                    <text class="chart-marker" x="292" y="119">Race</text>
+                  <svg class="volume-chart" viewBox="0 0 320 127" aria-hidden="true">
+                    <line x1="42" y1="105" x2="312" y2="105" stroke="#E5DDD0" stroke-width="2" />
+                    <line x1="42" y1="73" x2="312" y2="73" stroke="#E5DDD0" stroke-width="1" stroke-dasharray="4 6" />
+                    <line x1="42" y1="40" x2="312" y2="40" stroke="#E5DDD0" stroke-width="1" stroke-dasharray="4 6" />
+                    <path d="M44 78 C62 78 80 76 100 70" fill="none" stroke="#1B3A6B" stroke-width="2.3" stroke-linecap="round" />
+                    <path d="M100 70 C134 60 168 49 204 42 C220 39 229 40 238 43" fill="none" stroke="#C4522A" stroke-width="2.3" stroke-linecap="round" />
+                    <path d="M238 43 C253 50 262 65 274 82" fill="none" stroke="#D4882A" stroke-width="2.3" stroke-linecap="round" />
+                    <path d="M274 82 C286 97 297 103 308 106" fill="none" stroke="#2A5C45" stroke-width="2.3" stroke-linecap="round" />
+                    <circle cx="44" cy="78" r="4" fill="#1B3A6B" />
+                    <circle cx="100" cy="70" r="4" fill="#C4522A" />
+                    <circle cx="238" cy="43" r="4" fill="#D4882A" />
+                    <circle cx="274" cy="82" r="4" fill="#2A5C45" />
+                    <text x="13" y="24" fill="#9A8E7E" font-size="10" font-family="Space Mono">km</text>
+                    <text x="10" y="44" fill="#9A8E7E" font-size="9" font-family="Space Mono">100</text>
+                    <text x="16" y="77" fill="#9A8E7E" font-size="9" font-family="Space Mono">50</text>
+                    <text x="23" y="109" fill="#9A8E7E" font-size="9" font-family="Space Mono">0</text>
+                    <text x="42" y="123" fill="#9A8E7E" font-size="10" font-family="Space Mono">W1</text>
+                    <text x="92" y="123" fill="#9A8E7E" font-size="10" font-family="Space Mono">W4</text>
+                    <text x="226" y="123" fill="#9A8E7E" font-size="10" font-family="Space Mono">W13</text>
+                    <text x="265" y="123" fill="#9A8E7E" font-size="10" font-family="Space Mono">W15</text>
                   </svg>
 
                   <div class="block-stats-grid">
-                    <div class="block-stat">
-                      <div class="block-stat-label">Start</div>
-                      <div class="block-stat-value">52km</div>
-                    </div>
-                    <div class="block-stat">
-                      <div class="block-stat-label">Peak</div>
-                      <div class="block-stat-value clay">78km</div>
-                    </div>
-                    <div class="block-stat">
-                      <div class="block-stat-label">Race</div>
-                      <div class="block-stat-value">44km</div>
-                    </div>
+                    <div class="block-stat"><div class="block-stat-label">Start</div><div class="block-stat-value">70km</div></div>
+                    <div class="block-stat"><div class="block-stat-label">Peak</div><div class="block-stat-value">92km</div></div>
+                    <div class="block-stat"><div class="block-stat-label">Race</div><div class="block-stat-value">42km</div></div>
                   </div>
 
-                  <div class="mini-phase-strip" style="height:11px;margin-top:13px">
+                  <div class="mini-phase-strip" style="height:10px;margin-top:11px">
                     <div style="flex:3;background:var(--navy)"></div>
-                    <div style="flex:8;background:var(--clay)"></div>
+                    <div style="flex:9;background:var(--clay)"></div>
                     <div style="flex:2;background:var(--amber)"></div>
-                    <div style="flex:3;background:var(--forest)"></div>
+                    <div style="flex:2;background:var(--forest)"></div>
                   </div>
                 </div>
 
-                <div class="block-tabs">
-                  <div class="block-tab active">Overview</div>
-                  <div class="block-tab">Phases</div>
-                  <div class="block-tab">Weeks</div>
+                <div class="readonly-section-card progression">
+                  <div class="section-head">
+                    <div>
+                      <div class="section-title">Progression</div>
+                      <div class="section-sub">Volume change applied before race-week taper.</div>
+                    </div>
+                  </div>
+                  <div class="choice-row">
+                    <div class="choice active">+7% / 2w</div>
+                    <div class="choice">Custom</div>
+                    <div class="choice">Flat</div>
+                  </div>
                 </div>
 
-                <div class="block-week-list">
-                  <div class="block-week-row">
-                    <div class="block-week-top">
-                      <div class="block-week-number">W1</div>
-                      <div class="run-dots">
-                        <span class="run-dot" style="background:var(--forest)"></span><span class="run-dot" style="background:var(--clay)"></span><span class="run-dot" style="background:var(--forest)"></span><span class="run-dot" style="background:var(--amber)"></span><span class="run-dot" style="background:var(--slate)"></span><span class="run-dot" style="background:var(--forest)"></span><span class="run-dot" style="background:var(--navy)"></span>
-                      </div>
-                      <div class="block-week-right">
-                        <span class="block-week-km">52km</span>
-                        <span class="phase-pill" style="background:var(--navy-bg);color:var(--navy)">Base</span>
-                      </div>
-                    </div>
-                    <div class="block-week-bar"><div class="block-week-fill" style="width:67%;background:var(--navy)"></div></div>
+                <div class="phase-summary-card">
+                  <div>
+                    <div class="section-title">Phase structure</div>
+                    <div class="phase-summary-line">3w base · 9w build · 0w recovery · 2w peak · 2w taper</div>
                   </div>
-
-                  <div class="block-week-row active-week">
-                    <div class="block-week-top">
-                      <div class="block-week-number">W12</div>
-                      <div class="run-dots">
-                        <span class="run-dot" style="background:var(--forest)"></span><span class="run-dot" style="background:var(--clay)"></span><span class="run-dot" style="background:var(--forest)"></span><span class="run-dot" style="background:var(--amber)"></span><span class="run-dot" style="background:var(--slate)"></span><span class="run-dot" style="background:var(--forest)"></span><span class="run-dot" style="background:var(--navy)"></span>
-                      </div>
-                      <div class="block-week-right">
-                        <span class="block-week-km">78km</span>
-                        <span class="phase-pill" style="background:var(--amber-bg);color:var(--amber)">Peak</span>
-                      </div>
-                    </div>
-                    <div class="block-week-bar"><div class="block-week-fill" style="width:100%;background:var(--amber)"></div></div>
-                  </div>
-
-                  <div class="block-week-row">
-                    <div class="block-week-top">
-                      <div class="block-week-number">W16</div>
-                      <div class="run-dots">
-                        <span class="run-dot" style="background:var(--forest)"></span><span class="run-dot" style="background:var(--clay)"></span><span class="run-dot" style="background:var(--forest)"></span><span class="run-dot" style="background:var(--amber)"></span><span class="run-dot" style="background:var(--slate)"></span><span class="run-dot" style="background:var(--forest)"></span><span class="run-dot" style="background:var(--navy)"></span>
-                      </div>
-                      <div class="block-week-right">
-                        <span class="block-week-km">44km</span>
-                        <span class="phase-pill" style="background:var(--forest-bg);color:var(--forest)">Taper</span>
-                      </div>
-                    </div>
-                    <div class="block-week-bar"><div class="block-week-fill" style="width:56%;background:var(--forest)"></div></div>
+                  <div class="mini-strip">
+                    <span style="flex:3;background:var(--navy)"></span>
+                    <span style="flex:9;background:var(--clay)"></span>
+                    <span style="flex:2;background:var(--amber)"></span>
+                    <span style="flex:2;background:var(--forest)"></span>
                   </div>
                 </div>
 
                 <div class="preview-footer">
-                  <p class="readonly-note">Read-only preview. Editing, propagation, and day dragging stay disabled.</p>
                   <div class="action-stack">
                     <div class="button primary">Restore this plan</div>
                     <div class="button danger">Delete from history</div>

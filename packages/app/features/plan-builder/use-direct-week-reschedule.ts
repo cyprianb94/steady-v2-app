@@ -36,7 +36,7 @@ interface DirectWeekRescheduleResult {
   recordTouchStart: (pageY: number) => void;
   beginDrag: (index: number) => boolean;
   updateDrag: (pageY: number) => void;
-  finishDrag: () => void;
+  finishDrag: () => WeekRescheduleDragState | null;
   cancelDrag: () => void;
   replaceDay: (index: number, session: PlannedSession | null) => void;
   replaceSessions: (nextSessions: (PlannedSession | null)[]) => void;
@@ -181,10 +181,11 @@ export function useDirectWeekReschedule({
     setCurrentDragState(null);
 
     if (!current) {
-      return;
+      return null;
     }
 
     applySwap(current.fromIndex, current.overIndex);
+    return current;
   }
 
   function cancelDrag() {

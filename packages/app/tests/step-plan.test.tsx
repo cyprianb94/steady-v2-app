@@ -15,9 +15,9 @@ const baseParams = {
   raceLabel: '10K',
   raceName: 'Club 10K',
   raceDate: '2026-09-20',
-  weeks: '3',
+  weeks: '6',
   targetTime: '00:45:00',
-  phases: JSON.stringify({ BASE: 1, BUILD: 1, RECOVERY: 0, PEAK: 0, TAPER: 1 }),
+  phases: JSON.stringify({ BASE: 1, BUILD: 3, RECOVERY: 0, PEAK: 1, TAPER: 1 }),
   template: JSON.stringify([
     { type: 'EASY', distance: 8, pace: '5:20' },
     {
@@ -44,22 +44,27 @@ describe('StepPlan session editing', () => {
     vi.mocked(savePlan).mockResolvedValue({} as Awaited<ReturnType<typeof savePlan>>);
   });
 
-  it('shows the block volume curve with phase-start markers only', () => {
+  it('opens on the revised Structure and Weeks review tabs', () => {
     render(<StepPlan />);
 
     expect(screen.getByTestId('block-review-volume-chart')).toBeTruthy();
     expect(screen.getByTestId('block-review-phase-strip')).toBeTruthy();
     expect(screen.getByTestId('block-review-tabs')).toBeTruthy();
-    expect(screen.getByText('Overview')).toBeTruthy();
-    expect(screen.getByText('Phases')).toBeTruthy();
+    expect(screen.getByText('Structure')).toBeTruthy();
     expect(screen.getByText('Weeks')).toBeTruthy();
+    expect(screen.getByText('00:45:00')).toBeTruthy();
+    expect(screen.getByText(/20 Sept 2026/)).toBeTruthy();
+    expect(screen.queryByText(/Race 20 Sept 2026/)).toBeNull();
+    expect(screen.queryByText('Overview')).toBeNull();
+    expect(screen.queryByText('Phases')).toBeNull();
   });
 
   it('opens the shared full-screen editor and applies an edit to remaining weeks', () => {
     render(<StepPlan />);
 
-    fireEvent.click(screen.getByTestId('block-review-key-week-1'));
-    fireEvent.click(screen.getByTestId('plan-week-1-day-0'));
+    fireEvent.click(screen.getByTestId('block-review-tab-weeks'));
+    fireEvent.click(screen.getByTestId('block-week-row-press-1'));
+    fireEvent.click(screen.getByTestId('block-week-day-1-0'));
 
     expect(screen.getByText('Cancel')).toBeTruthy();
     expect(screen.getByText('Target pace')).toBeTruthy();
@@ -70,26 +75,74 @@ describe('StepPlan session editing', () => {
     expect(screen.getByText('Apply change where?')).toBeTruthy();
     fireEvent.click(screen.getByText('Apply change'));
 
-    expect(screen.getByTestId('plan-week-1-day-0').textContent).toContain('Rest day');
+    expect(screen.getByTestId('block-week-day-1-0').textContent).toContain('Rest day');
 
-    fireEvent.click(screen.getByTestId('block-review-week-2'));
-    expect(screen.getByTestId('plan-week-2-day-0').textContent).toContain('Rest day');
+    fireEvent.click(screen.getByTestId('block-week-row-press-2'));
+    expect(screen.getByTestId('block-week-day-2-0').textContent).toContain('Rest day');
+  });
+
+  it('keeps the Weeks tab collapsible and scopes Block-style drag rescheduling', async () => {
+    render(<StepPlan />);
+
+    fireEvent.click(screen.getByTestId('block-review-tab-weeks'));
+    fireEvent.click(screen.getByTestId('block-week-row-press-1'));
+
+    expect(screen.getByTestId('block-week-expanded-1')).toBeTruthy();
+    expect(screen.queryByText(/any change will ask where to apply/i)).toBeNull();
+
+    fireEvent.mouseDown(screen.getByTestId('block-week-drag-handle-1-4'), { clientY: 240 });
+    fireEvent.mouseMove(screen.getByTestId('block-week-drag-handle-1-4'), { clientY: 0 });
+    fireEvent.mouseUp(screen.getByTestId('block-week-drag-handle-1-4'), {});
+
+    expect(screen.getByText('Where should this reschedule apply?')).toBeTruthy();
+    fireEvent.click(screen.getByText('Apply reschedule'));
+
+    expect(screen.getByTestId('block-week-day-1-0').textContent).toContain('Rest day');
+    expect(screen.getByTestId('block-week-day-1-4').textContent).toContain('8km @ 5:20');
+
+    fireEvent.click(screen.getByTestId('block-week-row-press-2'));
+    expect(screen.getByTestId('block-week-day-2-0').textContent).toContain('Rest day');
+
+    fireEvent.click(screen.getByTestId('block-week-row-press-2'));
+    await waitFor(() => {
+      expect(screen.queryByTestId('block-week-expanded-2')).toBeNull();
+    });
   });
 
   it('opens interval sessions in the notebook-row editor rather than the old inline controls', () => {
     render(<StepPlan />);
 
-    fireEvent.click(screen.getByTestId('block-review-key-week-1'));
-    fireEvent.click(screen.getByTestId('plan-week-1-day-1'));
+    fireEvent.click(screen.getByTestId('block-review-tab-weeks'));
+    fireEvent.click(screen.getByTestId('block-week-row-press-1'));
+    fireEvent.click(screen.getByTestId('block-week-day-1-1'));
 
     expect(screen.getByText('Repetitions')).toBeTruthy();
     expect(screen.getByText('Rep target pace')).toBeTruthy();
     expect(screen.queryByText('Rep distance')).toBeNull();
   });
 
-  it('applies custom overload cadence and saves a dated plan', async () => {
+  it('edits phase structure with Build absorbing the difference', () => {
     render(<StepPlan />);
 
+    fireEvent.click(screen.getByTestId('block-review-edit-structure'));
+
+    expect(screen.getByTestId('phase-editor-build-count').textContent).toBe('3w');
+    expect(screen.getByTestId('phase-editor-recovery-count').textContent).toBe('0w');
+
+    fireEvent.click(screen.getByTestId('phase-editor-recovery-increment'));
+
+    expect(screen.getByTestId('phase-editor-build-count').textContent).toBe('2w');
+    expect(screen.getByTestId('phase-editor-recovery-count').textContent).toBe('1w');
+    expect(screen.getByText('Final high-load block before taper.')).toBeTruthy();
+    expect(screen.getByText('auto-adjusts')).toBeTruthy();
+  });
+
+  it('applies edited phases, custom overload cadence, and saves a dated plan', async () => {
+    render(<StepPlan />);
+
+    fireEvent.click(screen.getByTestId('block-review-edit-structure'));
+    fireEvent.click(screen.getByTestId('phase-editor-recovery-increment'));
+    fireEvent.click(screen.getByTestId('phase-editor-done'));
     fireEvent.click(screen.getByTestId('block-review-overload-custom'));
     fireEvent.change(screen.getByTestId('progression-pct-input'), {
       target: { value: '6' },
@@ -101,6 +154,7 @@ describe('StepPlan session editing', () => {
 
     expect(screen.getByText('+6% progression every 3 weeks.')).toBeTruthy();
 
+    fireEvent.click(screen.getByText('Review weeks →'));
     fireEvent.click(screen.getByText('Save plan and start training →'));
 
     await waitFor(() => expect(savePlan).toHaveBeenCalledTimes(1));
@@ -109,10 +163,19 @@ describe('StepPlan session editing', () => {
     expect(savedPlan).toMatchObject({
       raceName: 'Club 10K',
       raceDate: '2026-09-20',
+      phases: { BASE: 1, BUILD: 2, RECOVERY: 1, PEAK: 1, TAPER: 1 },
       progressionPct: 6,
       progressionEveryWeeks: 3,
     });
-    expect(savedPlan.weeks[0].sessions[0]?.date).toBe('2026-08-31');
-    expect(savedPlan.weeks[2].sessions[6]?.date).toBe('2026-09-20');
+    expect(savedPlan.weeks.map((week) => week.phase)).toEqual([
+      'BASE',
+      'BUILD',
+      'RECOVERY',
+      'BUILD',
+      'PEAK',
+      'TAPER',
+    ]);
+    expect(savedPlan.weeks[0].sessions[0]?.date).toBe('2026-08-10');
+    expect(savedPlan.weeks[5].sessions[6]?.date).toBe('2026-09-20');
   });
 });

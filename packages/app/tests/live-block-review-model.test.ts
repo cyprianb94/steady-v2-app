@@ -97,7 +97,7 @@ describe('deriveLiveBlockReviewModel', () => {
     });
 
     expect(model.totalWeeks).toBe(5);
-    expect(model.structureLabel).toBe('1w base · 2w build · 1w peak · 1w taper');
+    expect(model.structureLabel).toBe('1w base · 2w build · 0w recovery · 1w peak · 1w taper');
     expect(model.overload).toEqual({
       progressionPct: 7,
       progressionEveryWeeks: 2,

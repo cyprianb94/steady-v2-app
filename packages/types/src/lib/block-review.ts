@@ -1,9 +1,9 @@
 import type { PhaseConfig, PhaseName, PlanWeek } from '../plan';
-import type { SessionType } from '../session';
+import type { PlannedSession, SessionType } from '../session';
 
 export const BLOCK_REVIEW_PHASE_ORDER: PhaseName[] = ['BASE', 'BUILD', 'RECOVERY', 'PEAK', 'TAPER'];
 
-export type BlockReviewTab = 'overview' | 'phases' | 'weeks';
+export type BlockReviewTab = 'structure' | 'weeks';
 
 export interface BuildBlockReviewModelInput {
   weeks: readonly PlanWeek[];
@@ -20,6 +20,7 @@ export interface BlockReviewWeekModel {
   phase: PhaseName;
   plannedKm: number;
   volumeRatio: number;
+  sessions: readonly (PlannedSession | null)[];
   sessionTypes: SessionType[];
   title: string;
   detail: string;
@@ -261,7 +262,11 @@ function buildStructureLabel(
   return BLOCK_REVIEW_PHASE_ORDER
     .map((phase) => {
       const count = configuredPhaseCount(phase, phases, weeksByPhase.get(phase)?.length ?? 0);
-      return count > 0 ? `${count}w ${PHASE_LABEL[phase].toLowerCase()}` : null;
+      if (count > 0 || phases?.[phase] === 0) {
+        return `${count}w ${PHASE_LABEL[phase].toLowerCase()}`;
+      }
+
+      return null;
     })
     .filter((part): part is string => Boolean(part))
     .join(' · ');
@@ -364,6 +369,7 @@ export function buildBlockReviewModel(input: BuildBlockReviewModelInput): BlockR
       phase: week.phase,
       plannedKm,
       volumeRatio: maxKm > 0 ? plannedKm / maxKm : 0,
+      sessions: week.sessions,
       sessionTypes: getSessionTypes(week),
       title: getWeekTitle(week, flags),
       detail: getWeekDetail(week, plannedKm, flags),

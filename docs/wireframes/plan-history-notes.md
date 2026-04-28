@@ -18,10 +18,12 @@ Add a Settings entry point for plan history so testers can return to older plans
    - Helper copy: `Restoring a plan keeps the current plan in history.`
 
 3. **Plan preview**
-   - Use the existing Block-style presentation as a read-only archived block preview.
-   - Reuse the plan-builder review graph for block overview: `BlockReviewSurface` / `BlockVolumeChart` or `BlockVolumeCard`.
-   - Reuse the Block tab week-row pattern for week summaries.
-   - Do not show edit affordances, propagation controls, or day drag handles while a plan is inactive.
+   - Use the redesigned plan-builder review model from `wireframes/plan-builder-redesign/review-block-tabs.html`.
+   - Default to the read-only `Structure` tab for archived plans.
+   - Keep the same two-tab shape: `Structure` and `Weeks`.
+   - `Structure` shows the weekly volume curve, progression choice state, and phase structure summary.
+   - `Weeks` should reuse the Block-style week list from the redesign, but view-only.
+   - Do not show phase edit links, session edit affordances, propagation controls, or day drag handles while a plan is inactive.
    - Primary action: `Restore this plan`.
    - Destructive action: `Delete from history`.
 

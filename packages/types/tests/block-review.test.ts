@@ -117,6 +117,20 @@ describe('buildBlockReviewModel', () => {
     expect(model.volume.points[2].y).toBeLessThan(model.volume.points[0].y);
   });
 
+  it('keeps configured zero-week phases in the structure label', () => {
+    const model = buildBlockReviewModel({
+      weeks: [
+        week(1, 'BASE', 30),
+        week(2, 'BUILD', 42),
+        week(3, 'PEAK', 55),
+        week(4, 'TAPER', 33),
+      ],
+      phases: { BASE: 1, BUILD: 1, RECOVERY: 0, PEAK: 1, TAPER: 1 },
+    });
+
+    expect(model.structureLabel).toBe('1w base · 1w build · 0w recovery · 1w peak · 1w taper');
+  });
+
   it('normalises week rows for review components', () => {
     const model = buildBlockReviewModel({
       weeks: [

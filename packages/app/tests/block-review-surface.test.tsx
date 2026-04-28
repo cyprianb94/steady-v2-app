@@ -11,6 +11,7 @@ import {
 import {
   BlockReviewOverloadCard,
   BlockReviewSurface,
+  buildReviewVolumeChartModel,
   getBlockReviewTabMotionDuration,
 } from '../components/block-review';
 
@@ -65,12 +66,12 @@ function reviewModel() {
 }
 
 describe('BlockReviewSurface', () => {
-  it('renders overview content from the shared model and exposes controlled tabs', () => {
+  it('renders structure content from the shared model and exposes controlled tabs', () => {
     const onTabChange = vi.fn();
     render(
       <BlockReviewSurface
         model={reviewModel()}
-        activeTab="overview"
+        activeTab="structure"
         onTabChange={onTabChange}
         overload={{
           progressionPct: null,
@@ -80,44 +81,120 @@ describe('BlockReviewSurface', () => {
     );
 
     expect(screen.getByText('Weekly volume')).toBeTruthy();
-    expect(screen.getByText('92km peak')).toBeTruthy();
-    expect(screen.getByText('Settle into rhythm')).toBeTruthy();
-    expect(screen.getByText('Peak week')).toBeTruthy();
-    expect(screen.getByText('Race week')).toBeTruthy();
+    expect(screen.getByText('Progression')).toBeTruthy();
+    expect(screen.getByText('Phase structure')).toBeTruthy();
+    expect(screen.getByText('2w base · 1w build · 0w recovery · 1w peak · 1w taper')).toBeTruthy();
+    expect(screen.getByText('W1')).toBeTruthy();
+    expect(screen.getByText('W3')).toBeTruthy();
+    expect(screen.getByText('W4')).toBeTruthy();
+    expect(screen.getByText('W5')).toBeTruthy();
+    expect(screen.getAllByText('Race')).toHaveLength(1);
+    expect(screen.getByText('BASE')).toBeTruthy();
+    expect(screen.getByText('PEAK')).toBeTruthy();
+    expect(screen.queryByText('92km peak')).toBeNull();
+    expect(screen.queryByText('Overview')).toBeNull();
+    expect(screen.queryByText('Phases')).toBeNull();
 
-    fireEvent.click(screen.getByTestId('block-review-tab-phases'));
-    expect(onTabChange).toHaveBeenCalledWith('phases');
+    fireEvent.click(screen.getByTestId('block-review-tab-weeks'));
+    expect(onTabChange).toHaveBeenCalledWith('weeks');
   });
 
-  it('renders phase and week review views without owning navigation', () => {
+  it('builds a smooth phase-aware chart and scrubs week volume with date context', () => {
+    const model = buildBlockReviewModel({
+      weeks: [
+        week(1, 'BASE', 70),
+        week(2, 'BASE', 74),
+        week(3, 'BUILD', 80),
+        week(4, 'PEAK', 92),
+        week(5, 'TAPER', 62),
+        week(6, 'TAPER', 42),
+      ],
+      phases: { BASE: 2, BUILD: 1, RECOVERY: 0, PEAK: 1, TAPER: 2 },
+      progressionPct: 7,
+    });
+    const chartModel = buildReviewVolumeChartModel(model, 300);
+
+    expect(chartModel.phaseMarkers.map((marker) => marker.weekNumber)).toEqual([1, 3, 4, 5]);
+    expect(chartModel.pathD.startsWith('M ')).toBe(true);
+    expect(chartModel.pathD).toContain(' C ');
+    expect(chartModel.gradientStops.map((stop) => stop.color)).toEqual(
+      expect.arrayContaining(['#1B3A6B', '#C4522A', '#D4882A', '#2A5C45']),
+    );
+
+    const onScrubActiveChange = vi.fn();
+    render(
+      <BlockReviewSurface
+        model={model}
+        activeTab="structure"
+        onTabChange={vi.fn()}
+        raceDate="2026-06-01"
+        onScrubActiveChange={onScrubActiveChange}
+      />,
+    );
+
+    const chart = screen.getByTestId('block-review-volume-scrub-surface');
+    expect(screen.getByTestId('block-review-volume-line')).toBeTruthy();
+    expect(screen.getByTestId('block-review-volume-y-axis')).toBeTruthy();
+    expect(screen.getAllByTestId('block-review-volume-grid-line').length).toBeGreaterThan(2);
+    expect(screen.getAllByTestId('block-review-volume-y-tick').map((tick) => tick.textContent)).toEqual(
+      expect.arrayContaining(['150', '100', '50', '0']),
+    );
+    fireEvent.mouseDown(chart, { clientX: 0, clientY: 72 });
+
+    expect(onScrubActiveChange).toHaveBeenCalledWith(true);
+    expect(screen.getByTestId('block-review-volume-tooltip')).toBeTruthy();
+    expect(screen.getAllByText('W1').length).toBeGreaterThan(0);
+    expect(screen.getByText('Base')).toBeTruthy();
+    expect(screen.getByText('70km total')).toBeTruthy();
+    expect(screen.getByText('May 1 - 8')).toBeTruthy();
+
+    fireEvent.mouseMove(chart, { clientX: 300, clientY: 72 });
+    expect(screen.getAllByText('W5').length).toBeGreaterThan(0);
+    expect(screen.getByText('Taper')).toBeTruthy();
+    expect(screen.getByText('42km total')).toBeTruthy();
+
+    fireEvent.mouseUp(chart, { clientX: 300, clientY: 72 });
+    expect(onScrubActiveChange).toHaveBeenLastCalledWith(false);
+    expect(screen.queryByTestId('block-review-volume-tooltip')).toBeNull();
+  });
+
+  it('renders phase summary edits and week review views without owning navigation', () => {
     const onWeekPress = vi.fn();
+    const onDayPress = vi.fn();
+    const onEditStructure = vi.fn();
     const model = reviewModel();
     const { rerender } = render(
       <BlockReviewSurface
         model={model}
-        activeTab="phases"
+        activeTab="structure"
         onTabChange={vi.fn()}
         onWeekPress={onWeekPress}
+        onEditStructure={onEditStructure}
       />,
     );
 
-    expect(screen.getByTestId('block-review-phases')).toBeTruthy();
-    expect(screen.getByText('Block structure')).toBeTruthy();
-    expect(screen.getByText('2w base · 1w build · 1w peak · 1w taper')).toBeTruthy();
-    expect(screen.getByText('W1-W2')).toBeTruthy();
+    expect(screen.getByTestId('block-review-structure')).toBeTruthy();
+    expect(screen.getByTestId('block-review-phase-summary')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('block-review-edit-structure'));
+    expect(onEditStructure).toHaveBeenCalledTimes(1);
 
     rerender(
       <BlockReviewSurface
         model={model}
         activeTab="weeks"
         onTabChange={vi.fn()}
+        expandedWeekIndex={0}
         onWeekPress={onWeekPress}
+        onDayPress={onDayPress}
       />,
     );
 
     expect(screen.getByTestId('block-review-weeks')).toBeTruthy();
-    fireEvent.click(screen.getByTestId('block-review-week-1'));
+    expect(screen.getByTestId('block-week-expanded-1')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('block-week-row-press-1'));
     expect(onWeekPress).toHaveBeenCalledWith(model.weeks[0]);
+    fireEvent.click(screen.getByTestId('block-week-day-1-1'));
+    expect(onDayPress).toHaveBeenCalledWith(model.weeks[0], 1);
   });
 
   it('keeps overload selection controlled by the caller', () => {

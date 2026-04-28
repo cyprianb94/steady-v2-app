@@ -20,6 +20,9 @@ import { C } from '../../constants/colours';
 interface AnimatedWeekExpansionProps {
   children: React.ReactNode;
   expanded: boolean;
+  expandedMarginTop?: number;
+  expandedPaddingTop?: number;
+  expandedTranslateY?: number;
   showDivider?: boolean;
   onCollapseEnd?: () => void;
   style?: StyleProp<ViewStyle>;
@@ -34,6 +37,9 @@ const EXPANDED_TRANSLATE_Y = -4;
 export function AnimatedWeekExpansion({
   children,
   expanded,
+  expandedMarginTop = EXPANDED_MARGIN_TOP,
+  expandedPaddingTop = EXPANDED_PADDING_TOP,
+  expandedTranslateY = EXPANDED_TRANSLATE_Y,
   showDivider = true,
   onCollapseEnd,
   style,
@@ -72,17 +78,17 @@ export function AnimatedWeekExpansion({
     opacity: expanded
       ? progress.value
       : interpolate(progress.value, [0, 0.08, 1], [0, 1, 1]),
-    marginTop: EXPANDED_MARGIN_TOP * progress.value,
-    paddingTop: showDivider ? EXPANDED_PADDING_TOP * progress.value : 0,
+    marginTop: expandedMarginTop * progress.value,
+    paddingTop: showDivider ? expandedPaddingTop * progress.value : 0,
     borderTopWidth: showDivider ? progress.value : 0,
     borderTopColor: C.border,
     overflow: 'hidden',
     transform: [
       {
-        translateY: interpolate(progress.value, [0, 1], [EXPANDED_TRANSLATE_Y, 0]),
+        translateY: interpolate(progress.value, [0, 1], [expandedTranslateY, 0]),
       },
     ],
-  }), [expanded, showDivider]);
+  }), [expanded, expandedMarginTop, expandedPaddingTop, expandedTranslateY, showDivider]);
 
   function handleLayout(event: LayoutChangeEvent) {
     const nextHeight = event.nativeEvent.layout.height;

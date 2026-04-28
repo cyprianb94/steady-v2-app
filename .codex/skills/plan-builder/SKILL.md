@@ -212,6 +212,27 @@ Rest disables metric rows and shows muted placeholders. Saving a rest session re
 
 **Component:** `StepPlan` in `steady-plan-builder.jsx`
 
+### Review block surface
+
+For the full reusable implementation spec, use `/review-block`. That skill is the source of truth for a 1:1 copy of the Review your block screen, including chart behavior, tabs, week-row animations, drag/reschedule scope, and verification.
+
+The Plan Builder final review should use the shared review surface instead of bespoke local cards:
+- `packages/app/features/plan-builder/review-block-integration.tsx`
+- `packages/app/components/block-review/BlockReviewSurface.tsx`
+- `packages/types/src/lib/block-review.ts`
+
+The review has two tabs: `Structure` and `Weeks`.
+- No `Overview` or separate `Phases` tab.
+- Structure owns weekly volume, progression controls, and phase structure editing.
+- Weeks owns Block-style week rows and expanded session editing.
+
+Weekly volume graph requirements:
+- Reuse `BlockVolumeChart` / `buildReviewVolumeChartModel` from `BlockReviewSurface`.
+- The curve must be a single continuous `react-native-svg` `Path`, not a set of short rotated views.
+- Keep phase-coloured gradient stroke, phase-start markers, compact y-axis gutter with `km` above the top tick, y-axis tick values, horizontal grid lines, phase-start x labels close to the baseline and centered on their markers, scrubbing, haptics, scroll locking, and tooltip.
+- Tooltip format: week number plus bold coloured phase name, date range, and total weekly volume.
+- Do not re-add the chart subtitle copy; the graph should be self-explanatory in this review context.
+
 ### Progression card
 
 Shown first, before the week list. Amber-coloured card.
@@ -246,15 +267,17 @@ All weeks rendered as rows. Not paginated — all visible in a scrollable list.
 **Week row (collapsed):**
 - Left: `W{n}` in Space Mono 11px (clay if expanded, muted if not)
 - Middle: 7 session dots (8px, type colours)
-- Right: `{n}km` Space Mono 11px + phase tag pill
+- Right: `{n}km` Space Mono 11px
 - Below: 2px volume bar proportional to this week's km as % of max week km. Colour from phase.
-- Chevron right, rotates 90° when expanded.
 
 **Week row (expanded):**
 - Row header stays visible with clay border
-- Below header: `border: 1.5px solid C.clay, borderTop: none, borderRadius: 0 0 12px 12px`
-- Sub-header label: "Edit sessions — any change will ask where to apply it"
-- 7 compact day rows stacked. Tapping any row opens the shared full-screen `SessionEditorScreen`.
+- Expanded body uses the same row pattern as the Block screen: weekday/date on the left, session dot + session label/caption in the middle, drag handle on the right.
+- Do not show the old helper label "Edit sessions — any change will ask where to apply it".
+- Do not add divider lines between day rows.
+- Tapping any row opens the shared full-screen `SessionEditorScreen`.
+- Dragging the handle rearranges sessions within that week using the existing direct week reschedule hook, with haptics and drop-target feedback. Rest slots are draggable too.
+- After a drag, Plan Builder must open `PropagateModal` to choose where the reschedule applies; do not silently apply the reorder to one week only.
 
 ### Full-plan session editing
 
