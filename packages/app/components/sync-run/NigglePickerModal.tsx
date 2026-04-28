@@ -90,6 +90,7 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
   const [side, setSide] = useState<NiggleSide>(null);
   const [severity, setSeverity] = useState<NiggleSeverity | null>(null);
   const [when, setWhen] = useState<NiggleWhen[]>([]);
+  const [otherInputFocused, setOtherInputFocused] = useState(false);
   const trimmedOtherText = bodyPartOtherText.trim();
 
   useEffect(() => {
@@ -99,6 +100,7 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
       setSide(null);
       setSeverity(null);
       setWhen([]);
+      setOtherInputFocused(false);
     }
   }, [visible]);
 
@@ -110,6 +112,7 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
     severity,
     when,
   });
+  const showBottomBar = !(bodyPart === 'other' && otherInputFocused);
 
   function toggleWhen(option: NiggleWhen) {
     setWhen((current) => {
@@ -130,7 +133,7 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
       onClose={onClose}
       rightActionDisabled
       keyboardBehavior="extend"
-      bottomBar={(
+      bottomBar={showBottomBar ? (
         <View style={styles.bottomBar}>
           <Text style={[styles.summaryLine, !draftSummary && styles.summaryLineEmpty]}>
             {draftSummary ?? 'Select where, how bad and when'}
@@ -154,7 +157,7 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
             <Text style={styles.addButtonText}>Add niggle</Text>
           </Pressable>
         </View>
-      )}
+      ) : null}
     >
       <Text style={styles.screenTitle}>What showed up?</Text>
       <Text style={styles.screenSub}>
@@ -208,6 +211,8 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
             <BottomSheetTextInput
               value={bodyPartOtherText}
               onChangeText={setBodyPartOtherText}
+              onFocus={() => setOtherInputFocused(true)}
+              onBlur={() => setOtherInputFocused(false)}
               placeholder="e.g. Groin or upper calf"
               placeholderTextColor={C.muted}
               style={styles.otherInput}

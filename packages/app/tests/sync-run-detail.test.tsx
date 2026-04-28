@@ -823,10 +823,15 @@ describe('SyncRunDetailScreen', () => {
     expect(screen.getByText('Add niggle').parentElement?.getAttribute('disabled')).not.toBeNull();
     fireEvent.click(await screen.findByText('Something else'));
 
-    expect(screen.getByPlaceholderText('e.g. Groin or upper calf')).toBeTruthy();
+    const otherInput = screen.getByPlaceholderText('e.g. Groin or upper calf');
+    expect(otherInput).toBeTruthy();
     const whereText = (document.body.textContent ?? '').slice((document.body.textContent ?? '').indexOf('Where'));
     expect(whereText.lastIndexOf('Something else')).toBeLessThan(whereText.indexOf('Where exactly?'));
     expect(whereText.indexOf('Where exactly?')).toBeLessThan(whereText.indexOf('Which side'));
+    fireEvent.focus(otherInput);
+    expect(screen.queryByText('Add niggle')).toBeNull();
+    fireEvent.blur(otherInput);
+    expect(screen.getByText('Add niggle')).toBeTruthy();
 
     fireEvent.click(screen.getByText('Left'));
     fireEvent.click(screen.getByText('Mild'));
