@@ -111,27 +111,6 @@
   .display.md { font-size: clamp(30px, 4.2vw, 50px); }
   .display.sm { font-size: clamp(22px, 3.2vw, 34px); letter-spacing: -0.5px; line-height: 1.05; }
 
-  .eyebrow-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    font-family: var(--font-body);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 1.8px;
-    text-transform: uppercase;
-    padding: 6px 14px;
-    border-radius: 22px;
-    border: 1.5px solid;
-  }
-  .eyebrow-pill.clay   { color: var(--clay);   border-color: rgba(196, 82, 42, 0.40); background: rgba(196, 82, 42, 0.06); }
-  .eyebrow-pill.forest { color: var(--forest); border-color: rgba(42, 92, 69, 0.40);  background: rgba(42, 92, 69, 0.06); }
-  .eyebrow-pill.amber  { color: var(--amber);  border-color: rgba(212, 136, 42, 0.40); background: rgba(212, 136, 42, 0.06); }
-  .eyebrow-pill.navy   { color: var(--navy);   border-color: rgba(27, 58, 107, 0.30);  background: rgba(27, 58, 107, 0.06); }
-  .eyebrow-pill.purple { color: var(--purple); border-color: rgba(124, 92, 191, 0.40); background: rgba(124, 92, 191, 0.06); }
-  .eyebrow-pill.cream-on-dark { color: var(--on-dark-soft); border-color: rgba(244, 239, 230, 0.25); background: rgba(244, 239, 230, 0.04); }
-  .eyebrow-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-
   .lede {
     font-family: var(--font-body);
     font-size: 19px;
@@ -251,7 +230,7 @@
   }
 
   /* ============================================================
-     SECTION OPENER (eyebrow + display + lede)
+     SECTION OPENER (display + lede)
      ============================================================ */
   .section-opener {
     margin-bottom: 48px;
@@ -262,7 +241,6 @@
     margin-right: auto;
     text-align: center;
   }
-  .section-opener .eyebrow-pill { margin-bottom: 28px; }
   .section-opener .display { margin-bottom: 28px; }
   .section-opener .lede { max-width: 680px; }
   .section-opener.center .lede { margin-left: auto; margin-right: auto; }
@@ -317,7 +295,6 @@
      PLAN SECTION: copy left, single screenshot right
      ============================================================ */
   .plan-section .display em { color: var(--forest); }
-  .plan-section .eyebrow-pill { color: var(--forest); border-color: rgba(42, 92, 69, 0.40); background: rgba(42, 92, 69, 0.06); }
 
   .plan-grid {
     display: grid;
@@ -327,7 +304,6 @@
   }
 
   .plan-copy { padding: 8px 0; }
-  .plan-copy .eyebrow-pill { margin-bottom: 22px; }
   .plan-copy .display { margin-bottom: 22px; }
   .plan-copy .lede { margin-bottom: 32px; max-width: 520px; }
   .plan-copy .lede em { color: var(--forest); }
@@ -388,11 +364,6 @@
     margin-left: auto;
     margin-right: auto;
     text-align: center;
-  }
-  .injury-section .section-opener .eyebrow-pill {
-    display: flex;
-    width: max-content;
-    margin: 0 auto 22px;
   }
   .injury-section .section-opener .lede {
     margin-left: auto;
@@ -479,7 +450,6 @@
      PHYSIO CHEATSHEET: copy left, paper sheet right
      ============================================================ */
   .physio-section .display em { color: var(--navy); }
-  .physio-section .eyebrow-pill { color: var(--navy); border-color: rgba(27, 58, 107, 0.30); background: rgba(27, 58, 107, 0.06); }
   .physio-section { padding-top: 72px; }
 
   .physio-grid {
@@ -489,7 +459,6 @@
     align-items: center;
   }
   .physio-copy { padding: 8px 0; }
-  .physio-copy .eyebrow-pill { margin-bottom: 22px; }
   .physio-copy .display { margin-bottom: 22px; }
   .physio-copy .lede { max-width: 480px; }
 
@@ -948,7 +917,6 @@
     <div class="container">
       <div class="plan-grid reveal">
         <div class="plan-copy">
-          <span class="eyebrow-pill clay"><span class="dot"></span>The Plan Builder</span>
           <h2 class="display lg">Bring your plan<br/><em>in whatever shape or form.</em></h2>
           <p class="lede">
             Use the builder for a <strong>simple, painless setup</strong>. Whether you think in mileage or time on feet, Steady accommodates that. Pick a recommended template, or start from a blank week and shape it day by day.
@@ -989,7 +957,6 @@
   <section class="section injury-section" id="injuries" data-screen-label="03 Training isn't a straight line">
     <div class="container">
       <div class="section-opener reveal">
-        <span class="eyebrow-pill purple"><span class="dot"></span>Recovery &amp; Niggles</span>
         <h2 class="display lg stagger-headline">
           <span>Training</span>
           <span>isn't</span>
@@ -1039,7 +1006,6 @@
     <div class="container">
       <div class="physio-grid reveal">
         <div class="physio-copy">
-          <span class="eyebrow-pill"><span class="dot"></span>Physio cheatsheet</span>
           <h2 class="display lg"><em>Physio</em><br/>cheatsheet.</h2>
           <p class="lede">
             Because you're tracking the relevant metrics throughout your block, Steady generates a <strong>physio report</strong>. A more efficient overview of your mileage and niggle timeline than anything you'd type up the night before. It guides the conversation with your physio so you can spend the visit on actual physical diagnosis and treatment.
@@ -1059,7 +1025,6 @@
   <section class="section roadmap-section" id="roadmap" data-screen-label="07 Roadmap">
     <div class="container">
       <div class="section-opener center reveal">
-        <span class="eyebrow-pill navy">The Roadmap</span>
         <h2 class="display lg">Where we're<br/><em>headed.</em></h2>
         <p class="lede">
           Not everything will be ready for day one, and there's a lot more in store.
