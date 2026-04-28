@@ -391,6 +391,116 @@ describe('SyncRunDetailScreen', () => {
     expect(screen.queryByText('4:05/km')).toBeNull();
   });
 
+  it('shows an interval quality summary from work reps and target-aware split times', async () => {
+    const today = todayIsoLocal();
+    const sessions = [null, null, null, null, null, null, null] as any[];
+    const index = dayIndexForIsoDate(today);
+    sessions[index] = {
+      id: 'today-session',
+      type: 'INTERVAL',
+      date: today,
+      reps: 3,
+      repDist: 400,
+      warmup: { unit: 'km', value: 1 },
+      recovery: { unit: 'km', value: 0.2 },
+      cooldown: { unit: 'km', value: 1 },
+      intensityTarget: {
+        source: 'manual',
+        mode: 'pace',
+        paceRange: { min: '3:50', max: '4:00' },
+      },
+    };
+    mockPlanState.currentWeek = {
+      weekNumber: 1,
+      phase: 'BASE',
+      plannedKm: 4,
+      sessions,
+    };
+    mockActivityGet.mockResolvedValue({
+      id: 'activity-1',
+      source: 'strava',
+      startTime: `${today}T07:15:00.000Z`,
+      distance: 3.2,
+      duration: 1100,
+      avgPace: 344,
+      avgHR: 150,
+      splits: [
+        { km: 1, distance: 1, pace: 360, hr: 132 },
+        { km: 2, distance: 0.4, pace: 238, hr: 165 },
+        { km: 3, distance: 0.2, pace: 390, hr: 144 },
+        { km: 4, distance: 0.4, pace: 239, hr: 168 },
+        { km: 5, distance: 0.2, pace: 395, hr: 146 },
+        { km: 6, distance: 0.4, pace: 236, hr: 171 },
+        { km: 7, distance: 0.2, pace: 400, hr: 148 },
+        { km: 8, distance: 1, pace: 370, hr: 138 },
+      ],
+      matchedSessionId: null,
+    });
+
+    render(<SyncRunDetailScreen />);
+
+    expect(await screen.findByText('Interval summary')).toBeTruthy();
+    expect(screen.getByText('Target 3:50-4:00/km')).toBeTruthy();
+    expect(screen.getByText('3 / 3')).toBeTruthy();
+    expect(screen.getByText('3:58 /km')).toBeTruthy();
+    expect(screen.getByText('168')).toBeTruthy();
+    expect(screen.getByText('VS TARGET')).toBeTruthy();
+    expect(screen.getByText('Rep 1')).toBeTruthy();
+    expect(screen.getByText('1:35')).toBeTruthy();
+    expect(screen.getAllByText('ON TARGET').length).toBeGreaterThan(0);
+  });
+
+  it('shows a tempo quality summary for the inferred tempo block only', async () => {
+    const today = todayIsoLocal();
+    const sessions = [null, null, null, null, null, null, null] as any[];
+    const index = dayIndexForIsoDate(today);
+    sessions[index] = {
+      id: 'today-session',
+      type: 'TEMPO',
+      date: today,
+      distance: 6,
+      warmup: { unit: 'km', value: 2 },
+      cooldown: { unit: 'km', value: 2 },
+      intensityTarget: {
+        source: 'manual',
+        mode: 'both',
+        paceRange: { min: '4:10', max: '4:20' },
+        effortCue: 'controlled hard',
+      },
+    };
+    mockPlanState.currentWeek = {
+      weekNumber: 1,
+      phase: 'BASE',
+      plannedKm: 10,
+      sessions,
+    };
+    mockActivityGet.mockResolvedValue({
+      id: 'activity-1',
+      source: 'strava',
+      startTime: `${today}T07:15:00.000Z`,
+      distance: 10,
+      duration: 3030,
+      avgPace: 303,
+      avgHR: 153,
+      splits: [
+        { km: 1, distance: 2, pace: 352, hr: 139 },
+        { km: 2, distance: 6, pace: 254, hr: 164 },
+        { km: 3, distance: 2, pace: 358, hr: 151 },
+      ],
+      matchedSessionId: null,
+    });
+
+    render(<SyncRunDetailScreen />);
+
+    expect(await screen.findByText('Tempo summary')).toBeTruthy();
+    expect(screen.getByText('Target 4:10-4:20/km')).toBeTruthy();
+    expect(screen.getAllByText('6 km').length).toBeGreaterThan(0);
+    expect(screen.getByText('4:14 /km')).toBeTruthy();
+    expect(screen.getByText('164')).toBeTruthy();
+    expect(screen.getByText('Whole-run average pace is context only for this session.')).toBeTruthy();
+    expect(screen.getByText('VS TARGET')).toBeTruthy();
+  });
+
   it('shows effort-only planned targets without a broken planned pace placeholder', async () => {
     const today = todayIsoLocal();
     const sessions = [null, null, null, null, null, null, null] as any[];

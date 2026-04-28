@@ -131,6 +131,16 @@ export type {
   NormalizeIntensityTargetOptions,
   NormalizeSessionIntensityTargetOptions,
 } from './lib/intensity-targets';
+export { buildStructuredQualitySummary } from './lib/structured-quality-summary';
+export type {
+  AvailableStructuredQualitySummary,
+  StructuredIntervalRepSummary,
+  StructuredQualitySummary,
+  StructuredQualitySummaryReason,
+  StructuredQualitySummaryStatus,
+  StructuredQualityTargetPaceRange,
+  UnavailableStructuredQualitySummary,
+} from './lib/structured-quality-summary';
 export {
   TRAINING_PACE_PROFILE_BAND_ORDER,
   TRAINING_PACE_PROFILE_DEFAULT_EFFORT_CUES,

@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, 
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  buildStructuredQualitySummary,
   expectedDistance,
   formatNiggleSummary,
   shoeLifetimeKm,
@@ -26,8 +27,6 @@ import {
   formatIntensityTargetDisplay,
   formatPace,
   formatSessionTitle,
-  formatSplitLabel,
-  inferSplitLabelMode,
 } from '../../lib/units';
 import { type EditableNiggle, isActivityDateCompatibleWithSession, isRunnableSession, isSessionSelectable, listMatchableSessions, resolveDefaultMatchSessionId, shoeWearState, toEditableNiggles } from '../../features/sync/sync-run-detail';
 import { buildCurrentDisplayWeek } from '../../features/run/display-week';
@@ -35,6 +34,9 @@ import { MatchPickerModal } from '../../components/sync-run/MatchPickerModal';
 import { NigglePickerModal } from '../../components/sync-run/NigglePickerModal';
 import { ShoePickerModal } from '../../components/sync-run/ShoePickerModal';
 import { FuellingCard } from '../../components/sync-run/FuellingCard';
+import { QualitySummaryCard } from '../../components/run/QualitySummaryCard';
+import { qualitySummaryCardProps } from '../../features/run/quality-summary-display';
+import { buildTargetAwareSplitsModel, type TargetAwareSplitTargetStatus } from '../../features/run/target-aware-splits';
 import { GEL_BRANDS } from '../../features/fuelling/gel-catalogue';
 import { suggestedBrands as buildSuggestedFuelBrands, uniqueRecentFuelGels } from '../../features/fuelling/fuel-events';
 
@@ -93,6 +95,18 @@ function firstRouteParamValue(value: string | string[] | undefined): string | nu
   }
 
   return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function targetStatusStyle(status: TargetAwareSplitTargetStatus | null) {
+  switch (status) {
+    case 'on-target':
+      return styles.splitComparisonOnTarget;
+    case 'fast':
+    case 'slow':
+      return styles.splitComparisonVaried;
+    default:
+      return null;
+  }
 }
 
 const LEGS_OPTIONS: { value: SubjectiveLegs; label: string }[] = [
@@ -291,6 +305,17 @@ export default function SyncRunDetailScreen() {
   const splitPaces = activity?.splits.map((split) => split.pace) ?? [];
   const fastestPace = splitPaces.length ? Math.min(...splitPaces) : 0;
   const slowestPace = splitPaces.length ? Math.max(...splitPaces) : 0;
+  const qualitySummary = activity && selectedSession
+    ? buildStructuredQualitySummary(selectedSession, activity)
+    : null;
+  const qualitySummaryProps = qualitySummaryCardProps(qualitySummary, units);
+  const splitModel = activity
+    ? buildTargetAwareSplitsModel({
+        session: selectedSession,
+        splits: activity.splits,
+        units,
+      })
+    : null;
   const feelComplete = legs !== null && breathing !== null && overall !== null;
   const subjectiveInput: SubjectiveInput | undefined = feelComplete
     ? { legs: legs!, breathing: breathing!, overall: overall! }
@@ -546,8 +571,6 @@ export default function SyncRunDetailScreen() {
     : 'Bonus run';
   const matchedChipStyle = selectedSession ? styles.matchChipConnected : styles.matchChipUnmatched;
   const matchedChipTextStyle = selectedSession ? styles.matchChipTextConnected : styles.matchChipTextUnmatched;
-  const splitLabelMode = inferSplitLabelMode(selectedSession, activity.splits);
-  const splitSummaryLabel = splitLabelMode === 'segment' ? 'segments' : 'per km';
   const averagePaceMarker = paceBarWidth(activity.avgPace, fastestPace, slowestPace);
   const selectedTargetDisplay = selectedSession
     ? formatIntensityTargetDisplay(selectedSession, units, {
@@ -691,27 +714,44 @@ export default function SyncRunDetailScreen() {
           </View>
         ) : null}
 
-        {activity.splits.length > 0 ? (
+        {qualitySummaryProps ? (
+          <View style={styles.qualitySummaryWrapper}>
+            <QualitySummaryCard {...qualitySummaryProps} />
+          </View>
+        ) : null}
+
+        {splitModel && activity.splits.length > 0 ? (
           <View style={styles.section}>
             <View style={styles.sectionHead}>
               <Text style={styles.sectionTitle}>Splits</Text>
-              <Text style={styles.splitSummaryLabel}>{splitSummaryLabel}</Text>
+              <Text style={styles.splitSummaryLabel}>{splitModel.summaryLabel}</Text>
             </View>
             <View style={styles.splitHeaderRow}>
-              <Text style={[styles.splitHeaderCell, styles.splitKmHeader]}>Distance</Text>
+              <Text style={[styles.splitHeaderCell, styles.splitKmHeader]}>
+                {splitModel.rows.some((row) => row.elapsedLabel) ? 'Split' : 'Distance'}
+              </Text>
               <Text style={[styles.splitHeaderCell, styles.splitPaceHeader]}>Pace</Text>
-              <Text style={[styles.splitHeaderCell, styles.splitBarHeader]}>vs avg</Text>
+              <Text style={[styles.splitHeaderCell, styles.splitBarHeader]}>{splitModel.comparisonHeader}</Text>
               <Text style={[styles.splitHeaderCell, styles.splitHrHeader]}>HR</Text>
             </View>
-            {activity.splits.map((split) => (
-              <View key={split.km} style={styles.splitRow}>
-                <Text style={styles.splitKm}>{formatSplitLabel(split, units, { mode: splitLabelMode })}</Text>
-                <Text style={styles.splitPace}>{formatPace(split.pace, units)}</Text>
-                <View style={styles.splitBar}>
-                  <View style={[styles.splitFill, { width: paceBarWidth(split.pace, fastestPace, slowestPace) }]} />
-                  <View style={[styles.splitAverageMarker, { left: averagePaceMarker }]} />
+            {splitModel.rows.map((row) => (
+              <View key={row.id} style={styles.splitRow}>
+                <View style={styles.splitLabelCell}>
+                  <Text style={styles.splitKm}>{row.label}</Text>
+                  {row.elapsedLabel ? <Text style={styles.splitElapsed}>{row.elapsedLabel}</Text> : null}
                 </View>
-                <Text style={styles.splitHr}>{split.hr ? `${Math.round(split.hr)} bpm` : '—'}</Text>
+                <Text style={styles.splitPace}>{row.paceLabel}</Text>
+                {splitModel.comparisonMode === 'target' ? (
+                  <Text style={[styles.splitComparisonText, targetStatusStyle(row.targetStatus)]}>
+                    {row.comparisonLabel ?? '—'}
+                  </Text>
+                ) : (
+                  <View style={styles.splitBar}>
+                    <View style={[styles.splitFill, { width: paceBarWidth(row.paceSeconds, fastestPace, slowestPace) }]} />
+                    <View style={[styles.splitAverageMarker, { left: averagePaceMarker }]} />
+                  </View>
+                )}
+                <Text style={styles.splitHr}>{row.heartRateLabel}</Text>
               </View>
             ))}
           </View>
@@ -1237,6 +1277,9 @@ const styles = StyleSheet.create({
   pvaTargetSeparator: {
     color: C.muted,
   },
+  qualitySummaryWrapper: {
+    marginBottom: 14,
+  },
   splitSummaryLabel: {
     fontFamily: FONTS.sansSemiBold,
     fontWeight: '700',
@@ -1260,10 +1303,10 @@ const styles = StyleSheet.create({
     letterSpacing: 1.1,
   },
   splitKmHeader: {
-    width: 58,
+    width: 64,
   },
   splitPaceHeader: {
-    width: 56,
+    width: 58,
   },
   splitBarHeader: {
     flex: 1,
@@ -1280,14 +1323,22 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: C.border,
   },
+  splitLabelCell: {
+    width: 64,
+  },
   splitKm: {
-    width: 58,
     fontFamily: FONTS.mono,
     fontSize: 10,
     color: C.metricDistance,
   },
+  splitElapsed: {
+    marginTop: 2,
+    fontFamily: FONTS.monoBold,
+    fontSize: 12,
+    color: C.metricTime,
+  },
   splitPace: {
-    width: 56,
+    width: 58,
     fontFamily: FONTS.monoBold,
     fontSize: 13,
     color: C.metricPace,
@@ -1311,6 +1362,20 @@ const styles = StyleSheet.create({
     height: 14,
     borderRadius: 1,
     backgroundColor: C.slate,
+  },
+  splitComparisonText: {
+    flex: 1,
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 10,
+    color: C.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.9,
+  },
+  splitComparisonOnTarget: {
+    color: C.statusConnected,
+  },
+  splitComparisonVaried: {
+    color: C.amber,
   },
   splitHr: {
     width: 56,
