@@ -33,6 +33,18 @@ vi.mock('../hooks/usePlan', () => ({
   usePlan: () => mockPlan,
 }));
 
+const mockStrava = vi.hoisted(() => ({
+  status: null as any,
+  syncing: false,
+  syncRevision: 0,
+  refreshStatus: vi.fn(),
+  forceSync: vi.fn(),
+}));
+
+vi.mock('../hooks/useStravaSync', () => ({
+  useStravaSync: () => mockStrava,
+}));
+
 const mockActivityList = vi.hoisted(() => vi.fn());
 const mockActivityGet = vi.hoisted(() => vi.fn());
 const mockActivityMatchSession = vi.hoisted(() => vi.fn());
@@ -94,6 +106,13 @@ describe('HomeScreen', () => {
     mockPlan.loading = true;
     mockPlan.currentWeek = null;
     mockPlan.refresh = vi.fn();
+    mockStrava.status = null;
+    mockStrava.syncing = false;
+    mockStrava.syncRevision = 0;
+    mockStrava.refreshStatus.mockReset();
+    mockStrava.refreshStatus.mockResolvedValue(null);
+    mockStrava.forceSync.mockReset();
+    mockStrava.forceSync.mockResolvedValue(null);
     mockActivityList.mockReset();
     mockActivityGet.mockReset();
     mockActivityMatchSession.mockReset();
@@ -203,6 +222,35 @@ describe('HomeScreen', () => {
 
     render(<HomeScreen />);
     expect(screen.getByTestId('home-scroll')).toBeTruthy();
+  });
+
+  it('shows the Strava overlay only after status resolves disconnected', () => {
+    const week = {
+      weekNumber: 1,
+      phase: 'BASE' as const,
+      sessions: [null, null, null, null, null, null, null],
+      plannedKm: 40,
+    };
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = { id: 'p1', weeks: [week], phases: {}, raceDate: '2026-07-15', coachAnnotation: null };
+    mockPlan.currentWeek = week;
+
+    const { rerender } = render(<HomeScreen />);
+    expect(screen.queryByTestId('home-strava-overlay')).toBeNull();
+
+    mockStrava.status = { connected: false, athleteId: null, lastSyncedAt: null };
+    rerender(<HomeScreen />);
+
+    expect(screen.getByTestId('home-strava-overlay')).toBeTruthy();
+    expect(screen.getByText('Connect Strava')).toBeTruthy();
+    expect(screen.getByText('Steady needs your runs to show planned vs actual.')).toBeTruthy();
+
+    mockStrava.status = { connected: true, athleteId: '12345', lastSyncedAt: null };
+    rerender(<HomeScreen />);
+
+    expect(screen.queryByTestId('home-strava-overlay')).toBeNull();
   });
 
   it('locks home scroll while the weekly volume plot is scrubbed', () => {

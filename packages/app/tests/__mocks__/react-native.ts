@@ -11,9 +11,17 @@ function resolveStyle(style: any): any {
       ...style,
       transform: style.transform
         .map((part: any) => {
+          if ('translateX' in part) {
+            const value = resolveStyle(part.translateX);
+            return `translateX(${Number(value) || 0}px)`;
+          }
           if ('translateY' in part) {
             const value = resolveStyle(part.translateY);
             return `translateY(${Number(value) || 0}px)`;
+          }
+          if ('scale' in part) {
+            const value = resolveStyle(part.scale);
+            return `scale(${Number(value) || 0})`;
           }
           if ('scaleX' in part) {
             const value = resolveStyle(part.scaleX);
@@ -220,17 +228,44 @@ export const ScrollView = React.forwardRef(function MockScrollView(
 export const Animated = {
   Value: AnimatedValue,
   View: createMockComponent('Animated.View'),
+  createAnimatedComponent: (Component: any) =>
+    function AnimatedComponent({ style, ...props }: any) {
+      const resolvedProps = Object.fromEntries(
+        Object.entries(props).map(([key, value]) => [
+          key,
+          value && typeof value === 'object' && 'value' in (value as Record<string, unknown>)
+            ? (value as { value: unknown }).value
+            : value,
+        ]),
+      );
+
+      return React.createElement(Component, {
+        ...resolvedProps,
+        style: style ? resolveStyle(style) : undefined,
+      });
+    },
   timing: (value: AnimatedValue, config: { toValue: number }) => ({
     start: (callback?: (result: { finished: boolean }) => void) => {
       value.setValue(config.toValue);
       callback?.({ finished: true });
     },
+    stop: () => {},
+  }),
+  loop: (animation: { start: (callback?: (result: { finished: boolean }) => void) => void; stop?: () => void }) => ({
+    start: (callback?: (result: { finished: boolean }) => void) => {
+      animation.start(callback);
+    },
+    stop: () => {
+      animation.stop?.();
+    },
   }),
 };
 export const Easing = {
+  linear: (value: number) => value,
   cubic: (value: number) => value,
   out: (fn: (value: number) => number) => fn,
   in: (fn: (value: number) => number) => fn,
+  inOut: (fn: (value: number) => number) => fn,
 };
 export const NativeModules = {
   BlobModule: {},

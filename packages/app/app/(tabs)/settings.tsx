@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert, ScrollView, Pressable } from 'react-native';
-import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import * as Linking from 'expo-linking';
-import * as WebBrowser from 'expo-web-browser';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -19,17 +17,15 @@ import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { PHASE_COLOR } from '../../constants/phase-meta';
 import { useAuth } from '../../lib/auth';
-import { getStravaOAuthRedirects } from '../../lib/strava-auth';
 import { trpc } from '../../lib/trpc';
 import { usePreferences, type Units } from '../../providers/preferences-context';
 import { trainingPaceProfileSummary } from '../../components/pace-profile/TrainingPaceProfileEditor';
+import { connectStravaAndRefresh } from '../../features/strava/strava-connection';
 
 const SETTINGS_TOP_SPACING = 18;
 const SETTINGS_BOTTOM_SPACING = 24;
 const PHASE_ORDER: PhaseName[] = ['BASE', 'BUILD', 'RECOVERY', 'PEAK', 'TAPER'];
 const FEEDBACK_EMAIL = 'cyprianbrytan@gmail.com';
-const STRAVA_WEB_AUTHORIZE_URL = 'https://www.strava.com/oauth/authorize';
-const STRAVA_MOBILE_AUTHORIZE_URL = 'https://www.strava.com/oauth/mobile/authorize';
 
 type RowTone = 'default' | 'danger';
 
@@ -90,18 +86,6 @@ function StatusText({ label, connected }: { label: string; connected: boolean })
       </Text>
     </View>
   );
-}
-
-function getStravaAuthorizeUrl(authSessionCallbackUri: string) {
-  try {
-    return new URL(authSessionCallbackUri).protocol === 'exp:'
-      ? STRAVA_WEB_AUTHORIZE_URL
-      : STRAVA_MOBILE_AUTHORIZE_URL;
-  } catch {
-    return authSessionCallbackUri.startsWith('exp://')
-      ? STRAVA_WEB_AUTHORIZE_URL
-      : STRAVA_MOBILE_AUTHORIZE_URL;
-  }
 }
 
 function formatPhaseName(phase: PhaseName | undefined) {
@@ -344,44 +328,11 @@ export default function SettingsTab() {
   async function handleStravaConnect() {
     try {
       setIsSubmitting(true);
-      const config = await trpc.strava.config.query();
-      if (!config.clientId) {
-        throw new Error('STRAVA_CLIENT_ID is not configured on the server');
-      }
-
-      const {
-        authorizationRedirectUri,
-        authSessionCallbackUri,
-      } = getStravaOAuthRedirects();
-      const authorizeUrl = new URL(getStravaAuthorizeUrl(authSessionCallbackUri));
-      authorizeUrl.searchParams.set('client_id', config.clientId);
-      authorizeUrl.searchParams.set('redirect_uri', authorizationRedirectUri);
-      authorizeUrl.searchParams.set('response_type', 'code');
-      authorizeUrl.searchParams.set('approval_prompt', 'auto');
-      authorizeUrl.searchParams.set('scope', 'read,activity:read_all');
-
-      const result = await WebBrowser.openAuthSessionAsync(authorizeUrl.toString(), authSessionCallbackUri, {
-        preferEphemeralSession: true,
+      await connectStravaAndRefresh({
+        refreshStatus,
+        forceSync,
+        refreshPlan: refresh,
       });
-
-      if (result.type !== 'success') {
-        return;
-      }
-
-      const { params, errorCode } = QueryParams.getQueryParams(result.url);
-      if (errorCode) {
-        throw new Error(errorCode);
-      }
-
-      const code = typeof params.code === 'string' ? params.code : null;
-      if (!code) {
-        throw new Error('Strava did not return an authorization code');
-      }
-
-      await trpc.strava.connect.mutate({ code });
-      await refreshStatus();
-      await forceSync();
-      await refresh();
     } catch (error) {
       Alert.alert('Strava connection failed', error instanceof Error ? error.message : 'Unknown error');
     } finally {

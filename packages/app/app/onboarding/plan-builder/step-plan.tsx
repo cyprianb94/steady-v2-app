@@ -195,7 +195,7 @@ export default function StepPlan() {
         weeks: datedWeeks,
         trainingPaceProfile,
       });
-      router.replace('/(tabs)/home');
+      router.replace('/onboarding/plan-live');
     } catch (err) {
       console.error('Failed to save plan:', err);
       Alert.alert(

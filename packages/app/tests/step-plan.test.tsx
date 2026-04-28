@@ -1,7 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { deriveTrainingPaceProfile } from '@steady/types';
 
 import StepPlan from '../app/onboarding/plan-builder/step-plan';
@@ -178,6 +178,7 @@ describe('StepPlan session editing', () => {
     ]);
     expect(savedPlan.weeks[0].sessions[0]?.date).toBe('2026-08-10');
     expect(savedPlan.weeks[5].sessions[6]?.date).toBe('2026-09-20');
+    expect(router.replace).toHaveBeenCalledWith('/onboarding/plan-live');
   });
 
   it('persists the onboarding training pace profile with the saved plan', async () => {

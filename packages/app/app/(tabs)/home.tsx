@@ -33,6 +33,7 @@ import { FinishedRunCta } from '../../components/home/FinishedRunCta';
 import { NiggleBanner } from '../../components/home/NiggleBanner';
 import { WeeklyVolumeCard } from '../../components/home/WeeklyLoadCard';
 import { ResolveSessionSheet } from '../../components/home/ResolveSessionSheet';
+import { StravaConnectionOverlay } from '../../components/home/StravaConnectionOverlay';
 import { InjuryBanner } from '../../components/recovery/InjuryBanner';
 import { CrossTrainingLog } from '../../components/recovery/CrossTrainingLog';
 import { ReturnToRunning } from '../../components/recovery/ReturnToRunning';
@@ -45,6 +46,7 @@ import { useRecoveryData } from '../../features/recovery/use-recovery-data';
 import { useRecoveryActionController } from '../../features/recovery/use-recovery-action-controller';
 import { getVisibleActiveInjury, MVP_RECOVERY_UI_ENABLED } from '../../features/recovery/recovery-ui-gate';
 import { usePlanRefreshCoordinator } from '../../features/sync/use-plan-refresh-coordinator';
+import { connectStravaAndRefresh } from '../../features/strava/strava-connection';
 import { buildCurrentDisplayWeek, resolveDisplayWeekStartDate } from '../../features/run/display-week';
 import {
   canOpenResolveSessionSheet,
@@ -78,11 +80,18 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { session, isLoading: authLoading } = useAuth();
   const { plan, loading, refreshing, currentWeek, refresh, refreshWithIndicator } = usePlan();
-  const { forceSync, syncRevision, syncing } = useStravaSync();
+  const {
+    status: stravaStatus,
+    forceSync,
+    refreshStatus: refreshStravaStatus,
+    syncRevision,
+    syncing,
+  } = useStravaSync();
   const [recoveryModalMode, setRecoveryModalMode] = useState<'mark' | 'resume' | null>(null);
   const [resumeFlowKind, setResumeFlowKind] = useState<'manual' | 'complete-step'>('manual');
   const [resolvingSession, setResolvingSession] = useState<ResolvingSessionState | null>(null);
   const [resolveSessionBusy, setResolveSessionBusy] = useState(false);
+  const [connectingStrava, setConnectingStrava] = useState(false);
   const [weeklyVolumeScrubActive, setWeeklyVolumeScrubActive] = useState(false);
   const today = useTodayIso();
   const weekStartDate = currentWeek ? resolveDisplayWeekStartDate(currentWeek, today) : null;
@@ -361,6 +370,23 @@ export default function HomeScreen() {
     }
   }
 
+  async function handleConnectStrava() {
+    try {
+      setConnectingStrava(true);
+      await connectStravaAndRefresh({
+        refreshStatus: refreshStravaStatus,
+        forceSync,
+        refreshPlan: refresh,
+      });
+    } catch (error) {
+      Alert.alert('Strava connection failed', error instanceof Error ? error.message : 'Unknown error');
+    } finally {
+      setConnectingStrava(false);
+    }
+  }
+
+  const showStravaOverlay = stravaStatus?.connected === false;
+
   return (
     <PhaseThemeProvider phase={week.phase}>
       <View style={styles.container}>
@@ -496,6 +522,14 @@ export default function HomeScreen() {
             }}
             onMarkInjury={handleMarkInjury}
             onEndRecovery={handleEndRecovery}
+          />
+        ) : null}
+        {showStravaOverlay ? (
+          <StravaConnectionOverlay
+            busy={connectingStrava || syncing}
+            onConnect={() => {
+              void handleConnectStrava();
+            }}
           />
         ) : null}
       </View>
