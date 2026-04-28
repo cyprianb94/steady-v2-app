@@ -103,6 +103,11 @@ const appTestHarness = vi.hoisted(() => {
 });
 
 vi.mock('expo-router', () => ({
+  Redirect: ({ href }: { href: string }) =>
+    React.createElement('div', {
+      'data-testid': 'redirect',
+      'data-href': typeof href === 'string' ? href : JSON.stringify(href),
+    }),
   router: appTestHarness.router,
   useRouter: () => appTestHarness.router,
   useLocalSearchParams: appTestHarness.useLocalSearchParams,

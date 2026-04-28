@@ -11,6 +11,7 @@ interface BtnProps {
   variant?: BtnVariant;
   fullWidth?: boolean;
   disabled?: boolean;
+  testID?: string;
 }
 
 const VARIANT_STYLES: Record<BtnVariant, { container: ViewStyle; text: TextStyle }> = {
@@ -28,10 +29,18 @@ const VARIANT_STYLES: Record<BtnVariant, { container: ViewStyle; text: TextStyle
   },
 };
 
-export function Btn({ title, onPress, variant = 'primary', fullWidth = false, disabled = false }: BtnProps) {
+export function Btn({
+  title,
+  onPress,
+  variant = 'primary',
+  fullWidth = false,
+  disabled = false,
+  testID,
+}: BtnProps) {
   const v = VARIANT_STYLES[variant];
   return (
     <Pressable
+      testID={testID}
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
