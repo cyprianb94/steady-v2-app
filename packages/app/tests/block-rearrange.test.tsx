@@ -201,7 +201,7 @@ describe('BlockTab session rearrange', () => {
 
     openWeek(1);
 
-    expect(screen.getByText('8km easy · 5:20')).toBeTruthy();
+    expect(screen.getByText('8km · 5:20')).toBeTruthy();
     expect(screen.getByText('6×400m · 3:50')).toBeTruthy();
     expect(screen.getByText('Easy Run')).toBeTruthy();
     expect(screen.getByText('Intervals')).toBeTruthy();

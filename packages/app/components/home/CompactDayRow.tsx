@@ -6,7 +6,7 @@ import { FONTS } from '../../constants/typography';
 import { C } from '../../constants/colours';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { usePreferences } from '../../providers/preferences-context';
-import { formatCompactSessionLabel } from '../../lib/units';
+import { formatSessionRowText } from '../../lib/session-row-text';
 import { RunStatusIcon, type RunStatusIconStatus } from '../run/RunStatusIcon';
 
 interface CompactDayRowProps {
@@ -38,6 +38,7 @@ export function CompactDayRow({ dayName, dateLabel, session, status, metricLabel
   const isRest = !session || session.type === 'REST';
   const meta = session && !isRest ? SESSION_TYPE[session.type] : null;
   const rowStatus = status ?? (session?.actualActivityId ? 'completed' : isRest ? 'rest' : 'upcoming');
+  const sessionRowText = formatSessionRowText(session, units);
   const isPressable = typeof onPress === 'function';
   const animatedPressStyle = useMemo(
     () => ({
@@ -95,9 +96,14 @@ export function CompactDayRow({ dayName, dateLabel, session, status, metricLabel
         <View style={[styles.dot, { backgroundColor: C.border }]} />
       )}
 
-      <Text style={[styles.label, isRest && styles.muted]} numberOfLines={1}>
-        {formatCompactSessionLabel(session, units)}
-      </Text>
+      <View style={styles.labelBlock}>
+        <Text style={[styles.label, isRest && styles.muted]} numberOfLines={1}>
+          {isRest ? 'Rest' : sessionRowText.title}
+        </Text>
+        <Text style={[styles.caption, isRest && styles.muted]} numberOfLines={1}>
+          {isRest ? 'Recovery slot' : sessionRowText.caption}
+        </Text>
+      </View>
 
       <View style={styles.statusBlock}>
         {metricLabel ? (
@@ -177,13 +183,21 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
   },
-  label: {
+  labelBlock: {
     flex: 1,
     minWidth: 0,
     flexShrink: 1,
+  },
+  label: {
     fontFamily: FONTS.sansMedium,
     fontSize: 13,
     color: C.ink2,
+  },
+  caption: {
+    marginTop: 2,
+    fontFamily: FONTS.sans,
+    fontSize: 11,
+    color: C.muted,
   },
   statusBlock: {
     flexDirection: 'row',

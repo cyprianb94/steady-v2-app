@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Steady - Flag a niggle polish</title>
+  <style>
+    @font-face {
+      font-family: "Playfair Display";
+      src: url("../../packages/app/assets/fonts/PlayfairDisplay-Regular.ttf") format("truetype");
+      font-weight: 400;
+    }
+
+    @font-face {
+      font-family: "Playfair Display";
+      src: url("../../packages/app/assets/fonts/PlayfairDisplay-Bold.ttf") format("truetype");
+      font-weight: 700;
+    }
+
+    @font-face {
+      font-family: "DM Sans";
+      src: url("../../packages/app/assets/fonts/DMSans-Regular.ttf") format("truetype");
+      font-weight: 400;
+    }
+
+    @font-face {
+      font-family: "DM Sans";
+      src: url("../../packages/app/assets/fonts/DMSans-Medium.ttf") format("truetype");
+      font-weight: 500;
+    }
+
+    @font-face {
+      font-family: "DM Sans";
+      src: url("../../packages/app/assets/fonts/DMSans-SemiBold.ttf") format("truetype");
+      font-weight: 700;
+    }
+
+    @font-face {
+      font-family: "Space Mono";
+      src: url("../../packages/app/assets/fonts/SpaceMono-Regular.ttf") format("truetype");
+      font-weight: 400;
+    }
+
+    @font-face {
+      font-family: "Space Mono";
+      src: url("../../packages/app/assets/fonts/SpaceMono-Bold.ttf") format("truetype");
+      font-weight: 700;
+    }
+
+    :root {
+      --cream: #f4efe6;
+      --surface: #fdfaf5;
+      --card: #f0eae0;
+      --ink: #1c1510;
+      --ink-2: #3d3028;
+      --muted: #9a8e7e;
+      --border: #e5ddd0;
+      --clay: #c4522a;
+      --clay-bg: #fdf0eb;
+      --amber: #d4882a;
+      --amber-bg: #fdf6eb;
+      --forest: #2a5c45;
+      --forest-bg: #eef4f1;
+      --shadow: rgba(28, 21, 16, 0.16);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #77706a;
+      color: var(--ink);
+      font-family: "DM Sans", sans-serif;
+    }
+
+    .phone {
+      width: min(430px, 100vw);
+      height: min(932px, 100vh);
+      position: relative;
+      overflow: hidden;
+      background: rgba(28, 21, 16, 0.48);
+    }
+
+    .fake-status {
+      position: absolute;
+      top: 28px;
+      left: 38px;
+      right: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #000;
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .island {
+      width: 180px;
+      height: 40px;
+      border-radius: 999px;
+      background: #050505;
+    }
+
+    .sheet {
+      position: absolute;
+      inset: 94px 0 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border-radius: 28px 28px 0 0;
+      border-top: 1px solid var(--border);
+      box-shadow: 0 -12px 32px var(--shadow);
+      overflow: hidden;
+    }
+
+    .grabber {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      width: 38px;
+      height: 4px;
+      transform: translateX(-50%);
+      border-radius: 999px;
+      background: var(--border);
+    }
+
+    .nav {
+      height: 64px;
+      padding: 22px 22px 12px;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .nav button {
+      border: 0;
+      background: transparent;
+      font: 700 13px "DM Sans", sans-serif;
+      color: var(--muted);
+      text-align: left;
+      padding: 0;
+    }
+
+    .nav-title {
+      font: 700 15px "Playfair Display", serif;
+    }
+
+    .content {
+      overflow: auto;
+      padding: 24px 22px 126px;
+      background: var(--cream);
+    }
+
+    .hero {
+      padding: 0 4px;
+      margin-bottom: 18px;
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font: 700 32px/1 "Playfair Display", serif;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 330px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .block {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 18px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+
+    .block-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 13px;
+    }
+
+    .eyebrow {
+      font: 700 10px "DM Sans", sans-serif;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1.4px;
+    }
+
+    .inline-readout {
+      font: 700 12px "Space Mono", monospace;
+      color: var(--clay);
+      text-align: right;
+    }
+
+    .part-groups {
+      display: grid;
+      gap: 9px;
+    }
+
+    .part-group {
+      display: grid;
+      grid-template-columns: 76px 1fr;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .group-label {
+      padding-top: 10px;
+      color: var(--muted);
+      font: 700 9px "DM Sans", sans-serif;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      line-height: 1.2;
+    }
+
+    .part-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .part-chip,
+    .choice-chip,
+    .severity {
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--ink-2);
+      font-family: "DM Sans", sans-serif;
+      transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+    }
+
+    .part-chip {
+      min-width: 78px;
+      min-height: 38px;
+      border-radius: 13px;
+      padding: 9px 10px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .part-chip.is-selected {
+      border-color: rgba(196, 82, 42, 0.65);
+      background: var(--clay-bg);
+      color: var(--clay);
+      box-shadow: inset 3px 0 0 var(--clay);
+    }
+
+    .part-chip.is-other {
+      min-width: 118px;
+      color: var(--muted);
+      background: var(--surface);
+    }
+
+    .choice-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .choice-chip {
+      min-height: 48px;
+      border-radius: 14px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .choice-chip.is-selected {
+      background: var(--ink);
+      border-color: var(--ink);
+      color: var(--surface);
+    }
+
+    .severity-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .severity {
+      min-height: 64px;
+      border-radius: 15px;
+      padding: 10px;
+      display: grid;
+      align-content: center;
+      gap: 3px;
+      text-align: left;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .severity span {
+      display: block;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1.1px;
+      text-transform: uppercase;
+    }
+
+    .severity.is-selected {
+      border-color: var(--amber);
+      background: var(--amber-bg);
+      color: var(--amber);
+    }
+
+    .severity.is-stop {
+      border-color: rgba(196, 82, 42, 0.5);
+      background: var(--clay-bg);
+      color: var(--clay);
+    }
+
+    .when-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .bottom-bar {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 12px 22px 28px;
+      background: rgba(253, 250, 245, 0.96);
+      border-top: 1px solid var(--border);
+    }
+
+    .summary-line {
+      margin: 0 0 10px;
+      text-align: center;
+      color: var(--muted);
+      font: 400 11px "Space Mono", monospace;
+    }
+
+    .summary-line strong {
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    .add-button {
+      width: 100%;
+      min-height: 56px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--ink);
+      color: var(--surface);
+      font: 700 15px "DM Sans", sans-serif;
+    }
+
+    @media (max-height: 860px) {
+      .sheet {
+        inset-block-start: 72px;
+      }
+
+      .content {
+        padding-top: 20px;
+      }
+
+      .hero h1 {
+        font-size: 30px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="phone" aria-label="Flag a niggle polish">
+    <div class="fake-status">
+      <span>23:24</span>
+      <span class="island"></span>
+      <span>43</span>
+    </div>
+
+    <section class="sheet">
+      <div class="grabber"></div>
+      <nav class="nav" aria-label="Sheet navigation">
+        <button type="button">Back</button>
+        <div class="nav-title">Flag a niggle</div>
+        <div></div>
+      </nav>
+
+      <div class="content">
+        <header class="hero">
+          <h1>What showed up?</h1>
+          <p>Log enough detail to spot whether this settles or keeps coming back.</p>
+        </header>
+
+        <section class="block">
+          <div class="block-head">
+            <div class="eyebrow">Where</div>
+            <div class="inline-readout">Right calf</div>
+          </div>
+
+          <div class="part-groups">
+            <div class="part-group">
+              <div class="group-label">Back<br>& hips</div>
+              <div class="part-row">
+                <button class="part-chip" type="button">Back</button>
+                <button class="part-chip" type="button">Hip</button>
+                <button class="part-chip" type="button">Glute</button>
+              </div>
+            </div>
+
+            <div class="part-group">
+              <div class="group-label">Thigh<br>& knee</div>
+              <div class="part-row">
+                <button class="part-chip" type="button">Hamstring</button>
+                <button class="part-chip" type="button">Quad</button>
+                <button class="part-chip" type="button">Knee</button>
+              </div>
+            </div>
+
+            <div class="part-group">
+              <div class="group-label">Lower<br>leg</div>
+              <div class="part-row">
+                <button class="part-chip is-selected" type="button">Calf</button>
+                <button class="part-chip" type="button">Shin</button>
+                <button class="part-chip" type="button">Achilles</button>
+              </div>
+            </div>
+
+            <div class="part-group">
+              <div class="group-label">Foot<br>& ankle</div>
+              <div class="part-row">
+                <button class="part-chip" type="button">Foot</button>
+                <button class="part-chip" type="button">Ankle</button>
+                <button class="part-chip is-other" type="button">Something else</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="block">
+          <div class="block-head">
+            <div class="eyebrow">Which side</div>
+          </div>
+          <div class="choice-row">
+            <button class="choice-chip" type="button">Left</button>
+            <button class="choice-chip is-selected" type="button">Right</button>
+            <button class="choice-chip" type="button">Both / N/A</button>
+          </div>
+        </section>
+
+        <section class="block">
+          <div class="block-head">
+            <div class="eyebrow">How bad</div>
+          </div>
+          <div class="severity-grid">
+            <button class="severity" type="button">
+              Niggle
+              <span>Noticed</span>
+            </button>
+            <button class="severity is-selected" type="button">
+              Mild
+              <span>Ran through</span>
+            </button>
+            <button class="severity" type="button">
+              Moderate
+              <span>Eased off</span>
+            </button>
+            <button class="severity is-stop" type="button">
+              Stopped
+              <span>Had to stop</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="block">
+          <div class="block-head">
+            <div class="eyebrow">When</div>
+            <div class="inline-readout">Choose all that apply</div>
+          </div>
+          <div class="when-row">
+            <button class="choice-chip" type="button">Before</button>
+            <button class="choice-chip is-selected" type="button">During</button>
+            <button class="choice-chip" type="button">After</button>
+          </div>
+        </section>
+      </div>
+
+      <div class="bottom-bar">
+        <p class="summary-line"><strong>Right calf</strong> · mild · during</p>
+        <button class="add-button" type="button">Add niggle</button>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

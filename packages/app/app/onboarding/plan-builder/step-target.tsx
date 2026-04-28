@@ -222,6 +222,7 @@ export default function StepTarget() {
                 intro={TRAINING_PACE_PROFILE_INTRO}
                 profile={profileSheetDraft}
                 useBottomSheetTextInput
+                showEstimateStatus={false}
                 onChange={setProfileSheetDraft}
                 onInputFocus={keepProfileInputVisible}
               />

@@ -15,11 +15,11 @@ import { SESSION_TYPE } from '../../constants/session-types';
 import { FONTS } from '../../constants/typography';
 import { useDirectWeekReschedule } from '../../features/plan-builder/use-direct-week-reschedule';
 import { DAYS } from '../../lib/plan-helpers';
+import { formatSessionRowText } from '../../lib/session-row-text';
 import { formatDistance, type DistanceUnits } from '../../lib/units';
 import { DragHandle } from '../plan-builder/DragHandle';
 import { AnimatedProgressFill } from '../ui/AnimatedProgressFill';
 import { AnimatedWeekExpansion } from './AnimatedWeekExpansion';
-import { formatBlockSessionRowText } from './session-row-text';
 
 export interface BlockWeekListWeek {
   id?: string | number;
@@ -98,11 +98,11 @@ function dayDotColor(type: SessionType): string {
 }
 
 function defaultSessionMeta(session: Partial<PlannedSession> | null, units: DistanceUnits): string {
-  return formatBlockSessionRowText(session, units).caption;
+  return formatSessionRowText(session, units).caption;
 }
 
 function defaultSessionLabel(session: Partial<PlannedSession> | null, units: DistanceUnits): string {
-  return formatBlockSessionRowText(session, units).title;
+  return formatSessionRowText(session, units).title;
 }
 
 function normalizeSessions(

@@ -265,10 +265,13 @@ export function buildWeeklyVolumeSummary({
   weekStartDate,
 }: BuildWeeklyVolumeSummaryInput): WeeklyVolumeSummary {
   const maps = activityMaps(activities);
+  let plannedDistanceTotalKm = 0;
+  let actualDistanceTotalKm = 0;
   const days = Array.from({ length: 7 }, (_, dayIndex): WeeklyVolumeDay => {
     const normalized = normalizeSessionDate(sessions[dayIndex] ?? null, dayIndex, weekStartDate);
     const session = normalized.session;
-    const plannedDistanceKm = roundDistance(sessionKm(session));
+    const plannedDistanceExactKm = sessionKm(session);
+    const plannedDistanceKm = roundDistance(plannedDistanceExactKm);
     const plannedSeconds = plannedSessionSeconds(session);
     const activity = session ? activityForSession(session, maps) : undefined;
     const hasPastLinkedActivityPendingSnapshot = Boolean(
@@ -277,30 +280,32 @@ export function buildWeeklyVolumeSummary({
       && !maps.byId.has(session.actualActivityId)
       && !isFutureSession(session, today),
     );
-    const actualDistanceKm = activity
+    const actualDistanceExactKm = activity
       ? activity.distance
       : hasPastLinkedActivityPendingSnapshot
-        ? plannedDistanceKm
+        ? plannedDistanceExactKm
         : 0;
     const actualSeconds = activity
       ? activity.duration
       : hasPastLinkedActivityPendingSnapshot
         ? plannedSeconds
         : 0;
+    plannedDistanceTotalKm += plannedDistanceExactKm;
+    actualDistanceTotalKm += actualDistanceExactKm;
 
     return {
       dayIndex,
       date: normalized.date,
       sessionId: session?.id,
       plannedDistanceKm,
-      actualDistanceKm: roundDistance(actualDistanceKm),
+      actualDistanceKm: roundDistance(actualDistanceExactKm),
       plannedSeconds,
       actualSeconds: Math.round(actualSeconds),
       plannedType: session?.type ?? 'REST',
-      actualType: actualDistanceKm > 0 || actualSeconds > 0 ? session?.type : undefined,
+      actualType: actualDistanceExactKm > 0 || actualSeconds > 0 ? session?.type : undefined,
       status: dayStatus({
         session,
-        actualDistanceKm,
+        actualDistanceKm: actualDistanceExactKm,
         actualSeconds,
         plannedDistanceKm,
         plannedSeconds,
@@ -310,8 +315,8 @@ export function buildWeeklyVolumeSummary({
   });
 
   return {
-    plannedDistanceKm: roundDistance(days.reduce((sum, day) => sum + day.plannedDistanceKm, 0)),
-    actualDistanceKm: roundDistance(days.reduce((sum, day) => sum + day.actualDistanceKm, 0)),
+    plannedDistanceKm: roundDistance(plannedDistanceTotalKm),
+    actualDistanceKm: roundDistance(actualDistanceTotalKm),
     plannedSeconds: days.reduce((sum, day) => sum + day.plannedSeconds, 0),
     actualSeconds: days.reduce((sum, day) => sum + day.actualSeconds, 0),
     days,

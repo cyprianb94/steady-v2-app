@@ -244,7 +244,7 @@ describe('BlockTab', () => {
     fireEvent.click(screen.getByTestId('block-week-row-press-1'));
 
     const tempoRow = screen.getByTestId('block-day-1-3');
-    expect(tempoRow.textContent).toContain('8km tempo · 4:15-4:25');
+    expect(tempoRow.textContent).toContain('8km · 4:15-4:25');
     expect(tempoRow.textContent).toContain('Tempo · controlled hard');
     expect(tempoRow.textContent).not.toContain('4:15-4:25 · controlled hard');
   });

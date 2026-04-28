@@ -1,5 +1,12 @@
-import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import {
   buildBlockReviewModel,
   type BlockReviewTab,
@@ -73,6 +80,7 @@ function PlanBuilderReviewBlock({
   const [isScrubbingVolumeChart, setIsScrubbingVolumeChart] = useState(false);
   const [isDraggingWeekSession, setIsDraggingWeekSession] = useState(false);
   const [internalSelectedWeekIndex, setInternalSelectedWeekIndex] = useState<number | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
   const resolvedActiveTab = activeTab ?? internalActiveTab;
   const resolvedSelectedWeekIndex =
     selectedWeekIndex !== undefined ? selectedWeekIndex : internalSelectedWeekIndex;
@@ -145,6 +153,21 @@ function PlanBuilderReviewBlock({
   }
 
   const raceDateLabel = formatRaceDateLabel(raceDate);
+  const progressionCustomKeyboardOpen = isCustomising && resolvedActiveTab === 'structure';
+
+  useEffect(() => {
+    if (!progressionCustomKeyboardOpen) {
+      return undefined;
+    }
+
+    const scrollTimer = setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, 80);
+
+    return () => {
+      clearTimeout(scrollTimer);
+    };
+  }, [progressionCustomKeyboardOpen]);
 
   const overload = {
     progressionPct,
@@ -161,7 +184,11 @@ function PlanBuilderReviewBlock({
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      testID="plan-builder-review-keyboard-frame"
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
+    >
       <View style={styles.header}>
         <Text style={styles.step}>STEP 6 OF 6</Text>
         <Text style={styles.title}>Review your block</Text>
@@ -183,9 +210,17 @@ function PlanBuilderReviewBlock({
       </View>
 
       <ScrollView
+        ref={scrollRef}
+        testID="plan-builder-review-scroll"
         style={styles.body}
-        contentContainerStyle={styles.bodyContent}
+        contentContainerStyle={[
+          styles.bodyContent,
+          progressionCustomKeyboardOpen ? styles.bodyContentWithCustomKeyboard : null,
+        ]}
         scrollEnabled={!isScrubbingVolumeChart && !isDraggingWeekSession}
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        keyboardShouldPersistTaps="handled"
       >
         {isEditingPhases && resolvedActiveTab === 'structure' ? (
           <View>
@@ -233,7 +268,7 @@ function PlanBuilderReviewBlock({
           disabled={saving}
         />
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -282,6 +317,9 @@ const styles = StyleSheet.create({
   bodyContent: {
     paddingHorizontal: 18,
     paddingBottom: 18,
+  },
+  bodyContentWithCustomKeyboard: {
+    paddingBottom: 260,
   },
   phaseEditorWrap: {
     marginTop: 10,

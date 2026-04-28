@@ -289,7 +289,7 @@ export function FuellingCard({
           <Text style={styles.sectionTitle}>Fuelling</Text>
           <Text style={styles.sectionSub}>Gels taken during this run</Text>
         </View>
-        <Text style={styles.summaryText}>{formatFuelSummary(sortedEvents)}</Text>
+        <Text style={[styles.summaryText, !sortedEvents.length && styles.summaryTextEmpty]}>{formatFuelSummary(sortedEvents)}</Text>
       </View>
 
       {sortedEvents.length ? (
@@ -504,6 +504,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: C.metricFuelling,
     lineHeight: 17,
+  },
+  summaryTextEmpty: {
+    color: C.muted,
   },
   emptyCopy: {
     fontFamily: FONTS.sans,

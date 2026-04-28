@@ -99,7 +99,7 @@ describe('StepPlan session editing', () => {
     fireEvent.click(screen.getByText('Apply reschedule'));
 
     expect(screen.getByTestId('block-week-day-1-0').textContent).toContain('Rest day');
-    expect(screen.getByTestId('block-week-day-1-4').textContent).toContain('8km easy · 5:20');
+    expect(screen.getByTestId('block-week-day-1-4').textContent).toContain('8km · 5:20');
 
     fireEvent.click(screen.getByTestId('block-week-row-press-2'));
     expect(screen.getByTestId('block-week-day-2-0').textContent).toContain('Rest day');
@@ -140,6 +140,8 @@ describe('StepPlan session editing', () => {
 
   it('applies edited phases, custom overload cadence, and saves a dated plan', async () => {
     render(<StepPlan />);
+
+    expect(screen.getByTestId('plan-builder-review-keyboard-frame')).toBeTruthy();
 
     fireEvent.click(screen.getByTestId('block-review-edit-structure'));
     fireEvent.click(screen.getByTestId('phase-editor-recovery-increment'));

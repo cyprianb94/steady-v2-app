@@ -84,8 +84,8 @@
       }
 
       .board {
-        width: 1640px;
-        min-height: 1060px;
+        width: 1160px;
+        min-height: 1020px;
         margin: 0 auto;
         padding: 34px 40px 42px;
       }
@@ -117,7 +117,7 @@
 
       .layout {
         display: grid;
-        grid-template-columns: 280px 393px 393px 1fr;
+        grid-template-columns: 280px 393px 393px;
         gap: 28px;
         align-items: start;
       }
@@ -1044,17 +1044,17 @@
   <body>
     <main class="board">
       <header class="board-head">
-        <h1 class="board-title">Interval analysis wireframe</h1>
+        <h1 class="board-title">Small interval correction</h1>
         <p class="board-copy">
-          Home judges whether the intended training stimulus happened. Run Detail explains the structured workout: work reps, recoveries, warmup/cooldown, and interval-specific heart rate. Whole-run average pace remains visible, but it stops driving the verdict.
+          Keep the product move small: Home gets a corrected summary, Run Detail gets enough interval context to explain it. No new analytics dashboard, no extra chart surface, and no whole-run average pace driving interval verdicts.
         </p>
       </header>
 
       <section class="layout">
         <aside class="annotation">
-          <h2>Product logic</h2>
+          <h2>Minimal scope</h2>
           <p>
-            The session has two truths. Total distance is load. Rep execution is quality. The UI should not collapse both into one average pace.
+            The fix is not "add analytics everywhere". The fix is "grade the right part of the run".
           </p>
 
           <div class="rule">
@@ -1065,14 +1065,14 @@
 
           <div class="rule">
             <div class="rule-label">Run detail</div>
-            <strong>Show the workout anatomy.</strong>
-            <p>Separate work reps, recoveries, and bookends. The runner should see why 5:29/km is not a failed interval session.</p>
+            <strong>Add one modest interval summary.</strong>
+            <p>Show work-rep stats above the existing splits. Do not introduce a new chart-led analytics screen.</p>
           </div>
 
           <div class="rule">
             <div class="rule-label">Linear scope</div>
             <strong>STV2-185 + STV2-67.</strong>
-            <p>Interval-specific HR belongs beside work-rep pace and elapsed split time. For short reps, elapsed time is the most natural primary value.</p>
+            <p>Use interval HR and elapsed split time. Leave HR drift, load breakdowns, and Steady commentary out of this pass.</p>
           </div>
 
           <div class="rule">
@@ -1153,7 +1153,7 @@
                 <div class="review-row">
                   <div>
                     <div class="review-title">Review run</div>
-                    <div class="review-copy">Open interval splits, work HR, and pacing drift.</div>
+                    <div class="review-copy">Open splits and interval HR.</div>
                   </div>
                   <div class="chevron">›</div>
                 </div>
@@ -1190,7 +1190,7 @@
         </div>
 
         <div class="frame">
-          <div class="frame-label">Run Detail - interval analytics</div>
+          <div class="frame-label">Run Detail - small addition</div>
           <article class="phone">
             <div class="status-bar">
               <span>21:09</span>
@@ -1218,133 +1218,38 @@
               </header>
 
               <section class="summary-card">
-                <h3 class="summary-title">Quality work on target</h3>
+                <h3 class="summary-title">Intervals on target</h3>
                 <p class="summary-copy">
-                  The reps were the session. Whole-run average pace was <span class="mono">5:29/km</span> because <span class="mono">5.5km</span> came from warmup, cooldown, and recoveries.
+                  <span class="mono">6/6</span> reps landed inside <span class="mono">3:47-4:10/km</span>. Whole-run average pace is not used to grade this session.
                 </p>
               </section>
 
               <section class="section">
                 <div class="section-head">
-                  <h3 class="section-title">Interval read</h3>
+                  <h3 class="section-title">Interval summary</h3>
                   <div class="section-action">Target 3:47-4:10/km</div>
                 </div>
 
                 <div class="quality-grid">
                   <div class="metric">
                     <div class="metric-value">6/6</div>
-                    <div class="metric-label">reps hit</div>
+                    <div class="metric-label">in range</div>
                   </div>
                   <div class="metric">
                     <div class="metric-value">3:59</div>
-                    <div class="metric-label">avg pace</div>
+                    <div class="metric-label">rep avg</div>
                   </div>
                   <div class="metric">
                     <div class="metric-value">172</div>
-                    <div class="metric-label">avg bpm</div>
-                  </div>
-                </div>
-
-                <div class="submetric-grid">
-                  <div class="submetric">
-                    <div class="submetric-value">1:34-1:37</div>
-                    <div class="metric-label">rep spread</div>
-                  </div>
-                  <div class="submetric">
-                    <div class="submetric-value">+3 bpm</div>
-                    <div class="metric-label">HR drift</div>
+                    <div class="metric-label">interval bpm</div>
                   </div>
                 </div>
               </section>
-
-              <section class="section">
-                <div class="section-head">
-                  <h3 class="section-title">Rep pace</h3>
-                  <div class="section-action">400m time shown</div>
-                </div>
-
-                <div class="chart">
-                  <div class="chart-axis"><span>3:45</span><span>4:10</span><span>4:25</span></div>
-                  <div class="target-band"></div>
-                  <div class="target-label">target band</div>
-                  <div class="bars-row">
-                    <div class="rep-column"><div class="rep-bar"></div><div class="rep-time">1:34</div><div class="rep-label">R1</div></div>
-                    <div class="rep-column"><div class="rep-bar"></div><div class="rep-time">1:35</div><div class="rep-label">R2</div></div>
-                    <div class="rep-column"><div class="rep-bar"></div><div class="rep-time">1:35</div><div class="rep-label">R3</div></div>
-                    <div class="rep-column"><div class="rep-bar"></div><div class="rep-time">1:36</div><div class="rep-label">R4</div></div>
-                    <div class="rep-column"><div class="rep-bar"></div><div class="rep-time">1:37</div><div class="rep-label">R5</div></div>
-                    <div class="rep-column"><div class="rep-bar"></div><div class="rep-time">1:36</div><div class="rep-label">R6</div></div>
-                  </div>
-                </div>
-              </section>
-
-              <section class="section">
-                <div class="section-head">
-                  <h3 class="section-title">Load breakdown</h3>
-                  <div class="section-action">9.2km total</div>
-                </div>
-
-                <div class="breakdown">
-                  <div class="break-row">
-                    <div class="break-name">Work reps</div>
-                    <div class="break-track"><div class="break-fill" style="width: 26%;"></div></div>
-                    <div class="break-value">2.4km</div>
-                  </div>
-                  <div class="break-row">
-                    <div class="break-name">Recoveries</div>
-                    <div class="break-track"><div class="break-fill recovery" style="width: 15%;"></div></div>
-                    <div class="break-value">1.3km</div>
-                  </div>
-                  <div class="break-row">
-                    <div class="break-name">W/U + C/D</div>
-                    <div class="break-track"><div class="break-fill easy" style="width: 60%;"></div></div>
-                    <div class="break-value">5.5km</div>
-                  </div>
-                </div>
-                <p class="tiny-note">Total avg pace is shown as load context, not as the interval grade.</p>
-              </section>
-            </div>
-            <div class="bottom-fade"></div>
-          </article>
-        </div>
-
-        <div class="frame">
-          <div class="frame-label">Run Detail - rep rows lower down</div>
-          <article class="phone">
-            <div class="status-bar">
-              <span>21:09</span>
-              <div class="status-icons">
-                <div class="bars"><span></span><span></span><span></span><span></span></div>
-                <span>5G</span>
-                <span class="battery">58</span>
-              </div>
-            </div>
-
-            <div class="detail-scroll">
-              <div class="detail-nav">
-                <div class="back">Back</div>
-                <div class="nav-title">Run detail</div>
-                <div class="done">Done</div>
-              </div>
-
-              <header class="detail-header">
-                <div class="detail-chip-row">
-                  <div class="chip completed">Completed</div>
-                  <div class="chip interval">Intervals</div>
-                </div>
-                <h2 class="run-title">Workout splits</h2>
-                <div class="run-meta">Elapsed time is primary for short laps. Pace and HR stay visible for comparison.</div>
-              </header>
 
               <section class="section">
                 <div class="section-head">
                   <h3 class="section-title">Splits</h3>
-                  <div class="section-action">Target 1:31-1:40</div>
-                </div>
-
-                <div class="segmented">
-                  <div class="segment active">Work reps</div>
-                  <div class="segment">All laps</div>
+                  <div class="section-action">400m time shown</div>
                 </div>
 
                 <div class="rep-table">
@@ -1387,20 +1292,6 @@
                 </div>
               </section>
 
-              <section class="section steady-read">
-                <div class="section-head">
-                  <h3 class="section-title">Steady's read</h3>
-                  <div class="section-action">Session context</div>
-                </div>
-
-                <div class="steady-row">
-                  <div class="steady-avatar">S</div>
-                  <p class="steady-copy">
-                    Reps 1-6 stayed inside the target band with a 3-second elapsed spread. The slow whole-run average is bookends and recovery volume, not missed quality. Keep Thursday easy if the calf note is still present.
-                  </p>
-                </div>
-              </section>
-
               <section class="section">
                 <div class="section-head">
                   <h3 class="section-title">Whole-run data</h3>
@@ -1420,12 +1311,13 @@
                     <div class="metric-label">avg bpm</div>
                   </div>
                 </div>
-                <p class="tiny-note">These numbers describe the full activity. Interval judgement uses the work reps above.</p>
+                <p class="tiny-note">These describe the full activity. The interval verdict uses the work reps above.</p>
               </section>
             </div>
             <div class="bottom-fade"></div>
           </article>
         </div>
+
       </section>
     </main>
   </body>

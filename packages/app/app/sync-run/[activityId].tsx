@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type DimensionValue } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type DimensionValue } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -225,6 +225,7 @@ export default function SyncRunDetailScreen() {
     [rawSessionId],
   );
   const insets = useSafeAreaInsets();
+  const scrollRef = useRef<ScrollView>(null);
   const { units } = usePreferences();
   const { currentWeek, refresh: refreshPlan } = usePlan();
   const [activity, setActivity] = useState<Activity | null>(null);
@@ -543,8 +544,8 @@ export default function SyncRunDetailScreen() {
   const matchedChipText = selectedSession
     ? `Matched to ${formatSessionTitle(selectedSession, units)}`
     : 'Bonus run';
-  const matchedChipStyle = selectedSession ? styles.matchChipActive : styles.matchChipNeutral;
-  const matchedChipTextStyle = selectedSession ? styles.matchChipTextActive : styles.matchChipTextNeutral;
+  const matchedChipStyle = selectedSession ? styles.matchChipConnected : styles.matchChipUnmatched;
+  const matchedChipTextStyle = selectedSession ? styles.matchChipTextConnected : styles.matchChipTextUnmatched;
   const splitLabelMode = inferSplitLabelMode(selectedSession, activity.splits);
   const splitSummaryLabel = splitLabelMode === 'segment' ? 'segments' : 'per km';
   const averagePaceMarker = paceBarWidth(activity.avgPace, fastestPace, slowestPace);
@@ -555,6 +556,11 @@ export default function SyncRunDetailScreen() {
       }) ?? '—'
     : '—';
   const selectedTargetParts = splitTargetDisplay(selectedTargetDisplay);
+  const handleNotesFocus = () => {
+    setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, 120);
+  };
 
   return (
     <View style={styles.container}>
@@ -572,7 +578,14 @@ export default function SyncRunDetailScreen() {
         </Pressable>
       </View>
 
-      <ScrollView scrollEnabled={!fuelSliderActive} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        ref={scrollRef}
+        scrollEnabled={!fuelSliderActive}
+        contentContainerStyle={styles.scrollContent}
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+      >
         <View style={styles.header}>
           <Pressable
             onPress={() => setShowMatchPicker(true)}
@@ -592,25 +605,25 @@ export default function SyncRunDetailScreen() {
         </View>
 
         <View style={styles.metricGrid}>
-          <View style={styles.metricCell}>
+          <View style={[styles.metricCell, styles.metricCellDistance]}>
             <Text style={[styles.metricValue, styles.metricDistanceValue]}>{formatDistance(activity.distance, units, { spaced: true })}</Text>
             <Text style={styles.metricLabel}>Distance</Text>
           </View>
-          <View style={styles.metricCell}>
+          <View style={[styles.metricCell, styles.metricCellTime]}>
             <Text style={[styles.metricValue, styles.metricTimeValue]}>{formatDuration(activity.duration)}</Text>
             <Text style={styles.metricLabel}>Duration</Text>
           </View>
-          <View style={styles.metricCell}>
+          <View style={[styles.metricCell, styles.metricCellPace]}>
             <Text style={[styles.metricValue, styles.metricPaceValue]}>{formatPace(activity.avgPace, units, { withUnit: true })}</Text>
             <Text style={styles.metricLabel}>Avg pace</Text>
           </View>
-          <View style={styles.metricCell}>
-            <Text style={[styles.metricValue, styles.metricHeartRateValue]}>{activity.avgHR?.toFixed(0) ?? '—'}</Text>
+          <View style={[styles.metricCell, styles.metricCellHeartRate]}>
+            <Text style={[styles.metricValue, styles.metricHeartRateValue]}>{activity.avgHR ? `${activity.avgHR.toFixed(0)} bpm` : '—'}</Text>
             <Text style={styles.metricLabel}>Avg heart rate</Text>
           </View>
         </View>
         <View style={styles.subMetrics}>
-          <Text style={styles.subMetricsText}>Max HR <Text style={[styles.subMetricsBold, styles.metricHeartRateValue]}>{activity.maxHR ?? '—'}</Text></Text>
+          <Text style={styles.subMetricsText}>Max HR <Text style={[styles.subMetricsBold, styles.metricHeartRateValue]}>{activity.maxHR ? `${activity.maxHR} bpm` : '—'}</Text></Text>
           <Text style={styles.subMetricsText}>Elevation <Text style={[styles.subMetricsBold, styles.metricElevationValue]}>{activity.elevationGain ?? 0} m</Text></Text>
         </View>
 
@@ -682,7 +695,13 @@ export default function SyncRunDetailScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHead}>
               <Text style={styles.sectionTitle}>Splits</Text>
-              <Text style={styles.sectionAction}>{splitSummaryLabel}</Text>
+              <Text style={styles.splitSummaryLabel}>{splitSummaryLabel}</Text>
+            </View>
+            <View style={styles.splitHeaderRow}>
+              <Text style={[styles.splitHeaderCell, styles.splitKmHeader]}>Distance</Text>
+              <Text style={[styles.splitHeaderCell, styles.splitPaceHeader]}>Pace</Text>
+              <Text style={[styles.splitHeaderCell, styles.splitBarHeader]}>vs avg</Text>
+              <Text style={[styles.splitHeaderCell, styles.splitHrHeader]}>HR</Text>
             </View>
             {activity.splits.map((split) => (
               <View key={split.km} style={styles.splitRow}>
@@ -706,11 +725,14 @@ export default function SyncRunDetailScreen() {
         </View>
 
         <View style={styles.section}>
-          <View style={styles.sectionHead}>
+          <View style={[styles.sectionHead, styles.shoeSectionHead]}>
             <View style={styles.sectionTitleBlock}>
               <Text style={styles.sectionTitle}>Shoes</Text>
               <Text style={styles.sectionSubtitle}>Pair used for this run</Text>
             </View>
+            <Pressable onPress={() => setShowShoePicker(true)} hitSlop={8}>
+              <Text style={styles.shoeChange}>Change ›</Text>
+            </Pressable>
           </View>
           <Pressable onPress={() => setShowShoePicker(true)} style={styles.shoeRow}>
             <View style={styles.shoeBody}>
@@ -739,7 +761,6 @@ export default function SyncRunDetailScreen() {
                 </View>
               ) : null}
             </View>
-            <Text style={styles.shoeChange}>Change ›</Text>
           </Pressable>
         </View>
 
@@ -756,7 +777,7 @@ export default function SyncRunDetailScreen() {
           <View style={styles.sectionHead}>
             <Text style={styles.sectionTitle}>Niggles</Text>
             <Pressable onPress={() => setShowNigglePicker(true)}>
-              <Text style={styles.sectionActionPrimary}>Flag a niggle</Text>
+              <Text style={styles.niggleAction}>Flag a niggle</Text>
             </Pressable>
           </View>
           {niggles.length ? (
@@ -781,6 +802,7 @@ export default function SyncRunDetailScreen() {
             <Text style={styles.sectionAction}>Optional</Text>
           </View>
           <TextInput
+            testID="run-detail-notes-input"
             style={styles.notesInput}
             placeholder="Anything worth remembering about this run?"
             placeholderTextColor={C.muted}
@@ -788,6 +810,7 @@ export default function SyncRunDetailScreen() {
             numberOfLines={3}
             value={notes}
             onChangeText={setNotes}
+            onFocus={handleNotesFocus}
           />
         </View>
 
@@ -913,7 +936,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 10,
-    paddingBottom: 36,
+    paddingBottom: 96,
   },
   header: {
     paddingHorizontal: 4,
@@ -932,11 +955,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  matchChipActive: {
-    backgroundColor: C.forestBg,
-    borderColor: C.forest,
+  matchChipConnected: {
+    backgroundColor: C.statusConnectedBg,
+    borderColor: C.statusConnected,
   },
-  matchChipNeutral: {
+  matchChipUnmatched: {
     backgroundColor: '#F2F2F4',
     borderColor: C.slate,
     borderStyle: 'dashed',
@@ -946,10 +969,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     flexShrink: 1,
   },
-  matchChipTextActive: {
-    color: C.forest,
+  matchChipTextConnected: {
+    color: C.statusConnected,
   },
-  matchChipTextNeutral: {
+  matchChipTextUnmatched: {
     color: C.slate,
   },
   matchChipAction: {
@@ -980,9 +1003,22 @@ const styles = StyleSheet.create({
     backgroundColor: C.surface,
     borderWidth: 1,
     borderColor: C.border,
+    borderLeftWidth: 3,
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 15,
+  },
+  metricCellDistance: {
+    borderLeftColor: C.metricDistance,
+  },
+  metricCellTime: {
+    borderLeftColor: C.metricTime,
+  },
+  metricCellPace: {
+    borderLeftColor: C.metricPace,
+  },
+  metricCellHeartRate: {
+    borderLeftColor: C.metricHeartRate,
   },
   metricValue: {
     fontFamily: FONTS.monoBold,
@@ -1096,15 +1132,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: C.muted,
   },
-  sectionActionPrimary: {
+  niggleAction: {
     fontFamily: FONTS.sansSemiBold,
     fontSize: 12,
-    color: C.clay,
+    color: C.ink2,
+  },
+  shoeSectionHead: {
+    alignItems: 'flex-start',
   },
   shoeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
   },
   shoeBody: {
     flex: 1,
@@ -1165,9 +1203,10 @@ const styles = StyleSheet.create({
   },
   shoeChange: {
     fontFamily: FONTS.sansSemiBold,
+    fontWeight: '800',
     fontSize: 12,
-    color: C.metricShoes,
-    paddingLeft: 8,
+    color: C.ink,
+    marginTop: 2,
   },
   pvaSection: {
     paddingTop: 14,
@@ -1197,6 +1236,41 @@ const styles = StyleSheet.create({
   },
   pvaTargetSeparator: {
     color: C.muted,
+  },
+  splitSummaryLabel: {
+    fontFamily: FONTS.sansSemiBold,
+    fontWeight: '700',
+    fontSize: 12,
+    color: C.ink2,
+  },
+  splitHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+  },
+  splitHeaderCell: {
+    fontFamily: FONTS.sansSemiBold,
+    fontWeight: '700',
+    fontSize: 9,
+    color: C.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+  },
+  splitKmHeader: {
+    width: 58,
+  },
+  splitPaceHeader: {
+    width: 56,
+  },
+  splitBarHeader: {
+    flex: 1,
+  },
+  splitHrHeader: {
+    width: 56,
+    textAlign: 'right',
   },
   splitRow: {
     flexDirection: 'row',
@@ -1275,28 +1349,34 @@ const styles = StyleSheet.create({
     color: C.ink2,
   },
   feelChipSelectedRecoverable: {
+    borderWidth: 2,
     borderColor: C.metricEffort,
-    backgroundColor: C.surface,
+    backgroundColor: C.metricEffortBg,
   },
   feelChipTextSelectedRecoverable: {
     color: C.metricEffort,
     fontFamily: FONTS.sansSemiBold,
+    fontWeight: '800',
   },
   feelChipSelectedWorked: {
+    borderWidth: 2,
     borderColor: C.amber,
     backgroundColor: C.amberBg,
   },
   feelChipTextSelectedWorked: {
     color: C.amber,
     fontFamily: FONTS.sansSemiBold,
+    fontWeight: '800',
   },
   feelChipSelectedHard: {
+    borderWidth: 2,
     borderColor: C.clay,
     backgroundColor: C.clayBg,
   },
   feelChipTextSelectedHard: {
     color: C.clay,
     fontFamily: FONTS.sansSemiBold,
+    fontWeight: '800',
   },
   notesInput: {
     fontFamily: FONTS.sans,

@@ -1,36 +1,22 @@
 import type { PlannedSession } from '@steady/types';
-import { SESSION_TYPE } from '../../constants/session-types';
+import { SESSION_TYPE } from '../constants/session-types';
 import {
   formatDistance,
   formatIntensityTargetParts,
   formatIntervalRepLength,
   formatStoredPace,
   type DistanceUnits,
-} from '../../lib/units';
+} from './units';
 
-export interface BlockSessionRowText {
+export interface SessionRowText {
   title: string;
   caption: string;
 }
 
-const REST_ROW_TEXT: BlockSessionRowText = {
+const REST_ROW_TEXT: SessionRowText = {
   title: 'Rest day',
   caption: 'Recovery slot locked in for this day',
 };
-
-function lowercaseSessionType(type: PlannedSession['type'] | undefined): string {
-  switch (type) {
-    case 'TEMPO':
-      return 'tempo';
-    case 'LONG':
-      return 'long';
-    case 'INTERVAL':
-      return 'interval';
-    case 'EASY':
-    default:
-      return 'easy';
-  }
-}
 
 function targetPaceLabel(session: Partial<PlannedSession>, units: DistanceUnits): string | null {
   return formatIntensityTargetParts(session, units, {
@@ -40,9 +26,11 @@ function targetPaceLabel(session: Partial<PlannedSession>, units: DistanceUnits)
 }
 
 function effortLabel(session: Partial<PlannedSession>, units: DistanceUnits): string | null {
-  return formatIntensityTargetParts(session, units, {
+  const effort = formatIntensityTargetParts(session, units, {
     hideCompatibilityPace: true,
   }).effort;
+
+  return effort === 'conversational' ? 'conversational pace' : effort;
 }
 
 function legacyPaceLabel(session: Partial<PlannedSession>, units: DistanceUnits): string | null {
@@ -57,23 +45,14 @@ function formatRunTitle(session: Partial<PlannedSession>, units: DistanceUnits):
   }
 
   const distanceLabel = session.distance != null ? formatDistance(session.distance, units) : '?';
-  const pace = targetPaceLabel(session, units);
-  if (pace) {
-    return `${distanceLabel} ${lowercaseSessionType(session.type)} · ${pace}`;
-  }
-
-  const fallbackPace = legacyPaceLabel(session, units);
-  if (fallbackPace) {
-    return `${distanceLabel} ${lowercaseSessionType(session.type)} · ${fallbackPace}`;
-  }
-
-  return `${distanceLabel} ${lowercaseSessionType(session.type)}`;
+  const pace = targetPaceLabel(session, units) ?? legacyPaceLabel(session, units);
+  return pace ? `${distanceLabel} · ${pace}` : distanceLabel;
 }
 
-export function formatBlockSessionRowText(
+export function formatSessionRowText(
   session: Partial<PlannedSession> | null,
   units: DistanceUnits,
-): BlockSessionRowText {
+): SessionRowText {
   if (!session || session.type === 'REST') {
     return REST_ROW_TEXT;
   }

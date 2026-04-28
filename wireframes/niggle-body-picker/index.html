@@ -1,0 +1,824 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Steady - Niggle body picker concept</title>
+  <style>
+    @font-face {
+      font-family: "Playfair Display";
+      src: url("../../packages/app/assets/fonts/PlayfairDisplay-Regular.ttf") format("truetype");
+      font-weight: 400;
+    }
+
+    @font-face {
+      font-family: "Playfair Display";
+      src: url("../../packages/app/assets/fonts/PlayfairDisplay-Bold.ttf") format("truetype");
+      font-weight: 700;
+    }
+
+    @font-face {
+      font-family: "DM Sans";
+      src: url("../../packages/app/assets/fonts/DMSans-Regular.ttf") format("truetype");
+      font-weight: 400;
+    }
+
+    @font-face {
+      font-family: "DM Sans";
+      src: url("../../packages/app/assets/fonts/DMSans-Medium.ttf") format("truetype");
+      font-weight: 500;
+    }
+
+    @font-face {
+      font-family: "DM Sans";
+      src: url("../../packages/app/assets/fonts/DMSans-SemiBold.ttf") format("truetype");
+      font-weight: 700;
+    }
+
+    @font-face {
+      font-family: "Space Mono";
+      src: url("../../packages/app/assets/fonts/SpaceMono-Regular.ttf") format("truetype");
+      font-weight: 400;
+    }
+
+    @font-face {
+      font-family: "Space Mono";
+      src: url("../../packages/app/assets/fonts/SpaceMono-Bold.ttf") format("truetype");
+      font-weight: 700;
+    }
+
+    :root {
+      --cream: #f4efe6;
+      --surface: #fdfaf5;
+      --card: #f0eae0;
+      --ink: #1c1510;
+      --ink-2: #3d3028;
+      --muted: #9a8e7e;
+      --border: #e5ddd0;
+      --clay: #c4522a;
+      --clay-bg: #fdf0eb;
+      --forest: #2a5c45;
+      --forest-bg: #eef4f1;
+      --blue-grey: #577080;
+      --shadow: rgba(28, 21, 16, 0.16);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #756f6a;
+      color: var(--ink);
+      font-family: "DM Sans", sans-serif;
+    }
+
+    .phone {
+      width: min(430px, 100vw);
+      height: min(932px, 100vh);
+      position: relative;
+      overflow: hidden;
+      background: rgba(28, 21, 16, 0.48);
+    }
+
+    .underlay {
+      position: absolute;
+      inset: 0;
+      background: var(--cream);
+      opacity: 0.34;
+    }
+
+    .fake-status {
+      position: absolute;
+      top: 28px;
+      left: 38px;
+      right: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #000;
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    .island {
+      width: 180px;
+      height: 40px;
+      border-radius: 999px;
+      background: #050505;
+    }
+
+    .sheet {
+      position: absolute;
+      inset: 94px 0 0;
+      background: var(--surface);
+      border-radius: 28px 28px 0 0;
+      border-top: 1px solid var(--border);
+      box-shadow: 0 -12px 32px var(--shadow);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .grabber {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      width: 38px;
+      height: 4px;
+      transform: translateX(-50%);
+      border-radius: 999px;
+      background: var(--border);
+    }
+
+    .nav {
+      height: 64px;
+      padding: 22px 22px 12px;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .nav button {
+      border: 0;
+      background: transparent;
+      font: 700 13px "DM Sans", sans-serif;
+      color: var(--muted);
+      text-align: left;
+      padding: 0;
+    }
+
+    .nav-title {
+      font: 700 15px "Playfair Display", serif;
+      color: var(--ink);
+    }
+
+    .content {
+      overflow: auto;
+      padding: 26px 22px 118px;
+    }
+
+    .hero {
+      margin-bottom: 18px;
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font: 700 34px/0.98 "Playfair Display", serif;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 320px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .body-card,
+    .choice-card,
+    .summary-card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 18px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .eyebrow {
+      font: 700 10px "DM Sans", sans-serif;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1.4px;
+    }
+
+    .selected-readout {
+      font: 700 12px "Space Mono", monospace;
+      color: var(--clay);
+      text-align: right;
+      max-width: 150px;
+    }
+
+    .body-stage {
+      position: relative;
+      height: 364px;
+      border-radius: 16px;
+      background:
+        radial-gradient(circle at 50% 42%, rgba(196, 82, 42, 0.08), transparent 34%),
+        linear-gradient(180deg, #fffdfa 0%, #f3ede4 100%);
+      border: 1px solid rgba(229, 221, 208, 0.9);
+      overflow: hidden;
+      perspective: 950px;
+    }
+
+    .view-label {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      z-index: 4;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(253, 250, 245, 0.88);
+      color: var(--muted);
+      font: 700 10px "DM Sans", sans-serif;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+    }
+
+    .body-turntable {
+      position: absolute;
+      inset: 22px 34px 48px;
+      transform-style: preserve-3d;
+    }
+
+    .body-view {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      transform: rotateY(70deg) scale(0.92);
+      transition: opacity 320ms ease, transform 520ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      filter: drop-shadow(0 16px 20px rgba(28, 21, 16, 0.11));
+      pointer-events: none;
+    }
+
+    [data-view="front"] .front-view,
+    [data-view="side"] .side-view,
+    [data-view="back"] .back-view {
+      opacity: 1;
+      transform: rotateY(0deg) scale(1);
+      pointer-events: auto;
+    }
+
+    [data-view="front"] .back-view,
+    [data-view="side"] .front-view {
+      transform: rotateY(-64deg) scale(0.92);
+    }
+
+    [data-view="back"] .front-view,
+    [data-view="side"] .back-view {
+      transform: rotateY(64deg) scale(0.92);
+    }
+
+    .silhouette {
+      fill: #e7ded1;
+      stroke: #d6cbbb;
+      stroke-width: 1.6;
+    }
+
+    .body-line {
+      fill: none;
+      stroke: rgba(87, 112, 128, 0.36);
+      stroke-width: 1.1;
+    }
+
+    .zone {
+      fill: rgba(253, 250, 245, 0.03);
+      stroke: transparent;
+      stroke-width: 2;
+      cursor: pointer;
+      transition: fill 180ms ease, stroke 180ms ease, opacity 180ms ease;
+    }
+
+    .zone:hover {
+      fill: rgba(87, 112, 128, 0.12);
+      stroke: rgba(87, 112, 128, 0.35);
+    }
+
+    .zone.is-selected {
+      fill: rgba(196, 82, 42, 0.2);
+      stroke: var(--clay);
+      stroke-width: 2.6;
+    }
+
+    .joint-dot {
+      fill: rgba(87, 112, 128, 0.22);
+    }
+
+    .body-callout {
+      position: absolute;
+      right: 14px;
+      bottom: 68px;
+      z-index: 5;
+      display: grid;
+      gap: 3px;
+      padding: 9px 11px;
+      border-radius: 13px;
+      background: rgba(253, 250, 245, 0.92);
+      border: 1px solid var(--border);
+    }
+
+    .body-callout span:first-child {
+      font: 700 9px "DM Sans", sans-serif;
+      letter-spacing: 1.2px;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    .body-callout span:last-child {
+      font: 700 13px "Space Mono", monospace;
+      color: var(--clay);
+    }
+
+    .view-control {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 14px;
+      z-index: 6;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      padding: 4px;
+      border-radius: 999px;
+      background: rgba(240, 234, 224, 0.88);
+      border: 1px solid rgba(229, 221, 208, 0.8);
+    }
+
+    .view-control button,
+    .chip {
+      border: 0;
+      background: transparent;
+      border-radius: 999px;
+      min-height: 36px;
+      padding: 8px 12px;
+      color: var(--ink-2);
+      font: 700 12px "DM Sans", sans-serif;
+      transition: background 180ms ease, color 180ms ease, border-color 180ms ease;
+    }
+
+    .view-control button.is-active {
+      color: var(--surface);
+      background: var(--ink);
+    }
+
+    .body-footer {
+      display: grid;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .mapping-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .mapping {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .mapping strong {
+      font-family: "Space Mono", monospace;
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    .list-fallback {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--ink-2);
+      border-radius: 999px;
+      padding: 8px 11px;
+      font: 700 12px "DM Sans", sans-serif;
+      white-space: nowrap;
+    }
+
+    .side-inline {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .choice-card {
+      padding: 15px 16px 16px;
+    }
+
+    .choice-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      border: 1px solid var(--border);
+      background: var(--card);
+      min-width: 76px;
+    }
+
+    .chip.is-selected {
+      border-color: var(--ink);
+      background: var(--ink);
+      color: var(--surface);
+    }
+
+    .chip.is-caution {
+      border-color: rgba(196, 82, 42, 0.5);
+      background: var(--clay-bg);
+      color: var(--clay);
+    }
+
+    .severity-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .severity {
+      min-height: 66px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      display: grid;
+      align-content: center;
+      gap: 4px;
+      padding: 10px;
+      color: var(--ink-2);
+      font: 500 13px "DM Sans", sans-serif;
+      text-align: left;
+    }
+
+    .severity span {
+      display: block;
+      color: var(--muted);
+      font: 700 9px "DM Sans", sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+    }
+
+    .severity.is-selected {
+      border-color: var(--clay);
+      background: var(--clay-bg);
+      color: var(--clay);
+    }
+
+    .summary-card {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      align-items: center;
+      margin-bottom: 0;
+    }
+
+    .summary-title {
+      margin: 0 0 4px;
+      font: 700 18px "Playfair Display", serif;
+    }
+
+    .summary-copy {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .timeline-pill {
+      display: grid;
+      place-items: center;
+      width: 74px;
+      height: 74px;
+      border-radius: 50%;
+      background: var(--clay-bg);
+      border: 1px solid rgba(196, 82, 42, 0.3);
+      color: var(--clay);
+      font: 700 12px "Space Mono", monospace;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .bottom-bar {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 18px 22px 28px;
+      background: color-mix(in srgb, var(--surface) 94%, transparent);
+      border-top: 1px solid var(--border);
+    }
+
+    .add-button {
+      width: 100%;
+      height: 56px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--clay);
+      color: var(--surface);
+      font: 700 15px "DM Sans", sans-serif;
+    }
+
+    @media (max-height: 860px) {
+      .sheet {
+        inset-block-start: 72px;
+      }
+
+      .body-stage {
+        height: 330px;
+      }
+
+      .content {
+        padding-top: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="phone" aria-label="Niggle body picker concept">
+    <div class="underlay"></div>
+    <div class="fake-status">
+      <span>23:17</span>
+      <span class="island"></span>
+      <span>44</span>
+    </div>
+
+    <section class="sheet">
+      <div class="grabber"></div>
+      <nav class="nav" aria-label="Sheet navigation">
+        <button type="button">Back</button>
+        <div class="nav-title">Flag a niggle</div>
+        <div></div>
+      </nav>
+
+      <div class="content">
+        <header class="hero">
+          <h1>Flag a niggle</h1>
+          <p>Mark where it showed up, then log how bad it was and when you felt it.</p>
+        </header>
+
+        <section class="body-card">
+          <div class="card-head">
+            <div class="eyebrow">Where</div>
+            <div class="selected-readout" id="selectedReadout">Right calf</div>
+          </div>
+
+          <div class="body-stage" id="bodyStage" data-view="back">
+            <div class="view-label" id="viewLabel">Back view</div>
+            <div class="body-turntable">
+              <svg class="body-view front-view" viewBox="0 0 220 410" role="img" aria-label="Front body view">
+                <g transform="translate(0 6)">
+                  <circle class="silhouette" cx="110" cy="30" r="19"></circle>
+                  <path class="silhouette" d="M83 63 C92 52 128 52 137 63 L149 142 C153 165 142 190 126 197 L124 242 L137 363 C139 382 105 382 106 363 L100 255 L94 363 C95 382 61 382 63 363 L76 242 L76 197 C61 190 52 165 56 142 Z"></path>
+                  <path class="silhouette" d="M57 80 C42 101 34 132 30 164 C28 179 50 181 53 166 C58 137 66 112 78 93 Z"></path>
+                  <path class="silhouette" d="M163 80 C178 101 186 132 190 164 C192 179 170 181 167 166 C162 137 154 112 142 93 Z"></path>
+                  <path class="body-line" d="M86 67 C98 78 122 78 134 67"></path>
+                  <path class="body-line" d="M76 145 C92 151 128 151 144 145"></path>
+                  <path class="body-line" d="M83 198 C99 204 121 204 137 198"></path>
+                  <circle class="joint-dot" cx="86" cy="254" r="3"></circle>
+                  <circle class="joint-dot" cx="134" cy="254" r="3"></circle>
+                  <path class="zone" data-body-part="Left quad" d="M70 205 C82 198 95 203 97 218 L94 257 C83 263 70 258 68 246 Z"></path>
+                  <path class="zone" data-body-part="Right quad" d="M123 218 C126 203 139 198 150 205 L152 246 C150 258 137 263 126 257 Z"></path>
+                  <ellipse class="zone" data-body-part="Left knee" cx="85" cy="267" rx="14" ry="12"></ellipse>
+                  <ellipse class="zone" data-body-part="Right knee" cx="135" cy="267" rx="14" ry="12"></ellipse>
+                  <path class="zone" data-body-part="Left shin" d="M72 282 C81 277 92 277 97 284 L100 336 C92 342 76 342 68 336 Z"></path>
+                  <path class="zone" data-body-part="Right shin" d="M123 284 C128 277 139 277 148 282 L152 336 C144 342 128 342 120 336 Z"></path>
+                  <ellipse class="zone" data-body-part="Left ankle" cx="83" cy="350" rx="13" ry="9"></ellipse>
+                  <ellipse class="zone" data-body-part="Right ankle" cx="137" cy="350" rx="13" ry="9"></ellipse>
+                  <path class="zone" data-body-part="Left foot" d="M66 366 C81 357 97 358 103 371 C95 379 75 380 61 374 Z"></path>
+                  <path class="zone" data-body-part="Right foot" d="M117 371 C123 358 139 357 154 366 L159 374 C145 380 125 379 117 371 Z"></path>
+                  <path class="zone" data-body-part="Hip" d="M76 168 C94 158 126 158 144 168 C141 187 129 197 110 198 C91 197 79 187 76 168 Z"></path>
+                </g>
+              </svg>
+
+              <svg class="body-view side-view" viewBox="0 0 220 410" role="img" aria-label="Side body view">
+                <g transform="translate(0 6)">
+                  <circle class="silhouette" cx="116" cy="30" r="18"></circle>
+                  <path class="silhouette" d="M100 62 C126 53 143 66 146 92 L143 151 C142 172 132 189 121 199 L123 244 L145 361 C149 382 115 385 111 365 L93 253 L82 361 C80 382 48 381 54 360 L78 241 L80 196 C64 178 63 149 72 120 L83 80 C87 71 92 66 100 62 Z"></path>
+                  <path class="silhouette" d="M143 85 C162 105 172 135 177 164 C180 181 157 184 153 166 C148 139 141 117 130 99 Z"></path>
+                  <path class="body-line" d="M88 80 C106 92 129 92 143 81"></path>
+                  <path class="body-line" d="M78 171 C95 181 120 181 140 171"></path>
+                  <circle class="joint-dot" cx="98" cy="266" r="3"></circle>
+                  <path class="zone" data-body-part="Hip" d="M77 150 C97 142 126 144 142 158 C140 180 127 196 107 199 C88 196 77 181 77 150 Z"></path>
+                  <path class="zone" data-body-part="Right quad" d="M82 202 C98 195 111 202 115 220 L105 263 C93 269 79 265 75 251 Z"></path>
+                  <ellipse class="zone" data-body-part="Right knee" cx="99" cy="269" rx="16" ry="12"></ellipse>
+                  <path class="zone is-selected" data-body-part="Right calf" d="M91 285 C107 280 121 287 126 303 L136 354 C126 365 106 365 99 352 Z"></path>
+                  <path class="zone" data-body-part="Achilles" d="M73 285 C85 283 94 289 95 303 L82 354 C72 362 58 361 55 351 Z"></path>
+                  <ellipse class="zone" data-body-part="Right ankle" cx="111" cy="356" rx="15" ry="9"></ellipse>
+                  <path class="zone" data-body-part="Right foot" d="M99 369 C120 356 148 361 158 374 C142 383 113 382 96 376 Z"></path>
+                </g>
+              </svg>
+
+              <svg class="body-view back-view" viewBox="0 0 220 410" role="img" aria-label="Back body view">
+                <g transform="translate(0 6)">
+                  <circle class="silhouette" cx="110" cy="30" r="19"></circle>
+                  <path class="silhouette" d="M82 64 C92 53 128 53 138 64 L150 142 C154 164 143 189 127 198 L125 242 L138 363 C140 382 106 382 107 363 L101 255 L93 363 C94 382 60 382 62 363 L75 242 L75 198 C59 189 50 164 54 142 Z"></path>
+                  <path class="silhouette" d="M56 80 C41 102 33 132 30 164 C28 180 50 181 53 166 C58 137 66 112 78 94 Z"></path>
+                  <path class="silhouette" d="M164 80 C179 102 187 132 190 164 C192 180 170 181 167 166 C162 137 154 112 142 94 Z"></path>
+                  <path class="body-line" d="M86 70 C94 101 97 126 92 160"></path>
+                  <path class="body-line" d="M134 70 C126 101 123 126 128 160"></path>
+                  <path class="body-line" d="M80 164 C98 176 122 176 140 164"></path>
+                  <path class="body-line" d="M84 198 C100 205 120 205 136 198"></path>
+                  <circle class="joint-dot" cx="85" cy="267" r="3"></circle>
+                  <circle class="joint-dot" cx="135" cy="267" r="3"></circle>
+                  <path class="zone" data-body-part="Back" d="M78 72 C94 61 126 61 142 72 L146 139 C136 154 123 162 110 162 C97 162 84 154 74 139 Z"></path>
+                  <path class="zone" data-body-part="Left glute" d="M76 165 C90 157 103 164 107 181 L103 207 C89 214 77 204 73 190 Z"></path>
+                  <path class="zone" data-body-part="Right glute" d="M113 181 C117 164 130 157 144 165 L147 190 C143 204 131 214 117 207 Z"></path>
+                  <path class="zone" data-body-part="Left hamstring" d="M70 205 C83 198 96 204 98 220 L94 257 C84 263 70 258 68 246 Z"></path>
+                  <path class="zone" data-body-part="Right hamstring" d="M122 220 C124 204 137 198 150 205 L152 246 C150 258 136 263 126 257 Z"></path>
+                  <ellipse class="zone" data-body-part="Left knee" cx="85" cy="267" rx="14" ry="12"></ellipse>
+                  <ellipse class="zone" data-body-part="Right knee" cx="135" cy="267" rx="14" ry="12"></ellipse>
+                  <path class="zone" data-body-part="Left calf" d="M72 282 C82 277 95 279 99 289 L97 336 C88 343 73 342 67 335 Z"></path>
+                  <path class="zone is-selected" data-body-part="Right calf" d="M121 289 C125 279 138 277 148 282 L153 335 C147 342 132 343 123 336 Z"></path>
+                  <path class="zone" data-body-part="Left achilles" d="M69 337 C80 332 92 334 96 344 L94 362 C84 368 73 367 67 359 Z"></path>
+                  <path class="zone" data-body-part="Right achilles" d="M124 344 C128 334 140 332 151 337 L153 359 C147 367 136 368 126 362 Z"></path>
+                  <path class="zone" data-body-part="Left foot" d="M62 366 C78 357 95 358 103 371 C94 379 74 380 61 374 Z"></path>
+                  <path class="zone" data-body-part="Right foot" d="M117 371 C125 358 142 357 158 366 L159 374 C146 380 126 379 117 371 Z"></path>
+                </g>
+              </svg>
+            </div>
+
+            <div class="body-callout">
+              <span>Mapped to</span>
+              <span id="bodyCallout">Right calf</span>
+            </div>
+
+            <div class="view-control" role="tablist" aria-label="Body view">
+              <button type="button" data-view-button="front">Front</button>
+              <button type="button" data-view-button="side">Side</button>
+              <button type="button" data-view-button="back" class="is-active">Back</button>
+            </div>
+          </div>
+
+          <div class="body-footer">
+            <div class="mapping-row">
+              <div class="mapping">
+                <span>Selected</span>
+                <strong id="mappingValue">Right calf</strong>
+              </div>
+              <button class="list-fallback" type="button">List view</button>
+            </div>
+            <div class="side-inline">
+              <button class="chip" type="button" data-side="Left">Left</button>
+              <button class="chip is-selected" type="button" data-side="Right">Right</button>
+              <button class="chip" type="button" data-side="Both / N/A">Both / N/A</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="choice-card">
+          <div class="card-head">
+            <div class="eyebrow">How bad</div>
+          </div>
+          <div class="severity-grid">
+            <button class="severity is-selected" type="button">
+              Niggle
+              <span>Noticed</span>
+            </button>
+            <button class="severity" type="button">
+              Mild
+              <span>Ran through</span>
+            </button>
+            <button class="severity" type="button">
+              Moderate
+              <span>Eased off</span>
+            </button>
+            <button class="severity is-caution" type="button">
+              Stop
+              <span>Had to stop</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="choice-card">
+          <div class="card-head">
+            <div class="eyebrow">When</div>
+          </div>
+          <div class="choice-grid">
+            <button class="chip" type="button">Before</button>
+            <button class="chip is-selected" type="button">During</button>
+            <button class="chip" type="button">After</button>
+          </div>
+        </section>
+
+        <section class="summary-card">
+          <div>
+            <p class="summary-title">Right calf during the run</p>
+            <p class="summary-copy">Saved as a niggle. Steady can compare it with the next sessions in this block.</p>
+          </div>
+          <div class="timeline-pill">Right<br>calf</div>
+        </section>
+      </div>
+
+      <div class="bottom-bar">
+        <button class="add-button" type="button">Add niggle</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const stage = document.getElementById("bodyStage");
+    const viewLabel = document.getElementById("viewLabel");
+    const selectedReadout = document.getElementById("selectedReadout");
+    const bodyCallout = document.getElementById("bodyCallout");
+    const mappingValue = document.getElementById("mappingValue");
+    const viewNames = {
+      front: "Front view",
+      side: "Side view",
+      back: "Back view",
+    };
+
+    let side = "Right";
+    let part = "calf";
+
+    function normalisedPart(bodyPart) {
+      return bodyPart.replace(/^Left /, "").replace(/^Right /, "").toLowerCase();
+    }
+
+    function currentLabel() {
+      if (side === "Both / N/A") return part.charAt(0).toUpperCase() + part.slice(1);
+      return `${side} ${part}`;
+    }
+
+    function setReadout(label) {
+      selectedReadout.textContent = label;
+      bodyCallout.textContent = label;
+      mappingValue.textContent = label;
+    }
+
+    function selectPart(bodyPart) {
+      part = normalisedPart(bodyPart);
+      if (bodyPart.startsWith("Left ")) side = "Left";
+      if (bodyPart.startsWith("Right ")) side = "Right";
+
+      document.querySelectorAll("[data-side]").forEach((button) => {
+        button.classList.toggle("is-selected", button.dataset.side === side);
+      });
+
+      updateZones();
+      setReadout(currentLabel());
+    }
+
+    function updateZones() {
+      document.querySelectorAll(".zone").forEach((zone) => {
+        const bodyPart = zone.dataset.bodyPart || "";
+        zone.classList.toggle("is-selected", normalisedPart(bodyPart) === part && (bodyPart.startsWith(side) || !bodyPart.match(/^(Left|Right) /)));
+      });
+    }
+
+    document.querySelectorAll("[data-view-button]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const view = button.dataset.viewButton;
+        stage.dataset.view = view;
+        viewLabel.textContent = viewNames[view];
+        document.querySelectorAll("[data-view-button]").forEach((candidate) => {
+          candidate.classList.toggle("is-active", candidate === button);
+        });
+      });
+    });
+
+    document.querySelectorAll(".zone").forEach((zone) => {
+      zone.addEventListener("click", () => selectPart(zone.dataset.bodyPart || "Calf"));
+    });
+
+    document.querySelectorAll("[data-side]").forEach((button) => {
+      button.addEventListener("click", () => {
+        side = button.dataset.side;
+        document.querySelectorAll("[data-side]").forEach((candidate) => {
+          candidate.classList.toggle("is-selected", candidate === button);
+        });
+        updateZones();
+        setReadout(currentLabel());
+      });
+    });
+
+    document.querySelectorAll(".severity").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".severity").forEach((candidate) => {
+          candidate.classList.toggle("is-selected", candidate === button);
+        });
+      });
+    });
+
+    document.querySelectorAll(".choice-card:last-of-type .chip").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".choice-card:last-of-type .chip").forEach((candidate) => {
+          candidate.classList.toggle("is-selected", candidate === button);
+        });
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Colour Language"
+  short_description: "Apply Steady semantic colour rules."
+  default_prompt: "Use the Steady colour language rules to make colour decisions that remain semantic, restrained, and consistent across the app."

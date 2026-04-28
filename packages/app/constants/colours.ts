@@ -12,6 +12,10 @@ export const C = {
   // Structure
   border: '#E5DDD0',
 
+  // Status
+  statusConnected: '#2A5C45',
+  statusConnectedBg: '#EEF4F1',
+
   // Metric colours
   metricDistance: '#3D55A4',
   metricPace: '#187F7A',
@@ -20,6 +24,7 @@ export const C = {
   metricHeartRate: '#BD433B',
   metricElevation: '#607B38',
   metricEffort: '#765098',
+  metricEffortBg: '#F3EEF7',
   metricFuelling: '#A5612F',
   metricShoes: '#577080',
 

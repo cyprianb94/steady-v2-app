@@ -31,13 +31,8 @@ import {
 import { parseTrainingPaceProfileRouteParam } from '../../../features/plan-builder/session-editing';
 import { useDirectWeekReschedule } from '../../../features/plan-builder/use-direct-week-reschedule';
 import { DAYS } from '../../../lib/plan-helpers';
-import {
-  formatDistance,
-  formatIntensityTargetDisplay,
-  formatSessionTitle,
-  formatStoredPace,
-  type DistanceUnits,
-} from '../../../lib/units';
+import { formatDistance } from '../../../lib/units';
+import { formatSessionRowText } from '../../../lib/session-row-text';
 import { usePreferences } from '../../../providers/preferences-context';
 
 type PendingStarterChange =
@@ -98,25 +93,6 @@ function starterSelectionFromParams(params: {
   }
 
   return null;
-}
-
-function compactSessionMeta(session: PlannedSession | null, units: DistanceUnits) {
-  if (!session || session.type === 'REST') {
-    return 'Recovery slot';
-  }
-
-  const target = formatIntensityTargetDisplay(session, units, {
-    withUnit: true,
-    hideCompatibilityPace: true,
-  });
-
-  if (target) {
-    return target;
-  }
-
-  return session.pace
-    ? `@ ${formatStoredPace(session.pace, units, { withUnit: true, compactUnit: true })}`
-    : 'Target not set';
 }
 
 export default function StepTemplate() {
@@ -372,6 +348,7 @@ export default function StepTemplate() {
               const isRest = !isEmpty && (!session || session.type === 'REST');
               const type = session?.type ?? 'REST';
               const sessionType = SESSION_TYPE[type];
+              const sessionRowText = formatSessionRowText(session, units);
               const dragging = reschedule.dragState?.fromIndex === index;
               const dropTarget =
                 reschedule.dragState?.overIndex === index &&
@@ -465,10 +442,10 @@ export default function StepTemplate() {
                         />
                         <View style={styles.sessionCopy}>
                           <Text style={styles.sessionMain} numberOfLines={1}>
-                            {isRest || !session ? 'Rest day' : formatSessionTitle(session, units)}
+                            {sessionRowText.title}
                           </Text>
                           <Text style={[styles.sessionDetail, isRest && styles.sessionDetailRest]} numberOfLines={1}>
-                            {compactSessionMeta(session, units)}
+                            {isRest ? 'Recovery slot' : sessionRowText.caption}
                           </Text>
                         </View>
                       </View>

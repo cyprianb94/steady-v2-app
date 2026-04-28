@@ -2,7 +2,6 @@ import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { router, useLocalSearchParams } from 'expo-router';
-import { deriveTrainingPaceProfile } from '@steady/types';
 
 import StepTarget from '../app/onboarding/plan-builder/step-target';
 
@@ -63,7 +62,7 @@ describe('StepTarget target step', () => {
 
     fireEvent.click(screen.getByTestId('pace-profile-adjust'));
     expect(screen.getByTestId('pace-profile-sheet')).toBeTruthy();
-    expect(screen.getAllByText('Estimated').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Estimated')).toBeNull();
     fireEvent.click(screen.getByTestId('pace-profile-row-threshold'));
     fireEvent.change(screen.getByTestId('pace-profile-input-threshold-min'), {
       target: { value: '4:12' },
@@ -74,8 +73,8 @@ describe('StepTarget target step', () => {
     });
     fireEvent.blur(thresholdMaxInput);
     expect(screen.queryByText('Apply range')).toBeNull();
-    expect(screen.getByText('Edited')).toBeTruthy();
-    expect(screen.getByText('Reset estimate')).toBeTruthy();
+    expect(screen.queryByText('Edited')).toBeNull();
+    expect(screen.queryByText('Reset estimate')).toBeNull();
     fireEvent.click(screen.getByText('Save paces'));
     fireEvent.click(screen.getByText('Build base week →'));
 
@@ -86,32 +85,20 @@ describe('StepTarget target step', () => {
     expect(profile.bands.threshold.paceRange).toEqual({ min: '4:12', max: '4:22' });
   });
 
-  it('lets the runner reset onboarding pace edits back to the estimate', () => {
-    const estimatedProfile = deriveTrainingPaceProfile({
-      raceDistance: 'Marathon',
-      targetTime: 'sub-3:15',
+  it('hides pace estimate status labels for Half Marathon onboarding too', () => {
+    vi.mocked(useLocalSearchParams).mockReturnValue({
+      raceDistance: 'Half Marathon',
+      raceLabel: 'Half Marathon',
+      ultraPreset: '100K',
+      customUltraDistance: '',
+      raceDate: '2026-08-02',
+      raceName: 'Hackney Half',
     });
-
     render(<StepTarget />);
 
     fireEvent.click(screen.getByTestId('pace-profile-adjust'));
-    fireEvent.click(screen.getByTestId('pace-profile-row-threshold'));
-    fireEvent.change(screen.getByTestId('pace-profile-input-threshold-min'), {
-      target: { value: '4:12' },
-    });
-    const thresholdMaxInput = screen.getByTestId('pace-profile-input-threshold-max');
-    fireEvent.change(thresholdMaxInput, {
-      target: { value: '4:22' },
-    });
-    fireEvent.blur(thresholdMaxInput);
-    fireEvent.click(screen.getByTestId('pace-profile-reset-threshold'));
-    fireEvent.click(screen.getByText('Save paces'));
-    fireEvent.click(screen.getByText('Build base week →'));
-
-    const call = vi.mocked(router.push).mock.calls[0][0] as unknown as {
-      params: { trainingPaceProfile: string };
-    };
-    const profile = JSON.parse(call.params.trainingPaceProfile);
-    expect(profile.bands.threshold.paceRange).toEqual(estimatedProfile.bands.threshold.paceRange);
+    expect(screen.getByText('RP')).toBeTruthy();
+    expect(screen.queryByText('Estimated')).toBeNull();
+    expect(screen.queryByText('Edited')).toBeNull();
   });
 });

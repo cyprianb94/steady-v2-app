@@ -22,7 +22,8 @@ describe('CompactDayRow', () => {
     );
 
     expect(screen.getByText('Thu')).toBeTruthy();
-    expect(screen.getByText('Easy 8k')).toBeTruthy();
+    expect(screen.getByText('8km · 5:20')).toBeTruthy();
+    expect(screen.getByText('Easy Run')).toBeTruthy();
   });
 
   it('renders interval rows with reps first and workout type after', () => {
@@ -40,7 +41,8 @@ describe('CompactDayRow', () => {
       />,
     );
 
-    expect(screen.getByText('6×800m Intervals')).toBeTruthy();
+    expect(screen.getByText('6×800m · 3:50')).toBeTruthy();
+    expect(screen.getByText('Intervals')).toBeTruthy();
   });
 
   it('shows a checkmark when session has actualActivityId', () => {

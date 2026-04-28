@@ -925,7 +925,7 @@ describe('HomeScreen', () => {
     });
 
     expect(screen.getByText('PLANNED')).toBeTruthy();
-    expect(screen.getByText('Intervals')).toBeTruthy();
+    expect(screen.getAllByText('Intervals').length).toBeGreaterThan(0);
     expect(screen.queryByText('Planned: 6×400m · 2.4km')).toBeNull();
     expect(screen.getByText('Planned session')).toBeTruthy();
     expect(screen.queryByText('Log session')).toBeNull();
@@ -1109,7 +1109,8 @@ describe('HomeScreen', () => {
     expect(screen.getByText('APR 6 – 12 · 2026')).toBeTruthy();
     expect(screen.getByText('8km Easy Run')).toBeTruthy();
     expect(screen.getByText('Sat')).toBeTruthy();
-    expect(screen.getByText('Long 16k')).toBeTruthy();
+    expect(screen.getByText('16km · 5:10')).toBeTruthy();
+    expect(screen.getByText('Long Run')).toBeTruthy();
   });
 
   it('prefers the weekday slot over another session that happens to carry today’s stale date', () => {
@@ -1149,7 +1150,8 @@ describe('HomeScreen', () => {
     expect(screen.getByText('Fri')).toBeTruthy();
     expect(screen.getAllByText('Rest').length).toBeGreaterThan(0);
     expect(screen.getByText('Sat')).toBeTruthy();
-    expect(screen.getByText('Easy 12k')).toBeTruthy();
+    expect(screen.getByText('12km · 5:20')).toBeTruthy();
+    expect(screen.getByText('Easy Run')).toBeTruthy();
   });
 
   it('renders saved feel for today’s matched activity from activity data', async () => {

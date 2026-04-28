@@ -570,6 +570,8 @@ describe('SyncRunDetailScreen', () => {
 
     await screen.findByText('Run detail');
 
+    expect(screen.getByTestId('run-detail-notes-input')).toBeTruthy();
+
     const bodyText = document.body.textContent ?? '';
     expect(bodyText.indexOf('How did it feel?')).toBeLessThan(bodyText.indexOf('Shoes'));
     expect(bodyText.indexOf('Shoes')).toBeLessThan(bodyText.indexOf('Fuelling'));

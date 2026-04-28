@@ -32,7 +32,7 @@ import {
 import { consumeSessionEditReturn } from '../../features/plan-builder/session-edit-return';
 import { useDirectWeekReschedule } from '../../features/plan-builder/use-direct-week-reschedule';
 import { deriveLiveBlockReviewModel } from '../../features/block-review/live-block-review-model';
-import { formatBlockSessionRowText } from '../../components/block/session-row-text';
+import { formatSessionRowText } from '../../lib/session-row-text';
 import { useAuth } from '../../lib/auth';
 import { triggerSelectionChangeHaptic } from '../../lib/haptics';
 import { createId } from '../../lib/id';
@@ -974,7 +974,7 @@ export default function BlockTab() {
                     canDragIndex: canDragVisibleDay,
                     hasRunDetail: runDetailNavigation.canOpenRunDetail(session),
                   });
-                  const sessionRowText = formatBlockSessionRowText(session, units);
+                  const sessionRowText = formatSessionRowText(session, units);
                   const dayPressHandler = canReviewRun
                     ? () => { void runDetailNavigation.openRunDetail(session); }
                     : canEditDay

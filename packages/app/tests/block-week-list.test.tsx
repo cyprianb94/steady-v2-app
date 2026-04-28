@@ -88,7 +88,7 @@ describe('BlockWeekList', () => {
 
     expect(screen.getByTestId('block-week-expanded-1')).toBeTruthy();
     expect(screen.queryByText('Edit sessions · any change will ask where to apply')).toBeNull();
-    expect(screen.getAllByText('8km easy · 5:20').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('8km · 5:20').length).toBeGreaterThan(0);
     expect(screen.getByText('6×800m · 3:50')).toBeTruthy();
     expect(screen.getByText('Rest day')).toBeTruthy();
     expect(screen.getByText('Recovery slot locked in for this day')).toBeTruthy();
@@ -138,9 +138,9 @@ describe('BlockWeekList', () => {
       />,
     );
 
-    expect(screen.getByTestId('block-week-day-1-0').textContent).toContain('8km easy · 5:20');
-    expect(screen.getByTestId('block-week-day-1-0').textContent).toContain('Easy Run · conversational');
-    expect(screen.getByText('10km tempo · 4:15-4:25')).toBeTruthy();
+    expect(screen.getByTestId('block-week-day-1-0').textContent).toContain('8km · 5:20');
+    expect(screen.getByTestId('block-week-day-1-0').textContent).toContain('Easy Run · conversational pace');
+    expect(screen.getByText('10km · 4:15-4:25')).toBeTruthy();
     expect(screen.getByText('Tempo · controlled hard')).toBeTruthy();
   });
 
