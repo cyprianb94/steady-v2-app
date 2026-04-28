@@ -129,6 +129,7 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
       title="Flag a niggle"
       onClose={onClose}
       rightActionDisabled
+      keyboardBehavior="extend"
       bottomBar={(
         <View style={styles.bottomBar}>
           <Text style={[styles.summaryLine, !draftSummary && styles.summaryLineEmpty]}>
@@ -167,20 +168,6 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
             <Text style={styles.inlineReadout}>{bodyPartDisplayLabel(bodyPart)}</Text>
           ) : null}
         </View>
-        {bodyPart === 'other' ? (
-          <View style={styles.otherInputWrap}>
-            <Text style={styles.otherInputLabel}>Where exactly?</Text>
-            <BottomSheetTextInput
-              value={bodyPartOtherText}
-              onChangeText={setBodyPartOtherText}
-              placeholder="e.g. Groin or upper calf"
-              placeholderTextColor={C.muted}
-              style={styles.otherInput}
-              maxLength={NIGGLE_OTHER_BODY_PART_MAX_LENGTH}
-              returnKeyType="done"
-            />
-          </View>
-        ) : null}
         <View style={styles.bodyGroups}>
           {BODY_PART_GROUPS.map((group) => (
             <View key={group.label} style={styles.bodyGroup}>
@@ -215,6 +202,20 @@ export function NigglePickerModal({ visible, onClose, onAdd }: NigglePickerModal
             </View>
           ))}
         </View>
+        {bodyPart === 'other' ? (
+          <View style={styles.otherInputWrap}>
+            <Text style={styles.otherInputLabel}>Where exactly?</Text>
+            <BottomSheetTextInput
+              value={bodyPartOtherText}
+              onChangeText={setBodyPartOtherText}
+              placeholder="e.g. Groin or upper calf"
+              placeholderTextColor={C.muted}
+              style={styles.otherInput}
+              maxLength={NIGGLE_OTHER_BODY_PART_MAX_LENGTH}
+              returnKeyType="done"
+            />
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.block}>
@@ -412,7 +413,7 @@ const styles = StyleSheet.create({
     color: C.clay,
   },
   otherInputWrap: {
-    marginBottom: 14,
+    marginTop: 12,
     gap: 8,
   },
   otherInputLabel: {

@@ -825,7 +825,8 @@ describe('SyncRunDetailScreen', () => {
 
     expect(screen.getByPlaceholderText('e.g. Groin or upper calf')).toBeTruthy();
     const whereText = (document.body.textContent ?? '').slice((document.body.textContent ?? '').indexOf('Where'));
-    expect(whereText.indexOf('Where exactly?')).toBeLessThan(whereText.indexOf('Back'));
+    expect(whereText.lastIndexOf('Something else')).toBeLessThan(whereText.indexOf('Where exactly?'));
+    expect(whereText.indexOf('Where exactly?')).toBeLessThan(whereText.indexOf('Which side'));
 
     fireEvent.click(screen.getByText('Left'));
     fireEvent.click(screen.getByText('Mild'));

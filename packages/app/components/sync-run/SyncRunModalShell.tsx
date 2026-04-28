@@ -13,6 +13,7 @@ interface SyncRunModalShellProps {
   rightActionLabel?: string;
   onRightAction?: () => void;
   rightActionDisabled?: boolean;
+  keyboardBehavior?: 'extend' | 'fillParent' | 'interactive';
   children: ReactNode;
   bottomBar?: ReactNode;
 }
@@ -25,6 +26,7 @@ export function SyncRunModalShell({
   rightActionLabel,
   onRightAction,
   rightActionDisabled = false,
+  keyboardBehavior,
   children,
   bottomBar,
 }: SyncRunModalShellProps) {
@@ -39,6 +41,7 @@ export function SyncRunModalShell({
       backgroundColor={C.surface}
       wrapContent={false}
       footer={bottomBar}
+      keyboardBehavior={keyboardBehavior}
     >
       <View style={styles.sheet}>
         <View style={styles.navBar}>
