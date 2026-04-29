@@ -33,18 +33,12 @@ export interface QualitySummaryCardProps {
   unavailableMessage?: string;
 }
 
-const SESSION_STYLES: Record<QualitySummarySessionType, { title: string; tag: string; colour: string; bg: string }> = {
+const SESSION_STYLES: Record<QualitySummarySessionType, { title: string }> = {
   interval: {
     title: 'Interval summary',
-    tag: 'Interval',
-    colour: C.clay,
-    bg: C.clayBg,
   },
   tempo: {
     title: 'Tempo summary',
-    tag: 'Tempo',
-    colour: C.amber,
-    bg: C.amberBg,
   },
 };
 
@@ -93,12 +87,6 @@ export function QualitySummaryCard({
         <View style={styles.titleBlock}>
           <Text style={styles.title}>{sessionStyle.title}</Text>
           {targetLabel ? <Text style={styles.targetLabel}>{targetLabel}</Text> : null}
-        </View>
-        <View
-          style={[styles.tag, { backgroundColor: sessionStyle.bg, borderColor: sessionStyle.colour }]}
-          testID="quality-summary-session-tag"
-        >
-          <Text style={[styles.tagText, { color: sessionStyle.colour }]}>{sessionStyle.tag}</Text>
         </View>
       </View>
 
@@ -163,18 +151,6 @@ const styles = StyleSheet.create({
     color: C.muted,
     fontFamily: FONTS.sansSemiBold,
     fontSize: 10,
-  },
-  tag: {
-    borderRadius: 20,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  tagText: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 10,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
   },
   metricGrid: {
     flexDirection: 'row',

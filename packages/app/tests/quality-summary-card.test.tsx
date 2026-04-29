@@ -32,7 +32,7 @@ function rgb(hex: string): string {
 }
 
 describe('QualitySummaryCard', () => {
-  it('renders an interval summary with session accent and metric-value colours kept separate', () => {
+  it('renders an interval summary without a redundant session chip and keeps metric-value colours separate', () => {
     render(
       <QualitySummaryCard
         sessionType="interval"
@@ -43,7 +43,7 @@ describe('QualitySummaryCard', () => {
     );
 
     expect(screen.getByText('Interval summary')).toBeTruthy();
-    expect(screen.getByText('Interval')).toBeTruthy();
+    expect(screen.queryByTestId('quality-summary-session-tag')).toBeNull();
     expect(screen.getByText('Target 3:50-4:00/km')).toBeTruthy();
     expect(screen.getByText('work distance')).toBeTruthy();
     expect(screen.getByText('4.8 km')).toBeTruthy();
@@ -54,7 +54,6 @@ describe('QualitySummaryCard', () => {
     expect(screen.getByText('reps')).toBeTruthy();
     expect(screen.getByText('6 / 6')).toBeTruthy();
 
-    expect(styleFor('quality-summary-session-tag').borderColor).toBe(rgb(C.clay));
     expect(styleFor('quality-summary-value-distance').color).toBe(rgb(C.metricDistance));
     expect(styleFor('quality-summary-value-pace').color).toBe(rgb(C.metricPace));
     expect(styleFor('quality-summary-value-heartRate').color).toBe(rgb(C.metricHeartRate));
@@ -62,11 +61,11 @@ describe('QualitySummaryCard', () => {
     expect(screen.getByText('Whole-run average pace is context only for this session.')).toBeTruthy();
   });
 
-  it('renders a tempo summary in the same shell with tempo accent and duration as time colour', () => {
+  it('renders a tempo summary in the same shell with duration as time colour', () => {
     render(<QualitySummaryCard sessionType="tempo" metrics={tempoMetrics} />);
 
     expect(screen.getByText('Tempo summary')).toBeTruthy();
-    expect(screen.getByText('Tempo')).toBeTruthy();
+    expect(screen.queryByTestId('quality-summary-session-tag')).toBeNull();
     expect(screen.getByText('tempo distance')).toBeTruthy();
     expect(screen.getByText('7.0 km')).toBeTruthy();
     expect(screen.getByText('tempo pace')).toBeTruthy();
@@ -76,7 +75,6 @@ describe('QualitySummaryCard', () => {
     expect(screen.getByText('tempo time')).toBeTruthy();
     expect(screen.getByText('31:20')).toBeTruthy();
 
-    expect(styleFor('quality-summary-session-tag').borderColor).toBe(rgb(C.amber));
     expect(styleFor('quality-summary-value-duration').color).toBe(rgb(C.metricTime));
   });
 
@@ -110,6 +108,6 @@ describe('QualitySummaryCard', () => {
     expect(screen.getByText('This run is missing lap data, so Steady cannot summarise the interval set.')).toBeTruthy();
     expect(screen.queryByText('4.8 km')).toBeNull();
     expect(screen.queryByText('6 / 6')).toBeNull();
-    expect(styleFor('quality-summary-session-tag').borderColor).toBe(rgb(C.clay));
+    expect(screen.queryByTestId('quality-summary-session-tag')).toBeNull();
   });
 });
