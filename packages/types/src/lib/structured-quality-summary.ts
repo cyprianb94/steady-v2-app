@@ -62,6 +62,7 @@ interface SplitSpan {
 
 const DISTANCE_TOLERANCE_RATIO = 0.2;
 const DISTANCE_TOLERANCE_MIN_KM = 0.05;
+const PACE_TARGET_TOLERANCE_SECONDS = 2;
 
 function unavailable(
   session: PlannedSession,
@@ -320,6 +321,23 @@ function summarizeSplits(splits: QualitySplit[]): Pick<
   };
 }
 
+function isPaceInTargetRange(
+  paceSecondsPerKm: number,
+  targetRange: StructuredQualityTargetPaceRange,
+): boolean {
+  const fastestSeconds = Math.min(
+    targetRange.minSecondsPerKm,
+    targetRange.maxSecondsPerKm,
+  );
+  const slowestSeconds = Math.max(
+    targetRange.minSecondsPerKm,
+    targetRange.maxSecondsPerKm,
+  );
+
+  return paceSecondsPerKm >= fastestSeconds - PACE_TARGET_TOLERANCE_SECONDS
+    && paceSecondsPerKm <= slowestSeconds + PACE_TARGET_TOLERANCE_SECONDS;
+}
+
 function buildIntervalSummary(
   session: PlannedSession,
   activity: Activity,
@@ -359,9 +377,9 @@ function buildIntervalSummary(
 
   const targetRange = targetPaceRange(session);
   const inTargetRange = targetRange
-    ? qualitySplits.filter((split) => (
-      split.paceSecondsPerKm >= targetRange.minSecondsPerKm
-      && split.paceSecondsPerKm <= targetRange.maxSecondsPerKm
+    ? qualitySplits.filter((split) => isPaceInTargetRange(
+      split.paceSecondsPerKm,
+      targetRange,
     )).length
     : null;
 

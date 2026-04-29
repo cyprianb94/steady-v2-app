@@ -70,7 +70,7 @@ describe('buildStructuredQualitySummary', () => {
       intervalReps: {
         planned: 4,
         found: 4,
-        inTargetRange: 3,
+        inTargetRange: 4,
       },
       targetPaceRange: {
         min: '3:45',
@@ -142,7 +142,7 @@ describe('buildStructuredQualitySummary', () => {
         intensityTarget: {
           source: 'manual',
           mode: 'pace',
-          paceRange: { min: '3:35', max: '3:50' },
+          paceRange: { min: '3:47', max: '4:10' },
         },
       }),
       makeActivity({
@@ -175,7 +175,7 @@ describe('buildStructuredQualitySummary', () => {
       intervalReps: {
         planned: 6,
         found: 6,
-        inTargetRange: 6,
+        inTargetRange: 2,
       },
     });
   });
