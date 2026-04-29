@@ -612,8 +612,8 @@ describe('HomeScreen', () => {
     const weeklyVolumeCard = screen.getByTestId('weekly-volume-card');
     expect(within(weeklyVolumeCard).getByText('21.5km')).toBeTruthy();
     expect(within(weeklyVolumeCard).queryByText('41.5km')).toBeNull();
-    expect(screen.getAllByTestId('day-row-check')).toHaveLength(1);
-    expect(screen.getAllByTestId('day-row-off-target')).toHaveLength(1);
+    expect(screen.getAllByTestId('day-row-check')).toHaveLength(2);
+    expect(screen.queryByTestId('day-row-off-target')).toBeNull();
   });
 
   it('keeps linked runs visible on home before the activity snapshot catches up', async () => {
@@ -866,8 +866,8 @@ describe('HomeScreen', () => {
       await Promise.resolve();
     });
 
-    expect(screen.getByText('UNLOGGED')).toBeTruthy();
-    expect(screen.getByText('Planned session')).toBeTruthy();
+    expect(screen.getAllByText('TODAY').length).toBeGreaterThan(1);
+    expect(screen.getByText('DISTANCE')).toBeTruthy();
     expect(mockRouterPush).not.toHaveBeenCalled();
   });
 
@@ -927,7 +927,7 @@ describe('HomeScreen', () => {
     expect(screen.getByText('PLANNED')).toBeTruthy();
     expect(screen.getAllByText('Intervals').length).toBeGreaterThan(0);
     expect(screen.queryByText('Planned: 6×400m · 2.4km')).toBeNull();
-    expect(screen.getByText('Planned session')).toBeTruthy();
+    expect(screen.getByText('REPETITIONS')).toBeTruthy();
     expect(screen.queryByText('Log session')).toBeNull();
     expect(screen.queryByText('Mark skipped')).toBeNull();
   });
@@ -1660,7 +1660,7 @@ describe('HomeScreen', () => {
     expect(mockRouterPush).toHaveBeenCalledWith('/sync-run/act-1');
   });
 
-  it('keeps matched off-target week rows visually completed while still opening the sync-run detail screen', async () => {
+  it('keeps matched off-target week rows non-judgemental while still opening the sync-run detail screen', async () => {
     const today = currentLocalIsoDate();
     const todayIndex = slotIndexForIsoDate(today);
     const weekStart = new Date(`${today}T00:00:00Z`);
@@ -1724,8 +1724,9 @@ describe('HomeScreen', () => {
     render(<HomeScreen />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('day-row-off-target')).toBeTruthy();
+      expect(screen.getByTestId('day-row-check')).toBeTruthy();
     });
+    expect(screen.queryByTestId('day-row-off-target')).toBeNull();
     expect(screen.queryByTestId('day-row-warning')).toBeNull();
 
     const offTargetRow = screen

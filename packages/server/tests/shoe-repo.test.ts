@@ -150,6 +150,39 @@ function runShoeRepoTests(
       ]);
     });
 
+    it('keeps the higher stored Strava lifetime when a later gear fetch returns stale distance', async () => {
+      await shoeRepo.save({
+        id: 'shoe-1',
+        userId: 'user-1',
+        stravaGearId: 'gear-1',
+        stravaDistanceKm: 401.5,
+        brand: 'Nike',
+        model: 'Pegasus',
+        retired: false,
+        createdAt: '2026-04-01T00:00:00Z',
+        updatedAt: '2026-04-01T00:00:00Z',
+      });
+
+      await shoeRepo.save({
+        id: 'shoe-new-id',
+        userId: 'user-1',
+        stravaGearId: 'gear-1',
+        stravaDistanceKm: 388.206,
+        brand: 'Nike',
+        model: 'Pegasus',
+        retired: false,
+        createdAt: '2026-04-02T00:00:00Z',
+        updatedAt: '2026-04-02T00:00:00Z',
+      });
+
+      expect(await shoeRepo.listByUserId('user-1')).toEqual([
+        expect.objectContaining({
+          id: 'shoe-1',
+          stravaDistanceKm: 401.5,
+        }),
+      ]);
+    });
+
     it('preserves retired metadata while still computing lifetime km', async () => {
       await shoeRepo.save({
         id: 'shoe-1',

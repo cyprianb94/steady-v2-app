@@ -56,15 +56,18 @@ describe('ResolveSessionSheet', () => {
     expect(screen.getByText('Intervals')).toBeTruthy();
     expect(screen.queryByText('Planned: 5×8min · 10km')).toBeNull();
     expect(screen.getByText('No matching activity found')).toBeTruthy();
-    expect(screen.getByText('Planned session')).toBeTruthy();
-    expect(screen.getByText('WARM-UP')).toBeTruthy();
-    expect(screen.getByText('MAIN SET')).toBeTruthy();
-    expect(screen.getByText('5×8min · 4:10/km')).toBeTruthy();
+    expect(screen.queryByText('Planned session')).toBeNull();
+    expect(screen.getByText('REPETITIONS')).toBeTruthy();
+    expect(screen.getByText('5×8min')).toBeTruthy();
+    expect(screen.getByText('REP TARGET PACE')).toBeTruthy();
+    expect(screen.getByText('4:10/km')).toBeTruthy();
+    expect(screen.getByText('RECOVERY BETWEEN REPS')).toBeTruthy();
+    expect(screen.getByText('WARM-UP + COOL-DOWN')).toBeTruthy();
     expect(screen.getByText('Log session')).toBeTruthy();
     expect(screen.getByText('Mark skipped')).toBeTruthy();
   });
 
-  it('tints the planned session area with the session type colour', async () => {
+  it('keeps the planned session area neutral while preserving session identity', async () => {
     render(
       <ResolveSessionSheet
         open
@@ -80,9 +83,10 @@ describe('ResolveSessionSheet', () => {
     );
 
     const plannedCard = await screen.findByTestId('planned-session-card');
-    expect(plannedCard.style.backgroundColor).toBe('rgb(237, 241, 248)');
-    expect(plannedCard.style.borderColor).toBe('rgba(27, 58, 107, 0.38)');
+    expect(plannedCard.style.backgroundColor).toBe('rgb(244, 239, 230)');
+    expect(plannedCard.style.borderColor).toBe('rgb(229, 221, 208)');
     expect(screen.getByText('PLANNED')).toBeTruthy();
+    expect(screen.queryByText('LONG')).toBeNull();
     expect(screen.getByText('Planned for later this week')).toBeTruthy();
     expect(screen.queryByText('Log session')).toBeNull();
     expect(screen.queryByText('Mark skipped')).toBeNull();
@@ -113,7 +117,9 @@ describe('ResolveSessionSheet', () => {
       />,
     );
 
-    expect(await screen.findByText('10km · 4:15-4:25/km · controlled hard')).toBeTruthy();
+    expect(await screen.findByText('10km')).toBeTruthy();
+    expect(screen.getByText('4:15-4:25/km')).toBeTruthy();
+    expect(screen.getByText('controlled hard')).toBeTruthy();
 
     rerender(
       <ResolveSessionSheet
@@ -139,7 +145,8 @@ describe('ResolveSessionSheet', () => {
       />,
     );
 
-    expect(await screen.findByText('22km · conversational')).toBeTruthy();
+    expect(await screen.findByText('22km')).toBeTruthy();
+    expect(screen.getByText('conversational')).toBeTruthy();
     expect(screen.queryByText(/—\/km/)).toBeNull();
   });
 
@@ -196,6 +203,8 @@ describe('ResolveSessionSheet', () => {
     );
 
     expect(await screen.findByText('Possible matches')).toBeTruthy();
+    expect(screen.queryByText('Planned session')).toBeNull();
+    expect(screen.getByText('REP TARGET PACE')).toBeTruthy();
     expect(screen.getAllByText('Strava run')).toHaveLength(2);
     expect(screen.getByText('9.8km · 46:12')).toBeTruthy();
     expect(screen.getByText('10.4km · 49:03')).toBeTruthy();

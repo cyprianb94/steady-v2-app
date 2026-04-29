@@ -266,7 +266,6 @@ export function buildWeeklyVolumeSummary({
 }: BuildWeeklyVolumeSummaryInput): WeeklyVolumeSummary {
   const maps = activityMaps(activities);
   let plannedDistanceTotalKm = 0;
-  let actualDistanceTotalKm = 0;
   const days = Array.from({ length: 7 }, (_, dayIndex): WeeklyVolumeDay => {
     const normalized = normalizeSessionDate(sessions[dayIndex] ?? null, dayIndex, weekStartDate);
     const session = normalized.session;
@@ -291,7 +290,6 @@ export function buildWeeklyVolumeSummary({
         ? plannedSeconds
         : 0;
     plannedDistanceTotalKm += plannedDistanceExactKm;
-    actualDistanceTotalKm += actualDistanceExactKm;
 
     return {
       dayIndex,
@@ -316,7 +314,7 @@ export function buildWeeklyVolumeSummary({
 
   return {
     plannedDistanceKm: roundDistance(plannedDistanceTotalKm),
-    actualDistanceKm: roundDistance(actualDistanceTotalKm),
+    actualDistanceKm: roundDistance(days.reduce((sum, day) => sum + day.actualDistanceKm, 0)),
     plannedSeconds: days.reduce((sum, day) => sum + day.plannedSeconds, 0),
     actualSeconds: days.reduce((sum, day) => sum + day.actualSeconds, 0),
     days,

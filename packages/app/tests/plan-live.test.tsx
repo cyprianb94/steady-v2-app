@@ -82,6 +82,24 @@ describe('PlanLiveScreen', () => {
     expect(router.replace).toHaveBeenCalledWith('/(tabs)/home');
   });
 
+  it('hides the Strava prompt when Strava is already connected', () => {
+    mockStrava.status = {
+      connected: true,
+      athleteId: 'athlete-1',
+      lastSyncedAt: '2026-04-29T12:00:00Z',
+    };
+
+    render(<PlanLiveScreen />);
+
+    expect(screen.getByText('Plan is live.')).toBeTruthy();
+    expect(screen.getByText(
+      'Your block is saved. Steady will pull completed runs into the plan when they sync.',
+    )).toBeTruthy();
+    expect(screen.queryByText('Connect Strava')).toBeNull();
+    expect(screen.queryByTestId('plan-live-connect-strava')).toBeNull();
+    expect(screen.getByTestId('plan-live-home')).toBeTruthy();
+  });
+
   it('connects Strava through the shared workflow before entering Home', async () => {
     render(<PlanLiveScreen />);
 

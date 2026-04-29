@@ -29,7 +29,7 @@ describe('StepTarget target step', () => {
 
     expect(screen.getByText('STEP 3 OF 6')).toBeTruthy();
     expect(screen.getByText("Pick the race target you'll be working towards.")).toBeTruthy();
-    expect(screen.getByText('Goal marathon pace')).toBeTruthy();
+    expect(screen.getByText('Marathon race pace')).toBeTruthy();
     expect(screen.getByText('4:37/km')).toBeTruthy();
     expect(screen.queryByText('MP means target race pace for this plan.')).toBeNull();
     expect(screen.queryByText('Phase breakdown')).toBeNull();
@@ -97,7 +97,7 @@ describe('StepTarget target step', () => {
     render(<StepTarget />);
 
     fireEvent.click(screen.getByTestId('pace-profile-adjust'));
-    expect(screen.getByText('RP')).toBeTruthy();
+    expect(screen.getAllByText('Race pace').length).toBeGreaterThan(0);
     expect(screen.queryByText('Estimated')).toBeNull();
     expect(screen.queryByText('Edited')).toBeNull();
   });

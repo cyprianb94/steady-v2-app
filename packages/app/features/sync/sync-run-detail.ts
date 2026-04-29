@@ -107,3 +107,21 @@ export function shoeWearState(shoe: Shoe): ShoeWearState {
 
   return 'ok';
 }
+
+export function shouldRefreshKilometreSplits(activity: Activity, session: PlannedSession | null): boolean {
+  if (activity.source !== 'strava' || !session || (session.type !== 'EASY' && session.type !== 'LONG')) {
+    return false;
+  }
+
+  if (activity.distance <= 1.5 || activity.splits.length !== 1) {
+    return false;
+  }
+
+  const [split] = activity.splits;
+  if (!split || typeof split.distance !== 'number' || split.distance <= 1.5) {
+    return false;
+  }
+
+  const toleranceKm = Math.max(0.05, activity.distance * 0.01);
+  return Math.abs(split.distance - activity.distance) <= toleranceKm;
+}

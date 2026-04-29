@@ -16,13 +16,15 @@ export interface Shoe {
 export function shoeLifetimeKm(
   shoe: Pick<Shoe, 'stravaGearId' | 'stravaDistanceKm' | 'totalKm'>,
 ): number {
+  const totalKm = Number.isFinite(shoe.totalKm) ? shoe.totalKm : 0;
+
   if (
     shoe.stravaGearId
     && typeof shoe.stravaDistanceKm === 'number'
     && Number.isFinite(shoe.stravaDistanceKm)
   ) {
-    return shoe.stravaDistanceKm;
+    return Math.max(shoe.stravaDistanceKm, totalKm);
   }
 
-  return shoe.totalKm;
+  return totalKm;
 }

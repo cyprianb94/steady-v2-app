@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WeeklyVolumeSummary } from '@steady/types';
+import { C } from '../constants/colours';
 
 const mockPreferences = vi.hoisted(() => ({
   units: 'metric' as 'metric' | 'imperial',
@@ -20,6 +21,14 @@ vi.mock('../hooks/useReducedMotion', () => ({
 }));
 
 import { WeeklyVolumeCard } from '../components/home/WeeklyLoadCard';
+
+function styleRgb(hex: string): string {
+  const value = hex.replace('#', '');
+  const red = Number.parseInt(value.slice(0, 2), 16);
+  const green = Number.parseInt(value.slice(2, 4), 16);
+  const blue = Number.parseInt(value.slice(4, 6), 16);
+  return `rgb(${red}, ${green}, ${blue})`;
+}
 
 function makeSummary(): WeeklyVolumeSummary {
   return {
@@ -127,6 +136,17 @@ describe('WeeklyVolumeCard', () => {
     expect(within(card).getByText('12.4km')).toBeTruthy();
     expect(within(card).getByText('/ 64km')).toBeTruthy();
     expect(within(card).queryByText('1h20')).toBeNull();
+  });
+
+  it('colours the headline value by the active weekly volume metric', () => {
+    render(<WeeklyVolumeCard summary={makeSummary()} />);
+
+    expect(screen.getByText('12.4km').getAttribute('style')).toContain(styleRgb(C.metricDistance));
+
+    mockPreferences.weeklyVolumeMetric = 'time';
+    render(<WeeklyVolumeCard summary={makeSummary()} />);
+
+    expect(screen.getByText('1h20').getAttribute('style')).toContain(styleRgb(C.metricTime));
   });
 
   it('temporarily flips metric while held and restores on release', async () => {

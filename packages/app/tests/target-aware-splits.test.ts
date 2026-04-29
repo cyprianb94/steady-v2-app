@@ -33,13 +33,13 @@ function split(
 }
 
 describe('buildTargetAwareSplitsModel', () => {
-  it('uses target comparison metadata when a session has a pace range', () => {
+  it('uses target comparison metadata when a tempo session has a pace range', () => {
     const model = buildTargetAwareSplitsModel({
       session: {
         id: 'tempo-1',
         type: 'TEMPO',
         date: '2026-04-29',
-        distance: 8,
+        distance: 2,
         intensityTarget: {
           source: 'manual',
           mode: 'pace',
@@ -53,7 +53,31 @@ describe('buildTargetAwareSplitsModel', () => {
     expect(model.comparisonMode).toBe('target');
     expect(model.comparisonHeader).toBe('VS TARGET');
     expect(model.summaryLabel).toBe('per km');
-    expect(model.rows.map((row) => row.targetStatus)).toEqual([null, null]);
+    expect(model.rows.map((row) => row.targetStatus)).toEqual(['on-target', 'on-target']);
+  });
+
+  it('uses average comparison for easy run kilometre splits even when the session has a pace range', () => {
+    const model = buildTargetAwareSplitsModel({
+      session: {
+        id: 'easy-1',
+        type: 'EASY',
+        date: '2026-04-29',
+        distance: 3,
+        intensityTarget: {
+          source: 'manual',
+          mode: 'pace',
+          paceRange: { min: '5:30', max: '6:05' },
+        },
+      },
+      splits: [split(1, 1, 350), split(2, 1, 365), split(3, 0.6, 360)],
+      units: 'metric',
+    });
+
+    expect(model.comparisonMode).toBe('average');
+    expect(model.comparisonHeader).toBe('VS AVERAGE');
+    expect(model.summaryLabel).toBe('per km');
+    expect(model.rows.map((row) => row.label)).toEqual(['1', '2', '+0.6']);
+    expect(model.rows.every((row) => row.targetStatus === null && row.comparisonLabel === null)).toBe(true);
   });
 
   it('classifies interval work reps separately from warmup, recoveries, and cooldown', () => {
@@ -209,7 +233,8 @@ describe('buildTargetAwareSplitsModel', () => {
     });
 
     expect(model.summaryLabel).toBe('per km');
-    expect(model.comparisonHeader).toBe('VS TARGET');
+    expect(model.comparisonMode).toBe('average');
+    expect(model.comparisonHeader).toBe('VS AVERAGE');
     expect(model.rows.map((row) => row.kind)).toEqual(['split', 'split', 'split']);
     expect(model.rows.map((row) => row.label)).toEqual(['1', '2', '3']);
     expect(model.rows.every((row) => row.targetStatus === null && row.elapsedLabel === null)).toBe(true);

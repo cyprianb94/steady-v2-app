@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
   dateHint: {
     fontFamily: FONTS.sans,
     fontSize: 12,
-    color: C.muted,
+    color: C.metricTime,
   },
   inputBox: {
     flexDirection: 'row',

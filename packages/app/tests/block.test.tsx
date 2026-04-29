@@ -1,7 +1,12 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PlannedSession, TrainingPlanWithAnnotation } from '@steady/types';
+import {
+  deriveTrainingPaceProfile,
+  trainingPaceBandToIntensityTarget,
+  type PlannedSession,
+  type TrainingPlanWithAnnotation,
+} from '@steady/types';
 
 const {
   mockRouterPush,
@@ -201,7 +206,8 @@ describe('BlockTab', () => {
     expect(screen.getByText('sub-45')).toBeTruthy();
     expect(screen.queryByTestId('block-review-tab-structure')).toBeNull();
     expect(screen.queryByTestId('block-review-tab-weeks')).toBeNull();
-    expect(screen.getByText('Weekly volume')).toBeTruthy();
+    expect(screen.getByText('Block overview')).toBeTruthy();
+    expect(screen.queryByText('Weekly volume')).toBeNull();
     expect(screen.getByTestId('block-review-volume-current-guide')).toBeTruthy();
     expect(screen.queryByText('Current')).toBeNull();
     expect(screen.queryByTestId('block-review-phase-strip')).toBeNull();
@@ -221,8 +227,9 @@ describe('BlockTab', () => {
     render(<BlockTab />);
     fireEvent.click(screen.getByTestId('block-week-row-press-1'));
 
-    expect(screen.getByText('Weekly volume')).toBeTruthy();
+    expect(screen.getByText('Block overview')).toBeTruthy();
     expect(screen.getByTestId('block-day-1-0')).toBeTruthy();
+    expect(screen.queryByText('Tap a day to adjust the session. Use the grip to reschedule it.')).toBeNull();
   });
 
   it('keeps pace ranges in the Block row title and moves effort cues to the caption', () => {
@@ -247,5 +254,52 @@ describe('BlockTab', () => {
     expect(tempoRow.textContent).toContain('8km · 4:15-4:25');
     expect(tempoRow.textContent).toContain('Tempo · controlled hard');
     expect(tempoRow.textContent).not.toContain('4:15-4:25 · controlled hard');
+  });
+
+  it('renders future profile-linked sessions from the current Training pace profile', () => {
+    mockAuth.session = { user: { id: 'runner-1' } };
+    const currentPlan = plan();
+    const baseProfile = deriveTrainingPaceProfile({
+      raceDistance: '10K',
+      targetTime: '00:45:00',
+    });
+    const beforeProfile = {
+      ...baseProfile,
+      bands: {
+        ...baseProfile.bands,
+        interval: {
+          ...baseProfile.bands.interval,
+          paceRange: { min: '3:47', max: '4:10' },
+        },
+      },
+    };
+    const afterProfile = {
+      ...beforeProfile,
+      bands: {
+        ...beforeProfile.bands,
+        interval: {
+          ...beforeProfile.bands.interval,
+          paceRange: { min: '3:47', max: '3:50' },
+        },
+      },
+    };
+
+    currentPlan.trainingPaceProfile = afterProfile;
+    currentPlan.weeks[1].sessions[1] = {
+      ...currentPlan.weeks[1].sessions[1]!,
+      reps: 6,
+      repDist: 800,
+      pace: '3:59',
+      intensityTarget: trainingPaceBandToIntensityTarget(beforeProfile.bands.interval),
+    };
+    mockPlan.plan = currentPlan;
+    mockPlan.currentWeekIndex = 0;
+
+    render(<BlockTab />);
+    fireEvent.click(screen.getByTestId('block-week-row-press-2'));
+
+    const intervalRow = screen.getByTestId('block-day-2-1');
+    expect(intervalRow.textContent).toContain('6×800m · 3:47-3:50');
+    expect(intervalRow.textContent).not.toContain('3:47-4:10');
   });
 });

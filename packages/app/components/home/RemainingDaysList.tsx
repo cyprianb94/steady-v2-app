@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { expectedDistance, type PlannedSession } from '@steady/types';
+import type { PlannedSession } from '@steady/types';
 import { CompactDayRow } from './CompactDayRow';
 import { SectionLabel } from '../ui/SectionLabel';
 import { addDaysIso, dayIndexForIsoDate } from '../../lib/plan-helpers';
@@ -36,14 +36,6 @@ function formatActualDistance(distance: number | undefined, units: 'metric' | 'i
   return formatDistance(distance, units, { compactMetric: true });
 }
 
-function formatPlannedDistance(
-  session: PlannedSession | null,
-  units: 'metric' | 'imperial',
-): string | null {
-  if (!session || session.type === 'REST') return null;
-  return formatDistance(expectedDistance(session), units, { compactMetric: true });
-}
-
 export function RemainingDaysList({
   sessions,
   today,
@@ -76,7 +68,7 @@ export function RemainingDaysList({
             dateLabel={formatShortDate(addDaysIso(weekStartDate, index))}
             session={session ?? null}
             status={status}
-            metricLabel={formatActualDistance(activity?.distance, units) ?? formatPlannedDistance(session, units)}
+            metricLabel={formatActualDistance(activity?.distance, units)}
             onPress={session && isPressable ? () => onSessionPress?.(session, status) : undefined}
           />
         );

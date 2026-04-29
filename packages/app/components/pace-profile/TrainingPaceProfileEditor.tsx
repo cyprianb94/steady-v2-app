@@ -47,7 +47,7 @@ const BAND_COLORS: Record<TrainingPaceProfileKey, string> = {
   recovery: C.slate,
   easy: C.forest,
   steady: C.navy,
-  marathon: C.navy,
+  marathon: C.metricPace,
   threshold: C.amber,
   interval: C.clay,
 };
@@ -140,15 +140,15 @@ function normalizeCompletePaceRange(min: string, max: string): PaceRange | undef
 }
 
 function racePaceLabel(profile: TrainingPaceProfile): string {
-  return profile.raceDistance === 'Marathon' ? 'Goal marathon pace' : 'Goal race pace';
+  return profile.raceDistance === 'Marathon' ? 'Marathon race pace' : 'Race pace';
 }
 
 export function racePaceAbbreviation(profile: TrainingPaceProfile): string {
-  return profile.raceDistance === 'Marathon' ? 'MP' : 'RP';
+  return racePaceLabel(profile);
 }
 
 export function trainingPaceProfileSummary(profile: TrainingPaceProfile): string {
-  return `${EDITABLE_KEYS.length} training ranges · ${racePaceAbbreviation(profile)} ${profile.racePace}/km`;
+  return `${EDITABLE_KEYS.length} training ranges · ${racePaceLabel(profile)} ${profile.racePace}/km`;
 }
 
 export function serializeTrainingPaceProfile(profile: TrainingPaceProfile): string {
@@ -427,7 +427,7 @@ export function TrainingPaceProfileEditor({
       {lockedBand ? (
         <View style={styles.lockedCard}>
           <View style={styles.lockedHeader}>
-            <Text style={styles.lockedKicker}>{racePaceAbbreviation(profile)}</Text>
+            <Text style={styles.lockedKicker}>{racePaceLabel(profile)}</Text>
             <Text style={styles.lockedPace}>{formatBandTarget(lockedBand)}</Text>
           </View>
           <Text style={styles.lockedCopy}>Locked from your target.</Text>
@@ -489,14 +489,14 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.monoBold,
     fontSize: 24,
     lineHeight: 29,
-    color: C.navy,
+    color: C.metricPace,
   },
   summaryMetaPill: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
-    backgroundColor: C.navyBg,
-    borderColor: `${C.navy}33`,
+    backgroundColor: C.metricPaceBg,
+    borderColor: `${C.metricPace}33`,
     borderWidth: 1,
   },
   summaryMetaPillText: {
@@ -505,7 +505,7 @@ const styles = StyleSheet.create({
     lineHeight: 12,
     letterSpacing: 1.1,
     textTransform: 'uppercase',
-    color: C.navy,
+    color: C.metricPace,
   },
   summaryGrid: {
     borderTopWidth: 1,
@@ -589,8 +589,8 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: `${C.navy}25`,
-    backgroundColor: C.navyBg,
+    borderColor: `${C.metricPace}25`,
+    backgroundColor: C.metricPaceBg,
   },
   lockedHeader: {
     flexDirection: 'row',
@@ -604,20 +604,20 @@ const styles = StyleSheet.create({
     lineHeight: 12,
     letterSpacing: 1.35,
     textTransform: 'uppercase',
-    color: C.navy,
+    color: C.metricPace,
   },
   lockedPace: {
     fontFamily: FONTS.monoBold,
     fontSize: 20,
     lineHeight: 24,
-    color: C.navy,
+    color: C.metricPace,
   },
   lockedCopy: {
     marginTop: 4,
     fontFamily: FONTS.sans,
     fontSize: 12,
     lineHeight: 17,
-    color: C.navy,
+    color: C.metricPace,
   },
   bandList: {
     overflow: 'hidden',

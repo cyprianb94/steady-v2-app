@@ -3,6 +3,7 @@ import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   expectedDistance,
   normalizeSessionDuration,
+  sessionSupportsWarmupCooldown,
   type Activity,
   type PlannedSession,
   type SkippedSessionReason,
@@ -15,7 +16,6 @@ import { usePreferences } from '../../providers/preferences-context';
 import type { ActivityDayStatus } from '../../features/run/activity-resolution';
 import {
   formatDistance,
-  formatIntensityTargetDisplay,
   formatIntensityTargetParts,
   formatIntervalRepLength,
   formatStoredPace,
@@ -45,9 +45,16 @@ type LoadedResolveSessionSheetProps = Omit<ResolveSessionSheetProps, 'session'> 
 
 interface PlannedSessionRow {
   label: string;
-  value: string;
-  kind: 'dot' | 'main' | 'recovery';
-  emphasized?: boolean;
+  parts: PlannedSessionValuePart[];
+  accentColor: string;
+  subparts?: PlannedSessionValuePart[];
+}
+
+interface PlannedSessionValuePart {
+  text: string;
+  color?: string;
+  mono?: boolean;
+  muted?: boolean;
 }
 
 const SKIPPED_REASON_LABELS: Record<SkippedSessionReason, string> = {
@@ -134,87 +141,194 @@ function formatRecoveryValue(recovery: PlannedSession['recovery'], units: Distan
   return formatDistance(recovery.value, units);
 }
 
-function formatMainSet(session: PlannedSession, units: DistanceUnits): string {
-  if (session.type === 'INTERVAL') {
-    const target = formatIntensityTargetParts(session, units, {
-      withUnit: true,
-      hideCompatibilityPace: true,
-    });
-    const base = `${session.reps ?? 6}×${formatIntervalRepLength(session)}`;
-    if (target.pace) {
-      return `${base} · ${target.pace}${target.effort ? ` · ${target.effort}` : ''}`;
-    }
-    if (target.effort) {
-      return `${base} · ${target.effort}`;
-    }
+function metricPart(text: string, color: string): PlannedSessionValuePart {
+  return { text, color, mono: true };
+}
 
-    return `${base} · ${formatPaceValue(session.pace, units)}`;
+function copyPart(text: string, color: string = C.ink): PlannedSessionValuePart {
+  return { text, color };
+}
+
+function mutedPart(text: string): PlannedSessionValuePart {
+  return { text, color: C.muted, muted: true };
+}
+
+function durationMetricColor(duration: PlannedSession['warmup'] | PlannedSession['cooldown'] | PlannedSession['repDuration']): string {
+  const normalized = normalizeSessionDuration(duration);
+  return normalized?.unit === 'min' ? C.metricTime : C.metricDistance;
+}
+
+function recoveryMetricColor(recovery: PlannedSession['recovery']): string {
+  if (typeof recovery === 'string') {
+    return C.metricTime;
   }
 
-  const target = formatIntensityTargetDisplay(session, units, {
+  const normalized = normalizeSessionDuration(recovery);
+  return normalized?.unit === 'km' ? C.metricDistance : C.metricTime;
+}
+
+function targetDisplayParts(
+  session: PlannedSession,
+  units: DistanceUnits,
+): Pick<PlannedSessionRow, 'parts' | 'subparts'> {
+  const target = formatIntensityTargetParts(session, units, {
     withUnit: true,
     hideCompatibilityPace: true,
   });
-  const distance = formatDistance(session.distance ?? 0, units);
-  return target ? `${distance} · ${target}` : `${distance} · ${formatPaceValue(session.pace, units)}`;
+  const parts: PlannedSessionValuePart[] = [];
+  const subparts: PlannedSessionValuePart[] = [];
+
+  if (target.pace) {
+    parts.push(metricPart(target.pace, C.metricPace));
+  }
+  if (target.pace && target.effort) {
+    subparts.push(copyPart(target.effort, C.metricEffort));
+  } else if (target.effort) {
+    parts.push(copyPart(target.effort, C.metricEffort));
+  }
+  if (parts.length === 0) {
+    parts.push(metricPart(formatPaceValue(session.pace, units), C.metricPace));
+  }
+
+  return subparts.length > 0 ? { parts, subparts } : { parts };
+}
+
+function durationRow(
+  label: string,
+  duration: PlannedSession['warmup'] | PlannedSession['cooldown'],
+  units: DistanceUnits,
+  fallback: string,
+): PlannedSessionRow {
+  const formatted = formatDurationValue(duration, units);
+
+  return {
+    label,
+    parts: formatted
+      ? [metricPart(formatted, durationMetricColor(duration))]
+      : [mutedPart(fallback)],
+    accentColor: formatted ? durationMetricColor(duration) : C.border,
+  };
+}
+
+function buildBookendRow(session: PlannedSession, units: DistanceUnits): PlannedSessionRow | null {
+  const warmup = formatDurationValue(session.warmup, units);
+  const cooldown = formatDurationValue(session.cooldown, units);
+
+  if (warmup && cooldown) {
+    return {
+      label: 'WARM-UP + COOL-DOWN',
+      parts: [
+        metricPart(warmup, durationMetricColor(session.warmup)),
+        mutedPart(' / '),
+        metricPart(cooldown, durationMetricColor(session.cooldown)),
+      ],
+      accentColor: durationMetricColor(session.warmup),
+    };
+  }
+
+  if (warmup) {
+    return durationRow('WARM-UP', session.warmup, units, 'No warm-up');
+  }
+
+  if (cooldown) {
+    return durationRow('COOL-DOWN', session.cooldown, units, 'No cool-down');
+  }
+
+  return null;
 }
 
 function buildPlannedRows(session: PlannedSession, units: DistanceUnits): PlannedSessionRow[] {
   if (session.type === 'INTERVAL') {
-    const warmup = formatDurationValue(session.warmup, units) ?? 'No warm-up';
-    const recovery = formatRecoveryValue(session.recovery, units) ?? 'No recovery';
-    const cooldown = formatDurationValue(session.cooldown, units) ?? 'No cool-down';
+    const recovery = formatRecoveryValue(session.recovery, units);
+    const bookendRow = buildBookendRow(session, units);
 
-    return [
-      { label: 'WARM-UP', value: warmup.includes('No ') ? warmup : `${warmup} warm-up`, kind: 'dot' },
-      { label: 'MAIN SET', value: formatMainSet(session, units), kind: 'main', emphasized: true },
-      { label: 'RECOVERY', value: recovery.includes('No ') ? recovery : `${recovery} recovery`, kind: 'recovery' },
-      { label: 'COOL-DOWN', value: cooldown.includes('No ') ? cooldown : `${cooldown} cool-down`, kind: 'dot' },
+    const rows: PlannedSessionRow[] = [
+      {
+        label: 'REPETITIONS',
+        parts: [metricPart(`${session.reps ?? 6}×${formatIntervalRepLength(session)}`, durationMetricColor(session.repDuration))],
+        accentColor: durationMetricColor(session.repDuration),
+        subparts: [mutedPart('Main set')],
+      },
+      {
+        label: 'REP TARGET PACE',
+        accentColor: C.metricPace,
+        ...targetDisplayParts(session, units),
+      },
+      {
+        label: 'RECOVERY BETWEEN REPS',
+        parts: recovery ? [metricPart(recovery, recoveryMetricColor(session.recovery))] : [mutedPart('No recovery')],
+        accentColor: recovery ? recoveryMetricColor(session.recovery) : C.border,
+      },
     ];
+
+    return bookendRow ? [...rows, bookendRow] : rows;
   }
 
   const rows: PlannedSessionRow[] = [
     {
       label: 'DISTANCE',
-      value: formatDistance(session.distance ?? expectedDistance(session), units),
-      kind: 'dot',
+      parts: [metricPart(formatDistance(session.distance ?? expectedDistance(session), units), C.metricDistance)],
+      accentColor: C.metricDistance,
     },
     {
-      label: session.type === 'TEMPO' ? 'TEMPO' : 'TARGET',
-      value: formatMainSet(session, units),
-      kind: 'main',
-      emphasized: true,
+      label: 'TARGET PACE',
+      accentColor: C.metricPace,
+      ...targetDisplayParts(session, units),
     },
   ];
-  const warmup = formatDurationValue(session.warmup, units);
-  const cooldown = formatDurationValue(session.cooldown, units);
 
-  if (warmup) {
-    rows.push({ label: 'WARM-UP', value: `${warmup} warm-up`, kind: 'dot' });
+  if (!sessionSupportsWarmupCooldown(session.type)) {
+    return rows;
   }
-  if (cooldown) {
-    rows.push({ label: 'COOL-DOWN', value: `${cooldown} cool-down`, kind: 'dot' });
+
+  const bookendRow = buildBookendRow(session, units);
+
+  if (bookendRow) {
+    rows.push(bookendRow);
   }
 
   return rows;
 }
 
-function PlannedRowMarker({ kind, color }: { kind: PlannedSessionRow['kind']; color: string }) {
-  if (kind === 'main') {
-    return (
-      <View style={styles.mainMarker}>
-        <View style={[styles.mainMarkerBar, { height: 8, backgroundColor: color }]} />
-        <View style={[styles.mainMarkerBar, { height: 14, backgroundColor: color }]} />
-        <View style={[styles.mainMarkerBar, { height: 20, backgroundColor: color }]} />
-      </View>
-    );
-  }
+function PlannedRowMarker({ color }: { color: string }) {
+  return <View style={[styles.rowAccent, { backgroundColor: color }]} />;
+}
 
-  if (kind === 'recovery') {
-    return <View style={[styles.recoveryMarker, { borderColor: color }]} />;
-  }
-
-  return <View style={[styles.dotMarker, { backgroundColor: `${color}94` }]} />;
+function PlannedRowValue({ row }: { row: PlannedSessionRow }) {
+  return (
+    <View style={styles.plannedValueWrap}>
+      <Text style={styles.plannedValueText}>
+        {row.parts.map((part, index) => (
+          <Text
+            key={`${part.text}-${index}`}
+            style={[
+              part.mono ? styles.plannedValueMetric : styles.plannedValueCopy,
+              part.muted && styles.plannedValueMuted,
+              part.color ? { color: part.color } : null,
+            ]}
+          >
+            {part.text}
+          </Text>
+        ))}
+      </Text>
+      {row.subparts ? (
+        <Text style={styles.plannedSubText}>
+          {row.subparts.map((part, index) => (
+            <Text
+              key={`${part.text}-${index}`}
+              style={[
+                part.mono ? styles.plannedSubMetric : styles.plannedSubCopy,
+                part.muted && styles.plannedValueMuted,
+                part.color ? { color: part.color } : null,
+              ]}
+            >
+              {part.text}
+            </Text>
+          ))}
+        </Text>
+      ) : null}
+    </View>
+  );
 }
 
 function SelectionCircle({ selected }: { selected: boolean }) {
@@ -341,7 +455,6 @@ function ResolveSessionSheetMounted({
     () => (session ? buildPlannedRows(session, units) : []),
     [session, units],
   );
-  const sessionTheme = SESSION_TYPE[session.type];
 
   const handlePrimaryPress = useCallback(() => {
     if (!session || busy || !canLogSession) {
@@ -376,7 +489,9 @@ function ResolveSessionSheetMounted({
   }, [busy, canEditSkipped, canMarkSkipped, onEditSkipped, onMarkSkipped, session]);
 
   const primaryDisabled = !canLogSession || busy || (hasMatches && !selectedMatchId);
-  const statusLabel = status === 'upcoming'
+  const statusLabel = status === 'today'
+    ? 'TODAY'
+    : status === 'upcoming'
     ? 'PLANNED'
     : status === 'skipped'
       ? 'SKIPPED'
@@ -451,6 +566,27 @@ function ResolveSessionSheetMounted({
               <Text style={styles.helper}>{helperText}</Text>
             </View>
 
+            <View
+              style={styles.plannedCard}
+              testID="planned-session-card"
+            >
+              <View style={styles.plannedRows}>
+                {plannedRows.map((row, index) => (
+                  <View
+                    key={row.label}
+                    style={[
+                      styles.plannedRow,
+                      index > 0 && styles.plannedRowWithBorder,
+                    ]}
+                  >
+                    <PlannedRowMarker color={row.accentColor} />
+                    <Text style={styles.plannedLabel}>{row.label}</Text>
+                    <PlannedRowValue row={row} />
+                  </View>
+                ))}
+              </View>
+            </View>
+
             {hasMatches ? (
               <View style={styles.section}>
                 <Text style={styles.sectionLabel}>Possible matches</Text>
@@ -480,38 +616,7 @@ function ResolveSessionSheetMounted({
                   );
                 })}
               </View>
-            ) : (
-              <View
-                style={[
-                  styles.plannedCard,
-                  {
-                    backgroundColor: sessionTheme.bg,
-                    borderColor: `${sessionTheme.color}61`,
-                  },
-                ]}
-                testID="planned-session-card"
-              >
-                <Text style={[styles.plannedTitle, { color: sessionTheme.color }]}>Planned session</Text>
-                <View style={styles.plannedRows}>
-                  {plannedRows.map((row) => (
-                    <View
-                      key={row.label}
-                      style={[
-                        styles.plannedRow,
-                        row.emphasized && styles.plannedRowEmphasized,
-                        row.emphasized && { borderColor: `${sessionTheme.color}2E` },
-                      ]}
-                    >
-                      <PlannedRowMarker kind={row.kind} color={sessionTheme.color} />
-                      <Text style={styles.plannedLabel}>{row.label}</Text>
-                      <Text style={[styles.plannedValue, row.emphasized && styles.plannedValueEmphasized]}>
-                        {row.value}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
+            ) : null}
 
             {canLogSession || canMarkSkipped || canEditSkipped ? (
               <View style={styles.actions}>
@@ -562,8 +667,8 @@ const styles = StyleSheet.create({
   },
   sheetBackground: {
     backgroundColor: C.surface,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
   },
   handle: {
     paddingTop: 14,
@@ -573,7 +678,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 999,
-    backgroundColor: '#D3CABE',
+    backgroundColor: C.border,
   },
   content: {
     paddingHorizontal: 22,
@@ -642,8 +747,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   matchCardSelected: {
-    borderColor: 'rgba(196,82,42,0.50)',
-    backgroundColor: C.clayBg,
+    borderColor: 'rgba(42,92,69,0.42)',
+    backgroundColor: C.statusConnectedBg,
   },
   matchCopy: {
     flex: 1,
@@ -686,76 +791,77 @@ const styles = StyleSheet.create({
     color: C.surface,
   },
   plannedCard: {
-    borderWidth: 1,
-    borderColor: 'rgba(196,82,42,0.38)',
-    borderRadius: 8,
-    backgroundColor: C.clayBg,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    borderRadius: 12,
+    backgroundColor: C.cream,
     padding: 16,
     marginBottom: 24,
   },
-  plannedTitle: {
-    fontFamily: FONTS.sansMedium,
-    fontSize: 14,
-    color: C.clay,
-    marginBottom: 16,
-  },
   plannedRows: {
-    gap: 4,
+    marginTop: -2,
   },
   plannedRow: {
-    minHeight: 38,
-    borderRadius: 8,
+    minHeight: 50,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 12,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
-  plannedRowEmphasized: {
-    borderWidth: 1,
-    borderColor: 'rgba(196,82,42,0.18)',
-    backgroundColor: 'rgba(253,250,245,0.72)',
+  plannedRowWithBorder: {
+    borderTopWidth: 1,
+    borderTopColor: C.border,
   },
-  dotMarker: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: 'rgba(196,82,42,0.58)',
-  },
-  recoveryMarker: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: C.clay,
-    borderStyle: 'dotted',
-    opacity: 0.75,
-  },
-  mainMarker: {
-    width: 12,
-    height: 22,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 2,
-  },
-  mainMarkerBar: {
-    width: 3,
-    borderRadius: 2,
+  rowAccent: {
+    width: 4,
+    minHeight: 28,
+    borderRadius: 999,
+    marginTop: 1,
   },
   plannedLabel: {
-    width: 86,
+    width: 96,
     fontFamily: FONTS.sansSemiBold,
-    fontSize: 10.5,
+    fontSize: 9.5,
+    lineHeight: 13,
     color: C.muted,
-    letterSpacing: 1.2,
+    letterSpacing: 1.35,
   },
-  plannedValue: {
+  plannedValueWrap: {
     flex: 1,
-    fontFamily: FONTS.sansMedium,
+    gap: 2,
+  },
+  plannedValueText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  plannedValueMetric: {
+    fontFamily: FONTS.monoBold,
+    fontSize: 14,
+  },
+  plannedValueCopy: {
+    fontFamily: FONTS.sansSemiBold,
     fontSize: 14,
     color: C.ink,
   },
-  plannedValueEmphasized: {
-    fontFamily: FONTS.sansSemiBold,
+  plannedValueMuted: {
+    color: C.muted,
+  },
+  plannedSubText: {
+    fontFamily: FONTS.sans,
+    fontSize: 11,
+    lineHeight: 15,
+    color: C.muted,
+  },
+  plannedSubMetric: {
+    fontFamily: FONTS.monoBold,
+    fontSize: 12,
+  },
+  plannedSubCopy: {
+    fontFamily: FONTS.sansMedium,
+    fontSize: 13,
+    lineHeight: 17,
+    color: C.muted,
   },
   actions: {
     gap: 12,

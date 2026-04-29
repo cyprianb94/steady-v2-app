@@ -105,7 +105,7 @@ describe('CompactDayRow', () => {
     expect(screen.queryByTestId('day-row-warning')).toBeNull();
   });
 
-  it('shows a completed-style badge for off-target completed sessions', () => {
+  it('shows a non-judgemental completed badge for off-target completed sessions', () => {
     render(
       <CompactDayRow
         dayName="Wed"
@@ -122,7 +122,8 @@ describe('CompactDayRow', () => {
       />,
     );
 
-    expect(screen.getByTestId('day-row-off-target')).toBeTruthy();
+    expect(screen.getByTestId('day-row-check')).toBeTruthy();
+    expect(screen.queryByTestId('day-row-off-target')).toBeNull();
     expect(screen.queryByTestId('day-row-warning')).toBeNull();
     expect(screen.getByText('8.4k')).toBeTruthy();
   });

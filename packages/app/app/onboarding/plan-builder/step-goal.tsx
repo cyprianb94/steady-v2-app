@@ -102,9 +102,9 @@ export default function StepGoal() {
                 <TextInput
                   value={customUltraDistance}
                   onChangeText={setCustomUltraDistance}
-                  placeholder="e.g. 80K or 70M"
+                  placeholder="e.g. 80K or 100K"
                   placeholderTextColor={C.muted}
-                  selectionColor={C.clay}
+                  selectionColor={C.metricDistance}
                   style={styles.customDistanceInput}
                   testID="ultra-distance-input"
                 />
@@ -172,8 +172,8 @@ const styles = StyleSheet.create({
     backgroundColor: C.surface,
   },
   chipSelected: {
-    borderColor: C.clay,
-    backgroundColor: C.clayBg,
+    borderColor: C.metricDistance,
+    backgroundColor: `${C.metricDistance}14`,
   },
   chipText: {
     fontFamily: FONTS.sansMedium,
@@ -181,21 +181,21 @@ const styles = StyleSheet.create({
     color: C.ink2,
   },
   chipTextSelected: {
-    color: C.clay,
+    color: C.metricDistance,
     fontFamily: FONTS.sansSemiBold,
   },
   ultraPanel: {
     marginTop: 14,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: 'rgba(196,82,42,0.22)',
-    backgroundColor: C.clayBg,
+    borderColor: `${C.metricDistance}24`,
+    backgroundColor: `${C.metricDistance}0F`,
     padding: 12,
   },
   ultraPanelLabel: {
     fontFamily: FONTS.sansSemiBold,
     fontSize: 9,
-    color: C.clay,
+    color: C.metricDistance,
     letterSpacing: 1.4,
     textTransform: 'uppercase',
     marginBottom: 10,
@@ -210,12 +210,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: 'rgba(196,82,42,0.28)',
+    borderColor: `${C.metricDistance}28`,
     backgroundColor: C.surface,
   },
   ultraChipSelected: {
-    borderColor: C.clay,
-    backgroundColor: C.clay,
+    borderColor: C.metricDistance,
+    backgroundColor: C.metricDistance,
   },
   ultraChipText: {
     fontFamily: FONTS.sansMedium,
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     borderRadius: 22,
     borderWidth: 1.5,
-    borderColor: 'rgba(196,82,42,0.30)',
+    borderColor: `${C.metricDistance}30`,
     backgroundColor: C.surface,
     paddingHorizontal: 14,
     paddingVertical: 11,

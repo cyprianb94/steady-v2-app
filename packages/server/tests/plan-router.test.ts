@@ -293,7 +293,7 @@ describe('plan router', () => {
       type: 'TEMPO',
       date: '2099-01-08',
       distance: 10,
-      pace: '4:20',
+      pace: '4:27',
       intensityTarget: thresholdTarget,
     };
     const completedTempo: PlannedSession = {
@@ -301,7 +301,7 @@ describe('plan router', () => {
       type: 'TEMPO',
       date: '2099-01-09',
       distance: 10,
-      pace: '4:20',
+      pace: '4:27',
       intensityTarget: thresholdTarget,
       actualActivityId: 'activity-completed',
     };
@@ -382,11 +382,11 @@ describe('plan router', () => {
       },
     });
     expect(saved?.weeks[0].sessions[3]).toMatchObject({
-      pace: '4:28',
+      pace: '4:27',
       intensityTarget: thresholdTarget,
     });
     expect(saved?.weeks[0].sessions[4]).toMatchObject({
-      pace: '4:28',
+      pace: '4:27',
       intensityTarget: thresholdTarget,
       actualActivityId: 'activity-completed',
     });

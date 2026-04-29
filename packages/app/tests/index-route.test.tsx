@@ -37,14 +37,12 @@ describe('first-run index route', () => {
   it('starts unauthenticated runners on the welcome screen, then signs in before plan builder', async () => {
     render(<Index />);
 
-    expect(screen.getByText('Bring your own plan.')).toBeTruthy();
+    expect(screen.getByText('Bring your')).toBeTruthy();
+    expect(screen.getByText('own plan.')).toBeTruthy();
     expect(screen.getByText('Build the training, sync the runs, adapt and track.')).toBeTruthy();
     expect(screen.getByText('Beta')).toBeTruthy();
     expect(screen.getByText('Steady')).toBeTruthy();
     expect(screen.queryByText('Block')).toBeNull();
-    expect(screen.getByText('Build')).toBeTruthy();
-    expect(screen.getByText('Sync')).toBeTruthy();
-    expect(screen.getByText('Adapt')).toBeTruthy();
 
     fireEvent.click(screen.getByText('Get started'));
 

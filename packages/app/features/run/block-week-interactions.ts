@@ -24,8 +24,6 @@ export function isEditableBlockWeek(weekIndex: number, currentWeekIndex: number)
 export function getBlockWeekGuide({
   injuryWeek,
   isEditableWeek,
-  isRescheduleWeek,
-  hasRescheduleChanges,
 }: BlockWeekGuideOptions): string | null {
   if (injuryWeek) {
     return null;
@@ -35,11 +33,7 @@ export function getBlockWeekGuide({
     return 'Past weeks are locked. Tap a logged session to review synced run details.';
   }
 
-  if (hasRescheduleChanges && isRescheduleWeek) {
-    return 'Tap any unchanged row to edit it. Apply the reschedule when the new order looks right.';
-  }
-
-  return 'Tap a day to adjust the session. Use the grip to reschedule it.';
+  return null;
 }
 
 export function resolveBlockDayInteraction({

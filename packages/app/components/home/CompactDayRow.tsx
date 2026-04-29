@@ -20,11 +20,11 @@ interface CompactDayRowProps {
 
 function StatusIcon({ status }: { status: 'completed' | 'off-target' | 'missed' }) {
   const iconStatus: RunStatusIconStatus =
-    status === 'off-target' ? 'varied' : status;
+    status === 'off-target' ? 'completed' : status;
   const testID =
-    status === 'off-target'
-      ? 'day-row-off-target'
-      : status === 'missed'
+    iconStatus === 'completed'
+      ? 'day-row-check'
+      : iconStatus === 'missed'
         ? 'day-row-warning'
         : 'day-row-check';
 
@@ -107,7 +107,7 @@ export function CompactDayRow({ dayName, dateLabel, session, status, metricLabel
 
       <View style={styles.statusBlock}>
         {metricLabel ? (
-          <Text style={[styles.metricLabel, rowStatus === 'off-target' && styles.metricLabelOffTarget]}>
+          <Text style={styles.metricLabel}>
             {metricLabel}
           </Text>
         ) : null}
@@ -211,9 +211,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.mono,
     fontSize: 12,
     color: C.muted,
-  },
-  metricLabelOffTarget: {
-    color: C.amber,
   },
   skippedLabel: {
     fontFamily: FONTS.sansSemiBold,

@@ -289,11 +289,49 @@ describe('BlockTab session rearrange', () => {
     openWeek(1);
 
     expect(screen.getByTestId('block-day-status-1-0')).toBeTruthy();
+    expect(screen.queryByTestId('block-drag-handle-1-0')).toBeNull();
+    expect(screen.getByTestId('block-drag-handle-1-2').style.alignItems).toBe('flex-end');
     expect(screen.queryByText('Logged')).toBeNull();
 
-    dragHandle('block-drag-handle-1-0', 120);
-
     expect(screen.queryByText('Do you want to apply reschedule?')).toBeNull();
+  });
+
+  it('shows off-target synced rows with the non-judgemental completed icon', async () => {
+    planState.current = makePlan([
+      makeWeek(1, [
+        session('mon', 'EASY', { date: '2026-04-06', distance: 8, actualActivityId: 'act-1' }),
+        null,
+        session('wed', 'LONG', { distance: 18 }),
+        null,
+        null,
+        null,
+        null,
+      ]),
+    ]);
+    mockActivityListQuery.mockResolvedValue([
+      {
+        id: 'act-1',
+        userId: 'user-1',
+        source: 'strava',
+        externalId: 'strava-1',
+        startTime: '2026-04-06T07:00:00.000Z',
+        distance: 12.6,
+        duration: 3400,
+        avgPace: 270,
+        splits: [],
+        matchedSessionId: 'mon',
+      },
+    ]);
+
+    renderBlockTab();
+
+    openWeek(1);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('block-day-status-1-0').getAttribute('source')).toContain('run-status-completed.png');
+    });
+    expect(screen.getByTestId('block-day-status-1-0').getAttribute('source')).not.toContain('run-status-varied.png');
+    expect(screen.queryByTestId('block-drag-handle-1-0')).toBeNull();
   });
 
   it('lets the user drag a rest day to move the gap within the week', () => {
@@ -317,7 +355,7 @@ describe('BlockTab session rearrange', () => {
     fireEvent.click(screen.getByTestId('block-day-1-0'));
     expect(screen.queryByText('Update session')).toBeNull();
 
-    dragHandle('block-drag-handle-1-0', 120);
+    expect(screen.queryByTestId('block-drag-handle-1-0')).toBeNull();
     expect(screen.queryByText('Do you want to apply reschedule?')).toBeNull();
   });
 
@@ -464,7 +502,7 @@ describe('BlockTab session rearrange', () => {
 
     await waitFor(() => expect(screen.getAllByTestId(/block-day-status-1-/)).toHaveLength(2));
 
-    dragHandle('block-drag-handle-1-1', 120);
+    expect(screen.queryByTestId('block-drag-handle-1-1')).toBeNull();
 
     expect(screen.queryByText('Do you want to apply reschedule?')).toBeNull();
   });

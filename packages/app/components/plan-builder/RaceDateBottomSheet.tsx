@@ -254,8 +254,8 @@ const styles = StyleSheet.create({
   },
   previewPill: {
     alignItems: 'center',
-    backgroundColor: C.clayBg,
-    borderColor: 'rgba(196,82,42,0.20)',
+    backgroundColor: `${C.metricTime}14`,
+    borderColor: `${C.metricTime}26`,
     borderRadius: 22,
     borderWidth: 1,
     justifyContent: 'center',
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   previewPillText: {
-    color: C.clay,
+    color: C.metricTime,
     fontFamily: FONTS.monoBold,
     fontSize: 12,
   },

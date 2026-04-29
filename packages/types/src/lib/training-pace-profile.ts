@@ -103,19 +103,19 @@ const BAND_DEFINITIONS: Record<TrainingPaceProfileKey, TrainingPaceProfileBandDe
     label: 'Recovery',
     order: 0,
     editability: EDITABLE_BAND,
-    rangeMultiplier: [1.35, 1.5],
+    rangeMultiplier: [1.35, 1.46],
   },
   easy: {
     label: 'Easy',
     order: 1,
     editability: EDITABLE_BAND,
-    rangeMultiplier: [1.2, 1.32],
+    rangeMultiplier: [1.2, 1.28],
   },
   steady: {
     label: 'Steady',
     order: 2,
     editability: EDITABLE_BAND,
-    rangeMultiplier: [1.08, 1.15],
+    rangeMultiplier: [1.08, 1.13],
   },
   marathon: {
     label: 'Race pace',
@@ -126,13 +126,13 @@ const BAND_DEFINITIONS: Record<TrainingPaceProfileKey, TrainingPaceProfileBandDe
     label: 'Threshold',
     order: 4,
     editability: EDITABLE_BAND,
-    rangeMultiplier: [0.94, 0.99],
+    rangeMultiplier: [0.94, 0.98],
   },
   interval: {
     label: 'Interval',
     order: 5,
     editability: EDITABLE_BAND,
-    rangeMultiplier: [0.82, 0.9],
+    rangeMultiplier: [0.84, 0.88],
   },
 };
 

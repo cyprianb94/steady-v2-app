@@ -19,6 +19,13 @@ import {
 export type TargetAwareSplitComparisonMode = 'average' | 'target';
 export type TargetAwareSplitKind = 'split' | 'warmup' | 'work' | 'recovery' | 'cooldown';
 export type TargetAwareSplitTargetStatus = 'fast' | 'on-target' | 'slow';
+export type AveragePaceComparisonDirection = 'fast' | 'slow' | 'average';
+
+export interface AveragePaceComparison {
+  direction: AveragePaceComparisonDirection;
+  label: string;
+  widthPercent: number;
+}
 
 export interface TargetAwareSplitRow {
   id: string;
@@ -40,7 +47,7 @@ export interface TargetAwareSplitsModel {
   summaryLabel: 'per km' | 'segments';
   labelMode: SplitLabelMode;
   comparisonMode: TargetAwareSplitComparisonMode;
-  comparisonHeader: 'vs avg' | 'VS TARGET';
+  comparisonHeader: 'VS AVERAGE' | 'VS TARGET';
   rows: TargetAwareSplitRow[];
 }
 
@@ -61,7 +68,7 @@ interface PlannedIntervalPart {
   repIndex: number | null;
 }
 
-interface IntervalSplitSpan {
+interface SplitSpan {
   index: number;
   distanceKm: number;
   startKm: number;
@@ -71,6 +78,7 @@ interface IntervalSplitSpan {
 const DISTANCE_TOLERANCE_KM = 0.05;
 const DISTANCE_TOLERANCE_RATIO = 0.08;
 const PACE_TARGET_TOLERANCE_SECONDS = 2;
+const AVERAGE_RAIL_MAX_WIDTH_PERCENT = 46;
 
 function parseLabelDistanceKm(label: string | undefined): number | null {
   if (!label) {
@@ -163,9 +171,9 @@ function buildPlannedIntervalParts(session: PlannedSession): PlannedIntervalPart
   return parts;
 }
 
-function buildIntervalSplitSpans(splits: ActivitySplit[]): IntervalSplitSpan[] | null {
+function buildSplitSpans(splits: ActivitySplit[]): SplitSpan[] | null {
   let cursorKm = 0;
-  const spans: IntervalSplitSpan[] = [];
+  const spans: SplitSpan[] = [];
 
   for (const [index, split] of splits.entries()) {
     const distanceKm = splitDistanceKm(split);
@@ -187,11 +195,11 @@ function buildIntervalSplitSpans(splits: ActivitySplit[]): IntervalSplitSpan[] |
   return spans;
 }
 
-function intervalSpanMidpointKm(span: IntervalSplitSpan): number {
+function splitSpanMidpointKm(span: SplitSpan): number {
   return span.startKm + span.distanceKm / 2;
 }
 
-function hasRecoverySeparators(workSpans: IntervalSplitSpan[]): boolean {
+function hasRecoverySeparators(workSpans: SplitSpan[]): boolean {
   return workSpans.every((span, index) => (
     index === 0 || span.index > workSpans[index - 1].index + 1
   ));
@@ -203,7 +211,7 @@ function classifyIntervalSplitsByRepDistance(
 ): Array<Pick<TargetAwareSplitRow, 'kind' | 'repIndex'>> | null {
   const reps = session.reps && session.reps > 0 ? session.reps : 0;
   const repKm = intervalRepDistanceKm(session);
-  const spans = buildIntervalSplitSpans(splits);
+  const spans = buildSplitSpans(splits);
   if (reps === 0 || repKm <= 0 || spans == null) {
     return null;
   }
@@ -216,11 +224,11 @@ function classifyIntervalSplitsByRepDistance(
   let workSpans = spans.filter((span) => matchesDistance(span.distanceKm, repKm));
 
   if (warmupKm > 0) {
-    workSpans = workSpans.filter((span) => intervalSpanMidpointKm(span) >= warmupKm);
+    workSpans = workSpans.filter((span) => splitSpanMidpointKm(span) >= warmupKm);
   }
 
   if (cooldownKm > 0 && workSpans.length > reps) {
-    workSpans = workSpans.filter((span) => intervalSpanMidpointKm(span) <= cooldownStartKm);
+    workSpans = workSpans.filter((span) => splitSpanMidpointKm(span) <= cooldownStartKm);
   }
 
   if (workSpans.length !== reps) {
@@ -281,6 +289,69 @@ function classifyIntervalSplits(
   }
 
   return classifyIntervalSplitsByRepDistance(session, splits);
+}
+
+function classifyTempoSplits(
+  session: PlannedSession | null | undefined,
+  splits: ActivitySplit[],
+): Array<Pick<TargetAwareSplitRow, 'kind' | 'repIndex'>> | null {
+  if (!session || session.type !== 'TEMPO' || !session.distance || session.distance <= 0) {
+    return null;
+  }
+
+  const warmupKm = sessionDurationKm(session.warmup);
+  const tempoKm = session.distance;
+  const cooldownKm = sessionDurationKm(session.cooldown);
+  const parts: PlannedIntervalPart[] = [
+    ...(warmupKm > 0 ? [{ kind: 'warmup' as const, distanceKm: warmupKm, repIndex: null }] : []),
+    { kind: 'work', distanceKm: tempoKm, repIndex: null },
+    ...(cooldownKm > 0 ? [{ kind: 'cooldown' as const, distanceKm: cooldownKm, repIndex: null }] : []),
+  ];
+
+  if (parts.length === splits.length) {
+    const splitDistances = splits.map(splitDistanceKm);
+    const allPartsMatch = parts.every((part, index) => matchesDistance(splitDistances[index], part.distanceKm));
+    if (allPartsMatch) {
+      return parts.map((part) => ({ kind: part.kind, repIndex: part.repIndex }));
+    }
+  }
+
+  const spans = buildSplitSpans(splits);
+  if (!spans) {
+    return null;
+  }
+
+  const tempoStartKm = warmupKm;
+  const tempoEndKm = warmupKm + tempoKm;
+  const classifications = spans.map((span): Pick<TargetAwareSplitRow, 'kind' | 'repIndex'> => {
+    const midpoint = splitSpanMidpointKm(span);
+    if (midpoint < tempoStartKm) {
+      return { kind: warmupKm > 0 ? 'warmup' : 'split', repIndex: null };
+    }
+    if (midpoint <= tempoEndKm) {
+      return { kind: 'work', repIndex: null };
+    }
+    return { kind: cooldownKm > 0 ? 'cooldown' : 'split', repIndex: null };
+  });
+
+  return classifications.some((classification) => classification.kind === 'work')
+    ? classifications
+    : null;
+}
+
+function classifyTargetSplits(
+  session: PlannedSession | null | undefined,
+  splits: ActivitySplit[],
+): Array<Pick<TargetAwareSplitRow, 'kind' | 'repIndex'>> | null {
+  if (session?.type === 'INTERVAL') {
+    return classifyIntervalSplits(session, splits);
+  }
+
+  if (session?.type === 'TEMPO') {
+    return classifyTempoSplits(session, splits);
+  }
+
+  return null;
 }
 
 function targetRange(session: PlannedSession | null | undefined): PaceTargetRange | null {
@@ -351,6 +422,37 @@ function defaultClassification(): Pick<TargetAwareSplitRow, 'kind' | 'repIndex'>
   return { kind: 'split', repIndex: null };
 }
 
+export function buildAveragePaceComparison({
+  splitPaceSeconds,
+  averagePaceSeconds,
+  maxDeltaSeconds,
+}: {
+  splitPaceSeconds: number;
+  averagePaceSeconds: number;
+  maxDeltaSeconds: number;
+}): AveragePaceComparison {
+  const deltaSeconds = Math.round(splitPaceSeconds - averagePaceSeconds);
+  const absDeltaSeconds = Math.abs(deltaSeconds);
+
+  if (absDeltaSeconds === 0 || maxDeltaSeconds <= 0) {
+    return {
+      direction: 'average',
+      label: 'avg',
+      widthPercent: 0,
+    };
+  }
+
+  const direction: AveragePaceComparisonDirection = deltaSeconds < 0 ? 'fast' : 'slow';
+  return {
+    direction,
+    label: `${absDeltaSeconds}s ${direction}`,
+    widthPercent: Math.min(
+      AVERAGE_RAIL_MAX_WIDTH_PERCENT,
+      (absDeltaSeconds / maxDeltaSeconds) * AVERAGE_RAIL_MAX_WIDTH_PERCENT,
+    ),
+  };
+}
+
 export function buildTargetAwareSplitsModel({
   session,
   splits,
@@ -358,19 +460,24 @@ export function buildTargetAwareSplitsModel({
 }: BuildTargetAwareSplitsOptions): TargetAwareSplitsModel {
   const labelMode = inferSplitLabelMode(session, splits);
   const range = targetRange(session);
-  const comparisonMode: TargetAwareSplitComparisonMode = range ? 'target' : 'average';
-  const intervalClassifications = classifyIntervalSplits(session, splits);
+  const targetClassifications = classifyTargetSplits(session, splits);
+  const hasTargetComparableRows = targetClassifications?.some((classification) => classification.kind === 'work') ?? false;
+  const comparisonMode: TargetAwareSplitComparisonMode = range && hasTargetComparableRows ? 'target' : 'average';
 
   return {
     summaryLabel: labelMode === 'segment' ? 'segments' : 'per km',
     labelMode,
     comparisonMode,
-    comparisonHeader: comparisonMode === 'target' ? 'VS TARGET' : 'vs avg',
+    comparisonHeader: comparisonMode === 'target' ? 'VS TARGET' : 'VS AVERAGE',
     rows: splits.map((split, index) => {
-      const classification = intervalClassifications?.[index] ?? defaultClassification();
+      const classification = targetClassifications?.[index] ?? defaultClassification();
       const distanceKm = splitDistanceKm(split);
-      const elapsed = classification.kind === 'work' ? elapsedSeconds(split) : null;
-      const comparison = targetComparison(split, range, classification.kind === 'work');
+      const elapsed = session?.type === 'INTERVAL' && classification.kind === 'work'
+        ? elapsedSeconds(split)
+        : null;
+      const comparison = comparisonMode === 'target'
+        ? targetComparison(split, range, classification.kind === 'work')
+        : { comparisonLabel: null, targetStatus: null };
 
       return {
         id: `${split.km}-${split.label ?? index}`,

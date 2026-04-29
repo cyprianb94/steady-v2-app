@@ -57,6 +57,10 @@ function isFutureSession(
   return session.date > today;
 }
 
+function roundDistanceKm(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
 export function createActivityResolution(
   activities: readonly Activity[],
   options: CreateActivityResolutionOptions = {},
@@ -192,7 +196,7 @@ export function createActivityResolution(
 
       const actualDistance = activityForSession(session)?.distance;
       if (typeof actualDistance === 'number') {
-        return sum + actualDistance;
+        return sum + roundDistanceKm(actualDistance);
       }
 
       if (!session.actualActivityId) {
@@ -204,9 +208,9 @@ export function createActivityResolution(
         return sum;
       }
 
-      return sum + expectedDistance(session);
+      return sum + roundDistanceKm(expectedDistance(session));
     }, 0);
-    return Number(total.toFixed(1));
+    return roundDistanceKm(total);
   }
 
   return {

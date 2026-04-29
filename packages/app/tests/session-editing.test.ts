@@ -4,6 +4,7 @@ import {
   getSessionEditorProfileBands,
   hasMaterialSessionEdit,
   materializeEditedSession,
+  resolveProfileLinkedSessionTarget,
 } from '../features/plan-builder/session-editing';
 
 const existingEasy: PlannedSession = {
@@ -252,5 +253,99 @@ describe('session editor Training pace options', () => {
       'marathon',
       'steady',
     ]);
+  });
+});
+
+describe('profile-linked session target resolution', () => {
+  it('refreshes future profile-linked sessions from the current Training pace profile', () => {
+    const baseProfile = deriveTrainingPaceProfile({
+      raceDistance: '10K',
+      targetTime: '00:45:00',
+    });
+    const beforeProfile = {
+      ...baseProfile,
+      bands: {
+        ...baseProfile.bands,
+        interval: {
+          ...baseProfile.bands.interval,
+          paceRange: { min: '3:47', max: '4:10' },
+        },
+      },
+    };
+    const afterProfile = {
+      ...beforeProfile,
+      bands: {
+        ...beforeProfile.bands,
+        interval: {
+          ...beforeProfile.bands.interval,
+          paceRange: { min: '3:47', max: '3:50' },
+        },
+      },
+    };
+    const staleInterval: PlannedSession = {
+      id: 'interval-stale',
+      type: 'INTERVAL',
+      date: '2026-05-05',
+      reps: 6,
+      repDist: 800,
+      recovery: { unit: 'min', value: 1.5 },
+      pace: '3:59',
+      intensityTarget: trainingPaceBandToIntensityTarget(beforeProfile.bands.interval),
+    };
+
+    const resolved = resolveProfileLinkedSessionTarget(staleInterval, afterProfile, {
+      today: '2026-04-29',
+    });
+
+    expect(resolved).toMatchObject({
+      pace: '3:49',
+      intensityTarget: {
+        source: 'profile',
+        profileKey: 'interval',
+        paceRange: { min: '3:47', max: '3:50' },
+      },
+    });
+  });
+
+  it('keeps manual, completed, and past sessions unchanged', () => {
+    const profile = deriveTrainingPaceProfile({
+      raceDistance: '10K',
+      targetTime: '00:45:00',
+    });
+    const manualInterval: PlannedSession = {
+      id: 'manual-interval',
+      type: 'INTERVAL',
+      date: '2026-05-05',
+      reps: 6,
+      repDist: 800,
+      pace: '3:59',
+      intensityTarget: {
+        source: 'manual',
+        mode: 'pace',
+        paceRange: { min: '3:47', max: '4:10' },
+      },
+    };
+    const completedInterval: PlannedSession = {
+      ...manualInterval,
+      id: 'completed-interval',
+      actualActivityId: 'activity-1',
+      intensityTarget: trainingPaceBandToIntensityTarget(profile.bands.interval),
+    };
+    const pastInterval: PlannedSession = {
+      ...manualInterval,
+      id: 'past-interval',
+      date: '2026-04-28',
+      intensityTarget: trainingPaceBandToIntensityTarget(profile.bands.interval),
+    };
+
+    expect(resolveProfileLinkedSessionTarget(manualInterval, profile, {
+      today: '2026-04-29',
+    })).toBe(manualInterval);
+    expect(resolveProfileLinkedSessionTarget(completedInterval, profile, {
+      today: '2026-04-29',
+    })).toBe(completedInterval);
+    expect(resolveProfileLinkedSessionTarget(pastInterval, profile, {
+      today: '2026-04-29',
+    })).toBe(pastInterval);
   });
 });

@@ -67,7 +67,7 @@ describe('RemainingDaysList', () => {
     expect(screen.getByText('Sat')).toBeTruthy();
     expect(screen.getByText('Sun')).toBeTruthy();
     expect(screen.getAllByTestId('day-row-warning')).toHaveLength(3);
-    expect(screen.getAllByText('8k').length).toBeGreaterThan(0);
+    expect(screen.queryByText('8k')).toBeNull();
     expect(screen.queryByText('Missed')).toBeNull();
   });
 
@@ -84,7 +84,7 @@ describe('RemainingDaysList', () => {
 
     expect(screen.queryAllByTestId('compact-day-row')).toHaveLength(7);
     expect(screen.getAllByTestId('day-row-warning')).toHaveLength(6);
-    expect(screen.getAllByText('8k').length).toBeGreaterThan(0);
+    expect(screen.queryByText('8k')).toBeNull();
   });
 
   it('falls back to weekday position when saved dates do not include today', () => {
@@ -99,7 +99,7 @@ describe('RemainingDaysList', () => {
     });
 
     expect(screen.getByText('Fri')).toBeTruthy();
-    expect(screen.getAllByText('8k').length).toBeGreaterThan(0);
+    expect(screen.queryByText('8k')).toBeNull();
     expect(screen.getByText('Sat')).toBeTruthy();
     expect(screen.getByText('Sun')).toBeTruthy();
   });
@@ -175,7 +175,8 @@ describe('RemainingDaysList', () => {
     });
 
     expect(screen.getByText('5.5k')).toBeTruthy();
-    expect(screen.getAllByTestId('day-row-off-target').length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('day-row-check').length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('day-row-off-target')).toBeNull();
     expect(screen.getAllByTestId('day-row-warning')).toHaveLength(2);
   });
 
@@ -212,12 +213,13 @@ describe('RemainingDaysList', () => {
       ],
     });
 
-    expect(screen.getAllByText('8k').length).toBeGreaterThan(0);
-    expect(screen.getAllByTestId('day-row-off-target').length).toBeGreaterThan(0);
+    expect(screen.getByText('8k')).toBeTruthy();
+    expect(screen.getAllByTestId('day-row-check').length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('day-row-off-target')).toBeNull();
     expect(screen.getAllByTestId('day-row-warning')).toHaveLength(2);
   });
 
-  it('shows planned totals on the right for incomplete week rows', () => {
+  it('does not repeat planned totals on the right for incomplete week rows', () => {
     const sessions: (PlannedSession | null)[] = [
       { id: 'mon', type: 'EASY', date: '2026-04-06', distance: 8, pace: '5:20' },
       { id: 'tue', type: 'TEMPO', date: '2026-04-07', distance: 10, pace: '4:20' },
@@ -234,9 +236,9 @@ describe('RemainingDaysList', () => {
       weekStartDate: '2026-04-06',
     });
 
-    expect(screen.getAllByText('8k').length).toBeGreaterThan(0);
-    expect(screen.getByText('10k')).toBeTruthy();
-    expect(screen.getByText('12k')).toBeTruthy();
+    expect(screen.queryByText('8k')).toBeNull();
+    expect(screen.queryByText('10k')).toBeNull();
+    expect(screen.queryByText('12k')).toBeNull();
   });
 
   it('makes past unlogged planned rows pressable so Home can open the resolve sheet', () => {

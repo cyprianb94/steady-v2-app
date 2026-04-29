@@ -28,7 +28,6 @@ import {
 import { usePreferences } from '../../providers/preferences-context';
 import { AnimatedProgressFill } from '../ui/AnimatedProgressFill';
 
-const WEEKLY_VOLUME_ACCENT = C.forest;
 const WEEKLY_VOLUME_BORDER = C.border;
 const WEEKLY_VOLUME_SURFACE = C.surface;
 const CARD_HORIZONTAL_PADDING = 18;
@@ -99,6 +98,10 @@ function metricLabel(metric: WeeklyVolumeMetric): string {
 
 function metricAccessibleLabel(metric: WeeklyVolumeMetric): string {
   return metric === 'distance' ? 'distance' : 'time';
+}
+
+function metricAccent(metric: WeeklyVolumeMetric): string {
+  return metric === 'distance' ? C.metricDistance : C.metricTime;
 }
 
 function formatDurationMetricValue(totalSeconds: number): string {
@@ -684,6 +687,7 @@ function WeeklyVolumeCollapsedContent({
   units,
   status,
   isHolding,
+  activeColor,
   chevronTestID,
   showTrack = true,
   showStatus = true,
@@ -693,6 +697,7 @@ function WeeklyVolumeCollapsedContent({
   units: 'metric' | 'imperial';
   status: string;
   isHolding: boolean;
+  activeColor: string;
   chevronTestID?: string;
   showTrack?: boolean;
   showStatus?: boolean;
@@ -706,7 +711,7 @@ function WeeklyVolumeCollapsedContent({
       <View style={styles.labelRow}>
         <WeeklyVolumeTitle expanded={false} chevronTestID={chevronTestID} />
         <View style={styles.valueRow}>
-          <Text style={styles.actual}>
+          <Text style={[styles.actual, { color: activeColor }]}>
             {formatMetricValue(values.actual, metric, units)}
           </Text>
           <Text style={styles.planned}>
@@ -716,7 +721,7 @@ function WeeklyVolumeCollapsedContent({
       </View>
       {showTrack ? (
         <View style={styles.track}>
-          <AnimatedProgressFill progress={progress} fillStyle={styles.fill} />
+          <AnimatedProgressFill progress={progress} fillStyle={[styles.fill, { backgroundColor: activeColor }]} />
         </View>
       ) : null}
       {showStatus ? (
@@ -745,6 +750,7 @@ export function WeeklyVolumeCard({
   const didLongPressRef = useRef(false);
   const expansion = useRef(new Animated.Value(0)).current;
   const activeMetric = isHolding ? oppositeMetric(weeklyVolumeMetric) : weeklyVolumeMetric;
+  const activeMetricColor = metricAccent(activeMetric);
   const collapsedValues = summaryMetricValues(summary, activeMetric);
   const status = weeklyStatus(summary, activeMetric);
   const transitionTrackProgress = collapsedValues.planned > 0
@@ -959,7 +965,7 @@ export function WeeklyVolumeCard({
                     <WeeklyVolumeTitle expanded={expanded} />
                   </View>
                   <View style={styles.valueRow}>
-                    <Text style={styles.actual}>
+                    <Text style={[styles.actual, { color: activeMetricColor }]}>
                       {formatMetricValue(collapsedValues.actual, activeMetric, units)}
                     </Text>
                     <Text style={styles.planned}>
@@ -1000,6 +1006,7 @@ export function WeeklyVolumeCard({
               units={units}
               status={status}
               isHolding={false}
+              activeColor={activeMetricColor}
               showTrack={false}
               showStatus={false}
             />
@@ -1023,6 +1030,7 @@ export function WeeklyVolumeCard({
                 {
                   width: `${transitionTrackProgress * 100}%` as DimensionValue,
                   opacity: transitionTrackFillOpacity,
+                  backgroundColor: activeMetricColor,
                 },
               ]}
             />
@@ -1059,6 +1067,7 @@ export function WeeklyVolumeCard({
               units={units}
               status={status}
               isHolding={isHolding}
+              activeColor={activeMetricColor}
               chevronTestID="weekly-volume-chevron"
               showStatus={false}
             />
@@ -1178,7 +1187,6 @@ const styles = StyleSheet.create({
   transitionTrackFill: {
     height: '100%',
     borderRadius: 999,
-    backgroundColor: WEEKLY_VOLUME_ACCENT,
   },
   labelWithChevron: {
     flexDirection: 'row',
@@ -1217,7 +1225,6 @@ const styles = StyleSheet.create({
   actual: {
     fontFamily: FONTS.monoBold,
     fontSize: 15,
-    color: WEEKLY_VOLUME_ACCENT,
     flexShrink: 1,
   },
   planned: {
@@ -1236,7 +1243,6 @@ const styles = StyleSheet.create({
   fill: {
     height: '100%',
     borderRadius: 999,
-    backgroundColor: WEEKLY_VOLUME_ACCENT,
   },
   statusRow: {
     minHeight: 16,

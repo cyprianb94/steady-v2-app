@@ -717,7 +717,7 @@ const styles = StyleSheet.create({
   layoutMeta: {
     fontFamily: FONTS.monoBold,
     fontSize: 12,
-    color: C.clay,
+    color: C.metricDistance,
   },
   warningBanner: {
     backgroundColor: C.amberBg,
@@ -907,7 +907,7 @@ const styles = StyleSheet.create({
   volumeValue: {
     fontFamily: FONTS.monoBold,
     fontSize: 13,
-    color: C.clay,
+    color: C.metricDistance,
   },
   volumeNote: {
     fontFamily: FONTS.sans,

@@ -566,6 +566,7 @@ export function BlockReviewTabControl({ activeTab, onTabChange }: BlockReviewTab
 interface BlockVolumeChartProps {
   model: BlockReviewModel;
   formatDistance: FormatDistance;
+  title?: string;
   raceDate?: string;
   onScrubActiveChange?: (active: boolean) => void;
   showPhaseStrip?: boolean;
@@ -574,6 +575,7 @@ interface BlockVolumeChartProps {
 export function BlockVolumeChart({
   model,
   formatDistance,
+  title = 'Weekly volume',
   raceDate,
   onScrubActiveChange,
   showPhaseStrip = true,
@@ -682,7 +684,7 @@ export function BlockVolumeChart({
     <View style={[styles.card, styles.chartCard]} testID="block-review-volume-chart">
       <View style={styles.chartHead}>
         <View style={styles.chartTitleGroup}>
-          <Text style={styles.chartTitle}>Weekly volume</Text>
+          <Text style={styles.chartTitle}>{title}</Text>
         </View>
       </View>
 

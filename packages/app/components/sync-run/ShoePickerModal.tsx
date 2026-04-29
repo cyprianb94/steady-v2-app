@@ -111,10 +111,6 @@ export function ShoePickerModal({
           </Pressable>
         );
       })}
-
-      <Pressable onPress={() => onSelect(null)} style={styles.clearButton}>
-        <Text style={styles.clearButtonText}>+ Not tracked / add new shoe</Text>
-      </Pressable>
     </SyncRunModalShell>
   );
 }
@@ -242,19 +238,5 @@ const styles = StyleSheet.create({
   },
   radioDotSelected: {
     backgroundColor: C.forest,
-  },
-  clearButton: {
-    marginTop: 16,
-    paddingVertical: 14,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: C.border,
-    alignItems: 'center',
-  },
-  clearButtonText: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 13,
-    color: C.muted,
   },
 });

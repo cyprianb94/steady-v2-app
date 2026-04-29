@@ -1,6 +1,7 @@
 import type { Activity, Shoe } from '@steady/types';
 import type { ActivityRepo } from './activity-repo';
 import type { ShoeRepo } from './shoe-repo';
+import { highestFiniteDistanceKm } from './shoe-distance';
 
 type StoredShoe = Omit<Shoe, 'totalKm'>;
 
@@ -31,7 +32,7 @@ export class InMemoryShoeRepo implements ShoeRepo {
     const stored: StoredShoe = {
       ...shoe,
       id: existing?.id ?? shoe.id,
-      stravaDistanceKm: shoe.stravaDistanceKm ?? existing?.stravaDistanceKm,
+      stravaDistanceKm: highestFiniteDistanceKm(shoe.stravaDistanceKm, existing?.stravaDistanceKm),
       createdAt: existing?.createdAt ?? shoe.createdAt,
     };
 

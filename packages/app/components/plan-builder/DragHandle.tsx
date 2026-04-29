@@ -18,6 +18,8 @@ interface DragHandleProps {
   testID?: string;
   disabled?: boolean;
   active?: boolean;
+  quiet?: boolean;
+  alignEnd?: boolean;
   onTouchStart?: (event: GestureResponderEvent) => void;
   onLongPress?: PressableProps['onLongPress'];
   onTouchMove?: (event: GestureResponderEvent) => void;
@@ -32,6 +34,8 @@ export function DragHandle({
   testID,
   disabled = false,
   active = false,
+  quiet = false,
+  alignEnd = false,
   onTouchStart,
   onLongPress,
   onTouchMove,
@@ -61,6 +65,8 @@ export function DragHandle({
       } as object)}
       style={[
         styles.handle,
+        alignEnd && styles.handleAlignEnd,
+        quiet && styles.handleQuiet,
         disabled && styles.handleDisabled,
         active && styles.handleActive,
       ]}
@@ -89,11 +95,18 @@ const styles = StyleSheet.create({
     gap: 3,
     marginRight: 2,
   },
+  handleAlignEnd: {
+    alignItems: 'flex-end',
+  },
   handleDisabled: {
     opacity: 0.45,
   },
+  handleQuiet: {
+    opacity: 0.64,
+  },
   handleActive: {
     backgroundColor: `${C.clay}12`,
+    opacity: 1,
   },
   bar: {
     height: 2.5,

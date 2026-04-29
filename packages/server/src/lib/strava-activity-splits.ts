@@ -75,6 +75,10 @@ function mapLap(lap: NonNullable<StravaActivity['laps']>[number]): ActivitySplit
 }
 
 function hasStructuredLaps(laps: NonNullable<StravaActivity['laps']>): boolean {
+  if (laps.length < 2) {
+    return false;
+  }
+
   const lastIndex = laps.length - 1;
 
   return laps.some((lap, index) => {

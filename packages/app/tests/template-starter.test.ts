@@ -84,22 +84,22 @@ describe('template starter generation', () => {
 
     expect(template[0]).toMatchObject({
       type: 'EASY',
-      pace: '5:40',
+      pace: '5:35',
       intensityTarget: trainingPaceBandToIntensityTarget(profile.bands.easy),
     });
     expect(template[1]).toMatchObject({
       type: 'INTERVAL',
-      pace: '3:52',
+      pace: '3:53',
       intensityTarget: trainingPaceBandToIntensityTarget(profile.bands.interval),
     });
     expect(template[3]).toMatchObject({
       type: 'TEMPO',
-      pace: '4:21',
+      pace: '4:20',
       intensityTarget: trainingPaceBandToIntensityTarget(profile.bands.threshold),
     });
     expect(template[4]).toMatchObject({
       type: 'EASY',
-      pace: '6:25',
+      pace: '6:20',
       intensityTarget: trainingPaceBandToIntensityTarget(profile.bands.recovery),
     });
   });

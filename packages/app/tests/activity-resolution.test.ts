@@ -433,6 +433,56 @@ describe('createActivityResolution', () => {
     ).toBe(20.6);
   });
 
+  it('keeps weekly actual distance aligned with rounded row distances', () => {
+    const resolution = createActivityResolution([
+      {
+        id: 'activity-1',
+        userId: 'user-1',
+        source: 'strava',
+        externalId: 'strava-1',
+        startTime: '2026-04-15T07:15:00.000Z',
+        distance: 12.55,
+        duration: 2600,
+        avgPace: 317,
+        splits: [],
+        matchedSessionId: 'session-1',
+      },
+      {
+        id: 'activity-2',
+        userId: 'user-1',
+        source: 'strava',
+        externalId: 'strava-2',
+        startTime: '2026-04-17T07:15:00.000Z',
+        distance: 9.19,
+        duration: 4100,
+        avgPace: 330,
+        splits: [],
+        matchedSessionId: 'session-2',
+      },
+    ]);
+
+    expect(
+      resolution.weekActualKm([
+        {
+          id: 'session-1',
+          type: 'EASY',
+          date: '2026-04-15',
+          distance: 8,
+          pace: '5:20',
+          actualActivityId: 'activity-1',
+        },
+        {
+          id: 'session-2',
+          type: 'LONG',
+          date: '2026-04-17',
+          distance: 12,
+          pace: '5:05',
+          actualActivityId: 'activity-2',
+        },
+      ]),
+    ).toBe(21.8);
+  });
+
   it('falls back to the planned distance when a linked activity id exists but the activity snapshot has not loaded yet', () => {
     const resolution = createActivityResolution([]);
 

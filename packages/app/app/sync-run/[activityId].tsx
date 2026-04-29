@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type DimensionValue } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -28,7 +28,17 @@ import {
   formatPace,
   formatSessionTitle,
 } from '../../lib/units';
-import { type EditableNiggle, isActivityDateCompatibleWithSession, isRunnableSession, isSessionSelectable, listMatchableSessions, resolveDefaultMatchSessionId, shoeWearState, toEditableNiggles } from '../../features/sync/sync-run-detail';
+import {
+  type EditableNiggle,
+  isActivityDateCompatibleWithSession,
+  isRunnableSession,
+  isSessionSelectable,
+  listMatchableSessions,
+  resolveDefaultMatchSessionId,
+  shoeWearState,
+  shouldRefreshKilometreSplits,
+  toEditableNiggles,
+} from '../../features/sync/sync-run-detail';
 import { buildCurrentDisplayWeek } from '../../features/run/display-week';
 import { MatchPickerModal } from '../../components/sync-run/MatchPickerModal';
 import { NigglePickerModal } from '../../components/sync-run/NigglePickerModal';
@@ -36,7 +46,12 @@ import { ShoePickerModal } from '../../components/sync-run/ShoePickerModal';
 import { FuellingCard } from '../../components/sync-run/FuellingCard';
 import { QualitySummaryCard } from '../../components/run/QualitySummaryCard';
 import { qualitySummaryCardProps } from '../../features/run/quality-summary-display';
-import { buildTargetAwareSplitsModel, type TargetAwareSplitTargetStatus } from '../../features/run/target-aware-splits';
+import {
+  buildAveragePaceComparison,
+  buildTargetAwareSplitsModel,
+  type AveragePaceComparisonDirection,
+  type TargetAwareSplitTargetStatus,
+} from '../../features/run/target-aware-splits';
 import { GEL_BRANDS } from '../../features/fuelling/gel-catalogue';
 import { suggestedBrands as buildSuggestedFuelBrands, uniqueRecentFuelGels } from '../../features/fuelling/fuel-events';
 
@@ -55,16 +70,6 @@ function formatRunMeta(startTime: string): string {
   const monthDay = value.toLocaleDateString([], { month: 'short', day: 'numeric' });
   const time = value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
   return `${weekday} ${monthDay} · ${time}`;
-}
-
-function paceBarWidthValue(splitPace: number, fastestPace: number, slowestPace: number): number {
-  if (slowestPace === fastestPace) return 70;
-  const ratio = (slowestPace - splitPace) / (slowestPace - fastestPace);
-  return 35 + ratio * 55;
-}
-
-function paceBarWidth(splitPace: number, fastestPace: number, slowestPace: number): DimensionValue {
-  return `${paceBarWidthValue(splitPace, fastestPace, slowestPace)}%`;
 }
 
 function shoeLabel(shoe: Shoe): string {
@@ -89,6 +94,10 @@ function splitTargetDisplay(value: string): { pace: string | null; effort: strin
   };
 }
 
+function formatPlannedActualPaceUnit(value: string): string {
+  return value.replace(/\s*\/(km|mi)\b/g, ' min/$1');
+}
+
 function firstRouteParamValue(value: string | string[] | undefined): string | null {
   if (Array.isArray(value)) {
     return value[0] ?? null;
@@ -107,6 +116,10 @@ function targetStatusStyle(status: TargetAwareSplitTargetStatus | null) {
     default:
       return null;
   }
+}
+
+function averageSegmentAnchorStyle(direction: AveragePaceComparisonDirection) {
+  return direction === 'fast' ? styles.averageRailSegmentFast : styles.averageRailSegmentSlow;
 }
 
 const LEGS_OPTIONS: { value: SubjectiveLegs; label: string }[] = [
@@ -240,6 +253,7 @@ export default function SyncRunDetailScreen() {
   );
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
+  const splitRefreshAttemptedIds = useRef(new Set<string>());
   const { units } = usePreferences();
   const { currentWeek, refresh: refreshPlan } = usePlan();
   const [activity, setActivity] = useState<Activity | null>(null);
@@ -278,6 +292,7 @@ export default function SyncRunDetailScreen() {
   const [selectedShoeId, setSelectedShoeId] = useState<string | null>(null);
   const [niggles, setNiggles] = useState<EditableNiggle[]>([]);
   const [fuelEvents, setFuelEvents] = useState<RunFuelEvent[]>([]);
+  const [selectedAverageSplitId, setSelectedAverageSplitId] = useState<string | null>(null);
   const recommendedSessionId = useMemo(
     () => resolveDefaultMatchSessionId({
       activity,
@@ -303,8 +318,6 @@ export default function SyncRunDetailScreen() {
       ),
   );
   const splitPaces = activity?.splits.map((split) => split.pace) ?? [];
-  const fastestPace = splitPaces.length ? Math.min(...splitPaces) : 0;
-  const slowestPace = splitPaces.length ? Math.max(...splitPaces) : 0;
   const qualitySummary = activity && selectedSession
     ? buildStructuredQualitySummary(selectedSession, activity)
     : null;
@@ -341,6 +354,7 @@ export default function SyncRunDetailScreen() {
 
   useEffect(() => {
     setDraftSeedActivityId(null);
+    setSelectedAverageSplitId(null);
   }, [activityId]);
 
   useEffect(() => {
@@ -440,6 +454,37 @@ export default function SyncRunDetailScreen() {
     setOverall(activity.subjectiveInput?.overall ?? null);
     setDraftSeedActivityId(activity.id);
   }, [activity, draftSeedActivityId, recommendedSessionId]);
+
+  useEffect(() => {
+    if (!activity || !shouldRefreshKilometreSplits(activity, selectedSession)) {
+      return;
+    }
+
+    if (splitRefreshAttemptedIds.current.has(activity.id)) {
+      return;
+    }
+
+    splitRefreshAttemptedIds.current.add(activity.id);
+    let cancelled = false;
+
+    void withTimeout(
+      trpc.strava.refreshActivity.mutate({ activityId: activity.id }),
+      RUN_DETAIL_LOAD_TIMEOUT_MS,
+      'sync-run detail split refresh',
+    )
+      .then((refreshedActivity) => {
+        if (!cancelled) {
+          setActivity((current) => (current?.id === activity.id ? refreshedActivity : current));
+        }
+      })
+      .catch((error) => {
+        console.warn('Failed to refresh kilometre splits for run detail:', error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activity, selectedSession]);
 
   async function reloadDetail() {
     if (!activityId) {
@@ -571,7 +616,10 @@ export default function SyncRunDetailScreen() {
     : 'Bonus run';
   const matchedChipStyle = selectedSession ? styles.matchChipConnected : styles.matchChipUnmatched;
   const matchedChipTextStyle = selectedSession ? styles.matchChipTextConnected : styles.matchChipTextUnmatched;
-  const averagePaceMarker = paceBarWidth(activity.avgPace, fastestPace, slowestPace);
+  const maxAveragePaceDelta = splitPaces.reduce(
+    (maxDelta, pace) => Math.max(maxDelta, Math.abs(Math.round(pace - activity.avgPace))),
+    0,
+  );
   const selectedTargetDisplay = selectedSession
     ? formatIntensityTargetDisplay(selectedSession, units, {
         withUnit: true,
@@ -696,10 +744,10 @@ export default function SyncRunDetailScreen() {
               <Text style={[styles.pvaValue, styles.metricDistanceValue]}>{formatDistance(expectedDistance(selectedSession), units, { spaced: true })}</Text>
               <Text style={styles.pvaValue}>
                 {selectedTargetParts.pace ? (
-                  <Text style={styles.metricPaceValue}>{selectedTargetParts.pace}</Text>
+                  <Text style={styles.metricPaceValue}>{formatPlannedActualPaceUnit(selectedTargetParts.pace)}</Text>
                 ) : null}
                 {selectedTargetParts.pace && selectedTargetParts.effort ? (
-                  <Text style={styles.pvaTargetSeparator}> · </Text>
+                  '\n'
                 ) : null}
                 {selectedTargetParts.effort ? (
                   <Text style={styles.metricEffortValue}>{selectedTargetParts.effort}</Text>
@@ -709,7 +757,9 @@ export default function SyncRunDetailScreen() {
             <View style={styles.pvaRow}>
               <Text style={styles.pvaLabel}>Actual</Text>
               <Text style={[styles.pvaValue, styles.metricDistanceValue]}>{formatDistance(activity.distance, units, { spaced: true })}</Text>
-              <Text style={[styles.pvaValue, styles.metricPaceValue]}>{formatPace(activity.avgPace, units, { withUnit: true })}</Text>
+              <Text style={[styles.pvaValue, styles.metricPaceValue]}>
+                {formatPlannedActualPaceUnit(formatPace(activity.avgPace, units, { withUnit: true }))}
+              </Text>
             </View>
           </View>
         ) : null}
@@ -734,26 +784,59 @@ export default function SyncRunDetailScreen() {
               <Text style={[styles.splitHeaderCell, styles.splitBarHeader]}>{splitModel.comparisonHeader}</Text>
               <Text style={[styles.splitHeaderCell, styles.splitHrHeader]}>HR</Text>
             </View>
-            {splitModel.rows.map((row) => (
-              <View key={row.id} style={styles.splitRow}>
-                <View style={styles.splitLabelCell}>
-                  <Text style={styles.splitKm}>{row.label}</Text>
-                  {row.elapsedLabel ? <Text style={styles.splitElapsed}>{row.elapsedLabel}</Text> : null}
-                </View>
-                <Text style={styles.splitPace}>{row.paceLabel}</Text>
-                {splitModel.comparisonMode === 'target' ? (
-                  <Text style={[styles.splitComparisonText, targetStatusStyle(row.targetStatus)]}>
-                    {row.comparisonLabel ?? '—'}
-                  </Text>
-                ) : (
-                  <View style={styles.splitBar}>
-                    <View style={[styles.splitFill, { width: paceBarWidth(row.paceSeconds, fastestPace, slowestPace) }]} />
-                    <View style={[styles.splitAverageMarker, { left: averagePaceMarker }]} />
+            {splitModel.rows.map((row, index) => {
+              const averageComparison = buildAveragePaceComparison({
+                splitPaceSeconds: row.paceSeconds,
+                averagePaceSeconds: activity.avgPace,
+                maxDeltaSeconds: maxAveragePaceDelta,
+              });
+              const averageSelected = selectedAverageSplitId === row.id;
+
+              return (
+                <View key={row.id} style={styles.splitRow}>
+                  <View style={styles.splitLabelCell}>
+                    <Text style={styles.splitKm}>{row.label}</Text>
+                    {row.elapsedLabel ? <Text style={styles.splitElapsed}>{row.elapsedLabel}</Text> : null}
                   </View>
-                )}
-                <Text style={styles.splitHr}>{row.heartRateLabel}</Text>
-              </View>
-            ))}
+                  <Text style={styles.splitPace}>{row.paceLabel}</Text>
+                  {splitModel.comparisonMode === 'target' ? (
+                    <Text style={[styles.splitComparisonText, targetStatusStyle(row.targetStatus)]}>
+                      {row.comparisonLabel ?? '—'}
+                    </Text>
+                  ) : (
+                    <Pressable
+                      testID={`split-average-rail-${index}`}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${row.label} split ${averageComparison.label} versus average`}
+                      hitSlop={8}
+                      onPress={() => setSelectedAverageSplitId((current) => (current === row.id ? null : row.id))}
+                      style={styles.averageRailButton}
+                    >
+                      {averageSelected ? (
+                        <View style={styles.averageComparisonPill}>
+                          <Text style={styles.averageComparisonText}>{averageComparison.label}</Text>
+                        </View>
+                      ) : null}
+                      <View style={styles.averageRail}>
+                        <View
+                          testID={`split-average-segment-${index}`}
+                          style={[
+                            styles.averageRailSegment,
+                            averageSegmentAnchorStyle(averageComparison.direction),
+                            { width: `${averageComparison.widthPercent}%` },
+                          ]}
+                        />
+                        <View
+                          testID={`split-average-marker-${index}`}
+                          style={styles.averageRailMarker}
+                        />
+                      </View>
+                    </Pressable>
+                  )}
+                  <Text style={styles.splitHr}>{row.heartRateLabel}</Text>
+                </View>
+              );
+            })}
           </View>
         ) : null}
 
@@ -1274,9 +1357,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: C.ink,
   },
-  pvaTargetSeparator: {
-    color: C.muted,
-  },
   qualitySummaryWrapper: {
     marginBottom: 14,
   },
@@ -1310,6 +1390,7 @@ const styles = StyleSheet.create({
   },
   splitBarHeader: {
     flex: 1,
+    textAlign: 'center',
   },
   splitHrHeader: {
     width: 56,
@@ -1343,25 +1424,54 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: C.metricPace,
   },
-  splitBar: {
+  averageRailButton: {
     flex: 1,
+    height: 28,
+    justifyContent: 'flex-end',
+  },
+  averageRail: {
+    position: 'relative',
     height: 8,
     borderRadius: 999,
     backgroundColor: C.metricPaceBg,
-    overflow: 'hidden',
   },
-  splitFill: {
-    height: '100%',
+  averageRailSegment: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
     borderRadius: 999,
     backgroundColor: C.metricPace,
   },
-  splitAverageMarker: {
+  averageRailSegmentFast: {
+    right: '50%',
+  },
+  averageRailSegmentSlow: {
+    left: '50%',
+  },
+  averageRailMarker: {
     position: 'absolute',
+    left: '50%',
     top: -3,
     width: 2,
     height: 14,
     borderRadius: 1,
     backgroundColor: C.slate,
+  },
+  averageComparisonPill: {
+    position: 'absolute',
+    top: -2,
+    alignSelf: 'center',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: C.surface,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  averageComparisonText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 9,
+    color: C.ink2,
   },
   splitComparisonText: {
     flex: 1,

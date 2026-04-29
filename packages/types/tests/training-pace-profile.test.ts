@@ -44,7 +44,7 @@ describe('training pace profile derivation', () => {
       profileKey: 'recovery',
       label: 'Recovery',
       order: 0,
-      paceRange: { min: '6:14', max: '6:56' },
+      paceRange: { min: '6:14', max: '6:45' },
       defaultEffortCue: 'very easy',
       editability: { editable: true },
     });
@@ -71,6 +71,11 @@ describe('training pace profile derivation', () => {
       raceDistance: 'Half Marathon',
       targetTime: 'sub-1:30',
     }).racePace).toBe('4:16');
+
+    expect(deriveTrainingPaceProfile({
+      raceDistance: '10K',
+      targetTime: '00:45:00',
+    }).racePace).toBe('4:30');
   });
 
   it('falls back deterministically when the target time is invalid', () => {
@@ -96,7 +101,7 @@ describe('training pace profile derivation', () => {
       source: 'profile',
       mode: 'both',
       profileKey: 'recovery',
-      paceRange: { min: '6:14', max: '6:56' },
+      paceRange: { min: '6:14', max: '6:45' },
       effortCue: 'very easy',
     });
 
@@ -109,7 +114,7 @@ describe('training pace profile derivation', () => {
     });
 
     expect('representativePace' in profile.bands.easy).toBe(false);
-    expect(trainingPaceBandRepresentativePaceSeconds(profile.bands.easy)).toBe(350);
+    expect(trainingPaceBandRepresentativePaceSeconds(profile.bands.easy)).toBe(344);
   });
 
   it('normalizes persisted profiles while leaving absent legacy profiles as null', () => {

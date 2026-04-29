@@ -427,7 +427,7 @@ describe('plan api', () => {
               type: 'TEMPO',
               date: '2099-01-07',
               distance: 10,
-              pace: '4:28',
+              pace: '4:27',
               intensityTarget: thresholdTarget,
             },
             null, null, null, null,
@@ -491,7 +491,7 @@ describe('plan api', () => {
               intensityTarget: expect.objectContaining({ source: 'manual' }),
             }),
             expect.objectContaining({
-              pace: '4:28',
+              pace: '4:27',
               intensityTarget: thresholdTarget,
             }),
             null,

@@ -197,6 +197,11 @@ export function initialSessionEditorIntensityTarget(
       fallbackPace: session.pace,
     });
     if (existingTarget) {
+      if (existingTarget.source === 'profile' && existingTarget.profileKey) {
+        return intensityTargetForTrainingPaceProfileKey(profile, existingTarget.profileKey)
+          ?? existingTarget;
+      }
+
       return existingTarget;
     }
   }
@@ -255,6 +260,35 @@ export function applyTrainingPaceProfileTarget(
     pace: targetRepresentativePace(target, session.pace) ?? session.pace,
     intensityTarget: target,
   };
+}
+
+export function resolveProfileLinkedSessionTarget(
+  session: PlannedSession | null,
+  profile: TrainingPaceProfile | null | undefined,
+  options: { today?: string } = {},
+): PlannedSession | null {
+  if (!session || session.type === 'REST' || !profile) {
+    return session;
+  }
+
+  if (session.actualActivityId || (options.today && session.date <= options.today)) {
+    return session;
+  }
+
+  const existingTarget = normalizeIntensityTarget(session.intensityTarget);
+  if (existingTarget?.source !== 'profile' || !existingTarget.profileKey) {
+    return session;
+  }
+
+  const target = intensityTargetForTrainingPaceProfileKey(profile, existingTarget.profileKey);
+  if (!target) {
+    return session;
+  }
+
+  return normalizeSessionIntensityTarget({
+    ...session,
+    intensityTarget: target,
+  });
 }
 
 export function normalizeSessionEditorResult(

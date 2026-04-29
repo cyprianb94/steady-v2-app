@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   title: {
     color: C.ink,
     fontFamily: FONTS.serifBold,
-    fontSize: 20,
+    fontSize: 17,
   },
   titleBlock: {
     flex: 1,

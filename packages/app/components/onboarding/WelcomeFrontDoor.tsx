@@ -27,6 +27,16 @@ interface WelcomeFrontDoorProps {
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const TICKER_TOP = ['BASE', '08KM', '5:30/KM', 'TEMPO', '10KM', '4:20/KM', 'LONG', '22KM'];
 const TICKER_BOTTOM = ['ADAPT', 'BUILD', 'PEAK', 'TAPER', 'SYNCED', 'PLANNED', 'ACTUAL'];
+const TICKER_DURATION_MS = {
+  left: 30000,
+  right: 34000,
+} as const;
+const MOTIF_LINE_DELAY_MS = 600;
+const MOTIF_LINE_DRAW_MS = 8800;
+const HERO_MARK_DELAY_MS = 850;
+const HERO_MARK_RISE_MS = 1100;
+const DOT_REVEAL_MS = 900;
+const MOTIF_DOT_DELAYS_MS = [1800, 4500, 7200, 10000] as const;
 
 function BrandMark({ variant = 'small' }: { variant?: 'small' | 'hero' }) {
   return (
@@ -81,7 +91,7 @@ function TickerRow({
     const animation = Animated.loop(
       Animated.timing(progress, {
         toValue: 1,
-        duration: direction === 'left' ? 15000 : 17000,
+        duration: TICKER_DURATION_MS[direction],
         easing: Easing.linear,
         useNativeDriver: true,
       }),
@@ -113,7 +123,7 @@ function TickerRow({
   );
 }
 
-function PulseDot({
+function StagedDot({
   color,
   left,
   top,
@@ -126,35 +136,25 @@ function PulseDot({
 }) {
   const reducedMotion = useReducedMotion();
   const pop = useRef(new Animated.Value(reducedMotion ? 1 : 0)).current;
-  const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (reducedMotion) {
       pop.setValue(1);
-      pulse.setValue(0);
       return undefined;
     }
 
     const popAnimation = Animated.timing(pop, {
       toValue: 1,
-      duration: 520,
+      duration: DOT_REVEAL_MS,
       delay,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     });
-    const pulseAnimation = Animated.loop(
-      Animated.timing(pulse, {
-        toValue: 1,
-        duration: 2100,
-        delay: delay + 650,
-        easing: Easing.inOut(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    );
     popAnimation.start();
-    pulseAnimation.start();
-    return () => pulseAnimation.stop();
-  }, [delay, pop, pulse, reducedMotion]);
+    return () => {
+      popAnimation.stop();
+    };
+  }, [delay, pop, reducedMotion]);
 
   const scale = pop.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] });
   const opacity = pop;
@@ -162,7 +162,7 @@ function PulseDot({
   return (
     <Animated.View
       style={[
-        styles.pulseDot,
+        styles.stagedDot,
         {
           backgroundColor: color,
           left,
@@ -189,15 +189,15 @@ function TrainingMotif() {
 
     Animated.timing(draw, {
       toValue: 1,
-      duration: 1300,
-      delay: 420,
+      duration: MOTIF_LINE_DRAW_MS,
+      delay: MOTIF_LINE_DELAY_MS,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: false,
     }).start();
     Animated.timing(textRise, {
       toValue: 1,
-      duration: 620,
-      delay: 900,
+      duration: HERO_MARK_RISE_MS,
+      delay: HERO_MARK_DELAY_MS,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
@@ -229,10 +229,10 @@ function TrainingMotif() {
             opacity={0.5}
           />
         </Svg>
-        <PulseDot color={C.navy} left={35} top={207} delay={650} />
-        <PulseDot color={C.clay} left={105} top={142} delay={790} />
-        <PulseDot color={C.amber} left={183} top={220} delay={930} />
-        <PulseDot color={C.forest} left={267} top={164} delay={1070} />
+        <StagedDot color={C.navy} left={35} top={207} delay={MOTIF_DOT_DELAYS_MS[0]} />
+        <StagedDot color={C.clay} left={105} top={142} delay={MOTIF_DOT_DELAYS_MS[1]} />
+        <StagedDot color={C.amber} left={183} top={220} delay={MOTIF_DOT_DELAYS_MS[2]} />
+        <StagedDot color={C.forest} left={267} top={164} delay={MOTIF_DOT_DELAYS_MS[3]} />
 
         <Animated.View
           style={[
@@ -246,11 +246,6 @@ function TrainingMotif() {
           <BrandMark variant="hero" />
         </Animated.View>
 
-        <View style={styles.wordRow}>
-          <Text style={styles.wordChip}>Build</Text>
-          <Text style={styles.wordChip}>Sync</Text>
-          <Text style={styles.wordChip}>Adapt</Text>
-        </View>
       </View>
       <TickerRow items={TICKER_BOTTOM} direction="right" />
     </View>
@@ -299,9 +294,15 @@ export function WelcomeFrontDoor({ onAuthenticated }: WelcomeFrontDoorProps) {
 
           <TrainingMotif />
 
-          <View style={styles.welcomeCopy}>
-            <Text style={styles.title}>Bring your own plan.</Text>
+          <View style={styles.welcomeIntro}>
+            <Text style={styles.title}>
+              Bring your{'\n'}
+              <Text style={styles.titleEmphasis}>own plan.</Text>
+            </Text>
             <Text style={styles.copy}>Build the training, sync the runs, adapt and track.</Text>
+          </View>
+
+          <View style={styles.welcomeActions}>
             <View style={styles.buttonRows}>
               <Btn
                 title="Get started"
@@ -458,7 +459,7 @@ const styles = StyleSheet.create({
   stage: {
     position: 'relative',
     height: 410,
-    marginTop: 25,
+    marginTop: 22,
     overflow: 'hidden',
   },
   tickerRow: {
@@ -501,7 +502,7 @@ const styles = StyleSheet.create({
     right: 7,
     top: 100,
   },
-  pulseDot: {
+  stagedDot: {
     position: 'absolute',
     width: 13,
     height: 13,
@@ -514,38 +515,26 @@ const styles = StyleSheet.create({
     top: 44,
     alignItems: 'center',
   },
-  wordRow: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 250,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  wordChip: {
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-    borderWidth: 1.5,
-    borderColor: C.border,
-    borderRadius: 999,
-    backgroundColor: C.surface,
-    fontFamily: FONTS.monoBold,
-    fontSize: 10.5,
-    color: C.ink2,
-  },
-  welcomeCopy: {
-    marginTop: 'auto',
+  welcomeIntro: {
+    marginTop: 14,
     alignItems: 'center',
-    paddingBottom: 18,
+  },
+  welcomeActions: {
+    marginTop: 'auto',
+    paddingTop: 26,
+    paddingBottom: 20,
   },
   title: {
     maxWidth: 330,
     fontFamily: FONTS.serifBold,
-    fontSize: 31,
-    lineHeight: 34,
+    fontSize: 37,
+    lineHeight: 38,
     color: C.ink,
     textAlign: 'center',
+  },
+  titleEmphasis: {
+    color: C.forest,
+    fontStyle: 'italic',
   },
   accountTitle: {
     textAlign: 'left',

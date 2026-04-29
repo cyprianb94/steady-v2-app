@@ -29,6 +29,7 @@ import {
   buildSessionEditDescription,
   hasMaterialSessionEdit,
   materializeEditedSession,
+  resolveProfileLinkedSessionTarget,
 } from '../../features/plan-builder/session-editing';
 import { consumeSessionEditReturn } from '../../features/plan-builder/session-edit-return';
 import { useDirectWeekReschedule } from '../../features/plan-builder/use-direct-week-reschedule';
@@ -219,7 +220,7 @@ function getStatusIconStatus(
     case 'completed':
       return 'completed';
     case 'off-target':
-      return 'varied';
+      return 'completed';
     case 'missed':
       return 'missed';
     default:
@@ -740,6 +741,7 @@ export default function BlockTab() {
 
       <BlockVolumeChart
         model={reviewModel}
+        title="Block overview"
         raceDate={plan.raceDate}
         onScrubActiveChange={setIsScrubbingVolumeChart}
         formatDistance={(km) => formatDistance(km, units)}
@@ -838,7 +840,20 @@ export default function BlockTab() {
                 plannedKm: Math.round(weekKm(reschedule.sessions)),
               }
             : week;
-        const displayWeek = buildDisplayWeek(baseDisplayWeek, getWeekStartDate(week));
+        const datedDisplayWeek = buildDisplayWeek(baseDisplayWeek, getWeekStartDate(week));
+        const resolvedDisplaySessions = datedDisplayWeek.sessions.map((session) => (
+          resolveProfileLinkedSessionTarget(session, plan.trainingPaceProfile, { today })
+        ));
+        const hasResolvedDisplayTargets = resolvedDisplaySessions.some(
+          (session, index) => session !== datedDisplayWeek.sessions[index],
+        );
+        const displayWeek = hasResolvedDisplayTargets
+          ? {
+              ...datedDisplayWeek,
+              sessions: resolvedDisplaySessions,
+              plannedKm: Math.round(weekKm(resolvedDisplaySessions) * 10) / 10,
+            }
+          : datedDisplayWeek;
         const weekEntries = injuryWeek ? getWeekEntries(recoveryData.entries, week) : [];
         const volumeTone = getBlockVolumeTone(i, safeCurrentWeekIndex);
         const volumeSummary = getResolvedWeekVolumeSummary(displayWeek, volumeTone, activityResolution);
@@ -1072,7 +1087,7 @@ export default function BlockTab() {
                         </Pressable>
 
                         <View style={styles.dayRight}>
-                          {statusIcon ? (
+                          {statusIcon && !canDragDay ? (
                             canReviewRun ? (
                               <Pressable
                                 accessibilityLabel={`Review ${statusIcon === 'varied' ? 'varied' : statusIcon} run`}
@@ -1097,12 +1112,13 @@ export default function BlockTab() {
                                 testID={`block-day-status-${week.weekNumber}-${dayIndex}`}
                               />
                             )
-                          ) : null}
-                          {!injuryWeek ? (
+                          ) : canDragDay ? (
                             <DragHandle
                               testID={`block-drag-handle-${week.weekNumber}-${dayIndex}`}
-                              disabled={!canDragDay}
+                              disabled={false}
                               active={dragging}
+                              quiet
+                              alignEnd
                               onMouseDown={(event) => {
                                 event.stopPropagation?.();
                                 reschedule.recordTouchStart(event.clientY);

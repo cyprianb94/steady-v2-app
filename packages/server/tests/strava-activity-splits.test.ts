@@ -54,4 +54,27 @@ describe('mapStravaActivitySplits', () => {
     expect(splits[0]?.label).toBeUndefined();
     expect(splits[1]?.label).toBeUndefined();
   });
+
+  it('keeps kilometre splits when Strava also returns one whole-run lap', () => {
+    const splits = mapStravaActivitySplits(activity({
+      distance: 2590,
+      moving_time: 900,
+      elapsed_time: 900,
+      splits_metric: [
+        { split: 1, distance: 1000, elapsed_time: 345, average_heartrate: 142 },
+        { split: 2, distance: 1000, elapsed_time: 350, average_heartrate: 146 },
+        { split: 3, distance: 590, elapsed_time: 205, average_heartrate: 149 },
+      ],
+      laps: [
+        { lap_index: 0, name: 'Lap 1', distance: 2590, elapsed_time: 900, average_heartrate: 146 },
+      ],
+    }));
+
+    expect(splits).toEqual([
+      expect.objectContaining({ km: 1, distance: 1, pace: 345, hr: 142 }),
+      expect.objectContaining({ km: 2, distance: 1, pace: 350, hr: 146 }),
+      expect.objectContaining({ km: 3, distance: 0.59, pace: 347, hr: 149 }),
+    ]);
+    expect(splits[0]?.label).toBeUndefined();
+  });
 });

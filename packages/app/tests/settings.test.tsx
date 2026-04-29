@@ -217,7 +217,9 @@ describe('SettingsTab', () => {
     expect(screen.getByText('Valencia Marathon')).toBeTruthy();
     expect(screen.getByText('3:15')).toBeTruthy();
     expect(screen.getByText('Training paces')).toBeTruthy();
-    expect(screen.getByText('5 training ranges · MP 4:37/km')).toBeTruthy();
+    expect(screen.getByTestId('settings-training-paces').textContent).toContain(
+      '5 training ranges · Marathon race pace 4:37/km',
+    );
     expect(screen.getByTestId('settings-phase-strip')).toBeTruthy();
     expect(screen.getAllByText('Strava')).toHaveLength(1);
 

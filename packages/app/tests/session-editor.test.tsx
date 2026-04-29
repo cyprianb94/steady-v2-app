@@ -301,8 +301,8 @@ describe('SessionEditor target pace editing', () => {
     expect(screen.queryByText('Single pace')).toBeNull();
     expect(screen.queryByText('Range')).toBeNull();
     expect(screen.getByText('Threshold')).toBeTruthy();
-    expect(screen.getByText('4:14-4:27/km · controlled hard')).toBeTruthy();
-    expect(screen.getByText('4:16 /km')).toBeTruthy();
+    expect(screen.getByText('4:14-4:25/km · controlled hard')).toBeTruthy();
+    expect(screen.getByText('4:15 /km')).toBeTruthy();
     expect(screen.getByText('Custom pace...')).toBeTruthy();
     expect(screen.getByText('Custom range...')).toBeTruthy();
   });
@@ -377,7 +377,65 @@ describe('SessionEditor target pace editing', () => {
 
     expect(screen.getByText('Training paces')).toBeTruthy();
     expect(screen.getAllByText('Interval').length).toBeGreaterThan(0);
-    expect(screen.getByText('3:41-4:03/km · hard repeatable')).toBeTruthy();
+    expect(screen.getByText('3:47-3:58/km · hard repeatable')).toBeTruthy();
+  });
+
+  it('refreshes profile-linked interval targets from the current Training pace profile on open', () => {
+    const onSave = vi.fn();
+    const baseProfile = deriveTrainingPaceProfile({
+      raceDistance: '10K',
+      targetTime: '00:45:00',
+    });
+    const beforeProfile = {
+      ...baseProfile,
+      bands: {
+        ...baseProfile.bands,
+        interval: {
+          ...baseProfile.bands.interval,
+          paceRange: { min: '3:47', max: '4:10' },
+        },
+      },
+    };
+    const afterProfile = {
+      ...beforeProfile,
+      bands: {
+        ...beforeProfile.bands,
+        interval: {
+          ...beforeProfile.bands.interval,
+          paceRange: { min: '3:47', max: '4:05' },
+        },
+      },
+    };
+
+    render(
+      <SessionEditor
+        dayIndex={1}
+        existing={{
+          type: 'INTERVAL',
+          reps: 6,
+          repDist: 800,
+          recovery: '90s',
+          pace: '3:59',
+          intensityTarget: trainingPaceBandToIntensityTarget(beforeProfile.bands.interval),
+        }}
+        trainingPaceProfile={afterProfile}
+        onSave={onSave}
+        onClose={vi.fn()}
+        presentation="screen"
+      />,
+    );
+
+    expect(screen.getByText(/6×800m · 3:47-4:05/)).toBeTruthy();
+    expect(screen.getByText('3:47-4:05/km')).toBeTruthy();
+    expect(screen.queryByText(/3:47-4:10\/km/)).toBeNull();
+
+    fireEvent.click(screen.getByText('Update session'));
+
+    expect(onSave).toHaveBeenCalledWith(1, expect.objectContaining({
+      type: 'INTERVAL',
+      pace: '3:56',
+      intensityTarget: trainingPaceBandToIntensityTarget(afterProfile.bands.interval),
+    }));
   });
 
   it('shows profile band context and saves custom paces as manual targets', () => {
@@ -403,13 +461,13 @@ describe('SessionEditor target pace editing', () => {
       />,
     );
 
-    expect(screen.getByText('4:14-4:27/km')).toBeTruthy();
+    expect(screen.getByText('4:14-4:25/km')).toBeTruthy();
     expect(screen.queryByText('Threshold · profile pace')).toBeNull();
     expect(screen.getByText('Threshold · Training pace')).toBeTruthy();
 
     fireEvent.click(screen.getByText('Target pace'));
     expect(screen.getAllByText('Threshold').length).toBeGreaterThan(0);
-    expect(screen.getByText('4:14-4:27/km · controlled hard')).toBeTruthy();
+    expect(screen.getByText('4:14-4:25/km · controlled hard')).toBeTruthy();
     expect(screen.getByText('Race pace')).toBeTruthy();
 
     fireEvent.click(screen.getByText('Custom pace...'));
@@ -468,7 +526,7 @@ describe('SessionEditor target pace editing', () => {
     expect(onSave).toHaveBeenCalledWith(3, expect.objectContaining({
       type: 'TEMPO',
       distance: 10,
-      pace: '4:21',
+      pace: '4:20',
       intensityTarget: trainingPaceBandToIntensityTarget(profile.bands.threshold),
     }));
   });
@@ -500,19 +558,19 @@ describe('SessionEditor target pace editing', () => {
 
     expect(screen.queryByText('Threshold · profile pace')).toBeNull();
     expect(screen.getByText('Threshold')).toBeTruthy();
-    expect(screen.getByText('4:16 /km')).toBeTruthy();
+    expect(screen.getByText('4:15 /km')).toBeTruthy();
 
-    fireEvent.click(screen.getByText('4:16 /km'));
+    fireEvent.click(screen.getByText('4:15 /km'));
     fireEvent.click(screen.getByText('Update session'));
 
     expect(onSave).toHaveBeenCalledWith(3, expect.objectContaining({
       type: 'TEMPO',
       distance: 10,
-      pace: '4:16',
+      pace: '4:15',
       intensityTarget: {
         source: 'manual',
         mode: 'pace',
-        pace: '4:16',
+        pace: '4:15',
       },
     }));
   });
@@ -638,7 +696,7 @@ describe('SessionEditor target pace editing', () => {
       />,
     );
 
-    expect(screen.getByText('5:24-5:56/km')).toBeTruthy();
+    expect(screen.getByText('5:24-5:46/km')).toBeTruthy();
     expect(screen.queryByText('Easy · profile pace')).toBeNull();
     expect(screen.getByText('Easy · Training pace')).toBeTruthy();
 
@@ -646,7 +704,7 @@ describe('SessionEditor target pace editing', () => {
 
     expect(onSave).toHaveBeenCalledWith(0, expect.objectContaining({
       type: 'EASY',
-      pace: '5:40',
+      pace: '5:35',
       intensityTarget: trainingPaceBandToIntensityTarget(profile.bands.easy),
     }));
   });

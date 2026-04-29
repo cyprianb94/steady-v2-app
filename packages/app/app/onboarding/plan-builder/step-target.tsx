@@ -175,8 +175,8 @@ export default function StepTarget() {
                     onSelect: (index) => setCustomTime((current) => ({ ...current, seconds: index })),
                   },
                 ]}
-                activeColor={C.amber}
-                borderColor="rgba(212,136,42,0.38)"
+                activeColor={C.metricTime}
+                borderColor={`${C.metricTime}38`}
                 separators={[':', ':']}
               />
             </View>
@@ -285,11 +285,11 @@ const styles = StyleSheet.create({
     backgroundColor: C.surface,
   },
   chipSelected: {
-    borderColor: C.clay,
-    backgroundColor: C.clayBg,
+    borderColor: C.metricTime,
+    backgroundColor: `${C.metricTime}14`,
   },
   chipSelectedText: {
-    color: C.clay,
+    color: C.metricTime,
     fontFamily: FONTS.monoBold,
   },
   targetChipText: {

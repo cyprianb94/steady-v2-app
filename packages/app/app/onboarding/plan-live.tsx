@@ -9,9 +9,11 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { PlannedSession, TrainingPlanWithAnnotation } from '@steady/types';
+import type { PhaseName, PlannedSession, TrainingPlanWithAnnotation } from '@steady/types';
 import { Btn } from '../../components/ui/Btn';
 import { C } from '../../constants/colours';
+import { PHASE_COLOR } from '../../constants/phase-meta';
+import { SESSION_TYPE } from '../../constants/session-types';
 import { FONTS } from '../../constants/typography';
 import { connectStravaAndRefresh } from '../../features/strava/strava-connection';
 import { usePlan } from '../../hooks/usePlan';
@@ -20,6 +22,12 @@ import { useStravaSync } from '../../hooks/useStravaSync';
 function titleCasePhase(value: string | undefined): string {
   if (!value) return 'Base';
   return `${value.slice(0, 1)}${value.slice(1).toLowerCase()}`;
+}
+
+function phaseColor(value: string | undefined): string {
+  return value && value in PHASE_COLOR
+    ? PHASE_COLOR[value as PhaseName]
+    : C.navy;
 }
 
 function sessionTypeLabel(value: string | undefined): string {
@@ -53,11 +61,20 @@ function firstSessionLabel(session: PlannedSession | null): string {
   return `${distance}${sessionTypeLabel(session.type)}${pace}`;
 }
 
+function firstSessionMeta(session: PlannedSession | null) {
+  if (!session) {
+    return SESSION_TYPE.EASY;
+  }
+
+  return SESSION_TYPE[session.type];
+}
+
 function PlanSummary({ plan }: { plan: TrainingPlanWithAnnotation | null }) {
   const firstWeek = plan?.weeks?.[0] ?? null;
   const firstSession = firstRunnableSession(plan);
   const weekCount = plan?.weeks?.length ?? 0;
   const firstWeekKm = Math.round(firstWeek?.plannedKm ?? 0);
+  const firstSessionStyle = firstSessionMeta(firstSession);
 
   return (
     <View style={styles.liveCard}>
@@ -72,19 +89,29 @@ function PlanSummary({ plan }: { plan: TrainingPlanWithAnnotation | null }) {
       <View style={styles.statGrid}>
         <View style={styles.stat}>
           <Text style={styles.miniLabel}>Target</Text>
-          <Text style={styles.statValue}>{plan?.targetTime || '-'}</Text>
+          <Text style={[styles.statValue, styles.statValueTime]}>{plan?.targetTime || '-'}</Text>
         </View>
         <View style={styles.stat}>
           <Text style={styles.miniLabel}>Week 1</Text>
-          <Text style={styles.statValue}>{firstWeekKm}km</Text>
+          <Text style={[styles.statValue, styles.statValueDistance]}>{firstWeekKm}km</Text>
         </View>
         <View style={styles.stat}>
           <Text style={styles.miniLabel}>Phase</Text>
-          <Text style={styles.statValue}>{titleCasePhase(firstWeek?.phase)}</Text>
+          <Text style={[styles.statValue, { color: phaseColor(firstWeek?.phase) }]}>
+            {titleCasePhase(firstWeek?.phase)}
+          </Text>
         </View>
       </View>
 
-      <View style={styles.firstSession}>
+      <View
+        style={[
+          styles.firstSession,
+          {
+            borderColor: `${firstSessionStyle.color}3D`,
+            backgroundColor: firstSessionStyle.bg,
+          },
+        ]}
+      >
         <Text style={styles.miniLabel}>First session</Text>
         <Text style={styles.firstSessionTitle}>{firstSessionLabel(firstSession)}</Text>
         <Text style={styles.firstSessionCopy}>
@@ -98,9 +125,10 @@ function PlanSummary({ plan }: { plan: TrainingPlanWithAnnotation | null }) {
 export default function PlanLiveScreen() {
   const insets = useSafeAreaInsets();
   const { plan, loading, refresh } = usePlan();
-  const { refreshStatus, forceSync, syncing } = useStravaSync();
+  const { status: stravaStatus, refreshStatus, forceSync, syncing } = useStravaSync();
   const [connecting, setConnecting] = useState(false);
   const busy = connecting || syncing;
+  const stravaConnected = stravaStatus?.connected === true;
   const contentPadding = useMemo(
     () => ({
       paddingTop: insets.top + 28,
@@ -147,37 +175,43 @@ export default function PlanLiveScreen() {
         </View>
         <Text style={styles.title}>Plan is live.</Text>
         <Text style={styles.copy}>
-          Your block is saved. Connect Strava next so Steady can pull your completed runs into the plan.
+          {stravaConnected
+            ? 'Your block is saved. Steady will pull completed runs into the plan when they sync.'
+            : 'Your block is saved. Connect Strava next so Steady can pull your completed runs into the plan.'}
         </Text>
       </View>
 
       <PlanSummary plan={plan} />
 
-      <View style={styles.connectCard}>
-        <View style={styles.connectCopyWrap}>
-          <Text style={styles.connectTitle}>Connect Strava</Text>
-          <Text style={styles.connectCopy}>
-            Without this, Steady cannot compare planned vs actual automatically.
-          </Text>
+      {!stravaConnected ? (
+        <View style={styles.connectCard}>
+          <View style={styles.connectCopyWrap}>
+            <Text style={styles.connectTitle}>Connect Strava</Text>
+            <Text style={styles.connectCopy}>
+              Without this, Steady cannot compare planned vs actual automatically.
+            </Text>
+          </View>
+          <View style={styles.importantPill}>
+            <Text style={styles.importantText}>Important</Text>
+          </View>
         </View>
-        <View style={styles.importantPill}>
-          <Text style={styles.importantText}>Important</Text>
-        </View>
-      </View>
+      ) : null}
 
       <View style={styles.footer}>
-        <Btn
-          title={busy ? 'Connecting...' : 'Connect Strava'}
-          fullWidth
-          disabled={busy}
-          onPress={() => {
-            void handleConnectStrava();
-          }}
-          testID="plan-live-connect-strava"
-        />
+        {!stravaConnected ? (
+          <Btn
+            title={busy ? 'Connecting...' : 'Connect Strava'}
+            fullWidth
+            disabled={busy}
+            onPress={() => {
+              void handleConnectStrava();
+            }}
+            testID="plan-live-connect-strava"
+          />
+        ) : null}
         <Btn
           title="Go to Home"
-          variant="secondary"
+          variant={stravaConnected ? undefined : 'secondary'}
           fullWidth
           disabled={busy}
           onPress={() => router.replace('/(tabs)/home')}
@@ -262,7 +296,7 @@ const styles = StyleSheet.create({
   weeksValue: {
     fontFamily: FONTS.monoBold,
     fontSize: 14,
-    color: C.ink,
+    color: C.metricTime,
   },
   statGrid: {
     flexDirection: 'row',
@@ -288,6 +322,12 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.monoBold,
     fontSize: 16,
     color: C.ink,
+  },
+  statValueTime: {
+    color: C.metricTime,
+  },
+  statValueDistance: {
+    color: C.metricDistance,
   },
   firstSession: {
     marginTop: 12,

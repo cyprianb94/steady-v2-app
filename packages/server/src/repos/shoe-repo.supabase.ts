@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Shoe } from '@steady/types';
 import type { ShoeRepo } from './shoe-repo';
+import { highestFiniteDistanceKm } from './shoe-distance';
 
 function rowToShoe(row: Record<string, unknown>, totalKm = 0): Shoe {
   return {
@@ -31,7 +32,7 @@ export class SupabaseShoeRepo implements ShoeRepo {
       id: existing?.id ?? shoe.id,
       user_id: shoe.userId,
       strava_gear_id: shoe.stravaGearId ?? null,
-      strava_distance_km: shoe.stravaDistanceKm ?? existing?.stravaDistanceKm ?? null,
+      strava_distance_km: highestFiniteDistanceKm(shoe.stravaDistanceKm, existing?.stravaDistanceKm) ?? null,
       brand: shoe.brand,
       model: shoe.model,
       nickname: shoe.nickname ?? null,

@@ -386,8 +386,10 @@ describe('SyncRunDetailScreen', () => {
     render(<SyncRunDetailScreen />);
 
     expect(await screen.findByText('Planned vs actual')).toBeTruthy();
-    expect(screen.getByText('4:00-4:10/km')).toBeTruthy();
+    expect(screen.getByText('4:00-4:10 min/km')).toBeTruthy();
+    expect(screen.getByText('4:05 min/km')).toBeTruthy();
     expect(screen.getByText('controlled hard')).toBeTruthy();
+    expect(screen.queryByText('4:00-4:10/km')).toBeNull();
     expect(screen.queryByText('4:05/km')).toBeNull();
   });
 
@@ -448,6 +450,129 @@ describe('SyncRunDetailScreen', () => {
     expect(screen.getByText('Rep 1')).toBeTruthy();
     expect(screen.getByText('1:35')).toBeTruthy();
     expect(screen.getAllByText('ON TARGET').length).toBeGreaterThan(0);
+  });
+
+  it('refreshes stale whole-run Strava laps for easy runs and compares splits against average pace', async () => {
+    const today = todayIsoLocal();
+    const sessions = [null, null, null, null, null, null, null] as any[];
+    const index = dayIndexForIsoDate(today);
+    sessions[index] = {
+      id: 'today-session',
+      type: 'EASY',
+      date: today,
+      distance: 3,
+      intensityTarget: {
+        source: 'manual',
+        mode: 'pace',
+        paceRange: { min: '5:30', max: '6:05' },
+      },
+    };
+    mockPlanState.currentWeek = {
+      weekNumber: 1,
+      phase: 'BASE',
+      plannedKm: 3,
+      sessions,
+    };
+    mockActivityGet.mockResolvedValue({
+      id: 'activity-1',
+      source: 'strava',
+      startTime: `${today}T07:15:00.000Z`,
+      distance: 3.2,
+      duration: 1120,
+      avgPace: 350,
+      avgHR: 144,
+      splits: [
+        { km: 1, distance: 3.2, pace: 350, hr: 144, label: '3.2 km' },
+      ],
+      matchedSessionId: null,
+    });
+    mockRefreshActivity.mockResolvedValue({
+      id: 'activity-1',
+      source: 'strava',
+      startTime: `${today}T07:15:00.000Z`,
+      distance: 3.2,
+      duration: 1120,
+      avgPace: 350,
+      avgHR: 144,
+      splits: [
+        { km: 1, distance: 1, pace: 345, hr: 140 },
+        { km: 2, distance: 1, pace: 352, hr: 145 },
+        { km: 3, distance: 1, pace: 354, hr: 147 },
+        { km: 4, distance: 0.2, pace: 360, hr: 150 },
+      ],
+      matchedSessionId: null,
+    });
+
+    render(<SyncRunDetailScreen />);
+
+    expect(await screen.findByText('Run detail')).toBeTruthy();
+    await waitFor(() => {
+      expect(mockRefreshActivity).toHaveBeenCalledWith({ activityId: 'activity-1' });
+    });
+    expect(await screen.findByText('VS AVERAGE')).toBeTruthy();
+    expect(screen.getByText('per km')).toBeTruthy();
+    expect(screen.getByText('+0.2')).toBeTruthy();
+    expect(screen.queryByText('VS TARGET')).toBeNull();
+  });
+
+  it('uses a centre-average split rail and reveals fast/slow detail on tap', async () => {
+    const today = todayIsoLocal();
+    const sessions = [null, null, null, null, null, null, null] as any[];
+    const index = dayIndexForIsoDate(today);
+    sessions[index] = {
+      id: 'today-session',
+      type: 'EASY',
+      date: today,
+      distance: 3,
+      intensityTarget: {
+        source: 'manual',
+        mode: 'pace',
+        paceRange: { min: '5:30', max: '6:05' },
+      },
+    };
+    mockPlanState.currentWeek = {
+      weekNumber: 1,
+      phase: 'BASE',
+      plannedKm: 3,
+      sessions,
+    };
+    mockActivityGet.mockResolvedValue({
+      id: 'activity-1',
+      source: 'strava',
+      startTime: `${today}T07:15:00.000Z`,
+      distance: 3,
+      duration: 1059,
+      avgPace: 353,
+      avgHR: 144,
+      splits: [
+        { km: 1, distance: 1, pace: 358, hr: 142 },
+        { km: 2, distance: 1, pace: 345, hr: 143 },
+        { km: 3, distance: 1, pace: 360, hr: 145 },
+      ],
+      matchedSessionId: null,
+    });
+
+    render(<SyncRunDetailScreen />);
+
+    expect(await screen.findByText('VS AVERAGE')).toBeTruthy();
+    expect(screen.queryByText('5s slow')).toBeNull();
+    expect(screen.queryByText('8s fast')).toBeNull();
+
+    const slowSegment = screen.getByTestId('split-average-segment-0').style;
+    const fastSegment = screen.getByTestId('split-average-segment-1').style;
+    const averageMarker = screen.getByTestId('split-average-marker-0').style;
+
+    expect(slowSegment.left).toBe('50%');
+    expect(fastSegment.right).toBe('50%');
+    expect(averageMarker.left).toBe('50%');
+
+    fireEvent.click(screen.getByTestId('split-average-rail-0'));
+    expect(screen.getByText('5s slow')).toBeTruthy();
+    expect(screen.queryByText('8s fast')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('split-average-rail-1'));
+    expect(screen.queryByText('5s slow')).toBeNull();
+    expect(screen.getByText('8s fast')).toBeTruthy();
   });
 
   it('shows a tempo quality summary for the inferred tempo block only', async () => {
@@ -540,6 +665,7 @@ describe('SyncRunDetailScreen', () => {
 
     expect(await screen.findByText('Planned vs actual')).toBeTruthy();
     expect(screen.getByText('conversational')).toBeTruthy();
+    expect(screen.getByText('6:15 min/km')).toBeTruthy();
     expect(screen.getAllByText('6:15 /km').length).toBeGreaterThan(0);
     expect(screen.queryByText('—/km')).toBeNull();
   });
@@ -667,7 +793,7 @@ describe('SyncRunDetailScreen', () => {
         brand: 'Nike',
         model: 'Pegasus 40',
         stravaGearId: 'gear-1',
-        stravaDistanceKm: 721.4,
+        stravaDistanceKm: 111.4,
         retired: false,
         retireAtKm: 800,
         totalKm: 312,
@@ -689,13 +815,14 @@ describe('SyncRunDetailScreen', () => {
     expect(bodyText.indexOf('Niggles')).toBeLessThan(bodyText.indexOf('Notes'));
     expect(bodyText.indexOf('Pair used for this run')).toBeGreaterThan(bodyText.indexOf('Shoes'));
     expect(await screen.findByText('Lifetime')).toBeTruthy();
-    expect(screen.getByText('721 km')).toBeTruthy();
+    expect(screen.getByText('312 km')).toBeTruthy();
     expect(screen.queryByText('Re-sync from Strava')).toBeNull();
     expect(screen.queryByText('👟')).toBeNull();
 
     fireEvent.click(screen.getByText('Change ›'));
 
     expect(await screen.findByText('Which shoe?')).toBeTruthy();
+    expect(screen.queryByText('+ Not tracked / add new shoe')).toBeNull();
     expect(screen.queryByText('👟')).toBeNull();
   });
 

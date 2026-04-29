@@ -62,7 +62,7 @@ describe('buildWeeklyVolumeSummary', () => {
     });
   });
 
-  it('rounds weekly actual distance once instead of summing rounded day distances', () => {
+  it('keeps weekly actual distance aligned with the visible rounded day distances', () => {
     const summary = buildWeeklyVolumeSummary({
       today: '2026-04-08',
       weekStartDate: '2026-04-06',
@@ -87,7 +87,7 @@ describe('buildWeeklyVolumeSummary', () => {
 
     expect(summary.days[0].actualDistanceKm).toBe(12.6);
     expect(summary.days[1].actualDistanceKm).toBe(9.2);
-    expect(summary.actualDistanceKm).toBe(21.7);
+    expect(summary.actualDistanceKm).toBe(21.8);
   });
 
   it('estimates planned time from planned pace and uses synced activity duration', () => {
