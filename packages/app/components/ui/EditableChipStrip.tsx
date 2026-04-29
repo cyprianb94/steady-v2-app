@@ -17,10 +17,20 @@ export interface EditableChipOption {
   caption?: string;
 }
 
+export interface EditableChipOptionGroup {
+  label: string;
+  options: EditableChipOption[];
+  includeCustom?: boolean;
+}
+
 interface EditableChipStripProps {
   options: EditableChipOption[];
+  optionGroups?: EditableChipOptionGroup[];
   selectedKey: string | null;
   activeColor?: string;
+  activeBackgroundColor?: string;
+  activeTextColor?: string;
+  activeCaptionColor?: string;
   customActive?: boolean;
   customEditing?: boolean;
   customLabel?: string;
@@ -38,8 +48,12 @@ interface EditableChipStripProps {
 
 export function EditableChipStrip({
   options,
+  optionGroups,
   selectedKey,
   activeColor = C.clay,
+  activeBackgroundColor = activeColor,
+  activeTextColor = C.surface,
+  activeCaptionColor = activeTextColor,
   customActive = false,
   customEditing = false,
   customLabel = 'Custom...',
@@ -54,88 +68,123 @@ export function EditableChipStrip({
   onCustomBlur,
   onCustomFocus,
 }: EditableChipStripProps) {
+  const groups = optionGroups?.length
+    ? optionGroups
+    : [{ label: '', options, includeCustom: true }];
+  const explicitCustomGroupIndex = groups.findIndex((group) => group.includeCustom);
+  const customGroupIndex = explicitCustomGroupIndex >= 0 ? explicitCustomGroupIndex : groups.length - 1;
+
+  const renderCustomChip = () => customEditing ? (
+    <View
+      style={[
+        styles.chip,
+        styles.customInputChip,
+        { borderColor: activeColor, backgroundColor: activeBackgroundColor },
+      ]}
+    >
+      <TextInput
+        testID="editable-chip-custom-input"
+        autoFocus
+        selectTextOnFocus
+        value={customValue}
+        onChangeText={onCustomChangeText}
+        onBlur={onCustomBlur}
+        onFocus={onCustomFocus}
+        keyboardType={customKeyboardType}
+        placeholder={customPlaceholder}
+        placeholderTextColor={activeTextColor}
+        selectionColor={activeColor}
+        style={[styles.customInput, { color: activeTextColor }]}
+      />
+      {customUnit ? (
+        <Text style={[styles.customInputUnit, { color: activeTextColor }]}>{customUnit}</Text>
+      ) : null}
+    </View>
+  ) : (
+    <Pressable
+      onPress={() => {
+        onCustomPress();
+      }}
+      style={[
+        styles.chip,
+        styles.customChip,
+        customActive && {
+          borderColor: activeColor,
+          backgroundColor: activeBackgroundColor,
+          borderStyle: 'solid',
+        },
+      ]}
+    >
+      <Text
+        style={[
+          styles.customText,
+          customActive && styles.chipTextActive,
+          customActive && { color: activeTextColor },
+        ]}
+      >
+        {customLabel}
+      </Text>
+    </Pressable>
+  );
+
   return (
     <View style={styles.card}>
-      <View style={styles.row}>
-        {options.map((option) => {
-          const active = !customEditing && selectedKey === option.key;
-          return (
-            <Pressable
-              key={option.key}
-              onPress={() => {
-                if (selectedKey !== option.key) {
-                  triggerSelectionChangeHaptic();
-                }
-                onSelect(option.key);
-              }}
-              style={[
-                styles.chip,
-                active && { borderColor: activeColor, backgroundColor: activeColor },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.chipText,
-                  option.caption && styles.chipTextWithCaption,
-                  active && styles.chipTextActive,
-                  active && option.caption && styles.chipTextWithCaptionActive,
-                ]}
-              >
-                {option.label}
-              </Text>
-              {option.caption ? (
-                <Text style={[styles.chipCaption, active && styles.chipCaptionActive]}>
-                  {option.caption}
-                </Text>
-              ) : null}
-            </Pressable>
-          );
-        })}
-
-        {customEditing ? (
+      <View style={styles.groups}>
+        {groups.map((group, groupIndex) => (
           <View
-            style={[
-              styles.chip,
-              styles.customInputChip,
-              { borderColor: activeColor, backgroundColor: activeColor },
-            ]}
+            key={`${group.label || 'options'}-${groupIndex}`}
+            style={[styles.group, groupIndex > 0 && styles.groupWithDivider]}
           >
-            <TextInput
-              testID="editable-chip-custom-input"
-              autoFocus
-              selectTextOnFocus
-              value={customValue}
-              onChangeText={onCustomChangeText}
-              onBlur={onCustomBlur}
-              onFocus={onCustomFocus}
-              keyboardType={customKeyboardType}
-              placeholder={customPlaceholder}
-              placeholderTextColor={C.surface}
-              selectionColor={C.surface}
-              style={styles.customInput}
-            />
-            {customUnit ? <Text style={styles.customInputUnit}>{customUnit}</Text> : null}
+            {group.label ? <Text style={styles.groupLabel}>{group.label}</Text> : null}
+            <View style={styles.row}>
+              {group.options.map((option) => {
+                const active = !customEditing && selectedKey === option.key;
+                return (
+                  <Pressable
+                    key={option.key}
+                    onPress={() => {
+                      if (selectedKey !== option.key) {
+                        triggerSelectionChangeHaptic();
+                      }
+                      onSelect(option.key);
+                    }}
+                    style={[
+                      styles.chip,
+                      active && {
+                        borderColor: activeColor,
+                        backgroundColor: activeBackgroundColor,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        option.caption && styles.chipTextWithCaption,
+                        active && styles.chipTextActive,
+                        active && option.caption && styles.chipTextWithCaptionActive,
+                        active && { color: activeTextColor },
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                    {option.caption ? (
+                      <Text
+                        style={[
+                          styles.chipCaption,
+                          active && styles.chipCaptionActive,
+                          active && { color: activeCaptionColor },
+                        ]}
+                      >
+                        {option.caption}
+                      </Text>
+                    ) : null}
+                  </Pressable>
+                );
+              })}
+              {groupIndex === customGroupIndex ? renderCustomChip() : null}
+            </View>
           </View>
-        ) : (
-          <Pressable
-            onPress={() => {
-              onCustomPress();
-            }}
-            style={[
-              styles.chip,
-              styles.customChip,
-              customActive && {
-                borderColor: activeColor,
-                backgroundColor: activeColor,
-                borderStyle: 'solid',
-              },
-            ]}
-          >
-            <Text style={[styles.customText, customActive && styles.chipTextActive]}>
-              {customLabel}
-            </Text>
-          </Pressable>
-        )}
+        ))}
       </View>
       {footer ? <View style={styles.footer}>{footer}</View> : null}
     </View>
@@ -149,6 +198,24 @@ const styles = StyleSheet.create({
     borderColor: C.border,
     borderRadius: 12,
     padding: 10,
+  },
+  groups: {
+    gap: 10,
+  },
+  group: {
+    gap: 8,
+  },
+  groupWithDivider: {
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: C.border,
+  },
+  groupLabel: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 9.5,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: C.muted,
   },
   row: {
     flexDirection: 'row',

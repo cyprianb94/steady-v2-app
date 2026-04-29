@@ -4,6 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { describe, expect, it, vi } from 'vitest';
 
 import { SessionEditor } from '../components/plan-builder/SessionEditor';
+import { C } from '../constants/colours';
 import {
   deriveTrainingPaceProfile,
   trainingPaceBandToIntensityTarget,
@@ -26,6 +27,23 @@ function expectCustomInputBlank() {
   const customInput = screen.getByTestId('editable-chip-custom-input') as HTMLInputElement;
   expect(customInput.value).toBe('');
   return customInput;
+}
+
+function rgb(hex: string): string {
+  const raw = hex.replace('#', '');
+  const red = Number.parseInt(raw.slice(0, 2), 16);
+  const green = Number.parseInt(raw.slice(2, 4), 16);
+  const blue = Number.parseInt(raw.slice(4, 6), 16);
+
+  return `rgb(${red}, ${green}, ${blue})`;
+}
+
+function expectSelectedMetricChip(label: string, color: string) {
+  const chipText = screen.getByText(label);
+
+  expect(chipText.style.color).toBe(rgb(color));
+  expect(chipText.parentElement?.style.borderColor).toBe(rgb(color));
+  expect(chipText.parentElement?.style.backgroundColor).not.toBe(rgb(C.clay));
 }
 
 const intervalSession = {
@@ -103,6 +121,58 @@ describe('SessionEditor haptics', () => {
     fireEvent.click(screen.getByText('Custom...'));
 
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('SessionEditor colour language', () => {
+  it('uses quiet metric styling for expanded repetition controls', () => {
+    renderSessionEditor(intervalSession);
+
+    fireEvent.click(screen.getByText('Repetitions'));
+
+    expectSelectedMetricChip('0.8 km', C.metricDistance);
+    expect(screen.getAllByText('KM')[0].style.color).toBe(rgb(C.metricDistance));
+  });
+
+  it.each([
+    {
+      type: 'EASY' as const,
+      distance: 8,
+      pace: '5:20',
+      selectedPreset: '8 km',
+    },
+    {
+      type: 'TEMPO' as const,
+      distance: 10,
+      pace: '4:20',
+      selectedPreset: '10 km',
+    },
+    {
+      type: 'LONG' as const,
+      distance: 20,
+      pace: '5:10',
+      selectedPreset: '20 km',
+    },
+  ])('uses distance styling for selected $type distance chips', (session) => {
+    renderSessionEditor(session);
+
+    fireEvent.click(screen.getByText('Distance'));
+
+    expectSelectedMetricChip(session.selectedPreset, C.metricDistance);
+  });
+
+  it('uses time styling for selected minute duration chips', () => {
+    renderSessionEditor({
+      ...intervalSession,
+      warmup: { unit: 'min', value: 10 },
+    });
+
+    fireEvent.click(screen.getByText('Warm-up'));
+
+    expectSelectedMetricChip('10 min', C.metricTime);
+    expect(
+      screen.getAllByText('MIN').some((label) => label.style.color === rgb(C.metricTime)),
+    ).toBe(true);
   });
 });
 
@@ -187,6 +257,69 @@ describe('SessionEditor warmup and cooldown availability', () => {
 });
 
 describe('SessionEditor target pace editing', () => {
+  it('groups profile-derived and manual pace options when target pace is expanded', () => {
+    const profile = deriveTrainingPaceProfile({
+      raceDistance: '10K',
+      targetTime: '00:45:00',
+    });
+
+    render(
+      <SessionEditor
+        dayIndex={3}
+        existing={{
+          type: 'TEMPO',
+          distance: 10,
+          pace: '4:21',
+          intensityTarget: trainingPaceBandToIntensityTarget(profile.bands.threshold),
+        }}
+        trainingPaceProfile={profile}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+        presentation="screen"
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Target pace'));
+
+    expect(screen.getByText('Training paces')).toBeTruthy();
+    expect(screen.getByText('Manual paces')).toBeTruthy();
+    expect(screen.getByText('Threshold range')).toBeTruthy();
+    expect(screen.getByText('4:16 /km')).toBeTruthy();
+  });
+
+  it('labels interval profile targets as interval ranges', () => {
+    const profile = deriveTrainingPaceProfile({
+      raceDistance: '10K',
+      targetTime: '00:45:00',
+    });
+
+    render(
+      <SessionEditor
+        dayIndex={1}
+        existing={{
+          type: 'INTERVAL',
+          reps: 6,
+          repDist: 800,
+          recovery: '90s',
+          pace: '3:50',
+          intensityTarget: trainingPaceBandToIntensityTarget(profile.bands.interval),
+        }}
+        trainingPaceProfile={profile}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+        presentation="screen"
+      />,
+    );
+
+    expect(screen.getByText('Interval range from your profile')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Rep target pace'));
+
+    expect(screen.getByText('Training paces')).toBeTruthy();
+    expect(screen.getByText('Interval range')).toBeTruthy();
+    expect(screen.getByText('3:41-4:03/km · hard repeatable')).toBeTruthy();
+  });
+
   it('shows profile band context and saves custom paces as manual targets', () => {
     const onSave = vi.fn();
     const profile = deriveTrainingPaceProfile({
@@ -212,10 +345,10 @@ describe('SessionEditor target pace editing', () => {
 
     expect(screen.getByText('4:14-4:27/km')).toBeTruthy();
     expect(screen.queryByText('Threshold · profile pace')).toBeNull();
-    expect(screen.getByText('Threshold · controlled hard')).toBeTruthy();
+    expect(screen.getByText('Threshold range from your profile')).toBeTruthy();
 
     fireEvent.click(screen.getByText('Target pace'));
-    expect(screen.getAllByText('Threshold').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Threshold range').length).toBeGreaterThan(0);
     expect(screen.getByText('4:14-4:27/km · controlled hard')).toBeTruthy();
     expect(screen.getByText('Race pace')).toBeTruthy();
 
@@ -269,7 +402,7 @@ describe('SessionEditor target pace editing', () => {
     expect(screen.getByText('Manual pace')).toBeTruthy();
 
     fireEvent.click(screen.getByText('Target pace'));
-    fireEvent.click(screen.getByText('Threshold'));
+    fireEvent.click(screen.getByText('Threshold range'));
     fireEvent.click(screen.getByText('Update session'));
 
     expect(onSave).toHaveBeenCalledWith(3, expect.objectContaining({
@@ -306,7 +439,7 @@ describe('SessionEditor target pace editing', () => {
     fireEvent.click(screen.getByText('Target pace'));
 
     expect(screen.queryByText('Threshold · profile pace')).toBeNull();
-    expect(screen.getByText('Threshold · controlled hard')).toBeTruthy();
+    expect(screen.getByText('Threshold range')).toBeTruthy();
     expect(screen.getByText('4:16 /km')).toBeTruthy();
 
     fireEvent.click(screen.getByText('4:16 /km'));
@@ -349,7 +482,7 @@ describe('SessionEditor target pace editing', () => {
     );
 
     fireEvent.click(screen.getByText('Rep target pace'));
-    expect(screen.getAllByText('Interval').length).toBeGreaterThan(1);
+    expect(screen.getByText('Interval range')).toBeTruthy();
     expect(screen.getByText('3:50 /km')).toBeTruthy();
 
     fireEvent.click(screen.getByTestId('session-editor-pace-mode-range'));
@@ -400,7 +533,7 @@ describe('SessionEditor target pace editing', () => {
 
     expect(screen.getByText('5:24-5:56/km')).toBeTruthy();
     expect(screen.queryByText('Easy · profile pace')).toBeNull();
-    expect(screen.getByText('Easy · conversational')).toBeTruthy();
+    expect(screen.getByText('Easy range from your profile')).toBeTruthy();
 
     fireEvent.click(screen.getByText('Add session'));
 

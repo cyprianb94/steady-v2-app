@@ -11,6 +11,7 @@ interface NotebookRowProps {
   editor?: ReactNode;
   first?: boolean;
   disabled?: boolean;
+  accentColor?: string;
   children: ReactNode;
 }
 
@@ -22,6 +23,7 @@ export function NotebookRow({
   editor,
   first = false,
   disabled = false,
+  accentColor,
   children,
 }: NotebookRowProps) {
   const interactive = Boolean(onTap) && !disabled;
@@ -40,6 +42,7 @@ export function NotebookRow({
             style={[
               styles.chevron,
               expanded && styles.chevronExpanded,
+              expanded && accentColor ? { color: accentColor } : null,
             ]}
           >
             ›

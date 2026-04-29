@@ -152,6 +152,10 @@ function durationPresets(field: 'warmup' | 'cooldown', unit: SessionDurationUnit
   return unit === 'km' ? COOLDOWN_KM_PRESETS : COOLDOWN_MIN_PRESETS;
 }
 
+function durationMetricColor(unit: SessionDurationUnit): string {
+  return unit === 'km' ? C.metricDistance : C.metricTime;
+}
+
 function repDurationPresets(unit: SessionDurationUnit): number[] {
   return unit === 'km' ? REP_DURATION_KM_PRESETS : REP_DURATION_MIN_PRESETS;
 }
@@ -243,6 +247,13 @@ function manualPaceRangeDraft(
 
 function paceRangeChipLabel(range: PaceRange): string {
   return `${range.min}-${range.max} /km`;
+}
+
+type SessionEditorProfileBand = ReturnType<typeof getSessionEditorProfileBands>[number];
+
+function trainingPaceOptionLabel(band: SessionEditorProfileBand): string {
+  const isRange = Boolean(normalizePaceRange(band.paceRange));
+  return isRange ? `${band.label} range` : band.label;
 }
 
 function pacePresets(currentPace: string, type: SessionType): string[] {
@@ -340,6 +351,12 @@ export function SessionEditor({
   const supportsWarmupCooldown = sessionSupportsWarmupCooldown(type);
   const canEditPace = !isRest;
   const typeMeta = SESSION_TYPE[type];
+  const distanceAccentColor = C.metricDistance;
+  const paceAccentColor = C.metricPace;
+  const repDurationAccentColor = durationMetricColor(repDuration.unit);
+  const recoveryAccentColor = durationMetricColor(recovery.unit);
+  const warmupAccentColor = durationMetricColor(warmup.unit);
+  const cooldownAccentColor = durationMetricColor(cooldown.unit);
   const pacePresetValues = pacePresets(pace, type);
   const visiblePacePresets = customPaceSelected && manualPaceMode === 'single'
     ? pacePresetValues.filter((preset) => preset !== pace)
@@ -365,14 +382,14 @@ export function SessionEditor({
     ? profileBands.find((band) => band.profileKey === selectedProfileKey)
     : null;
   const targetCaption = selectedProfileBand
-    ? `${selectedProfileBand.label} · ${selectedProfileBand.defaultEffortCue}`
+    ? `${trainingPaceOptionLabel(selectedProfileBand)} from your profile`
     : 'Manual pace';
   const profilePaceOptions = profileBands.map((band) => {
     const target = intensityTargetForTrainingPaceProfileKey(trainingPaceProfile, band.profileKey);
     const parts = formatIntensityTargetParts(target, units, { withUnit: true });
     return {
       key: band.profileKey,
-      label: band.label,
+      label: trainingPaceOptionLabel(band),
       caption: parts.label ?? band.defaultEffortCue,
     };
   });
@@ -754,6 +771,18 @@ export function SessionEditor({
       label: `${preset} /km`,
     })),
   ];
+  const manualPaceOptions = visiblePacePresets.map((preset) => ({
+    key: preset,
+    label: `${preset} /km`,
+  }));
+  const paceOptionGroups = profilePaceOptions.length > 0
+    ? [
+        { label: 'Training paces', options: profilePaceOptions },
+        { label: 'Manual paces', options: manualPaceOptions, includeCustom: true },
+      ]
+    : [
+        { label: 'Manual paces', options: manualPaceOptions, includeCustom: true },
+      ];
   const headerSession = {
     type,
     distance,
@@ -811,6 +840,7 @@ export function SessionEditor({
                 <NotebookRow
                   first
                   label="Repetitions"
+                  accentColor={repDurationAccentColor}
                   trailing={(
                     <UnitTogglePill
                       value={repDuration.unit}
@@ -849,7 +879,10 @@ export function SessionEditor({
                   }
                 >
                   <View style={styles.rowCopy}>
-                    <NotebookRowValue value={`${reps}×${formatRepLength(repDuration)}`} />
+                    <NotebookRowValue
+                      value={`${reps}×${formatRepLength(repDuration)}`}
+                      color={expandedRow === 'repetitions' ? repDurationAccentColor : undefined}
+                    />
                     <Text style={styles.rowCaption}>Main set</Text>
                   </View>
                 </NotebookRow>
@@ -857,6 +890,7 @@ export function SessionEditor({
                 <NotebookRow
                   first
                   label="Distance"
+                  accentColor={distanceAccentColor}
                   onTap={!isRest ? () => toggleRow('distance') : undefined}
                   expanded={expandedRow === 'distance'}
                   editor={
@@ -886,13 +920,19 @@ export function SessionEditor({
                   {isRest ? (
                     <NotebookRowValue value="—" muted />
                   ) : (
-                    <NotebookRowValue value={formatValue(distance)} unit="km" />
+                    <NotebookRowValue
+                      value={formatValue(distance)}
+                      unit="km"
+                      color={expandedRow === 'distance' ? distanceAccentColor : undefined}
+                      unitColor={expandedRow === 'distance' ? distanceAccentColor : undefined}
+                    />
                   )}
                 </NotebookRow>
               )}
 
               <NotebookRow
                 label={isInterval ? 'Rep target pace' : 'Target pace'}
+                accentColor={paceAccentColor}
                 onTap={canEditPace ? () => toggleRow('pace') : undefined}
                 expanded={expandedRow === 'pace'}
                 disabled={isRest}
@@ -910,13 +950,16 @@ export function SessionEditor({
                               style={({ pressed }) => [
                                 styles.paceModeOption,
                                 active && {
-                                  borderColor: typeMeta.color,
-                                  backgroundColor: typeMeta.color,
+                                  borderColor: paceAccentColor,
+                                  backgroundColor: C.metricPaceBg,
                                 },
                                 pressed && styles.paceModeOptionPressed,
                               ]}
                             >
-                              <Text style={[styles.paceModeText, active && styles.paceModeTextActive]}>
+                              <Text style={[
+                                styles.paceModeText,
+                                active && styles.paceModeTextActive,
+                              ]}>
                                 {mode === 'single' ? 'Single pace' : 'Range'}
                               </Text>
                             </Pressable>
@@ -925,8 +968,12 @@ export function SessionEditor({
                       </View>
                       <EditableChipStrip
                         options={paceOptions}
+                        optionGroups={paceOptionGroups}
                         selectedKey={selectedTargetKey}
-                        activeColor={typeMeta.color}
+                        activeColor={paceAccentColor}
+                        activeBackgroundColor={C.metricPaceBg}
+                        activeTextColor={paceAccentColor}
+                        activeCaptionColor={C.ink2}
                         customActive={customTargetActive}
                         customEditing={customField === 'pace' && manualPaceMode === 'single'}
                         customLabel={customTargetLabel}
@@ -966,7 +1013,7 @@ export function SessionEditor({
                                   }}
                                   onBlur={() => closeCustomField('pace')}
                                   keyboardType="numbers-and-punctuation"
-                                  selectionColor={typeMeta.color}
+                                  selectionColor={paceAccentColor}
                                   style={styles.paceRangeInput}
                                 />
                               </View>
@@ -982,7 +1029,7 @@ export function SessionEditor({
                                   }}
                                   onBlur={() => closeCustomField('pace')}
                                   keyboardType="numbers-and-punctuation"
-                                  selectionColor={typeMeta.color}
+                                  selectionColor={paceAccentColor}
                                   style={styles.paceRangeInput}
                                 />
                               </View>
@@ -996,13 +1043,13 @@ export function SessionEditor({
                               style={({ pressed }) => [
                                 styles.paceRangeApply,
                                 {
-                                  borderColor: typeMeta.color,
-                                  backgroundColor: `${typeMeta.color}14`,
+                                  borderColor: paceAccentColor,
+                                  backgroundColor: C.metricPaceBg,
                                 },
                                 pressed && styles.paceRangeApplyPressed,
                               ]}
                             >
-                              <Text style={[styles.paceRangeApplyText, { color: typeMeta.color }]}>
+                              <Text style={[styles.paceRangeApplyText, { color: paceAccentColor }]}>
                                 Apply range
                               </Text>
                             </Pressable>
@@ -1017,7 +1064,10 @@ export function SessionEditor({
                   <NotebookRowValue value="—" muted />
                 ) : (
                   <View style={styles.rowCopy}>
-                    <NotebookRowValue value={targetPaceLabel ?? '—'} />
+                    <NotebookRowValue
+                      value={targetPaceLabel ?? '—'}
+                      color={expandedRow === 'pace' ? paceAccentColor : undefined}
+                    />
                     {canEditPace ? (
                       <Text style={styles.rowCaption}>{targetCaption}</Text>
                     ) : null}
@@ -1028,6 +1078,7 @@ export function SessionEditor({
               {isInterval ? (
                 <NotebookRow
                   label="Recovery between reps"
+                  accentColor={recoveryAccentColor}
                   trailing={(
                     <UnitTogglePill
                       value={recovery.unit}
@@ -1063,7 +1114,12 @@ export function SessionEditor({
                 >
                   {recovery.value != null ? (
                     <View style={styles.rowCopy}>
-                      <NotebookRowValue value={formatValue(recovery.value)} unit={recovery.unit} />
+                      <NotebookRowValue
+                        value={formatValue(recovery.value)}
+                        unit={recovery.unit}
+                        color={expandedRow === 'recovery' ? recoveryAccentColor : undefined}
+                        unitColor={expandedRow === 'recovery' ? recoveryAccentColor : undefined}
+                      />
                       <Text style={styles.rowCaption}>Between reps</Text>
                     </View>
                   ) : (
@@ -1076,6 +1132,7 @@ export function SessionEditor({
                 <>
                   <NotebookRow
                     label="Warm-up"
+                    accentColor={warmupAccentColor}
                     trailing={(
                       <UnitTogglePill
                         value={warmup.unit}
@@ -1110,7 +1167,12 @@ export function SessionEditor({
                   >
                     {warmup.value != null ? (
                       <View style={styles.rowCopy}>
-                        <NotebookRowValue value={formatValue(warmup.value)} unit={warmup.unit} />
+                        <NotebookRowValue
+                          value={formatValue(warmup.value)}
+                          unit={warmup.unit}
+                          color={expandedRow === 'warmup' ? warmupAccentColor : undefined}
+                          unitColor={expandedRow === 'warmup' ? warmupAccentColor : undefined}
+                        />
                         <Text style={styles.rowCaption}>Easy</Text>
                       </View>
                     ) : (
@@ -1120,6 +1182,7 @@ export function SessionEditor({
 
                   <NotebookRow
                     label="Cool-down"
+                    accentColor={cooldownAccentColor}
                     trailing={(
                       <UnitTogglePill
                         value={cooldown.unit}
@@ -1154,7 +1217,12 @@ export function SessionEditor({
                   >
                     {cooldown.value != null ? (
                       <View style={styles.rowCopy}>
-                        <NotebookRowValue value={formatValue(cooldown.value)} unit={cooldown.unit} />
+                        <NotebookRowValue
+                          value={formatValue(cooldown.value)}
+                          unit={cooldown.unit}
+                          color={expandedRow === 'cooldown' ? cooldownAccentColor : undefined}
+                          unitColor={expandedRow === 'cooldown' ? cooldownAccentColor : undefined}
+                        />
                         <Text style={styles.rowCaption}>Easy</Text>
                       </View>
                     ) : (
@@ -1244,7 +1312,7 @@ const styles = StyleSheet.create({
   closeButtonText: {
     fontFamily: FONTS.sansMedium,
     fontSize: 14,
-    color: C.clay,
+    color: C.ink2,
   },
   headerDay: {
     fontFamily: FONTS.sans,
@@ -1330,31 +1398,29 @@ const styles = StyleSheet.create({
   paceModeToggle: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
-    borderRadius: 999,
-    borderWidth: 1.5,
-    borderColor: C.border,
-    backgroundColor: C.surface,
-    overflow: 'hidden',
+    gap: 6,
   },
   paceModeOption: {
-    minHeight: 34,
-    paddingHorizontal: 13,
+    minHeight: 28,
+    paddingHorizontal: 10,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: 'transparent',
+    borderColor: C.border,
+    borderRadius: 999,
+    backgroundColor: C.surface,
   },
   paceModeOptionPressed: {
     opacity: 0.82,
   },
   paceModeText: {
     fontFamily: FONTS.sansSemiBold,
-    fontSize: 12,
-    lineHeight: 15,
+    fontSize: 11,
+    lineHeight: 14,
     color: C.muted,
   },
   paceModeTextActive: {
-    color: C.surface,
+    color: C.metricPace,
   },
   paceRangeEditor: {
     gap: 10,

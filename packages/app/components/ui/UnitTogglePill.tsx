@@ -18,6 +18,8 @@ export function UnitTogglePill({ value, onChange, disabled = false }: UnitToggle
     <View style={[styles.shell, disabled && styles.disabled]}>
       {OPTIONS.map((option) => {
         const active = option === value;
+        const activeColor = option === 'km' ? C.metricDistance : C.metricTime;
+        const activeBackgroundColor = `${activeColor}14`;
         return (
           <Pressable
             key={option}
@@ -30,9 +32,16 @@ export function UnitTogglePill({ value, onChange, disabled = false }: UnitToggle
               triggerSelectionChangeHaptic();
               onChange(option);
             }}
-            style={[styles.segment, active && styles.segmentActive]}
+            style={[
+              styles.segment,
+              active && {
+                backgroundColor: activeBackgroundColor,
+              },
+            ]}
           >
-            <Text style={[styles.label, active && styles.labelActive]}>{option.toUpperCase()}</Text>
+            <Text style={[styles.label, active && { color: activeColor }]}>
+              {option.toUpperCase()}
+            </Text>
           </Pressable>
         );
       })}
@@ -54,22 +63,16 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   segment: {
-    minWidth: 34,
+    minWidth: 27,
     paddingVertical: 4,
-    paddingHorizontal: 8,
+    paddingHorizontal: 5,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  segmentActive: {
-    backgroundColor: C.clay,
-  },
   label: {
     fontFamily: FONTS.monoBold,
-    fontSize: 10,
+    fontSize: 8.5,
     letterSpacing: 1,
     color: C.muted,
-  },
-  labelActive: {
-    color: C.surface,
   },
 });
