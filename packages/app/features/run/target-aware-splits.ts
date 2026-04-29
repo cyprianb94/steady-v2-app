@@ -61,6 +61,13 @@ interface PlannedIntervalPart {
   repIndex: number | null;
 }
 
+interface IntervalSplitSpan {
+  index: number;
+  distanceKm: number;
+  startKm: number;
+  endKm: number;
+}
+
 const DISTANCE_TOLERANCE_KM = 0.05;
 const DISTANCE_TOLERANCE_RATIO = 0.08;
 const PACE_TARGET_TOLERANCE_SECONDS = 2;
@@ -156,6 +163,102 @@ function buildPlannedIntervalParts(session: PlannedSession): PlannedIntervalPart
   return parts;
 }
 
+function buildIntervalSplitSpans(splits: ActivitySplit[]): IntervalSplitSpan[] | null {
+  let cursorKm = 0;
+  const spans: IntervalSplitSpan[] = [];
+
+  for (const [index, split] of splits.entries()) {
+    const distanceKm = splitDistanceKm(split);
+    if (distanceKm == null || distanceKm <= 0) {
+      return null;
+    }
+
+    const startKm = cursorKm;
+    const endKm = startKm + distanceKm;
+    spans.push({
+      index,
+      distanceKm,
+      startKm,
+      endKm,
+    });
+    cursorKm = endKm;
+  }
+
+  return spans;
+}
+
+function intervalSpanMidpointKm(span: IntervalSplitSpan): number {
+  return span.startKm + span.distanceKm / 2;
+}
+
+function hasRecoverySeparators(workSpans: IntervalSplitSpan[]): boolean {
+  return workSpans.every((span, index) => (
+    index === 0 || span.index > workSpans[index - 1].index + 1
+  ));
+}
+
+function classifyIntervalSplitsByRepDistance(
+  session: PlannedSession,
+  splits: ActivitySplit[],
+): Array<Pick<TargetAwareSplitRow, 'kind' | 'repIndex'>> | null {
+  const reps = session.reps && session.reps > 0 ? session.reps : 0;
+  const repKm = intervalRepDistanceKm(session);
+  const spans = buildIntervalSplitSpans(splits);
+  if (reps === 0 || repKm <= 0 || spans == null) {
+    return null;
+  }
+
+  const warmupKm = sessionDurationKm(session.warmup);
+  const cooldownKm = sessionDurationKm(session.cooldown);
+  const recoveryKm = recoveryDistanceKm(session);
+  const totalDistanceKm = spans.length > 0 ? spans[spans.length - 1].endKm : 0;
+  const cooldownStartKm = Math.max(0, totalDistanceKm - cooldownKm);
+  let workSpans = spans.filter((span) => matchesDistance(span.distanceKm, repKm));
+
+  if (warmupKm > 0) {
+    workSpans = workSpans.filter((span) => intervalSpanMidpointKm(span) >= warmupKm);
+  }
+
+  if (cooldownKm > 0 && workSpans.length > reps) {
+    workSpans = workSpans.filter((span) => intervalSpanMidpointKm(span) <= cooldownStartKm);
+  }
+
+  if (workSpans.length !== reps) {
+    return null;
+  }
+
+  if (recoveryKm > 0 && reps > 1 && !hasRecoverySeparators(workSpans)) {
+    return null;
+  }
+
+  const firstWorkIndex = workSpans[0].index;
+  const lastWorkIndex = workSpans[workSpans.length - 1].index;
+  const workRepBySplitIndex = new Map(
+    workSpans.map((span, index) => [span.index, index + 1]),
+  );
+
+  return splits.map((_, index) => {
+    const repIndex = workRepBySplitIndex.get(index);
+    if (repIndex != null) {
+      return { kind: 'work', repIndex };
+    }
+
+    if (index < firstWorkIndex) {
+      return { kind: warmupKm > 0 ? 'warmup' : 'split', repIndex: null };
+    }
+
+    if (index > lastWorkIndex) {
+      if (recoveryKm > 0 && index === lastWorkIndex + 1) {
+        return { kind: 'recovery', repIndex: null };
+      }
+
+      return { kind: cooldownKm > 0 ? 'cooldown' : 'split', repIndex: null };
+    }
+
+    return { kind: recoveryKm > 0 ? 'recovery' : 'split', repIndex: null };
+  });
+}
+
 function classifyIntervalSplits(
   session: PlannedSession | null | undefined,
   splits: ActivitySplit[],
@@ -165,17 +268,19 @@ function classifyIntervalSplits(
   }
 
   const parts = buildPlannedIntervalParts(session);
-  if (parts.length === 0 || parts.length !== splits.length) {
+  if (parts.length === 0) {
     return null;
   }
 
-  const splitDistances = splits.map(splitDistanceKm);
-  const allPartsMatch = parts.every((part, index) => matchesDistance(splitDistances[index], part.distanceKm));
-  if (!allPartsMatch) {
-    return null;
+  if (parts.length === splits.length) {
+    const splitDistances = splits.map(splitDistanceKm);
+    const allPartsMatch = parts.every((part, index) => matchesDistance(splitDistances[index], part.distanceKm));
+    if (allPartsMatch) {
+      return parts.map((part) => ({ kind: part.kind, repIndex: part.repIndex }));
+    }
   }
 
-  return parts.map((part) => ({ kind: part.kind, repIndex: part.repIndex }));
+  return classifyIntervalSplitsByRepDistance(session, splits);
 }
 
 function targetRange(session: PlannedSession | null | undefined): PaceTargetRange | null {

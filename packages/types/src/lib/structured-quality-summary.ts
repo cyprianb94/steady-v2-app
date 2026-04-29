@@ -52,6 +52,14 @@ interface IntervalPart {
   distanceKm: number;
 }
 
+interface SplitSpan {
+  index: number;
+  split: ActivitySplit;
+  distanceKm: number;
+  startKm: number;
+  endKm: number;
+}
+
 const DISTANCE_TOLERANCE_RATIO = 0.2;
 const DISTANCE_TOLERANCE_MIN_KM = 0.05;
 
@@ -152,6 +160,69 @@ function buildIntervalParts(
   return parts;
 }
 
+function buildSplitSpans(splits: ActivitySplit[]): SplitSpan[] {
+  let cursorKm = 0;
+
+  return splits.map((split, index) => {
+    const distanceKm = splitDistanceKm(split);
+    const startKm = cursorKm;
+    const endKm = startKm + distanceKm;
+    cursorKm = endKm;
+
+    return {
+      index,
+      split,
+      distanceKm,
+      startKm,
+      endKm,
+    };
+  });
+}
+
+function splitMidpointKm(span: SplitSpan): number {
+  return span.startKm + span.distanceKm / 2;
+}
+
+function hasRecoverySeparators(workSpans: SplitSpan[]): boolean {
+  return workSpans.every((span, index) => (
+    index === 0 || span.index > workSpans[index - 1].index + 1
+  ));
+}
+
+function classifyIntervalWorkSplitsByRepDistance(
+  splits: ActivitySplit[],
+  plannedReps: number,
+  repDistanceKm: number,
+  warmupKm: number,
+  recoveryKm: number,
+  cooldownKm: number,
+): QualitySplit[] | null {
+  const spans = buildSplitSpans(splits);
+  const totalDistanceKm = spans.at(-1)?.endKm ?? 0;
+  const cooldownStartKm = Math.max(0, totalDistanceKm - cooldownKm);
+  let workSpans = spans.filter((span) => distanceMatches(span.distanceKm, repDistanceKm));
+
+  if (warmupKm > 0) {
+    workSpans = workSpans.filter((span) => splitMidpointKm(span) >= warmupKm);
+  }
+
+  if (cooldownKm > 0 && workSpans.length > plannedReps) {
+    workSpans = workSpans.filter((span) => splitMidpointKm(span) <= cooldownStartKm);
+  }
+
+  if (workSpans.length !== plannedReps) {
+    return null;
+  }
+
+  if (recoveryKm > 0 && plannedReps > 1 && !hasRecoverySeparators(workSpans)) {
+    return null;
+  }
+
+  return workSpans
+    .map((span) => toQualitySplit(span.split))
+    .filter((split): split is QualitySplit => split != null);
+}
+
 function classifyIntervalWorkSplits(
   session: PlannedSession,
   splits: ActivitySplit[],
@@ -176,20 +247,25 @@ function classifyIntervalWorkSplits(
       .filter((split): split is QualitySplit => split != null);
   }
 
-  if (parts.length !== splits.length) {
-    return null;
+  if (parts.length === splits.length) {
+    const matchesPattern = parts.every((part, index) => (
+      distanceMatches(splitDistanceKm(splits[index]), part.distanceKm)
+    ));
+    if (matchesPattern) {
+      return parts
+        .map((part, index) => (part.kind === 'work' ? toQualitySplit(splits[index]) : null))
+        .filter((split): split is QualitySplit => split != null);
+    }
   }
 
-  const matchesPattern = parts.every((part, index) => (
-    distanceMatches(splitDistanceKm(splits[index]), part.distanceKm)
-  ));
-  if (!matchesPattern) {
-    return null;
-  }
-
-  return parts
-    .map((part, index) => (part.kind === 'work' ? toQualitySplit(splits[index]) : null))
-    .filter((split): split is QualitySplit => split != null);
+  return classifyIntervalWorkSplitsByRepDistance(
+    splits,
+    plannedReps,
+    repDistanceKm,
+    warmupKm,
+    recoveryKm,
+    cooldownKm,
+  );
 }
 
 function targetPaceRange(session: PlannedSession): StructuredQualityTargetPaceRange | null {

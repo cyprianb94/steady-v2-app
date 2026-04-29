@@ -127,6 +127,76 @@ describe('buildTargetAwareSplitsModel', () => {
     ]);
   });
 
+  it('classifies interval reps when recorded recovery distances vary', () => {
+    const model = buildTargetAwareSplitsModel({
+      session: {
+        ...intervalSession,
+        reps: 6,
+        repDist: 400,
+        warmup: { unit: 'km', value: 2 },
+        recovery: { unit: 'min', value: 1 },
+        cooldown: undefined,
+        intensityTarget: {
+          source: 'manual',
+          mode: 'pace',
+          paceRange: { min: '3:35', max: '3:50' },
+        },
+      },
+      splits: [
+        split(1, 2.01, 435, 139),
+        split(2, 0.405, 225, 180),
+        split(3, 0.258, 344, 169),
+        split(4, 0.405, 215, 184),
+        split(5, 0.197, 452, 171),
+        split(6, 0.399, 218, 184),
+        split(7, 0.210, 424, 172),
+        split(8, 0.394, 223, 182),
+        split(9, 0.190, 467, 171),
+        split(10, 0.399, 226, 182),
+        split(11, 0.207, 431, 173),
+        split(12, 0.411, 217, 185),
+        split(13, 0.243, 366, 179),
+        split(14, 2, 355, 155),
+        split(15, 1.43, 363, 150),
+      ],
+      units: 'metric',
+    });
+
+    expect(model.summaryLabel).toBe('segments');
+    expect(model.comparisonHeader).toBe('VS TARGET');
+    expect(model.rows.map((row) => row.kind)).toEqual([
+      'warmup',
+      'work',
+      'recovery',
+      'work',
+      'recovery',
+      'work',
+      'recovery',
+      'work',
+      'recovery',
+      'work',
+      'recovery',
+      'work',
+      'recovery',
+      'split',
+      'split',
+    ]);
+    expect(model.rows.filter((row) => row.kind === 'work').map((row) => ({
+      label: row.label,
+      elapsedLabel: row.elapsedLabel,
+      comparisonLabel: row.comparisonLabel,
+      heartRateLabel: row.heartRateLabel,
+    }))).toEqual([
+      { label: 'Rep 1', elapsedLabel: '1:31', comparisonLabel: 'ON TARGET', heartRateLabel: '180 bpm' },
+      { label: 'Rep 2', elapsedLabel: '1:27', comparisonLabel: 'ON TARGET', heartRateLabel: '184 bpm' },
+      { label: 'Rep 3', elapsedLabel: '1:27', comparisonLabel: 'ON TARGET', heartRateLabel: '184 bpm' },
+      { label: 'Rep 4', elapsedLabel: '1:28', comparisonLabel: 'ON TARGET', heartRateLabel: '182 bpm' },
+      { label: 'Rep 5', elapsedLabel: '1:30', comparisonLabel: 'ON TARGET', heartRateLabel: '182 bpm' },
+      { label: 'Rep 6', elapsedLabel: '1:29', comparisonLabel: 'ON TARGET', heartRateLabel: '185 bpm' },
+    ]);
+    expect(model.rows.filter((row) => row.kind !== 'work').every((row) => row.targetStatus === null)).toBe(true);
+  });
+
   it('degrades to generic split rows when interval lap distances cannot be inferred', () => {
     const model = buildTargetAwareSplitsModel({
       session: intervalSession,

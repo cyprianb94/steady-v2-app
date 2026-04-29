@@ -131,6 +131,55 @@ describe('buildStructuredQualitySummary', () => {
     });
   });
 
+  it('summarises interval reps when recorded recovery distances vary', () => {
+    const summary = buildStructuredQualitySummary(
+      makeSession({
+        reps: 6,
+        repDist: 400,
+        recovery: { unit: 'min', value: 1 },
+        warmup: { unit: 'km', value: 2 },
+        cooldown: undefined,
+        intensityTarget: {
+          source: 'manual',
+          mode: 'pace',
+          paceRange: { min: '3:35', max: '3:50' },
+        },
+      }),
+      makeActivity({
+        splits: [
+          { km: 1, distance: 2.01, pace: 435, hr: 139 },
+          { km: 2, distance: 0.405, pace: 225, hr: 180 },
+          { km: 3, distance: 0.258, pace: 344, hr: 169 },
+          { km: 4, distance: 0.405, pace: 215, hr: 184 },
+          { km: 5, distance: 0.197, pace: 452, hr: 171 },
+          { km: 6, distance: 0.399, pace: 218, hr: 184 },
+          { km: 7, distance: 0.210, pace: 424, hr: 172 },
+          { km: 8, distance: 0.394, pace: 223, hr: 182 },
+          { km: 9, distance: 0.190, pace: 467, hr: 171 },
+          { km: 10, distance: 0.399, pace: 226, hr: 182 },
+          { km: 11, distance: 0.207, pace: 431, hr: 173 },
+          { km: 12, distance: 0.411, pace: 217, hr: 185 },
+          { km: 13, distance: 0.243, pace: 366, hr: 179 },
+          { km: 14, distance: 2, pace: 355, hr: 155 },
+          { km: 15, distance: 1.43, pace: 363, hr: 150 },
+        ],
+      }),
+    );
+
+    expect(summary).toMatchObject({
+      status: 'available',
+      sessionType: 'INTERVAL',
+      qualityDistanceKm: 2.41,
+      averagePaceSecondsPerKm: 221,
+      averageHeartRateBpm: 183,
+      intervalReps: {
+        planned: 6,
+        found: 6,
+        inTargetRange: 6,
+      },
+    });
+  });
+
   it('does not mistake same-distance warmup and cooldown laps for interval work reps', () => {
     const summary = buildStructuredQualitySummary(
       makeSession({
