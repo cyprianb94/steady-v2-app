@@ -23,7 +23,7 @@ export type SessionEditorResult = Partial<PlannedSession> | null;
 
 const PROFILE_KEYS_BY_SESSION_TYPE: Partial<Record<SessionType, TrainingPaceProfileKey[]>> = {
   EASY: ['recovery', 'easy', 'steady'],
-  LONG: ['easy', 'steady', 'marathon'],
+  LONG: ['recovery', 'easy', 'steady', 'marathon'],
   TEMPO: ['threshold', 'marathon'],
   INTERVAL: ['interval'],
 };

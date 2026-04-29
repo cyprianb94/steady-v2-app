@@ -1311,17 +1311,19 @@ export function SessionEditor({
         </View>
       </ScrollView>
 
-      <View style={styles.actions}>
-        <View style={styles.actionRow}>
-          <View style={styles.primaryAction}>
-            <Btn
-              title={existing ? 'Update session' : 'Add session'}
-              onPress={() => onSave(dayIndex, build())}
-              fullWidth
-            />
+      {customField ? null : (
+        <View style={styles.actions}>
+          <View style={styles.actionRow}>
+            <View style={styles.primaryAction}>
+              <Btn
+                title={existing ? 'Update session' : 'Add session'}
+                onPress={() => onSave(dayIndex, build())}
+                fullWidth
+              />
+            </View>
           </View>
         </View>
-      </View>
+      )}
     </View>
   );
 

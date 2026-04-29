@@ -307,6 +307,46 @@ describe('SessionEditor target pace editing', () => {
     expect(screen.getByText('Custom range...')).toBeTruthy();
   });
 
+  it('offers Recovery as a Training pace for long runs without changing the default', () => {
+    const onSave = vi.fn();
+    const profile = deriveTrainingPaceProfile({
+      raceDistance: '10K',
+      targetTime: '00:45:00',
+    });
+
+    render(
+      <SessionEditor
+        dayIndex={6}
+        existing={{
+          type: 'LONG',
+          distance: 18,
+          pace: '5:40',
+          intensityTarget: trainingPaceBandToIntensityTarget(profile.bands.easy),
+        }}
+        trainingPaceProfile={profile}
+        onSave={onSave}
+        onClose={vi.fn()}
+        presentation="screen"
+      />,
+    );
+
+    expect(screen.getByText('Easy · Training pace')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Target pace'));
+
+    expect(screen.getByText('Recovery')).toBeTruthy();
+    expect(screen.getByText(/very easy/)).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Recovery'));
+    fireEvent.click(screen.getByText('Update session'));
+
+    expect(onSave).toHaveBeenCalledWith(6, expect.objectContaining({
+      type: 'LONG',
+      distance: 18,
+      intensityTarget: trainingPaceBandToIntensityTarget(profile.bands.recovery),
+    }));
+  });
+
   it('labels interval Training pace targets as Training paces', () => {
     const profile = deriveTrainingPaceProfile({
       raceDistance: '10K',
@@ -477,6 +517,27 @@ describe('SessionEditor target pace editing', () => {
     }));
   });
 
+  it('hides the sticky session action while a custom pace input is active', () => {
+    render(
+      <SessionEditor
+        dayIndex={3}
+        existing={{ type: 'TEMPO', distance: 10, pace: '4:21' }}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+        presentation="screen"
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Target pace'));
+    fireEvent.click(screen.getByText('Custom pace...'));
+
+    expect(screen.queryByText('Update session')).toBeNull();
+
+    fireEvent.blur(screen.getByTestId('editable-chip-custom-input'));
+
+    expect(screen.getByText('Update session')).toBeTruthy();
+  });
+
   it('saves manual pace ranges from faster and slower boundaries', () => {
     const onSave = vi.fn();
     const profile = deriveTrainingPaceProfile({
@@ -512,6 +573,7 @@ describe('SessionEditor target pace editing', () => {
     fireEvent.change(screen.getByTestId('session-editor-pace-range-slower'), {
       target: { value: '3:50' },
     });
+    fireEvent.blur(screen.getByTestId('session-editor-pace-range-slower'));
 
     expect(screen.getByText('Custom range')).toBeTruthy();
     expect(screen.queryByText('Apply range')).toBeNull();
