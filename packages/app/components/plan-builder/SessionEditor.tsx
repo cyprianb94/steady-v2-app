@@ -539,7 +539,7 @@ export function SessionEditor({
     const scrollTargets: Record<Exclude<CustomField, null>, number> = {
       distance: 80,
       repetitions: 80,
-      pace: 190,
+      pace: 230,
       recovery: 180,
       warmup: 280,
       cooldown: 340,
@@ -549,6 +549,9 @@ export function SessionEditor({
     setTimeout(() => {
       scrollRef.current?.scrollTo({ y, animated: true });
     }, 120);
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ y, animated: true });
+    }, 280);
   }
 
   function clearCustomDraft(field: Exclude<CustomField, null>) {
@@ -1414,7 +1417,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   bodyContentWithCompactKeyboard: {
-    paddingBottom: 96,
+    paddingBottom: 132,
   },
   bodyContentWithNonIntervalDurationKeyboard: {
     paddingBottom: 72,
