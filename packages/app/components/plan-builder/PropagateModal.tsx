@@ -10,6 +10,8 @@ interface PropagateModalProps {
   changeDesc?: string | null;
   weekIndex: number;
   totalWeeks: number;
+  dayIndex?: number;
+  sessionDate?: string | null;
   phaseName: PhaseName;
   phaseWeekCount?: number;
   title?: string;
@@ -27,17 +29,83 @@ const OPTIONS = [
   { key: 'build' as const, label: '' },
 ];
 
+const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+const LONG_DAYS_BY_WEEK_INDEX = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+
 function phaseLabel(phaseName: PhaseName): string {
   return `${phaseName.slice(0, 1)}${phaseName.slice(1).toLowerCase()}`;
+}
+
+function parseIsoDateParts(date: string | null | undefined): { shortLabel: string; longDay: string } | null {
+  if (!date) {
+    return null;
+  }
+
+  const [yearRaw, monthRaw, dayRaw] = date.split('-');
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
+  ) {
+    return null;
+  }
+
+  const value = new Date(Date.UTC(year, month - 1, day));
+  if (
+    Number.isNaN(value.getTime()) ||
+    value.getUTCFullYear() !== year ||
+    value.getUTCMonth() !== month - 1 ||
+    value.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  const shortDay = SHORT_DAYS[value.getUTCDay()];
+  const longDay = LONG_DAYS_BY_WEEK_INDEX[value.getUTCDay() === 0 ? 6 : value.getUTCDay() - 1];
+  return {
+    shortLabel: `${shortDay} ${day} ${MONTHS[month - 1]}`,
+    longDay,
+  };
+}
+
+function dayContext(dayIndex: number | undefined, sessionDate: string | null | undefined) {
+  const fromDate = parseIsoDateParts(sessionDate);
+  if (fromDate) {
+    return fromDate;
+  }
+
+  if (dayIndex == null) {
+    return null;
+  }
+
+  const longDay = LONG_DAYS_BY_WEEK_INDEX[dayIndex];
+  if (!longDay) {
+    return null;
+  }
+
+  return {
+    shortLabel: longDay.slice(0, 3),
+    longDay,
+  };
 }
 
 export function PropagateModal({
   changeDesc = null,
   weekIndex,
   totalWeeks,
+  dayIndex,
+  sessionDate,
   phaseName,
   phaseWeekCount,
-  title = 'Apply change where?',
+  title = 'Where do you want this change applied?',
   body = null,
   applyLabel = 'Apply change',
   scopeLabels,
@@ -48,12 +116,18 @@ export function PropagateModal({
   const [scope, setScope] = useState<'this' | 'remaining' | 'build'>(initialScope);
   const phaseDisplay = phaseLabel(phaseName);
   const phaseWeeks = phaseWeekCount ?? 1;
+  const sessionDay = dayContext(dayIndex, sessionDate);
 
   const subs: Record<string, string> = {
-    this: `Week ${weekIndex + 1} only`,
-    remaining: `Weeks ${weekIndex + 1}–${totalWeeks}`,
-    build:
-      phaseWeeks === 1
+    this: sessionDay
+      ? `${sessionDay.shortLabel} · Week ${weekIndex + 1}`
+      : `Week ${weekIndex + 1} only`,
+    remaining: sessionDay
+      ? `${sessionDay.longDay} sessions from week ${weekIndex + 1} onwards`
+      : `Weeks ${weekIndex + 1}–${totalWeeks}`,
+    build: sessionDay
+      ? `${sessionDay.longDay} sessions in ${phaseDisplay}`
+      : phaseWeeks === 1
         ? `Only 1 ${phaseDisplay.toLowerCase()} week in this plan`
         : `${phaseWeeks} ${phaseDisplay.toLowerCase()} weeks in this plan`,
   };

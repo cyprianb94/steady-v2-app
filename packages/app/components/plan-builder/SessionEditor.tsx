@@ -539,7 +539,7 @@ export function SessionEditor({
     const scrollTargets: Record<Exclude<CustomField, null>, number> = {
       distance: 80,
       repetitions: 80,
-      pace: 120,
+      pace: 190,
       recovery: 180,
       warmup: 280,
       cooldown: 340,
@@ -773,19 +773,15 @@ export function SessionEditor({
     <View style={presentation === 'screen' ? styles.screen : styles.sheet}>
       <View style={[styles.header, presentation === 'screen' && styles.screenHeader]}>
         {presentation === 'screen' ? (
-          <View style={styles.headerTop}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={onClose}
-              style={({ pressed }) => [styles.closeButton, pressed && styles.closeButtonPressed]}
-            >
-              <Text style={styles.closeButtonText}>Cancel</Text>
-            </Pressable>
-            <Text style={styles.headerDay}>{FULL_DAYS[dayIndex]}</Text>
-          </View>
-        ) : (
-          <Text style={styles.headerDay}>{FULL_DAYS[dayIndex]}</Text>
-        )}
+          <Pressable
+            accessibilityRole="button"
+            onPress={onClose}
+            style={({ pressed }) => [styles.closeButton, pressed && styles.closeButtonPressed]}
+          >
+            <Text style={styles.closeButtonText}>Cancel</Text>
+          </Pressable>
+        ) : null}
+        <Text style={styles.headerDay}>{FULL_DAYS[dayIndex]}</Text>
         <Text style={[styles.headerTitle, { color: typeMeta.color }]}>
           {isRest ? 'Rest day' : sessionLabel(headerSession, units)}
         </Text>
@@ -1382,22 +1378,18 @@ const styles = StyleSheet.create({
   screenHeader: {
     paddingTop: 14,
   },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
   closeButton: {
     alignSelf: 'flex-start',
     paddingVertical: 4,
     marginLeft: -2,
+    marginBottom: 10,
   },
   closeButtonPressed: {
     opacity: 0.6,
   },
   closeButtonText: {
     fontFamily: FONTS.sansSemiBold,
+    fontWeight: '700',
     fontSize: 13,
     color: C.clay,
   },
@@ -1405,6 +1397,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.sansSemiBold,
     fontSize: 12,
     color: C.muted,
+    marginBottom: 6,
   },
   headerTitle: {
     fontFamily: FONTS.serifBold,
@@ -1419,7 +1412,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   bodyContentWithCompactKeyboard: {
-    paddingBottom: 44,
+    paddingBottom: 96,
   },
   bodyContentWithNonIntervalDurationKeyboard: {
     paddingBottom: 72,

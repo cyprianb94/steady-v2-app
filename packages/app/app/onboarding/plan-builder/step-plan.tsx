@@ -239,6 +239,8 @@ export default function StepPlan() {
       changeDesc={pendingEdit.desc}
       weekIndex={pendingEdit.weekIndex}
       totalWeeks={plan.length}
+      dayIndex={pendingEdit.dayIndex}
+      sessionDate={plan[pendingEdit.weekIndex]?.sessions[pendingEdit.dayIndex]?.date ?? null}
       phaseName={plan[pendingEdit.weekIndex]?.phase ?? 'BUILD'}
       phaseWeekCount={plan.filter((week) => week.phase === plan[pendingEdit.weekIndex]?.phase).length}
       onApply={applyPendingEdit}

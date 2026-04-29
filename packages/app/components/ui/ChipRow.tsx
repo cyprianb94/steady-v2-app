@@ -34,7 +34,7 @@ export function ChipRow({ chips, selected, onSelect }: ChipRowProps) {
               styles.chip,
               {
                 borderColor: active ? chip.color : C.border,
-                backgroundColor: active ? `${chip.color}18` : C.cream,
+                backgroundColor: active ? `${chip.color}18` : C.surface,
               },
             ]}
           >

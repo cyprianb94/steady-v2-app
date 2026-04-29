@@ -643,7 +643,7 @@ describe('BlockTab session rearrange', () => {
         session('w1-easy', 'EASY', { distance: 8 }),
         null,
         session('w1-linked-future-long', 'LONG', {
-          date: '2099-04-26',
+          date: '2026-05-06',
           distance: 16,
           actualActivityId: 'act-future-long',
         }),
@@ -673,9 +673,11 @@ describe('BlockTab session rearrange', () => {
     focusState.current = true;
     rerender(<BlockTab />);
 
-    await waitFor(() => expect(screen.getByText('Apply change where?')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Where do you want this change applied?')).toBeTruthy());
     expect(screen.getByText('This session only')).toBeTruthy();
+    expect(screen.getByText('Wed 6 May · Week 1')).toBeTruthy();
     expect(screen.getByText('This session in remaining weeks')).toBeTruthy();
+    expect(screen.getByText('Wednesday sessions from week 1 onwards')).toBeTruthy();
     fireEvent.click(screen.getByText('Apply change'));
 
     await waitFor(() => expect(mockUpdatePlanWeeks).toHaveBeenCalledTimes(1));
@@ -695,7 +697,7 @@ describe('BlockTab session rearrange', () => {
     fireEvent.click(screen.getByTestId('block-day-1-0'));
     returnEditResult(rerender, 0, 0, { type: 'EASY', distance: 8, pace: '5:20' });
 
-    expect(screen.queryByText('Apply change where?')).toBeNull();
+    expect(screen.queryByText('Where do you want this change applied?')).toBeNull();
     expect(mockUpdatePlanWeeks).not.toHaveBeenCalled();
   });
 
@@ -736,7 +738,7 @@ describe('BlockTab session rearrange', () => {
     fireEvent.click(screen.getByTestId('block-day-3-0'));
     returnEditResult(rerender, 2, 0, { type: 'EASY', distance: 10, pace: '5:20' });
 
-    expect(screen.getByText('Apply change where?')).toBeTruthy();
+    expect(screen.getByText('Where do you want this change applied?')).toBeTruthy();
     expect(screen.queryByTestId('block-day-2-0')).toBeNull();
     expect(screen.getByTestId('block-day-3-0')).toBeTruthy();
 
@@ -771,13 +773,13 @@ describe('BlockTab session rearrange', () => {
     };
     rerender(<BlockTab />);
 
-    expect(screen.queryByText('Apply change where?')).toBeNull();
+    expect(screen.queryByText('Where do you want this change applied?')).toBeNull();
     expect(screen.queryByTestId('block-day-3-0')).toBeNull();
 
     focusState.current = true;
     rerender(<BlockTab />);
 
-    expect(screen.getByText('Apply change where?')).toBeTruthy();
+    expect(screen.getByText('Where do you want this change applied?')).toBeTruthy();
     expect(screen.getByTestId('block-day-3-0')).toBeTruthy();
   });
 
@@ -796,7 +798,7 @@ describe('BlockTab session rearrange', () => {
     returnEditResult(rerender, 1, 0, null);
 
     expect(screen.getByText('This session in this phase')).toBeTruthy();
-    expect(screen.getByText('2 build weeks in this plan')).toBeTruthy();
+    expect(screen.getByText('Monday sessions in Build')).toBeTruthy();
 
     fireEvent.click(screen.getByText('This session in this phase'));
     fireEvent.click(screen.getByText('Apply change'));
@@ -825,7 +827,7 @@ describe('BlockTab session rearrange', () => {
     returnEditResult(rerender, 3, 0, null);
 
     expect(screen.getByText('This session in this phase')).toBeTruthy();
-    expect(screen.getByText('2 peak weeks in this plan')).toBeTruthy();
+    expect(screen.getByText('Monday sessions in Peak')).toBeTruthy();
 
     fireEvent.click(screen.getByText('This session in this phase'));
     fireEvent.click(screen.getByText('Apply change'));
@@ -854,7 +856,7 @@ describe('BlockTab session rearrange', () => {
     returnEditResult(rerender, 2, 0, null);
 
     expect(screen.getByText('This session in this phase')).toBeTruthy();
-    expect(screen.getByText('2 recovery weeks in this plan')).toBeTruthy();
+    expect(screen.getByText('Monday sessions in Recovery')).toBeTruthy();
 
     fireEvent.click(screen.getByText('This session in this phase'));
     fireEvent.click(screen.getByText('Apply change'));
@@ -882,7 +884,7 @@ describe('BlockTab session rearrange', () => {
     returnEditResult(rerender, 3, 0, null);
 
     expect(screen.getByText('This session in this phase')).toBeTruthy();
-    expect(screen.getByText('2 taper weeks in this plan')).toBeTruthy();
+    expect(screen.getByText('Monday sessions in Taper')).toBeTruthy();
 
     fireEvent.click(screen.getByText('This session in this phase'));
     fireEvent.click(screen.getByText('Apply change'));

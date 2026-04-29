@@ -125,6 +125,12 @@ describe('SessionEditor haptics', () => {
 });
 
 describe('SessionEditor colour language', () => {
+  it('keeps unselected session type chips on the editor surface', () => {
+    renderSessionEditor({ type: 'EASY', distance: 8, pace: '5:20' });
+
+    expect(screen.getByText('Interval').parentElement?.style.backgroundColor).toBe(rgb(C.surface));
+  });
+
   it('uses quiet metric styling for expanded repetition controls', () => {
     renderSessionEditor(intervalSession);
 
@@ -261,6 +267,7 @@ describe('SessionEditor target pace editing', () => {
   it('uses the full weekday in the screen header', () => {
     renderSessionEditor(intervalSession);
 
+    expect(screen.getByText('Cancel').style.fontWeight).toBe('700');
     expect(screen.getByText('Tuesday')).toBeTruthy();
   });
 

@@ -73,7 +73,7 @@ describe('StepPlan session editing', () => {
     fireEvent.click(screen.getByText('Rest'));
     fireEvent.click(screen.getByText('Update session'));
 
-    expect(screen.getByText('Apply change where?')).toBeTruthy();
+    expect(screen.getByText('Where do you want this change applied?')).toBeTruthy();
     fireEvent.click(screen.getByText('Apply change'));
 
     expect(screen.getByTestId('block-week-day-1-0').textContent).toContain('Rest day');
@@ -92,7 +92,7 @@ describe('StepPlan session editing', () => {
     expect(screen.getByText('Update session')).toBeTruthy();
     fireEvent.click(screen.getByText('Update session'));
 
-    expect(screen.queryByText('Apply change where?')).toBeNull();
+    expect(screen.queryByText('Where do you want this change applied?')).toBeNull();
     expect(screen.queryByText('Update session')).toBeNull();
   });
 

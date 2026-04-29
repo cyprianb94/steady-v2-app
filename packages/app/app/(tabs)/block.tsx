@@ -1194,6 +1194,8 @@ export default function BlockTab() {
           changeDesc={isSavingEdit ? 'Saving…' : pendingEdit.desc}
           weekIndex={pendingEdit.weekIndex}
           totalWeeks={plan.weeks.length}
+          dayIndex={pendingEdit.dayIndex}
+          sessionDate={plan.weeks[pendingEdit.weekIndex]?.sessions[pendingEdit.dayIndex]?.date ?? null}
           phaseName={plan.weeks[pendingEdit.weekIndex]?.phase ?? 'BUILD'}
           phaseWeekCount={plan.weeks.filter((week) => week.phase === plan.weeks[pendingEdit.weekIndex]?.phase).length}
           initialScope="this"
