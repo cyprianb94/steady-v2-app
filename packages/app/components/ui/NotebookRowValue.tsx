@@ -44,16 +44,17 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   value: {
-    fontFamily: FONTS.serifBold,
-    fontSize: 30,
-    lineHeight: 34,
+    fontFamily: FONTS.monoBold,
+    fontSize: 24,
+    lineHeight: 30,
     color: C.ink,
+    textAlign: 'right',
   },
   valueMuted: {
     color: C.muted,
   },
   unit: {
-    fontFamily: FONTS.sansMedium,
+    fontFamily: FONTS.monoBold,
     fontSize: 14,
     lineHeight: 20,
     color: C.muted,

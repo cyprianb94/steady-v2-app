@@ -31,6 +31,7 @@ interface EditableChipStripProps {
   activeBackgroundColor?: string;
   activeTextColor?: string;
   activeCaptionColor?: string;
+  inactiveTextColor?: string;
   customActive?: boolean;
   customEditing?: boolean;
   customLabel?: string;
@@ -54,6 +55,7 @@ export function EditableChipStrip({
   activeBackgroundColor = activeColor,
   activeTextColor = C.surface,
   activeCaptionColor = activeTextColor,
+  inactiveTextColor = C.ink,
   customActive = false,
   customEditing = false,
   customLabel = 'Custom...',
@@ -160,6 +162,7 @@ export function EditableChipStrip({
                       style={[
                         styles.chipText,
                         option.caption && styles.chipTextWithCaption,
+                        { color: inactiveTextColor },
                         active && styles.chipTextActive,
                         active && option.caption && styles.chipTextWithCaptionActive,
                         active && { color: activeTextColor },

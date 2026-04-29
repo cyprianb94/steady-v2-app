@@ -14,6 +14,7 @@ interface ChipStripEditorProps {
   activeBackgroundColor?: string;
   activeTextColor?: string;
   activeCaptionColor?: string;
+  inactiveTextColor?: string;
   onCustomPress: () => void;
   onCustomChangeText: (value: string) => void;
   onCustomBlur?: () => void;
@@ -23,6 +24,10 @@ interface ChipStripEditorProps {
 function formatValueLabel(value: number, unit: SessionDurationUnit): string {
   if (value === 0) {
     return 'Off';
+  }
+
+  if (unit === 'km' && value > 0 && value < 1) {
+    return `${Math.round(value * 1000)}m`;
   }
 
   return `${value} ${unit}`;
@@ -43,6 +48,7 @@ export function ChipStripEditor({
   activeBackgroundColor,
   activeTextColor,
   activeCaptionColor,
+  inactiveTextColor,
   onCustomPress,
   onCustomChangeText,
   onCustomBlur,
@@ -53,6 +59,7 @@ export function ChipStripEditor({
   const resolvedActiveBackgroundColor = activeBackgroundColor ?? `${resolvedActiveColor}14`;
   const resolvedActiveTextColor = activeTextColor ?? resolvedActiveColor;
   const resolvedActiveCaptionColor = activeCaptionColor ?? C.ink2;
+  const resolvedInactiveTextColor = inactiveTextColor ?? resolvedActiveColor;
 
   return (
     <EditableChipStrip
@@ -65,6 +72,7 @@ export function ChipStripEditor({
       activeBackgroundColor={resolvedActiveBackgroundColor}
       activeTextColor={resolvedActiveTextColor}
       activeCaptionColor={resolvedActiveCaptionColor}
+      inactiveTextColor={resolvedInactiveTextColor}
       customActive={isCustomValue}
       customEditing={customEditing}
       customLabel={isCustomValue && value != null ? formatValueLabel(value, unit) : 'Custom...'}

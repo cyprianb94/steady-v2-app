@@ -130,7 +130,8 @@ describe('SessionEditor colour language', () => {
 
     fireEvent.click(screen.getByText('Repetitions'));
 
-    expectSelectedMetricChip('0.8 km', C.metricDistance);
+    expectSelectedMetricChip('800m', C.metricDistance);
+    expect(screen.getByText('200m').style.color).toBe(rgb(C.metricDistance));
     expect(screen.getAllByText('KM')[0].style.color).toBe(rgb(C.metricDistance));
   });
 
@@ -257,6 +258,12 @@ describe('SessionEditor warmup and cooldown availability', () => {
 });
 
 describe('SessionEditor target pace editing', () => {
+  it('uses the full weekday in the screen header', () => {
+    renderSessionEditor(intervalSession);
+
+    expect(screen.getByText('Tuesday')).toBeTruthy();
+  });
+
   it('shows Training paces first and Custom pace options below', () => {
     const profile = deriveTrainingPaceProfile({
       raceDistance: '10K',
@@ -498,9 +505,9 @@ describe('SessionEditor target pace editing', () => {
     fireEvent.change(screen.getByTestId('session-editor-pace-range-slower'), {
       target: { value: '3:50' },
     });
-    fireEvent.click(screen.getByTestId('session-editor-pace-range-apply'));
 
     expect(screen.getByText('Custom range')).toBeTruthy();
+    expect(screen.queryByText('Apply range')).toBeNull();
 
     fireEvent.click(screen.getByText('Update session'));
 
@@ -517,6 +524,31 @@ describe('SessionEditor target pace editing', () => {
         paceRange: { min: '3:40', max: '3:50' },
       },
     }));
+  });
+
+  it('keeps the visible pace chip window stable for non-edge selections', () => {
+    const onSave = vi.fn();
+
+    render(
+      <SessionEditor
+        dayIndex={3}
+        existing={{
+          type: 'TEMPO',
+          distance: 10,
+          pace: '4:21',
+        }}
+        onSave={onSave}
+        onClose={vi.fn()}
+        presentation="screen"
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Target pace'));
+    fireEvent.click(screen.getByText('4:31 /km'));
+
+    expect(screen.getByText('4:06 /km')).toBeTruthy();
+    expect(screen.getByText('4:31 /km')).toBeTruthy();
+    expect(screen.queryByText('4:46 /km')).toBeNull();
   });
 
   it('defaults newly added sessions to profile targets when a profile exists', () => {

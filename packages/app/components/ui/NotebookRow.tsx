@@ -79,13 +79,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     paddingVertical: 14,
+    paddingHorizontal: 14,
     gap: 12,
   },
   disabled: {
     opacity: 0.55,
   },
   labelCol: {
-    width: 110,
+    width: 120,
     gap: 6,
   },
   label: {
@@ -105,6 +106,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 36,
     justifyContent: 'center',
+    alignItems: 'flex-end',
   },
   chevronRail: {
     width: 16,
@@ -120,6 +122,7 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '90deg' }],
   },
   editor: {
+    paddingHorizontal: 14,
     paddingBottom: 14,
   },
 });
