@@ -1,7 +1,7 @@
 import type { PlannedSession } from '../session';
 import type { PhaseName, PlanWeek } from '../plan';
 import { normalizeSessionIntensityTarget } from './intensity-targets';
-import { sessionKm } from './session-km';
+import { weekKm } from './session-km';
 
 export type PropagateScope = 'this' | 'remaining' | 'build';
 
@@ -32,6 +32,23 @@ function copyIntensityMetadata(
       delete next.intensityTarget;
     } else {
       next.intensityTarget = updated.intensityTarget;
+    }
+  }
+
+  return normalizeSessionIntensityTarget(next, { applyDefaults: true });
+}
+
+function copyExactStructuralFields(
+  session: PlannedSession,
+  updated: PlannedSession,
+): PlannedSession {
+  const next = copyIntensityMetadata(session, updated);
+
+  for (const field of ['repDist', 'repDuration', 'recovery', 'warmup', 'cooldown'] as const) {
+    if (updated[field] == null) {
+      delete next[field];
+    } else {
+      next[field] = updated[field] as never;
     }
   }
 
@@ -87,19 +104,16 @@ export function propagateChange(
       // Apply delta for INTERVAL reps
       if (normalizedUpdated?.type === 'INTERVAL' && d.type === 'INTERVAL') {
         const dr = (normalizedUpdated.reps ?? 6) - (base.reps ?? 6);
-        return copyIntensityMetadata({
+        return copyExactStructuralFields({
           ...d,
           reps: Math.max(2, (d.reps ?? 6) + dr),
-          repDist: normalizedUpdated.repDist ?? d.repDist,
-          repDuration: normalizedUpdated.repDuration ?? d.repDuration,
-          recovery: normalizedUpdated.recovery ?? d.recovery,
         }, normalizedUpdated);
       }
 
       // Apply delta for distance-based sessions
       if (d.distance !== undefined && normalizedUpdated?.distance !== undefined) {
         const dd = (normalizedUpdated.distance ?? 8) - (base.distance ?? 8);
-        return copyIntensityMetadata({
+        return copyExactStructuralFields({
           ...d,
           distance: Math.max(2, (d.distance ?? 8) + dd),
         }, normalizedUpdated);
@@ -108,7 +122,6 @@ export function propagateChange(
       return normalizedUpdated;
     });
 
-    const km = sessions.reduce((acc, d) => acc + sessionKm(d), 0);
-    return { ...w, sessions, plannedKm: Math.round(km) };
+    return { ...w, sessions, plannedKm: weekKm(sessions) };
   });
 }

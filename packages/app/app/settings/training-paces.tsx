@@ -13,6 +13,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   deriveTrainingPaceProfile,
+  normalizeIntensityTarget,
   type TrainingPaceProfileKey,
   normalizeTrainingPaceProfile,
   type TrainingPaceProfile,
@@ -30,6 +31,7 @@ import {
   getTrainingPaceProfile,
   saveTrainingPaceProfile,
 } from '../../lib/plan-api';
+import { todayIsoLocal } from '../../lib/plan-helpers';
 
 function deriveProfileFromPlan(
   plan: ReturnType<typeof usePlan>['plan'],
@@ -44,6 +46,32 @@ function deriveProfileFromPlan(
   });
 }
 
+function profileFingerprint(profile: TrainingPaceProfile | null): string {
+  return JSON.stringify(normalizeTrainingPaceProfile(profile));
+}
+
+function hasProfileChanged(
+  currentProfile: TrainingPaceProfile,
+  savedProfile: TrainingPaceProfile | null,
+): boolean {
+  return profileFingerprint(currentProfile) !== profileFingerprint(savedProfile);
+}
+
+function planHasFutureTrainingPaceSessions(
+  plan: ReturnType<typeof usePlan>['plan'],
+  today: string = todayIsoLocal(),
+): boolean {
+  return Boolean(plan?.weeks.some((week) => (
+    week.sessions.some((session) => {
+      if (!session || session.type === 'REST' || session.date <= today || session.actualActivityId) {
+        return false;
+      }
+
+      return normalizeIntensityTarget(session.intensityTarget)?.source === 'profile';
+    })
+  )));
+}
+
 export default function TrainingPacesScreen() {
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
@@ -53,6 +81,7 @@ export default function TrainingPacesScreen() {
     [plan?.raceDistance, plan?.targetTime],
   );
   const [profile, setProfile] = useState<TrainingPaceProfile | null>(fallbackProfile);
+  const [lastSavedProfile, setLastSavedProfile] = useState<TrainingPaceProfile | null>(fallbackProfile);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -62,6 +91,7 @@ export default function TrainingPacesScreen() {
 
     if (!fallbackProfile) {
       setProfile(null);
+      setLastSavedProfile(null);
       setLoadingProfile(false);
       return () => {
         active = false;
@@ -74,7 +104,9 @@ export default function TrainingPacesScreen() {
         if (!active) {
           return;
         }
-        setProfile(normalizeTrainingPaceProfile(storedProfile) ?? fallbackProfile);
+        const loadedProfile = normalizeTrainingPaceProfile(storedProfile) ?? fallbackProfile;
+        setProfile(loadedProfile);
+        setLastSavedProfile(loadedProfile);
       })
       .catch((error) => {
         if (!active) {
@@ -82,6 +114,7 @@ export default function TrainingPacesScreen() {
         }
         console.log('Failed to load training pace profile:', error);
         setProfile(fallbackProfile);
+        setLastSavedProfile(fallbackProfile);
       })
       .finally(() => {
         if (active) {
@@ -94,16 +127,13 @@ export default function TrainingPacesScreen() {
     };
   }, [fallbackProfile]);
 
-  async function handleSave() {
-    const normalized = normalizeTrainingPaceProfile(profile);
-    if (!normalized || saving) {
-      return;
-    }
-
+  async function saveNormalizedProfile(normalized: TrainingPaceProfile) {
     try {
       setSaving(true);
       const savedProfile = await saveTrainingPaceProfile(normalized);
-      setProfile(normalizeTrainingPaceProfile(savedProfile) ?? normalized);
+      const nextProfile = normalizeTrainingPaceProfile(savedProfile) ?? normalized;
+      setProfile(nextProfile);
+      setLastSavedProfile(nextProfile);
       setSaved(true);
       await refresh();
     } catch (error) {
@@ -114,6 +144,32 @@ export default function TrainingPacesScreen() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleSave() {
+    const normalized = normalizeTrainingPaceProfile(profile);
+    if (!normalized || saving) {
+      return;
+    }
+
+    if (hasProfileChanged(normalized, lastSavedProfile) && planHasFutureTrainingPaceSessions(plan)) {
+      Alert.alert(
+        'Update Training paces?',
+        'Future sessions using these Training paces will update. Custom paces and completed sessions will stay as they are.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Update Training paces',
+            onPress: () => {
+              void saveNormalizedProfile(normalized);
+            },
+          },
+        ],
+      );
+      return;
+    }
+
+    void saveNormalizedProfile(normalized);
   }
 
   const showEmpty = !loading && !loadingProfile && !profile;
@@ -168,7 +224,7 @@ export default function TrainingPacesScreen() {
             <Text style={styles.emptyCopy}>
               {showEmpty
                 ? 'Build a plan before setting training pace ranges.'
-                : 'Reading the pace profile on your current plan.'}
+                : 'Reading your Training paces.'}
             </Text>
           </View>
         )}

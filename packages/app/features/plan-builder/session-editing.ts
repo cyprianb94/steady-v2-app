@@ -41,6 +41,26 @@ interface EditedSessionFallback {
   type: PlannedSession['type'];
 }
 
+interface PlannedSessionEditFingerprint {
+  type: PlannedSession['type'] | 'REST';
+  distance?: number;
+  pace?: string;
+  intensityTarget?: {
+    source: IntensityTarget['source'];
+    mode?: IntensityTarget['mode'];
+    profileKey?: TrainingPaceProfileKey;
+    pace?: string;
+    paceRange?: PaceRange;
+    effortCue?: IntensityTarget['effortCue'];
+  };
+  reps?: number;
+  repDist?: number;
+  repDuration?: PlannedSession['repDuration'];
+  recovery?: PlannedSession['recovery'];
+  warmup?: PlannedSession['warmup'];
+  cooldown?: PlannedSession['cooldown'];
+}
+
 function firstRouteParamValue(value: string | string[] | undefined): string | null {
   if (Array.isArray(value)) {
     return value[0] ?? null;
@@ -75,6 +95,36 @@ function preferredProfileKeyForSession(
   return session.type ? defaultProfileKeyForSessionType(session.type) : undefined;
 }
 
+function preserveSessionStatusFields(
+  existing: PlannedSession | null | undefined,
+): Partial<PlannedSession> {
+  if (!existing) {
+    return {};
+  }
+
+  const preserved: Partial<PlannedSession> = {};
+  if (existing.actualActivityId) preserved.actualActivityId = existing.actualActivityId;
+  if (existing.subjectiveInput) preserved.subjectiveInput = existing.subjectiveInput;
+  if (existing.subjectiveInputDismissed != null) {
+    preserved.subjectiveInputDismissed = existing.subjectiveInputDismissed;
+  }
+  if (existing.skipped) preserved.skipped = existing.skipped;
+
+  return preserved;
+}
+
+function stripUndefinedSessionFields(session: PlannedSession): PlannedSession {
+  const next = { ...session };
+  const fields = next as Record<string, unknown>;
+  for (const key of Object.keys(fields)) {
+    if (fields[key] === undefined) {
+      delete fields[key];
+    }
+  }
+
+  return next;
+}
+
 export function parseTrainingPaceProfileRouteParam(
   value: string | string[] | undefined,
 ): TrainingPaceProfile | null {
@@ -93,12 +143,17 @@ export function parseTrainingPaceProfileRouteParam(
 export function getSessionEditorProfileBands(
   type: SessionType,
   profile: TrainingPaceProfile | null | undefined,
+  currentTarget?: IntensityTarget | null,
 ): TrainingPaceProfileBand[] {
   if (!profile) {
     return [];
   }
 
-  const keys = PROFILE_KEYS_BY_SESSION_TYPE[type] ?? [];
+  const currentProfileKey = normalizeIntensityTarget(currentTarget)?.profileKey;
+  const keys = [...(PROFILE_KEYS_BY_SESSION_TYPE[type] ?? [])];
+  if (currentProfileKey && !keys.includes(currentProfileKey)) {
+    keys.push(currentProfileKey);
+  }
   const bandsByKey = new Map(
     getOrderedTrainingPaceProfileBands(profile).map((band) => [band.profileKey, band]),
   );
@@ -238,16 +293,75 @@ export function materializeEditedSession(
     && normalized.type
     && normalized.type !== existing.type,
   );
-  const {
-    intensityTarget: _staleIntensityTarget,
-    ...existingWithoutTarget
-  } = existing ?? {};
+  const existingBase = typeChanged
+    ? preserveSessionStatusFields(existing)
+    : (existing ?? {});
 
-  return normalizeSessionIntensityTarget({
-    ...(typeChanged ? existingWithoutTarget : (existing ?? {})),
+  return stripUndefinedSessionFields(normalizeSessionIntensityTarget({
+    ...existingBase,
     ...normalized,
     id: existing?.id ?? fallback.id,
     date: existing?.date ?? fallback.date,
     type: normalized.type ?? existing?.type ?? fallback.type,
-  } as PlannedSession);
+  } as PlannedSession));
+}
+
+function intensityTargetFingerprint(
+  target: IntensityTarget | null | undefined,
+): PlannedSessionEditFingerprint['intensityTarget'] | undefined {
+  const normalized = normalizeIntensityTarget(target);
+  if (!normalized) {
+    return undefined;
+  }
+
+  if (normalized.source === 'profile') {
+    return {
+      source: 'profile',
+      profileKey: normalized.profileKey,
+    };
+  }
+
+  return {
+    source: normalized.source,
+    mode: normalized.mode,
+    profileKey: normalized.profileKey,
+    pace: normalized.pace,
+    paceRange: normalized.paceRange,
+    effortCue: normalized.effortCue,
+  };
+}
+
+function plannedSessionEditFingerprint(
+  session: PlannedSession | null,
+): PlannedSessionEditFingerprint {
+  if (!session || session.type === 'REST') {
+    return { type: 'REST' };
+  }
+
+  const normalized = normalizeSessionIntensityTarget(session);
+  const fingerprint: PlannedSessionEditFingerprint = {
+    type: normalized.type,
+    intensityTarget: intensityTargetFingerprint(normalized.intensityTarget),
+  };
+
+  if (normalized.distance != null) fingerprint.distance = normalized.distance;
+  if (normalized.pace != null) fingerprint.pace = normalized.pace;
+  if (normalized.reps != null) fingerprint.reps = normalized.reps;
+  if (normalized.repDist != null) fingerprint.repDist = normalized.repDist;
+  if (normalized.repDuration != null) fingerprint.repDuration = normalized.repDuration;
+  if (normalized.recovery != null) fingerprint.recovery = normalized.recovery;
+  if (normalized.warmup != null) fingerprint.warmup = normalized.warmup;
+  if (normalized.cooldown != null) fingerprint.cooldown = normalized.cooldown;
+
+  return fingerprint;
+}
+
+export function hasMaterialSessionEdit(
+  existing: PlannedSession | null,
+  updated: SessionEditorResult,
+  fallback: EditedSessionFallback,
+): boolean {
+  const materialized = materializeEditedSession(existing, updated, fallback);
+  return JSON.stringify(plannedSessionEditFingerprint(existing))
+    !== JSON.stringify(plannedSessionEditFingerprint(materialized));
 }

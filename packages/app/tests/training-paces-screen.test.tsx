@@ -1,5 +1,6 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { Alert } from 'react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { deriveTrainingPaceProfile } from '@steady/types';
 
@@ -26,7 +27,7 @@ vi.mock('../lib/plan-api', () => ({
 
 import TrainingPacesScreen from '../app/settings/training-paces';
 
-function activePlan() {
+function activePlan(sessions: any[] = []) {
   return {
     id: 'plan-1',
     userId: 'user-1',
@@ -39,7 +40,7 @@ function activePlan() {
     progressionPct: 0,
     templateWeek: [],
     weeks: [
-      { weekNumber: 1, phase: 'BASE', sessions: [], plannedKm: 40 },
+      { weekNumber: 1, phase: 'BASE', sessions, plannedKm: 40 },
     ],
     activeInjury: null,
   };
@@ -48,6 +49,7 @@ function activePlan() {
 describe('TrainingPacesScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(Alert, 'alert').mockImplementation(() => {});
     mockPlan.plan = activePlan();
     mockPlan.loading = false;
     mockPlan.refresh = vi.fn().mockResolvedValue(undefined);
@@ -132,6 +134,62 @@ describe('TrainingPacesScreen', () => {
           paceRange: estimatedProfile.bands.threshold.paceRange,
         },
       },
+    });
+  });
+
+  it('asks for confirmation before updating future sessions that use Training paces', async () => {
+    const storedProfile = deriveTrainingPaceProfile({
+      raceDistance: 'Marathon',
+      targetTime: 'sub-3:15',
+    });
+    mockPlan.plan = activePlan([
+      {
+        id: 'future-threshold',
+        date: '2099-01-01',
+        type: 'TEMPO',
+        distance: 10,
+        pace: '4:25',
+        intensityTarget: {
+          source: 'profile',
+          profileKey: 'threshold',
+          paceRange: { min: '4:14', max: '4:27' },
+        },
+      },
+    ]);
+    mockPlanApi.getTrainingPaceProfile.mockResolvedValue(storedProfile);
+
+    render(<TrainingPacesScreen />);
+
+    await screen.findByText('Training paces');
+    fireEvent.click(screen.getByTestId('pace-profile-row-threshold'));
+    const thresholdMinInput = screen.getByTestId('pace-profile-input-threshold-min');
+    fireEvent.change(thresholdMinInput, {
+      target: { value: '4:10' },
+    });
+    fireEvent.blur(thresholdMinInput);
+    fireEvent.click(screen.getByText('Save paces'));
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Update Training paces?',
+      'Future sessions using these Training paces will update. Custom paces and completed sessions will stay as they are.',
+      expect.any(Array),
+    );
+    expect(mockPlanApi.saveTrainingPaceProfile).not.toHaveBeenCalled();
+
+    const cancelButtons = vi.mocked(Alert.alert).mock.calls.at(-1)?.[2] as Array<{ text: string; onPress?: () => void }>;
+    cancelButtons.find((button) => button.text === 'Cancel')?.onPress?.();
+    expect(mockPlanApi.saveTrainingPaceProfile).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('Save paces'));
+    const updateButtons = vi.mocked(Alert.alert).mock.calls.at(-1)?.[2] as Array<{ text: string; onPress?: () => void }>;
+    await act(async () => {
+      updateButtons.find((button) => button.text === 'Update Training paces')?.onPress?.();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mockPlanApi.saveTrainingPaceProfile).toHaveBeenCalledTimes(1);
     });
   });
 });

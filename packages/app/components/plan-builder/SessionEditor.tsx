@@ -29,7 +29,6 @@ import { FONTS } from '../../constants/typography';
 import { Btn } from '../ui/Btn';
 import { ChipRow } from '../ui/ChipRow';
 import { ChipStripEditor } from '../ui/ChipStripEditor';
-import { EditableChipStrip } from '../ui/EditableChipStrip';
 import { NotebookRow } from '../ui/NotebookRow';
 import { NotebookRowValue } from '../ui/NotebookRowValue';
 import { RepStepper } from '../ui/RepStepper';
@@ -245,15 +244,10 @@ function manualPaceRangeDraft(
   return range ?? paceRangeAroundPace(targetRepresentativePace(target, fallbackPace));
 }
 
-function paceRangeChipLabel(range: PaceRange): string {
-  return `${range.min}-${range.max} /km`;
-}
-
 type SessionEditorProfileBand = ReturnType<typeof getSessionEditorProfileBands>[number];
 
 function trainingPaceOptionLabel(band: SessionEditorProfileBand): string {
-  const isRange = Boolean(normalizePaceRange(band.paceRange));
-  return isRange ? `${band.label} range` : band.label;
+  return band.label;
 }
 
 function pacePresets(currentPace: string, type: SessionType): string[] {
@@ -365,7 +359,7 @@ export function SessionEditor({
   const currentManualPaceRange = intensityTarget?.source === 'manual'
     ? currentPaceRange
     : undefined;
-  const profileBands = getSessionEditorProfileBands(type, trainingPaceProfile);
+  const profileBands = getSessionEditorProfileBands(type, trainingPaceProfile, intensityTarget);
   const selectedProfileKey = intensityTarget?.source === 'profile'
     ? intensityTarget.profileKey ?? null
     : null;
@@ -382,8 +376,10 @@ export function SessionEditor({
     ? profileBands.find((band) => band.profileKey === selectedProfileKey)
     : null;
   const targetCaption = selectedProfileBand
-    ? `${trainingPaceOptionLabel(selectedProfileBand)} from your profile`
-    : 'Manual pace';
+    ? `${trainingPaceOptionLabel(selectedProfileBand)} · Training pace`
+    : currentManualPaceRange
+      ? 'Custom range'
+      : 'Custom pace';
   const profilePaceOptions = profileBands.map((band) => {
     const target = intensityTargetForTrainingPaceProfileKey(trainingPaceProfile, band.profileKey);
     const parts = formatIntensityTargetParts(target, units, { withUnit: true });
@@ -412,13 +408,8 @@ export function SessionEditor({
       const warmupSpec = durationSpec(warmup);
       const cooldownSpec = durationSpec(cooldown);
 
-      if (warmupSpec) {
-        session.warmup = warmupSpec;
-      }
-
-      if (cooldownSpec) {
-        session.cooldown = cooldownSpec;
-      }
+      session.warmup = warmupSpec;
+      session.cooldown = cooldownSpec;
     }
 
     if (isInterval) {
@@ -426,14 +417,13 @@ export function SessionEditor({
       const recoverySpec = durationSpec(recovery);
       const intervalFields: Partial<PlannedSession> = {
         reps,
+        repDist: undefined,
         repDuration: repDurationSpec,
         recovery: recoverySpec,
       };
 
       if (repDuration.unit === 'km' && repDuration.value != null) {
         intervalFields.repDist = Math.round(repDuration.value * 1000);
-      } else if (!repDurationSpec) {
-        intervalFields.repDist = repDist;
       }
 
       Object.assign(session, intervalFields);
@@ -596,6 +586,17 @@ export function SessionEditor({
     afterNextPaint(() => keepCustomFieldVisible(field));
   }
 
+  function openCustomPaceField() {
+    const representative = currentManualPaceRange
+      ? targetRepresentativePace(intensityTarget, pace) ?? pace
+      : '';
+    setCustomPace(representative);
+    setManualPaceMode('single');
+    setCustomField('pace');
+    setCustomPaceRangeError(null);
+    afterNextPaint(() => keepCustomFieldVisible('pace'));
+  }
+
   function closeCustomField(field: Exclude<CustomField, null>) {
     setCustomField((current) => (current === field ? null : current));
   }
@@ -682,25 +683,20 @@ export function SessionEditor({
     return true;
   }
 
-  function selectManualPaceMode(nextMode: ManualPaceMode) {
-    if (nextMode === manualPaceMode) {
-      return;
-    }
-
-    triggerSegmentTickHaptic();
-
-    if (nextMode === 'single') {
-      setManualSinglePaceTarget(pace, false);
-      setCustomField(null);
-      return;
-    }
-
+  function openManualPaceRange() {
     const nextRange = currentPaceRange ?? paceRangeAroundPace(pace);
     setCustomPace('');
     setCustomPaceRangeFaster(nextRange.min);
     setCustomPaceRangeSlower(nextRange.max);
-    setCustomField(null);
+    setCustomField('pace');
+    setCustomPaceRangeError(null);
+
+    if (manualPaceMode !== 'range') {
+      triggerSegmentTickHaptic();
+    }
+
     commitManualPaceRange(nextRange.min, nextRange.max, false);
+    afterNextPaint(() => keepCustomFieldVisible('pace'));
   }
 
   function changeManualPaceRangeBoundary(boundary: 'faster' | 'slower', text: string) {
@@ -759,30 +755,8 @@ export function SessionEditor({
       ? null
       : pace;
   const customTargetActive = !hasSelectedProfileOption && customPaceSelected;
-  const customTargetLabel = customTargetActive
-    ? currentManualPaceRange
-      ? paceRangeChipLabel(currentManualPaceRange)
-      : `${pace} /km`
-    : 'Custom...';
-  const paceOptions = [
-    ...profilePaceOptions,
-    ...visiblePacePresets.map((preset) => ({
-      key: preset,
-      label: `${preset} /km`,
-    })),
-  ];
-  const manualPaceOptions = visiblePacePresets.map((preset) => ({
-    key: preset,
-    label: `${preset} /km`,
-  }));
-  const paceOptionGroups = profilePaceOptions.length > 0
-    ? [
-        { label: 'Training paces', options: profilePaceOptions },
-        { label: 'Manual paces', options: manualPaceOptions, includeCustom: true },
-      ]
-    : [
-        { label: 'Manual paces', options: manualPaceOptions, includeCustom: true },
-      ];
+  const customSingleActive = customTargetActive && manualPaceMode === 'single';
+  const customRangeActive = customTargetActive && manualPaceMode === 'range';
   const headerSession = {
     type,
     distance,
@@ -841,13 +815,6 @@ export function SessionEditor({
                   first
                   label="Repetitions"
                   accentColor={repDurationAccentColor}
-                  trailing={(
-                    <UnitTogglePill
-                      value={repDuration.unit}
-                      onChange={setRepDurationUnit}
-                      disabled={isRest}
-                    />
-                  )}
                   onTap={() => toggleRow('repetitions')}
                   expanded={expandedRow === 'repetitions'}
                   editor={
@@ -856,6 +823,14 @@ export function SessionEditor({
                         <View style={styles.repsRow}>
                           <RepStepper value={reps} min={2} max={20} onChange={setReps} />
                           <Text style={styles.repsLabel}>reps</Text>
+                        </View>
+                        <View style={styles.repLengthHeader}>
+                          <Text style={styles.repLengthLabel}>Rep length</Text>
+                          <UnitTogglePill
+                            value={repDuration.unit}
+                            onChange={setRepDurationUnit}
+                            disabled={isRest}
+                          />
                         </View>
                         <ChipStripEditor
                           presets={repDurationPresets(repDuration.unit)}
@@ -939,72 +914,187 @@ export function SessionEditor({
                 editor={
                   expandedRow === 'pace' && canEditPace ? (
                     <View style={styles.editorBlock}>
-                      <View style={styles.paceModeToggle}>
-                        {(['single', 'range'] as const).map((mode) => {
-                          const active = manualPaceMode === mode;
-                          return (
+                      <View style={styles.targetPaceCard}>
+                        {profilePaceOptions.length > 0 ? (
+                          <View style={styles.targetPaceGroup}>
+                            <Text style={styles.targetPaceGroupLabel}>Training paces</Text>
+                            <View style={styles.targetPaceTrainingList}>
+                              {profilePaceOptions.map((option) => {
+                                const active = selectedTargetKey === option.key;
+                                return (
+                                  <Pressable
+                                    key={option.key}
+                                    onPress={() => {
+                                      if (selectedTargetKey !== option.key) {
+                                        triggerSegmentTickHaptic();
+                                      }
+                                      selectTargetPaceOption(option.key);
+                                    }}
+                                    style={({ pressed }) => [
+                                      styles.targetPaceTrainingOption,
+                                      active && {
+                                        borderColor: paceAccentColor,
+                                        backgroundColor: C.metricPaceBg,
+                                      },
+                                      pressed && styles.targetPaceOptionPressed,
+                                    ]}
+                                  >
+                                    <Text
+                                      style={[
+                                        styles.targetPaceTrainingLabel,
+                                        active && { color: paceAccentColor },
+                                      ]}
+                                    >
+                                      {option.label}
+                                    </Text>
+                                    {option.caption ? (
+                                      <Text
+                                        style={[
+                                          styles.targetPaceTrainingCaption,
+                                          active && { color: C.ink2 },
+                                        ]}
+                                      >
+                                        {option.caption}
+                                      </Text>
+                                    ) : null}
+                                  </Pressable>
+                                );
+                              })}
+                            </View>
+                          </View>
+                        ) : null}
+
+                        <View style={[styles.targetPaceGroup, profilePaceOptions.length > 0 && styles.targetPaceGroupWithDivider]}>
+                          <Text style={styles.targetPaceGroupLabel}>Custom</Text>
+                          <View style={styles.targetPaceChipRow}>
+                            {visiblePacePresets.map((preset) => {
+                              const active = selectedTargetKey === preset;
+                              return (
+                                <Pressable
+                                  key={preset}
+                                  onPress={() => {
+                                    if (selectedTargetKey !== preset) {
+                                      triggerSegmentTickHaptic();
+                                    }
+                                    selectTargetPaceOption(preset);
+                                  }}
+                                  style={({ pressed }) => [
+                                    styles.targetPaceChip,
+                                    active && {
+                                      borderColor: paceAccentColor,
+                                      backgroundColor: C.metricPaceBg,
+                                    },
+                                    pressed && styles.targetPaceOptionPressed,
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.targetPaceChipText,
+                                      active && styles.targetPaceChipTextActive,
+                                      active && { color: paceAccentColor },
+                                    ]}
+                                  >
+                                    {preset} /km
+                                  </Text>
+                                </Pressable>
+                              );
+                            })}
+
+                            {customField === 'pace' && manualPaceMode === 'single' ? (
+                              <View
+                                style={[
+                                  styles.targetPaceChip,
+                                  styles.targetPaceInputChip,
+                                  {
+                                    borderColor: paceAccentColor,
+                                    backgroundColor: C.metricPaceBg,
+                                  },
+                                ]}
+                              >
+                                <TextInput
+                                  testID="editable-chip-custom-input"
+                                  autoFocus
+                                  selectTextOnFocus
+                                  value={customPace}
+                                  onChangeText={(text) => {
+                                    setCustomPace(text);
+                                    const normalized = normalizeCustomPace(text);
+                                    if (normalized) {
+                                      setManualSinglePaceTarget(normalized, true);
+                                    }
+                                  }}
+                                  onBlur={() => closeCustomField('pace')}
+                                  onFocus={() => keepCustomFieldVisible('pace')}
+                                  keyboardType="numbers-and-punctuation"
+                                  selectionColor={paceAccentColor}
+                                  style={[styles.targetPaceCustomInput, { color: paceAccentColor }]}
+                                />
+                                <Text style={[styles.targetPaceInputUnit, { color: paceAccentColor }]}>/km</Text>
+                              </View>
+                            ) : (
+                              <Pressable
+                                onPress={openCustomPaceField}
+                                style={({ pressed }) => [
+                                  styles.targetPaceChip,
+                                  styles.targetPaceCustomAction,
+                                  customSingleActive && {
+                                    borderColor: paceAccentColor,
+                                    backgroundColor: C.metricPaceBg,
+                                    borderStyle: 'solid',
+                                  },
+                                  pressed && styles.targetPaceOptionPressed,
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.targetPaceCustomText,
+                                    customSingleActive && {
+                                      color: paceAccentColor,
+                                      fontFamily: FONTS.sansSemiBold,
+                                    },
+                                  ]}
+                                >
+                                  Custom pace...
+                                </Text>
+                              </Pressable>
+                            )}
+
                             <Pressable
-                              key={mode}
-                              testID={`session-editor-pace-mode-${mode}`}
-                              onPress={() => selectManualPaceMode(mode)}
+                              onPress={openManualPaceRange}
                               style={({ pressed }) => [
-                                styles.paceModeOption,
-                                active && {
+                                styles.targetPaceChip,
+                                styles.targetPaceCustomAction,
+                                customRangeActive && {
                                   borderColor: paceAccentColor,
                                   backgroundColor: C.metricPaceBg,
+                                  borderStyle: 'solid',
                                 },
-                                pressed && styles.paceModeOptionPressed,
+                                pressed && styles.targetPaceOptionPressed,
                               ]}
                             >
-                              <Text style={[
-                                styles.paceModeText,
-                                active && styles.paceModeTextActive,
-                              ]}>
-                                {mode === 'single' ? 'Single pace' : 'Range'}
+                              <Text
+                                style={[
+                                  styles.targetPaceCustomText,
+                                  customRangeActive && {
+                                    color: paceAccentColor,
+                                    fontFamily: FONTS.sansSemiBold,
+                                  },
+                                ]}
+                              >
+                                Custom range...
                               </Text>
                             </Pressable>
-                          );
-                        })}
-                      </View>
-                      <EditableChipStrip
-                        options={paceOptions}
-                        optionGroups={paceOptionGroups}
-                        selectedKey={selectedTargetKey}
-                        activeColor={paceAccentColor}
-                        activeBackgroundColor={C.metricPaceBg}
-                        activeTextColor={paceAccentColor}
-                        activeCaptionColor={C.ink2}
-                        customActive={customTargetActive}
-                        customEditing={customField === 'pace' && manualPaceMode === 'single'}
-                        customLabel={customTargetLabel}
-                        customValue={customPace}
-                        customUnit="/km"
-                        customKeyboardType="numbers-and-punctuation"
-                        onSelect={selectTargetPaceOption}
-                        onCustomPress={() => {
-                          if (manualPaceMode === 'range') {
-                            keepCustomFieldVisible('pace');
-                            return;
-                          }
+                          </View>
+                        </View>
 
-                          openCustomField('pace');
-                        }}
-                        onCustomChangeText={(text) => {
-                          setCustomPace(text);
-                          const normalized = normalizeCustomPace(text);
-                          if (normalized) {
-                            setManualSinglePaceTarget(normalized, true);
-                          }
-                        }}
-                        onCustomBlur={() => closeCustomField('pace')}
-                        onCustomFocus={() => keepCustomFieldVisible('pace')}
-                        footer={manualPaceMode === 'range' ? (
+                        {manualPaceMode === 'range' ? (
                           <View style={styles.paceRangeEditor} testID="session-editor-pace-range-editor">
                             <View style={styles.paceRangeInputs}>
                               <View style={styles.paceRangeInputWrap}>
                                 <Text style={styles.paceRangeInputLabel}>Faster end</Text>
                                 <TextInput
                                   testID="session-editor-pace-range-faster"
+                                  selectTextOnFocus
                                   value={customPaceRangeFaster}
                                   onChangeText={(text) => changeManualPaceRangeBoundary('faster', text)}
                                   onFocus={() => {
@@ -1021,6 +1111,7 @@ export function SessionEditor({
                                 <Text style={styles.paceRangeInputLabel}>Slower end</Text>
                                 <TextInput
                                   testID="session-editor-pace-range-slower"
+                                  selectTextOnFocus
                                   value={customPaceRangeSlower}
                                   onChangeText={(text) => changeManualPaceRangeBoundary('slower', text)}
                                   onFocus={() => {
@@ -1054,8 +1145,8 @@ export function SessionEditor({
                               </Text>
                             </Pressable>
                           </View>
-                        ) : undefined}
-                      />
+                        ) : null}
+                      </View>
                     </View>
                   ) : undefined
                 }
@@ -1351,6 +1442,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: C.muted,
   },
+  repLengthHeader: {
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  repLengthLabel: {
+    fontFamily: FONTS.sansMedium,
+    fontSize: 12,
+    lineHeight: 16,
+    color: C.ink2,
+  },
   repSummary: {
     marginTop: 10,
     backgroundColor: C.clayBg,
@@ -1395,32 +1499,108 @@ const styles = StyleSheet.create({
   editorBlock: {
     gap: 10,
   },
-  paceModeToggle: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    gap: 6,
-  },
-  paceModeOption: {
-    minHeight: 28,
-    paddingHorizontal: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+  targetPaceCard: {
+    backgroundColor: C.surface,
     borderWidth: 1.5,
     borderColor: C.border,
-    borderRadius: 999,
-    backgroundColor: C.surface,
+    borderRadius: 12,
+    padding: 10,
+    gap: 10,
   },
-  paceModeOptionPressed: {
-    opacity: 0.82,
+  targetPaceGroup: {
+    gap: 8,
   },
-  paceModeText: {
+  targetPaceGroupWithDivider: {
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: C.border,
+  },
+  targetPaceGroupLabel: {
     fontFamily: FONTS.sansSemiBold,
-    fontSize: 11,
-    lineHeight: 14,
+    fontSize: 9.5,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
     color: C.muted,
   },
-  paceModeTextActive: {
-    color: C.metricPace,
+  targetPaceTrainingList: {
+    gap: 6,
+  },
+  targetPaceTrainingOption: {
+    minHeight: 54,
+    width: '100%',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    backgroundColor: C.surface,
+  },
+  targetPaceTrainingLabel: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 13,
+    lineHeight: 17,
+    color: C.ink,
+  },
+  targetPaceTrainingCaption: {
+    marginTop: 3,
+    fontFamily: FONTS.sans,
+    fontSize: 11,
+    lineHeight: 15,
+    color: C.muted,
+  },
+  targetPaceChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  targetPaceChip: {
+    minHeight: 42,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    backgroundColor: C.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  targetPaceOptionPressed: {
+    opacity: 0.82,
+  },
+  targetPaceChipText: {
+    fontFamily: FONTS.mono,
+    fontSize: 13,
+    color: C.ink,
+  },
+  targetPaceChipTextActive: {
+    fontFamily: FONTS.monoBold,
+  },
+  targetPaceCustomAction: {
+    borderStyle: 'dashed',
+  },
+  targetPaceCustomText: {
+    fontFamily: FONTS.sansMedium,
+    fontSize: 12,
+    color: C.muted,
+  },
+  targetPaceInputChip: {
+    minWidth: 104,
+    flexDirection: 'row',
+    gap: 5,
+  },
+  targetPaceCustomInput: {
+    minWidth: 34,
+    maxWidth: 58,
+    padding: 0,
+    fontFamily: FONTS.monoBold,
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  targetPaceInputUnit: {
+    fontFamily: FONTS.monoBold,
+    fontSize: 13,
   },
   paceRangeEditor: {
     gap: 10,

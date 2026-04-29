@@ -627,7 +627,7 @@ describe('BlockTab session rearrange', () => {
       params: { weekIndex: '0', dayIndex: '0' },
     });
     returnEditResult(rerender, 0, 0, null);
-    fireEvent.click(screen.getByText('This week only'));
+    fireEvent.click(screen.getByText('This session only'));
     fireEvent.click(screen.getByText('Apply change'));
 
     await waitFor(() => expect(mockUpdatePlanWeeks).toHaveBeenCalledTimes(1));
@@ -674,13 +674,29 @@ describe('BlockTab session rearrange', () => {
     rerender(<BlockTab />);
 
     await waitFor(() => expect(screen.getByText('Apply change where?')).toBeTruthy());
-    fireEvent.click(screen.getByText('This week only'));
+    expect(screen.getByText('This session only')).toBeTruthy();
+    expect(screen.getByText('This session in remaining weeks')).toBeTruthy();
     fireEvent.click(screen.getByText('Apply change'));
 
     await waitFor(() => expect(mockUpdatePlanWeeks).toHaveBeenCalledTimes(1));
     const input = mockUpdatePlanWeeks.mock.calls[0][0];
     expect(input[0].sessions[2]).toBeNull();
     expect(input[1].sessions[2]?.type).toBe('LONG');
+  });
+
+  it('does not open propagation when the returned edit is materially unchanged', () => {
+    planState.current = makePlan([
+      makeWeek(1, [session('w1-easy', 'EASY', { distance: 8, pace: '5:20' }), null, null, null, null, null, null]),
+      makeWeek(2, [session('w2-easy', 'EASY', { distance: 8, pace: '5:20' }), null, null, null, null, null, null]),
+    ]);
+    const { rerender } = renderBlockTab();
+
+    openWeek(1);
+    fireEvent.click(screen.getByTestId('block-day-1-0'));
+    returnEditResult(rerender, 0, 0, { type: 'EASY', distance: 8, pace: '5:20' });
+
+    expect(screen.queryByText('Apply change where?')).toBeNull();
+    expect(mockUpdatePlanWeeks).not.toHaveBeenCalled();
   });
 
   it('lets the user add a session on an empty rest slot from the expanded week editor', async () => {
@@ -693,7 +709,7 @@ describe('BlockTab session rearrange', () => {
       params: { weekIndex: '0', dayIndex: '1' },
     });
     returnEditResult(rerender, 0, 1, { type: 'EASY', distance: 8, pace: '5:20' });
-    fireEvent.click(screen.getByText('This week only'));
+    fireEvent.click(screen.getByText('This session only'));
     fireEvent.click(screen.getByText('Apply change'));
 
     await waitFor(() => expect(mockUpdatePlanWeeks).toHaveBeenCalledTimes(1));
@@ -724,7 +740,7 @@ describe('BlockTab session rearrange', () => {
     expect(screen.queryByTestId('block-day-2-0')).toBeNull();
     expect(screen.getByTestId('block-day-3-0')).toBeTruthy();
 
-    fireEvent.click(screen.getByText('This week only'));
+    fireEvent.click(screen.getByText('This session only'));
     fireEvent.click(screen.getByText('Apply change'));
 
     await waitFor(() => expect(mockUpdatePlanWeeks).toHaveBeenCalledTimes(1));
@@ -779,10 +795,10 @@ describe('BlockTab session rearrange', () => {
     fireEvent.click(screen.getByTestId('block-day-2-0'));
     returnEditResult(rerender, 1, 0, null);
 
-    expect(screen.getByText('Build phase only')).toBeTruthy();
+    expect(screen.getByText('This session in this phase')).toBeTruthy();
     expect(screen.getByText('2 build weeks in this plan')).toBeTruthy();
 
-    fireEvent.click(screen.getByText('Build phase only'));
+    fireEvent.click(screen.getByText('This session in this phase'));
     fireEvent.click(screen.getByText('Apply change'));
 
     await waitFor(() => expect(mockUpdatePlanWeeks).toHaveBeenCalledTimes(1));
@@ -808,10 +824,10 @@ describe('BlockTab session rearrange', () => {
     fireEvent.click(screen.getByTestId('block-day-4-0'));
     returnEditResult(rerender, 3, 0, null);
 
-    expect(screen.getByText('Peak phase only')).toBeTruthy();
+    expect(screen.getByText('This session in this phase')).toBeTruthy();
     expect(screen.getByText('2 peak weeks in this plan')).toBeTruthy();
 
-    fireEvent.click(screen.getByText('Peak phase only'));
+    fireEvent.click(screen.getByText('This session in this phase'));
     fireEvent.click(screen.getByText('Apply change'));
 
     await waitFor(() => expect(mockUpdatePlanWeeks).toHaveBeenCalledTimes(1));
@@ -837,10 +853,10 @@ describe('BlockTab session rearrange', () => {
     fireEvent.click(screen.getByTestId('block-day-3-0'));
     returnEditResult(rerender, 2, 0, null);
 
-    expect(screen.getByText('Recovery phase only')).toBeTruthy();
+    expect(screen.getByText('This session in this phase')).toBeTruthy();
     expect(screen.getByText('2 recovery weeks in this plan')).toBeTruthy();
 
-    fireEvent.click(screen.getByText('Recovery phase only'));
+    fireEvent.click(screen.getByText('This session in this phase'));
     fireEvent.click(screen.getByText('Apply change'));
 
     await waitFor(() => expect(mockUpdatePlanWeeks).toHaveBeenCalledTimes(1));
@@ -865,10 +881,10 @@ describe('BlockTab session rearrange', () => {
     fireEvent.click(screen.getByTestId('block-day-4-0'));
     returnEditResult(rerender, 3, 0, null);
 
-    expect(screen.getByText('Taper phase only')).toBeTruthy();
+    expect(screen.getByText('This session in this phase')).toBeTruthy();
     expect(screen.getByText('2 taper weeks in this plan')).toBeTruthy();
 
-    fireEvent.click(screen.getByText('Taper phase only'));
+    fireEvent.click(screen.getByText('This session in this phase'));
     fireEvent.click(screen.getByText('Apply change'));
 
     await waitFor(() => expect(mockUpdatePlanWeeks).toHaveBeenCalledTimes(1));

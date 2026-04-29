@@ -82,6 +82,20 @@ describe('StepPlan session editing', () => {
     expect(screen.getByTestId('block-week-day-2-0').textContent).toContain('Rest day');
   });
 
+  it('closes the editor without propagation when nothing materially changed', () => {
+    render(<StepPlan />);
+
+    fireEvent.click(screen.getByTestId('block-review-tab-weeks'));
+    fireEvent.click(screen.getByTestId('block-week-row-press-1'));
+    fireEvent.click(screen.getByTestId('block-week-day-1-0'));
+
+    expect(screen.getByText('Update session')).toBeTruthy();
+    fireEvent.click(screen.getByText('Update session'));
+
+    expect(screen.queryByText('Apply change where?')).toBeNull();
+    expect(screen.queryByText('Update session')).toBeNull();
+  });
+
   it('keeps the Weeks tab collapsible and scopes Block-style drag rescheduling', async () => {
     render(<StepPlan />);
 

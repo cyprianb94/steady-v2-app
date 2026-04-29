@@ -7,6 +7,7 @@ import { assignDates, generatePlan, propagateChange, propagateSwap } from '@stea
 import type { PhaseConfig, PlannedSession, PlanWeek, PropagateScope } from '@steady/types';
 import {
   buildSessionEditDescription,
+  hasMaterialSessionEdit,
   materializeEditedSession,
   parseTrainingPaceProfileRouteParam,
 } from '../../../features/plan-builder/session-editing';
@@ -86,6 +87,18 @@ export default function StepPlan() {
 
   function handleEditorSave(dayIndex: number, updated: Partial<PlannedSession> | null) {
     if (!editing) {
+      return;
+    }
+
+    const sourceWeek = plan[editing.weekIndex];
+    const existing = sourceWeek?.sessions[dayIndex] ?? null;
+    const fallback = {
+      id: existing?.id ?? `preview-w${editing.weekIndex + 1}d${dayIndex}`,
+      date: existing?.date ?? 'preview',
+      type: existing?.type ?? 'EASY',
+    } as const;
+    if (!sourceWeek || !hasMaterialSessionEdit(existing, updated, fallback)) {
+      setEditing(null);
       return;
     }
 

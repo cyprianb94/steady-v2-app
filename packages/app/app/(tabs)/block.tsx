@@ -27,6 +27,7 @@ import { PHASE_COLOR } from '../../constants/phase-meta';
 import { SESSION_TYPE } from '../../constants/session-types';
 import {
   buildSessionEditDescription,
+  hasMaterialSessionEdit,
   materializeEditedSession,
 } from '../../features/plan-builder/session-editing';
 import { consumeSessionEditReturn } from '../../features/plan-builder/session-edit-return';
@@ -252,6 +253,19 @@ function materializeSessionForWeek(
   });
 }
 
+function hasMaterialSessionEditForWeek(
+  week: PlanWeek,
+  dayIndex: number,
+  updated: Partial<PlannedSession> | null,
+): boolean {
+  const existing = week.sessions[dayIndex];
+  return hasMaterialSessionEdit(existing, updated, {
+    id: existing?.id ?? createId(),
+    date: existing?.date ?? addDaysIso(getWeekStartDate(week), dayIndex),
+    type: existing?.type ?? 'EASY',
+  });
+}
+
 function normalizeEditedDayIdentity(
   originalWeeks: PlanWeek[],
   nextWeeks: PlanWeek[],
@@ -420,6 +434,14 @@ export default function BlockTab() {
     processedEditNonceRef.current = result.nonce;
     if (editedWeekNumber != null) {
       setExpandedWeekNumber(editedWeekNumber);
+    }
+    const editedWeek = plan.weeks[result.weekIndex];
+    if (!editedWeek || !hasMaterialSessionEditForWeek(
+      editedWeek,
+      result.dayIndex,
+      result.updated,
+    )) {
+      return;
     }
     setPendingEdit({
       ...result,
@@ -1174,6 +1196,7 @@ export default function BlockTab() {
           totalWeeks={plan.weeks.length}
           phaseName={plan.weeks[pendingEdit.weekIndex]?.phase ?? 'BUILD'}
           phaseWeekCount={plan.weeks.filter((week) => week.phase === plan.weeks[pendingEdit.weekIndex]?.phase).length}
+          initialScope="this"
           onApply={applyPendingEdit}
           onClose={() => setPendingEdit(null)}
         />

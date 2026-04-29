@@ -16,13 +16,14 @@ interface PropagateModalProps {
   body?: string | null;
   applyLabel?: string;
   scopeLabels?: Partial<Record<'this' | 'remaining' | 'build', string>>;
+  initialScope?: 'this' | 'remaining' | 'build';
   onApply: (scope: 'this' | 'remaining' | 'build') => void;
   onClose: () => void;
 }
 
 const OPTIONS = [
-  { key: 'this' as const, label: 'This week only' },
-  { key: 'remaining' as const, label: 'All remaining weeks' },
+  { key: 'this' as const, label: 'This session only' },
+  { key: 'remaining' as const, label: 'This session in remaining weeks' },
   { key: 'build' as const, label: '' },
 ];
 
@@ -40,10 +41,11 @@ export function PropagateModal({
   body = null,
   applyLabel = 'Apply change',
   scopeLabels,
+  initialScope = 'remaining',
   onApply,
   onClose,
 }: PropagateModalProps) {
-  const [scope, setScope] = useState<'this' | 'remaining' | 'build'>('remaining');
+  const [scope, setScope] = useState<'this' | 'remaining' | 'build'>(initialScope);
   const phaseDisplay = phaseLabel(phaseName);
   const phaseWeeks = phaseWeekCount ?? 1;
 
@@ -70,7 +72,7 @@ export function PropagateModal({
             const active = scope === o.key;
             const optionLabel =
               scopeLabels?.[o.key] ??
-              (o.key === 'build' ? `${phaseDisplay} phase only` : o.label);
+              (o.key === 'build' ? 'This session in this phase' : o.label);
             return (
               <Pressable
                 key={o.key}
