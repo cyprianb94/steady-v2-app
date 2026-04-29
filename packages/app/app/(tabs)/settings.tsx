@@ -492,50 +492,57 @@ export default function SettingsTab() {
       </View>
 
       <View style={styles.section}>
-        <SectionLabel title="Units" />
-        <View style={styles.unitCard}>
-          <UnitSegment
-            title="Kilometres"
-            caption="Pace as /km."
-            selected={units === 'metric'}
-            disabled={preferenceBusy}
-            onPress={() => {
-              void handleUnitsChange('metric');
-            }}
-          />
-          <UnitSegment
-            title="Miles"
-            caption="Pace as /mi."
-            selected={units === 'imperial'}
-            disabled={preferenceBusy}
-            onPress={() => {
-              void handleUnitsChange('imperial');
-            }}
-          />
-        </View>
-      </View>
+        <SectionLabel title="Preferences" />
+        <View style={styles.preferencesCard}>
+          <View style={styles.preferenceGroup}>
+            <Text style={styles.preferenceGroupLabel}>Units</Text>
+            <View style={styles.unitSegmentRow}>
+              <UnitSegment
+                title="Kilometres"
+                caption="Pace as /km."
+                selected={units === 'metric'}
+                disabled={preferenceBusy}
+                onPress={() => {
+                  void handleUnitsChange('metric');
+                }}
+              />
+              <UnitSegment
+                title="Miles"
+                caption="Pace as /mi."
+                selected={units === 'imperial'}
+                disabled={preferenceBusy}
+                onPress={() => {
+                  void handleUnitsChange('imperial');
+                }}
+              />
+            </View>
+          </View>
 
-      <View style={styles.section}>
-        <SectionLabel title="Weekly volume" />
-        <View style={styles.unitCard}>
-          <UnitSegment
-            title="Mileage"
-            caption="Distance on Home."
-            selected={weeklyVolumeMetric === 'distance'}
-            disabled={preferenceBusy}
-            onPress={() => {
-              void handleWeeklyVolumeMetricChange('distance');
-            }}
-          />
-          <UnitSegment
-            title="Time on feet"
-            caption="Duration on Home."
-            selected={weeklyVolumeMetric === 'time'}
-            disabled={preferenceBusy}
-            onPress={() => {
-              void handleWeeklyVolumeMetricChange('time');
-            }}
-          />
+          <View style={styles.preferenceDivider} />
+
+          <View style={styles.preferenceGroup}>
+            <Text style={styles.preferenceGroupLabel}>Weekly volume</Text>
+            <View style={styles.unitSegmentRow}>
+              <UnitSegment
+                title="Mileage"
+                caption="Distance on Home."
+                selected={weeklyVolumeMetric === 'distance'}
+                disabled={preferenceBusy}
+                onPress={() => {
+                  void handleWeeklyVolumeMetricChange('distance');
+                }}
+              />
+              <UnitSegment
+                title="Time on feet"
+                caption="Duration on Home."
+                selected={weeklyVolumeMetric === 'time'}
+                disabled={preferenceBusy}
+                onPress={() => {
+                  void handleWeeklyVolumeMetricChange('time');
+                }}
+              />
+            </View>
+          </View>
         </View>
       </View>
 
@@ -787,14 +794,33 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     color: C.muted,
   },
-  unitCard: {
-    flexDirection: 'row',
-    gap: 5,
-    padding: 5,
+  preferencesCard: {
+    overflow: 'hidden',
     backgroundColor: C.surface,
     borderColor: C.border,
     borderWidth: 1.5,
     borderRadius: 12,
+  },
+  preferenceGroup: {
+    padding: 10,
+    gap: 7,
+  },
+  preferenceDivider: {
+    height: 1,
+    backgroundColor: C.border,
+  },
+  preferenceGroupLabel: {
+    paddingHorizontal: 2,
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 10,
+    lineHeight: 12,
+    letterSpacing: 1.25,
+    textTransform: 'uppercase',
+    color: C.muted,
+  },
+  unitSegmentRow: {
+    flexDirection: 'row',
+    gap: 5,
   },
   unitSegment: {
     flex: 1,

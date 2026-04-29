@@ -230,18 +230,19 @@ describe('SettingsTab', () => {
     expect(screen.queryByText('Garmin')).toBeNull();
     expect(screen.queryByText('Apple Health')).toBeNull();
     expect(screen.queryByText('Subscription')).toBeNull();
-    expect(screen.queryByText('Preferences')).toBeNull();
     expect(screen.queryByText('Training')).toBeNull();
     expect(screen.queryByText('Connections')).toBeNull();
 
     const plan = screen.getByText('Plan');
     const activitySync = screen.getByText('Activity sync');
+    const preferences = screen.getByText('Preferences');
     const units = screen.getByText('Units');
     const weeklyVolume = screen.getByText('Weekly volume');
     const account = screen.getByText('Account');
 
     expect(plan.compareDocumentPosition(activitySync) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(activitySync.compareDocumentPosition(units) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(activitySync.compareDocumentPosition(preferences) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(preferences.compareDocumentPosition(units) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(units.compareDocumentPosition(weeklyVolume) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(weeklyVolume.compareDocumentPosition(account) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });

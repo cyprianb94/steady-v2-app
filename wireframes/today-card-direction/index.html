@@ -1,0 +1,1059 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Steady Today Card V3</title>
+    <style>
+      @font-face {
+        font-family: "Playfair Display";
+        src: url("../../packages/app/assets/fonts/PlayfairDisplay-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "Playfair Display";
+        src: url("../../packages/app/assets/fonts/PlayfairDisplay-Bold.ttf") format("truetype");
+        font-weight: 700;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-Medium.ttf") format("truetype");
+        font-weight: 500;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-SemiBold.ttf") format("truetype");
+        font-weight: 700;
+      }
+
+      @font-face {
+        font-family: "Space Mono";
+        src: url("../../packages/app/assets/fonts/SpaceMono-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "Space Mono";
+        src: url("../../packages/app/assets/fonts/SpaceMono-Bold.ttf") format("truetype");
+        font-weight: 700;
+      }
+
+      :root {
+        --cream: #f4efe6;
+        --surface: #fdfaf5;
+        --card: #f0eae0;
+        --ink: #1c1510;
+        --ink-2: #3d3028;
+        --muted: #9a8e7e;
+        --border: #e5ddd0;
+
+        --easy: #2a5c45;
+        --easy-bg: #eef4f1;
+        --interval: #c4522a;
+        --interval-bg: #fdf0eb;
+        --tempo: #d4882a;
+        --tempo-bg: #fdf6eb;
+        --long: #1b3a6b;
+        --long-bg: #edf1f8;
+        --rest: #8a8e9a;
+        --rest-bg: #f2f2f4;
+
+        --distance: #3d55a4;
+        --distance-bg: #eef1fb;
+        --pace: #187f7a;
+        --pace-bg: #e4f1ef;
+        --time: #9d711f;
+        --effort: #765098;
+        --complete: #2a5c45;
+        --complete-bg: #eef4f1;
+        --varied: #d4882a;
+        --varied-bg: #fdf6eb;
+        --today: #c4522a;
+
+        --serif: "Playfair Display", Georgia, serif;
+        --sans: "DM Sans", sans-serif;
+        --mono: "Space Mono", monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #e8dfd2;
+        color: var(--ink);
+        font-family: var(--sans);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .stage {
+        width: min(100%, 1660px);
+        margin: 0 auto;
+        padding: 34px 34px 48px;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: 300px minmax(0, 880px);
+        gap: 32px;
+        align-items: end;
+        margin-bottom: 24px;
+      }
+
+      h1 {
+        margin: 0;
+        font-family: var(--serif);
+        font-size: 40px;
+        font-weight: 700;
+        line-height: 0.98;
+      }
+
+      .hero p,
+      .caption,
+      .note,
+      .rule p {
+        color: #66594d;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .hero p {
+        max-width: 860px;
+        margin: 0 0 2px;
+        font-size: 14px;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 300px 393px minmax(0, 1fr);
+        gap: 28px;
+        align-items: start;
+      }
+
+      .panel {
+        border: 1px solid rgba(28, 21, 16, 0.08);
+        border-radius: 26px;
+        background: rgba(253, 250, 245, 0.7);
+      }
+
+      .brief {
+        min-height: 852px;
+        padding: 22px 20px;
+      }
+
+      .brief h2 {
+        margin: 0 0 8px;
+        font-family: var(--serif);
+        font-size: 25px;
+        line-height: 1.08;
+      }
+
+      .brief > p {
+        margin: 0 0 18px;
+      }
+
+      .rule {
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 15px;
+        background: var(--surface);
+      }
+
+      .rule + .rule {
+        margin-top: 12px;
+      }
+
+      .rule strong {
+        display: block;
+        margin: 5px 0 5px;
+        color: var(--ink);
+        font-size: 13px;
+        line-height: 1.25;
+      }
+
+      .kicker,
+      .label,
+      .chip,
+      .state-title,
+      .day strong,
+      .tab-label,
+      .status-chip {
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 1.25px;
+        text-transform: uppercase;
+      }
+
+      .kicker,
+      .label,
+      .state-title,
+      .day strong {
+        color: var(--muted);
+      }
+
+      .tokens {
+        display: grid;
+        gap: 9px;
+        margin-top: 18px;
+      }
+
+      .token {
+        display: grid;
+        grid-template-columns: 18px 1fr;
+        gap: 9px;
+        align-items: center;
+        color: #66594d;
+        font-size: 12px;
+        line-height: 1.32;
+      }
+
+      .swatch {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 1px solid rgba(28, 21, 16, 0.08);
+      }
+
+      .caption {
+        margin: 0 0 10px;
+      }
+
+      .phone {
+        width: 393px;
+        height: 852px;
+        overflow: hidden;
+        position: relative;
+        border: 1px solid rgba(28, 21, 16, 0.12);
+        border-radius: 42px;
+        background: var(--cream);
+        box-shadow: 0 18px 42px rgba(28, 21, 16, 0.11);
+      }
+
+      .screen {
+        position: relative;
+        height: 100%;
+        padding: 46px 18px 88px;
+      }
+
+      .status-bar {
+        position: absolute;
+        inset: 0 0 auto;
+        height: 38px;
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        padding: 0 30px 4px;
+        color: #070504;
+        font-family: var(--mono);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .island {
+        position: absolute;
+        top: 15px;
+        left: 50%;
+        width: 176px;
+        height: 34px;
+        transform: translateX(-50%);
+        border-radius: 999px;
+        background: #050403;
+      }
+
+      .date-range {
+        margin-top: 34px;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+      }
+
+      .week-title {
+        margin: 12px 0 18px;
+        font-family: var(--serif);
+        font-size: 29px;
+        font-weight: 700;
+        line-height: 1.04;
+      }
+
+      .load-card {
+        padding: 14px 16px;
+        border: 1.5px solid var(--border);
+        border-radius: 20px;
+        background: rgba(253, 250, 245, 0.72);
+      }
+
+      .load-top,
+      .top-row,
+      .tabs,
+      .week-row,
+      .review-row,
+      .result-row {
+        display: flex;
+        align-items: center;
+      }
+
+      .load-top {
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 12px;
+      }
+
+      .load-value {
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 14px;
+      }
+
+      .load-value strong {
+        color: var(--complete);
+      }
+
+      .load-track {
+        height: 5px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: var(--border);
+      }
+
+      .load-fill {
+        width: 31%;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--complete);
+      }
+
+      .load-copy {
+        margin: 12px 0 0;
+        color: var(--ink-2);
+        font-size: 12px;
+      }
+
+      .today-card {
+        --session: var(--easy);
+        --session-bg: var(--easy-bg);
+        margin-top: 18px;
+        padding: 20px 20px 18px;
+        border: 2px solid var(--session);
+        border-radius: 24px;
+        background: var(--surface);
+        box-shadow:
+          0 12px 32px rgba(28, 21, 16, 0.055),
+          0 2px 10px rgba(196, 82, 42, 0.11);
+      }
+
+      .top-row {
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+
+      .chip,
+      .status-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 30px;
+        padding: 0 13px;
+        border-radius: 999px;
+      }
+
+      .chip {
+        color: var(--surface);
+        border: 1px solid var(--session);
+        background: var(--session);
+      }
+
+      .today-label {
+        color: var(--today);
+      }
+
+      .completed-chip {
+        color: var(--complete);
+        border: 1px solid rgba(42, 92, 69, 0.18);
+        background: var(--complete-bg);
+      }
+
+      .review-chip {
+        color: var(--varied);
+        border: 1px solid rgba(212, 136, 42, 0.26);
+        background: var(--varied-bg);
+      }
+
+      .session-title {
+        margin: 0;
+        color: var(--session);
+        font-family: var(--serif);
+        font-size: 31px;
+        font-weight: 700;
+        line-height: 1.04;
+      }
+
+      .session-date {
+        margin: 8px 0 16px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .plan-target {
+        min-width: 0;
+        padding: 13px 14px 12px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: rgba(253, 250, 245, 0.74);
+      }
+
+      .plan-target.quality {
+        padding-bottom: 13px;
+      }
+
+      .target-primary {
+        margin: 0 0 4px;
+        font-weight: 700;
+        line-height: 1.06;
+      }
+
+      .target-primary.effort {
+        color: var(--effort);
+        font-size: 24px;
+      }
+
+      .target-primary.pace {
+        color: var(--pace);
+        font-family: var(--mono);
+        font-size: 21px;
+        letter-spacing: -0.2px;
+        white-space: nowrap;
+      }
+
+      .target-secondary {
+        margin: 0;
+        line-height: 1.15;
+      }
+
+      .target-secondary.pace,
+      .target-secondary.time,
+      .metric-value.distance {
+        font-family: var(--mono);
+        font-weight: 700;
+      }
+
+      .target-secondary.pace {
+        color: var(--pace);
+      }
+
+      .target-secondary.effort {
+        color: var(--effort);
+        font-size: 18px;
+        font-weight: 700;
+      }
+
+      .detail-line {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .detail-line strong {
+        color: var(--ink-2);
+        font-family: var(--mono);
+        font-weight: 700;
+      }
+
+      .metric-value {
+        margin: 0 0 4px;
+        font-family: var(--mono);
+        font-size: 20px;
+        font-weight: 700;
+        line-height: 1.05;
+        white-space: nowrap;
+      }
+
+      .metric-value.distance {
+        color: var(--distance);
+      }
+
+      .metric-value.pace {
+        color: var(--pace);
+        font-size: 18px;
+      }
+
+      .metric-value.effort {
+        color: var(--effort);
+        font-family: var(--sans);
+        font-size: 20px;
+        white-space: normal;
+      }
+
+      .metric-value.time {
+        color: var(--time);
+      }
+
+      .metric-label {
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.2;
+      }
+
+      .support-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-top: 10px;
+      }
+
+      .support-pill {
+        min-height: 25px;
+        padding: 5px 9px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: rgba(253, 250, 245, 0.7);
+        color: #66594d;
+        font-size: 11px;
+        line-height: 1.2;
+      }
+
+      .cta {
+        width: 100%;
+        min-height: 50px;
+        margin-top: 16px;
+        border: 0;
+        border-radius: 999px;
+        background: var(--today);
+        color: var(--surface);
+        font-family: var(--sans);
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .sync-note {
+        margin: 8px 0 0;
+        color: var(--muted);
+        text-align: center;
+        font-size: 11px;
+      }
+
+      .week-label {
+        margin: 20px 0 8px;
+      }
+
+      .week-list {
+        display: grid;
+        gap: 7px;
+      }
+
+      .week-row {
+        min-height: 50px;
+        gap: 10px;
+        padding: 8px 9px;
+        border-radius: 14px;
+      }
+
+      .week-row.today {
+        background: rgba(240, 234, 224, 0.82);
+      }
+
+      .day {
+        width: 46px;
+      }
+
+      .day span {
+        display: block;
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 10px;
+        letter-spacing: 0.7px;
+        text-transform: uppercase;
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        flex: 0 0 auto;
+        border-radius: 50%;
+        background: var(--row-colour, var(--easy));
+      }
+
+      .row-text {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .row-title {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        color: var(--ink-2);
+        font-size: 13px;
+        line-height: 1.2;
+      }
+
+      .row-caption {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 11px;
+        white-space: nowrap;
+      }
+
+      .row-metric {
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 12px;
+      }
+
+      .tabs {
+        position: absolute;
+        inset: auto 0 0;
+        height: 72px;
+        justify-content: space-around;
+        border-top: 1px solid var(--border);
+        background: rgba(253, 250, 245, 0.88);
+      }
+
+      .tab {
+        display: grid;
+        gap: 5px;
+        place-items: center;
+        color: var(--muted);
+      }
+
+      .tab.active {
+        color: var(--today);
+      }
+
+      .tab-icon {
+        width: 22px;
+        height: 18px;
+        border-radius: 4px 4px 2px 2px;
+        background: currentColor;
+      }
+
+      .tab-icon.block {
+        border-radius: 999px;
+        background:
+          linear-gradient(currentColor, currentColor) 0 0 / 22px 4px no-repeat,
+          linear-gradient(currentColor, currentColor) 5px 7px / 13px 4px no-repeat,
+          linear-gradient(currentColor, currentColor) 8px 14px / 7px 4px no-repeat;
+      }
+
+      .tab-icon.settings {
+        border-radius: 0;
+        background:
+          linear-gradient(currentColor, currentColor) 0 4px / 24px 3px no-repeat,
+          linear-gradient(currentColor, currentColor) 0 12px / 24px 3px no-repeat;
+      }
+
+      .tab-label {
+        color: currentColor;
+        letter-spacing: 0;
+        text-transform: none;
+      }
+
+      .library {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .library-head {
+        grid-column: 1 / -1;
+        margin: 0 0 2px;
+      }
+
+      .state {
+        padding: 16px;
+        border-radius: 24px;
+      }
+
+      .state-title {
+        margin-bottom: 10px;
+      }
+
+      .mini-card {
+        --session: var(--easy);
+        --session-bg: var(--easy-bg);
+        padding: 15px;
+        border: 1.5px solid var(--session);
+        border-radius: 20px;
+        background: var(--surface);
+      }
+
+      .mini-card .top-row {
+        margin-bottom: 12px;
+      }
+
+      .mini-card .session-title {
+        font-size: 24px;
+      }
+
+      .mini-card .session-date {
+        margin-bottom: 12px;
+        font-size: 11px;
+      }
+
+      .mini-card .plan-target {
+        padding: 11px 12px 10px;
+      }
+
+      .mini-card .target-primary.effort {
+        font-size: 20px;
+      }
+
+      .mini-card .target-primary.pace {
+        font-size: 18px;
+      }
+
+      .mini-card .target-secondary.effort {
+        font-size: 16px;
+      }
+
+      .mini-card .target-secondary.pace,
+      .mini-card .detail-line {
+        font-size: 12px;
+      }
+
+      .verdict {
+        margin: 0 0 6px;
+        color: var(--ink);
+        font-family: var(--serif);
+        font-size: 25px;
+        font-weight: 700;
+        line-height: 1.04;
+      }
+
+      .summary {
+        margin: 0 0 12px;
+        color: var(--ink-2);
+        font-size: 12px;
+        line-height: 1.42;
+      }
+
+      .summary .metric {
+        font-family: var(--mono);
+        font-weight: 700;
+      }
+
+      .result-list {
+        border-top: 1px solid var(--border);
+      }
+
+      .result-row {
+        justify-content: space-between;
+        min-height: 34px;
+        border-bottom: 1px solid var(--border);
+        color: #66594d;
+        font-size: 12px;
+      }
+
+      .result-row strong {
+        font-family: var(--mono);
+        font-size: 12px;
+      }
+
+      .result-row .distance {
+        color: var(--distance);
+      }
+
+      .result-row .pace {
+        color: var(--pace);
+      }
+
+      .result-row .effort {
+        color: var(--effort);
+        font-family: var(--sans);
+      }
+
+      .review-row {
+        justify-content: space-between;
+        gap: 10px;
+        padding-top: 12px;
+        color: var(--ink);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .review-row span {
+        display: block;
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 400;
+      }
+
+      .arrow {
+        color: var(--today);
+        font-size: 22px;
+        line-height: 1;
+      }
+
+      .rest-card {
+        padding: 16px;
+        border: 1.5px solid var(--rest);
+        border-radius: 20px;
+        background: var(--surface);
+      }
+
+      .rest-card .top-row {
+        margin-bottom: 12px;
+      }
+
+      .rest-card h3 {
+        margin: 0 0 6px;
+        color: var(--ink);
+        font-family: var(--serif);
+        font-size: 24px;
+        line-height: 1.04;
+      }
+
+      .rest-card p {
+        margin: 0;
+        color: var(--ink-2);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="stage">
+      <header class="hero">
+        <h1>Today card V4</h1>
+        <p>
+          A calmer version of the familiar card. Before-run states are one instruction, not a grid: session chip top left, Today top right, a single target frame, and one quiet detail line only when the workout needs it.
+        </p>
+      </header>
+
+      <section class="layout">
+        <aside class="brief panel">
+          <h2>What changed</h2>
+          <p>
+            This keeps the familiar Steady card shape, but removes the before-run dashboard feeling. The card says what to run; comparison waits until after.
+          </p>
+
+          <div class="rule">
+            <div class="kicker">Chip placement</div>
+            <strong>Session type is always top left.</strong>
+            <p>Before runs use Today top right. After runs use Completed or Needs review top right.</p>
+          </div>
+
+          <div class="rule">
+            <div class="kicker">Before the run</div>
+            <strong>One target frame, not three fields.</strong>
+            <p>Easy and long lead with effort. Tempo and interval lead with the quality pace, with warm-up and recovery collapsed to one line.</p>
+          </div>
+
+          <div class="rule">
+            <div class="kicker">After the run</div>
+            <strong>Keep the stronger logged state.</strong>
+            <p>Logged cards lead with a verdict and a slim evidence list. Heart rate only appears later if it explains that verdict.</p>
+          </div>
+
+          <div class="tokens">
+            <div class="token"><span class="swatch" style="background: var(--easy)"></span><span>Session colour: border, chip, session title.</span></div>
+            <div class="token"><span class="swatch" style="background: var(--today)"></span><span>Clay: Today and primary action.</span></div>
+            <div class="token"><span class="swatch" style="background: var(--distance)"></span><span>Cobalt: distance values.</span></div>
+            <div class="token"><span class="swatch" style="background: var(--pace)"></span><span>Teal: pace targets and results.</span></div>
+            <div class="token"><span class="swatch" style="background: var(--effort)"></span><span>Plum: effort and feel.</span></div>
+          </div>
+        </aside>
+
+        <section>
+          <p class="caption">
+            Home context using the calmer pre-run card. Distance is already in the title, so the card only needs one target instruction.
+          </p>
+
+          <div class="phone">
+            <div class="screen">
+              <div class="status-bar"><span>00:34</span><span>30</span></div>
+              <div class="island"></div>
+
+              <div class="date-range">Apr 27 - 3 · 2026</div>
+              <h2 class="week-title">Week 1 · Base Phase</h2>
+
+              <section class="load-card">
+                <div class="load-top">
+                  <div class="label">Weekly volume</div>
+                  <div class="load-value"><strong>21.7km</strong> / 70.4km</div>
+                </div>
+                <div class="load-track"><div class="load-fill"></div></div>
+                <p class="load-copy">A little over planned mileage.</p>
+              </section>
+
+              <section class="today-card" style="--session: var(--easy); --session-bg: var(--easy-bg)">
+                <div class="top-row">
+                  <span class="chip">Easy</span>
+                  <span class="today-label label">Today</span>
+                </div>
+
+                <h3 class="session-title">8km Easy Run</h3>
+                <p class="session-date">Wednesday, Apr 29</p>
+
+                <div class="plan-target">
+                  <div class="metric-label">Target</div>
+                  <p class="target-primary effort">conversational</p>
+                  <p class="target-secondary pace">5:33-6:06/km</p>
+                </div>
+
+                <button class="cta">✓ I finished this run</button>
+                <p class="sync-note">Looks for a recent Strava activity.</p>
+              </section>
+
+              <div class="week-label label">This week</div>
+              <div class="week-list">
+                <div class="week-row">
+                  <div class="day"><strong>Mon</strong><span>Apr 27</span></div>
+                  <div class="row-text">
+                    <div class="row-title"><span class="dot" style="--row-colour: var(--easy)"></span><span>8km · 5:33-6:06</span></div>
+                    <div class="row-caption">Easy Run · conversational pace</div>
+                  </div>
+                  <div class="row-metric">12.6k</div>
+                </div>
+                <div class="week-row">
+                  <div class="day"><strong>Tue</strong><span>Apr 28</span></div>
+                  <div class="row-text">
+                    <div class="row-title"><span class="dot" style="--row-colour: var(--interval)"></span><span>6×800m · 3:47-4:10</span></div>
+                    <div class="row-caption">Intervals · hard repeatable</div>
+                  </div>
+                  <div class="row-metric">9.2k</div>
+                </div>
+                <div class="week-row today">
+                  <div class="day"><strong>Wed</strong><span>Apr 29</span></div>
+                  <div class="row-text">
+                    <div class="row-title"><span class="dot" style="--row-colour: var(--easy)"></span><span>8km · 5:33-6:06</span></div>
+                    <div class="row-caption">Easy Run · conversational pace</div>
+                  </div>
+                  <div class="row-metric">8k</div>
+                </div>
+              </div>
+
+              <nav class="tabs">
+                <div class="tab active"><span class="tab-icon"></span><span class="tab-label">Home</span></div>
+                <div class="tab"><span class="tab-icon block"></span><span class="tab-label">Block</span></div>
+                <div class="tab"><span class="tab-icon settings"></span><span class="tab-label">Settings</span></div>
+              </nav>
+            </div>
+          </div>
+        </section>
+
+        <section class="library">
+          <p class="caption library-head">
+            State library for the same component. Before cards stay instructional; after cards keep the clearer verdict treatment.
+          </p>
+
+          <div class="state panel">
+            <div class="state-title">Before · easy or long</div>
+            <div class="mini-card" style="--session: var(--easy); --session-bg: var(--easy-bg)">
+              <div class="top-row">
+                <span class="chip">Easy</span>
+                <span class="today-label label">Today</span>
+              </div>
+              <h3 class="session-title">8km Easy Run</h3>
+              <p class="session-date">Wednesday, Apr 29</p>
+              <div class="plan-target">
+                <div class="metric-label">Target</div>
+                <p class="target-primary effort">conversational</p>
+                <p class="target-secondary pace">5:33-6:06/km</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="state panel">
+            <div class="state-title">Before · tempo</div>
+            <div class="mini-card" style="--session: var(--tempo); --session-bg: var(--tempo-bg)">
+              <div class="top-row">
+                <span class="chip">Tempo</span>
+                <span class="today-label label">Today</span>
+              </div>
+              <h3 class="session-title">10km Tempo</h3>
+              <p class="session-date">Thursday, Apr 30</p>
+              <div class="plan-target quality">
+                <div class="metric-label">Tempo target</div>
+                <p class="target-primary pace">4:21-4:35/km</p>
+                <p class="target-secondary effort">controlled hard</p>
+              </div>
+              <p class="detail-line"><strong>10km</strong> total · <strong>2km</strong> warm · <strong>1.5km</strong> cool</p>
+            </div>
+          </div>
+
+          <div class="state panel">
+            <div class="state-title">Before · interval</div>
+            <div class="mini-card" style="--session: var(--interval); --session-bg: var(--interval-bg)">
+              <div class="top-row">
+                <span class="chip">Interval</span>
+                <span class="today-label label">Today</span>
+              </div>
+              <h3 class="session-title">6×800m Intervals</h3>
+              <p class="session-date">Tuesday, Apr 28</p>
+              <div class="plan-target quality">
+                <div class="metric-label">Rep target</div>
+                <p class="target-primary pace">3:47-4:10/km</p>
+                <p class="target-secondary effort">hard repeatable</p>
+              </div>
+              <p class="detail-line"><strong>90s</strong> recoveries · <strong>1.5km</strong> warm · <strong>1km</strong> cool</p>
+            </div>
+          </div>
+
+          <div class="state panel">
+            <div class="state-title">After · easy or long</div>
+            <div class="mini-card" style="--session: var(--easy); --session-bg: var(--easy-bg)">
+              <div class="top-row">
+                <span class="chip">Easy</span>
+                <span class="status-chip completed-chip">✓ Completed</span>
+              </div>
+              <h3 class="verdict">On target</h3>
+              <p class="summary"><span class="metric">8.1km</span> at <span class="metric">5:48/km</span> · inside the conversational guide.</p>
+              <div class="result-list">
+                <div class="result-row"><span>Distance</span><strong class="distance">8.1km / 8km</strong></div>
+                <div class="result-row"><span>Pace</span><strong class="pace">5:48/km</strong></div>
+                <div class="result-row"><span>Feel</span><strong class="effort">normal</strong></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="state panel">
+            <div class="state-title">After · tempo or interval</div>
+            <div class="mini-card" style="--session: var(--tempo); --session-bg: var(--tempo-bg)">
+              <div class="top-row">
+                <span class="chip">Tempo</span>
+                <span class="status-chip review-chip">Needs review</span>
+              </div>
+              <h3 class="verdict">Fast early, faded late</h3>
+              <p class="summary">Tempo block averaged <span class="metric">4:29/km</span>. The last 2km drifted outside target.</p>
+              <div class="result-list">
+                <div class="result-row"><span>Quality pace</span><strong class="pace">4:29/km</strong></div>
+                <div class="result-row"><span>Tempo time</span><strong style="color: var(--time)">35:44</strong></div>
+              </div>
+              <div class="review-row">
+                <div>Review quality work<span>Warm-up and cool-down stay context</span></div>
+                <div class="arrow">›</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="state panel">
+            <div class="state-title">Rest day</div>
+            <div class="rest-card">
+              <div class="top-row">
+                <span class="chip" style="--session: var(--rest); --session-bg: var(--rest-bg)">Rest</span>
+                <span class="today-label label">Today</span>
+              </div>
+              <h3>Rest day</h3>
+              <p>No planned run today. Keep the Home surface calm unless the runner attaches an unplanned run.</p>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </body>
+</html>

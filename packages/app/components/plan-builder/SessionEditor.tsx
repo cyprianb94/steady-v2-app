@@ -365,7 +365,7 @@ export function SessionEditor({
     ? profileBands.find((band) => band.profileKey === selectedProfileKey)
     : null;
   const targetCaption = selectedProfileBand
-    ? `${selectedProfileBand.label} · profile pace`
+    ? `${selectedProfileBand.label} · ${selectedProfileBand.defaultEffortCue}`
     : 'Manual pace';
   const profilePaceOptions = profileBands.map((band) => {
     const target = intensityTargetForTrainingPaceProfileKey(trainingPaceProfile, band.profileKey);

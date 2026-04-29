@@ -1,0 +1,1253 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Steady Edit Run Colour Language Wireframes</title>
+    <style>
+      @font-face {
+        font-family: "Playfair Display";
+        src: url("../../packages/app/assets/fonts/PlayfairDisplay-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "Playfair Display";
+        src: url("../../packages/app/assets/fonts/PlayfairDisplay-Bold.ttf") format("truetype");
+        font-weight: 700;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-Medium.ttf") format("truetype");
+        font-weight: 500;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-SemiBold.ttf") format("truetype");
+        font-weight: 700;
+      }
+
+      @font-face {
+        font-family: "Space Mono";
+        src: url("../../packages/app/assets/fonts/SpaceMono-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "Space Mono";
+        src: url("../../packages/app/assets/fonts/SpaceMono-Bold.ttf") format("truetype");
+        font-weight: 700;
+      }
+
+      :root {
+        --cream: #f4efe6;
+        --surface: #fdfaf5;
+        --card: #f0eae0;
+        --ink: #1c1510;
+        --ink-2: #3d3028;
+        --muted: #9a8e7e;
+        --border: #e5ddd0;
+
+        --easy: #2a5c45;
+        --easy-bg: #eef4f1;
+        --interval: #c4522a;
+        --interval-bg: #fdf0eb;
+        --tempo: #d4882a;
+        --tempo-bg: #fdf6eb;
+        --long: #1b3a6b;
+        --long-bg: #edf1f8;
+        --rest: #8a8e9a;
+        --rest-bg: #f2f2f4;
+
+        --distance: #3d55a4;
+        --distance-bg: #eef1fb;
+        --pace: #187f7a;
+        --pace-bg: #e4f1ef;
+        --time: #9d711f;
+        --time-bg: #f9f2e5;
+        --effort: #765098;
+        --effort-bg: #f3eef7;
+
+        --board-bg: #e8dfd2;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--board-bg);
+        color: var(--ink);
+        font-family: "DM Sans", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .board {
+        width: 2220px;
+        min-height: 1120px;
+        padding: 34px 38px 46px;
+      }
+
+      .board-head {
+        display: grid;
+        grid-template-columns: 560px 1fr;
+        gap: 42px;
+        align-items: end;
+        margin-bottom: 26px;
+      }
+
+      h1 {
+        margin: 0;
+        font-family: "Playfair Display", serif;
+        font-size: 38px;
+        line-height: 1.02;
+        font-weight: 700;
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        max-width: 535px;
+        margin: 10px 0 0;
+        color: #6f6255;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      .rules {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .rule-card {
+        min-height: 94px;
+        padding: 14px;
+        border: 1px solid rgba(28, 21, 16, 0.09);
+        border-radius: 16px;
+        background: rgba(253, 250, 245, 0.7);
+      }
+
+      .rule-label,
+      .frame-label,
+      .section-label,
+      .row-label,
+      .chip,
+      .metric-label,
+      .caption-strong,
+      .unit-toggle,
+      .mode-option {
+        letter-spacing: 1.3px;
+        text-transform: uppercase;
+      }
+
+      .rule-label {
+        margin-bottom: 7px;
+        color: var(--muted);
+        font-size: 9px;
+        font-weight: 700;
+      }
+
+      .rule-card p {
+        margin: 0;
+        color: var(--ink-2);
+        font-size: 12px;
+        line-height: 1.42;
+      }
+
+      .wireframes {
+        display: grid;
+        grid-template-columns: repeat(5, 393px);
+        gap: 34px;
+        align-items: start;
+      }
+
+      .frame {
+        display: grid;
+        gap: 10px;
+      }
+
+      .frame-label {
+        color: #6f6255;
+        font-size: 10px;
+        font-weight: 700;
+      }
+
+      .phone {
+        position: relative;
+        width: 393px;
+        height: 852px;
+        overflow: hidden;
+        border: 1px solid rgba(28, 21, 16, 0.1);
+        border-radius: 36px;
+        background: var(--surface);
+        box-shadow: 0 18px 45px rgba(61, 48, 40, 0.13);
+      }
+
+      .status {
+        position: absolute;
+        inset: 0 0 auto;
+        height: 72px;
+        padding: 24px 31px 0;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        background: var(--surface);
+        color: #050403;
+        font-family: "Space Mono", monospace;
+        font-size: 17px;
+        font-weight: 700;
+        z-index: 5;
+      }
+
+      .island {
+        position: absolute;
+        top: 15px;
+        left: 50%;
+        width: 190px;
+        height: 38px;
+        transform: translateX(-50%);
+        border-radius: 999px;
+        background: #050403;
+      }
+
+      .island-thumb {
+        position: absolute;
+        top: 7px;
+        left: 11px;
+        width: 28px;
+        height: 24px;
+        border-radius: 7px;
+        background:
+          linear-gradient(140deg, rgba(253, 250, 245, 0.7), rgba(196, 82, 42, 0.2)),
+          linear-gradient(45deg, #1b3a6b 0 42%, #c4522a 42% 62%, #fdfaf5 62%);
+      }
+
+      .island-dots {
+        position: absolute;
+        top: 16px;
+        right: 13px;
+        display: flex;
+        gap: 4px;
+      }
+
+      .island-dots i {
+        display: block;
+        width: 3px;
+        height: 3px;
+        border-radius: 50%;
+        background: #9b7568;
+      }
+
+      .status-icons {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+
+      .wifi {
+        position: relative;
+        width: 19px;
+        height: 14px;
+      }
+
+      .wifi::before,
+      .wifi::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 3px solid #050403;
+        border-color: #050403 transparent transparent transparent;
+        border-radius: 50%;
+      }
+
+      .wifi::before {
+        top: 0;
+        width: 21px;
+        height: 21px;
+      }
+
+      .wifi::after {
+        top: 7px;
+        width: 10px;
+        height: 10px;
+      }
+
+      .battery {
+        min-width: 26px;
+        height: 15px;
+        padding: 0 4px;
+        border-radius: 5px;
+        background: rgba(5, 4, 3, 0.35);
+        color: white;
+        font-family: "DM Sans", sans-serif;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 15px;
+        text-align: center;
+      }
+
+      .app {
+        position: absolute;
+        inset: 72px 0 0;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+
+      .header {
+        padding: 20px 20px 25px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .cancel {
+        display: inline-flex;
+        margin-bottom: 20px;
+        color: var(--ink-2);
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .day {
+        margin-bottom: 4px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .title {
+        margin: 0;
+        font-family: "Playfair Display", serif;
+        font-size: 17px;
+        line-height: 1.32;
+        font-weight: 700;
+        color: var(--ink);
+      }
+
+      .title .mono {
+        font-family: "Space Mono", monospace;
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .title-sep {
+        color: var(--muted);
+      }
+
+      .easy-text {
+        color: var(--easy);
+      }
+
+      .interval-text {
+        color: var(--interval);
+      }
+
+      .tempo-text {
+        color: var(--tempo);
+      }
+
+      .long-text {
+        color: var(--long);
+      }
+
+      .distance-text {
+        color: var(--distance);
+      }
+
+      .pace-text {
+        color: var(--pace);
+      }
+
+      .time-text {
+        color: var(--time);
+      }
+
+      .effort-text {
+        color: var(--effort);
+      }
+
+      .title .distance-text,
+      .title .pace-text {
+        color: var(--ink);
+      }
+
+      .title .effort-text {
+        color: var(--ink-2);
+      }
+
+      .scroll {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      .session-section {
+        padding: 16px 20px 14px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .section-label {
+        margin-bottom: 13px;
+        color: var(--muted);
+        font-size: 9.5px;
+        font-weight: 700;
+      }
+
+      .type-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 31px;
+        padding: 0 11px;
+        border: 1.5px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 700;
+      }
+
+      .chip.active-easy {
+        border-color: var(--easy);
+        background: var(--easy-bg);
+        color: var(--easy);
+      }
+
+      .chip.active-interval {
+        border-color: var(--interval);
+        background: var(--interval-bg);
+        color: var(--interval);
+      }
+
+      .chip.active-tempo {
+        border-color: var(--tempo);
+        background: var(--tempo-bg);
+        color: var(--tempo);
+      }
+
+      .chip.active-long {
+        border-color: var(--long);
+        background: var(--long-bg);
+        color: var(--long);
+      }
+
+      .rows {
+        padding: 0 20px;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 120px 1fr 14px;
+        gap: 12px;
+        align-items: start;
+        padding: 16px 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .row.open {
+        padding-bottom: 13px;
+      }
+
+      .row-label-wrap {
+        display: grid;
+        gap: 8px;
+      }
+
+      .row-label {
+        color: var(--muted);
+        font-size: 9.5px;
+        line-height: 1.45;
+        font-weight: 700;
+      }
+
+      .row-value-wrap {
+        display: grid;
+        gap: 4px;
+      }
+
+      .row-value {
+        display: flex;
+        align-items: baseline;
+        gap: 7px;
+        flex-wrap: wrap;
+        min-height: 31px;
+        color: var(--ink);
+        font-family: "Space Mono", monospace;
+        font-size: 27px;
+        line-height: 1.05;
+        font-weight: 700;
+      }
+
+      .row-value.compact {
+        font-size: 24px;
+      }
+
+      .row-value .unit {
+        color: var(--muted);
+        font-family: "DM Sans", sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .row-caption {
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.25;
+      }
+
+      .chevron {
+        padding-top: 8px;
+        color: var(--muted);
+        font-family: "Space Mono", monospace;
+        font-size: 14px;
+        text-align: right;
+      }
+
+      .metric-distance {
+        --row-accent: var(--distance);
+        --row-accent-bg: var(--distance-bg);
+      }
+
+      .metric-pace {
+        --row-accent: var(--pace);
+        --row-accent-bg: var(--pace-bg);
+      }
+
+      .metric-time {
+        --row-accent: var(--time);
+        --row-accent-bg: var(--time-bg);
+      }
+
+      .metric-distance .chevron,
+      .metric-pace .chevron,
+      .metric-time .chevron {
+        color: var(--row-accent);
+      }
+
+      .open .chevron {
+        color: var(--row-accent);
+        transform: rotate(90deg);
+      }
+
+      .row.open {
+        border-bottom-color: color-mix(in srgb, var(--row-accent) 22%, var(--border));
+      }
+
+      .row.open .row-value {
+        color: var(--row-accent);
+      }
+
+      .editor {
+        grid-column: 1 / -1;
+        display: grid;
+        gap: 10px;
+        padding-top: 2px;
+      }
+
+      .mode-shell {
+        display: inline-flex;
+        align-self: start;
+        overflow: hidden;
+        border: 1.5px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface);
+      }
+
+      .mode-option {
+        min-height: 35px;
+        padding: 0 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 700;
+      }
+
+      .mode-option.mode-active {
+        background: var(--pace);
+        color: var(--surface);
+      }
+
+      .mode-option.mode-active.distance {
+        background: var(--distance);
+      }
+
+      .mode-option.mode-active.time {
+        background: var(--time);
+      }
+
+      .editor-card {
+        padding: 11px;
+        border: 1.5px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+      }
+
+      .pace-card {
+        border-color: rgba(24, 127, 122, 0.22);
+      }
+
+      .distance-card {
+        border-color: rgba(61, 85, 164, 0.28);
+      }
+
+      .chip-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+      }
+
+      .choice-group {
+        display: grid;
+        gap: 7px;
+      }
+
+      .choice-group + .choice-group {
+        margin-top: 11px;
+        padding-top: 10px;
+        border-top: 1px solid var(--border);
+      }
+
+      .choice-group-label {
+        color: var(--muted);
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 1.25px;
+        text-transform: uppercase;
+      }
+
+      .choice {
+        min-height: 42px;
+        padding: 9px 15px;
+        border: 1.5px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--ink);
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        font-family: "Space Mono", monospace;
+        font-size: 13px;
+        line-height: 1.1;
+      }
+
+      .choice.profile {
+        min-width: 118px;
+        font-family: "DM Sans", sans-serif;
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .choice.wide {
+        min-width: 154px;
+      }
+
+      .choice.selected-pace {
+        border-color: rgba(24, 127, 122, 0.5);
+        background: var(--pace-bg);
+        color: var(--ink);
+      }
+
+      .choice.selected-distance {
+        border-color: rgba(61, 85, 164, 0.5);
+        background: var(--distance-bg);
+        color: var(--ink);
+      }
+
+      .choice-title {
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .choice-caption {
+        color: var(--muted);
+        font-size: 10.5px;
+      }
+
+      .selected-pace .choice-caption,
+      .selected-distance .choice-caption {
+        color: var(--ink-2);
+      }
+
+      .custom {
+        border-style: dashed;
+        color: var(--muted);
+        font-family: "DM Sans", sans-serif;
+        font-weight: 500;
+      }
+
+      .unit-toggle {
+        display: inline-flex;
+        align-self: start;
+        justify-self: start;
+        width: max-content;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--muted);
+        font-family: "Space Mono", monospace;
+        font-size: 8.5px;
+        font-weight: 700;
+      }
+
+      .unit-toggle span {
+        min-width: 27px;
+        padding: 4px 5px;
+        text-align: center;
+      }
+
+      .unit-toggle .km {
+        background: var(--distance-bg);
+        color: var(--distance);
+      }
+
+      .unit-toggle .min {
+        background: var(--time-bg);
+        color: var(--time);
+      }
+
+      .actions {
+        padding: 11px 20px 28px;
+        border-top: 1px solid var(--border);
+        background: var(--surface);
+      }
+
+      .primary {
+        width: 100%;
+        height: 50px;
+        border: 1.5px solid var(--interval);
+        border-radius: 999px;
+        background: var(--interval);
+        color: var(--surface);
+        font-family: "DM Sans", sans-serif;
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .tempo-phone .primary {
+        border-color: var(--interval);
+        background: var(--interval);
+      }
+
+      .compressed .row {
+        padding-top: 14px;
+        padding-bottom: 14px;
+      }
+
+      .compressed .row-value {
+        font-size: 25px;
+      }
+
+      .collapsed-spacer {
+        height: 86px;
+      }
+
+      .tempo-phone .collapsed-spacer {
+        height: 170px;
+      }
+
+      .long-phone .editor-card .choice.profile {
+        min-width: 126px;
+      }
+
+    </style>
+  </head>
+  <body>
+    <main class="board">
+      <header class="board-head">
+        <div>
+          <h1>Edit run colour language</h1>
+          <p class="subtitle">
+            Static wireframes based on the current edit-session screenshots. The proposed shift:
+            session colour identifies the run type, metric colour becomes a quieter row accent,
+            and clay stays reserved for the primary save action.
+          </p>
+        </div>
+        <div class="rules">
+          <div class="rule-card">
+            <div class="rule-label">Session</div>
+            <p>Header type words and session-type chips keep easy, interval, tempo, long, and rest colours.</p>
+          </div>
+          <div class="rule-card">
+            <div class="rule-label">Metric</div>
+            <p>Distance, pace, and duration use colour as a small row cue, not a filled control system.</p>
+          </div>
+          <div class="rule-card">
+            <div class="rule-label">Pace UX</div>
+            <p>Expanded pace rows show training paces first, then manual pace chips below.</p>
+          </div>
+          <div class="rule-card">
+            <div class="rule-label">Action</div>
+            <p>Cancel is neutral. The sticky save button remains clay as the primary action.</p>
+          </div>
+        </div>
+      </header>
+
+      <section class="wireframes" aria-label="High fidelity edit run wireframes">
+        <article class="frame">
+          <div class="frame-label">Easy - target pace expanded</div>
+          <div class="phone">
+            <div class="status">
+              <span>00:29</span>
+              <div class="island">
+                <div class="island-thumb"></div>
+                <div class="island-dots"><i></i><i></i><i></i><i></i><i></i></div>
+              </div>
+              <div class="status-icons"><span class="wifi"></span><span class="battery">31</span></div>
+            </div>
+            <div class="app">
+              <header class="header">
+                <span class="cancel">Cancel</span>
+                <div class="day">Mon</div>
+                <h2 class="title">
+                  <span class="mono distance-text">8km</span>
+                  <span class="easy-text">easy</span>
+                  <span class="title-sep"> / </span>
+                  <span class="mono pace-text">5:33-6:06</span>
+                  <span class="title-sep"> / </span>
+                  <span class="effort-text">conversational</span>
+                </h2>
+              </header>
+              <div class="scroll">
+                <section class="session-section">
+                  <div class="section-label">Session type</div>
+                  <div class="type-row">
+                    <span class="chip active-easy">Easy</span>
+                    <span class="chip">Interval</span>
+                    <span class="chip">Tempo</span>
+                    <span class="chip">Long</span>
+                    <span class="chip">Rest</span>
+                  </div>
+                </section>
+                <div class="rows">
+                  <div class="row metric-distance">
+                    <div class="row-label-wrap"><div class="row-label">Distance</div></div>
+                    <div class="row-value-wrap">
+                      <div class="row-value"><span>8</span><span class="unit">km</span></div>
+                    </div>
+                    <div class="chevron">&gt;</div>
+                  </div>
+
+                  <div class="row open metric-pace">
+                    <div class="row-label-wrap"><div class="row-label">Target pace</div></div>
+                    <div class="row-value-wrap">
+                      <div class="row-value compact">5:33-6:06/km</div>
+                      <div class="row-caption">Easy range from your profile</div>
+                    </div>
+                    <div class="chevron">&gt;</div>
+                    <div class="editor">
+                      <div class="editor-card pace-card">
+                        <div class="choice-group">
+                          <div class="choice-group-label">Training paces</div>
+                          <div class="chip-grid">
+                            <div class="choice profile wide">
+                              <span class="choice-title">Recovery range</span>
+                              <span class="choice-caption">6:14-6:56/km · very easy</span>
+                            </div>
+                            <div class="choice profile selected-pace wide">
+                              <span class="choice-title">Easy range</span>
+                              <span class="choice-caption">5:33-6:06/km · conversational</span>
+                            </div>
+                            <div class="choice profile wide">
+                              <span class="choice-title">Steady range</span>
+                              <span class="choice-caption">4:59-5:19/km · steady</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="choice-group">
+                          <div class="choice-group-label">Manual paces</div>
+                          <div class="chip-grid">
+                            <div class="choice">5:35/km</div>
+                            <div class="choice">5:40/km</div>
+                            <div class="choice">5:45/km</div>
+                            <div class="choice">5:50/km</div>
+                            <div class="choice">5:55/km</div>
+                            <div class="choice custom">Custom...</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <footer class="actions"><button class="primary">Update session</button></footer>
+            </div>
+          </div>
+        </article>
+
+        <article class="frame">
+          <div class="frame-label">Interval - collapsed editor</div>
+          <div class="phone">
+            <div class="status">
+              <span>00:29</span>
+              <div class="island">
+                <div class="island-thumb"></div>
+                <div class="island-dots"><i></i><i></i><i></i><i></i><i></i></div>
+              </div>
+              <div class="status-icons"><span class="wifi"></span><span class="battery">31</span></div>
+            </div>
+            <div class="app">
+              <header class="header">
+                <span class="cancel">Cancel</span>
+                <div class="day">Mon</div>
+                <h2 class="title">
+                  <span class="mono distance-text">6x800m</span>
+                  <span class="title-sep"> / </span>
+                  <span class="mono pace-text">3:47-4:10</span>
+                  <span class="title-sep"> / </span>
+                  <span class="effort-text">hard repeatable</span>
+                </h2>
+              </header>
+              <div class="scroll compressed">
+                <section class="session-section">
+                  <div class="section-label">Session type</div>
+                  <div class="type-row">
+                    <span class="chip">Easy</span>
+                    <span class="chip active-interval">Interval</span>
+                    <span class="chip">Tempo</span>
+                    <span class="chip">Long</span>
+                    <span class="chip">Rest</span>
+                  </div>
+                </section>
+                <div class="rows">
+                  <div class="row metric-distance">
+                    <div class="row-label-wrap">
+                      <div class="row-label">Repetitions</div>
+                      <div class="unit-toggle"><span class="km">KM</span><span>MIN</span></div>
+                    </div>
+                    <div class="row-value-wrap">
+                      <div class="row-value"><span>6x800m</span></div>
+                      <div class="row-caption">Main set</div>
+                    </div>
+                    <div class="chevron">&gt;</div>
+                  </div>
+                  <div class="row metric-pace">
+                    <div class="row-label-wrap"><div class="row-label">Rep target pace</div></div>
+                    <div class="row-value-wrap">
+                      <div class="row-value compact">3:47-4:10/km</div>
+                      <div class="row-caption">Interval range from your profile</div>
+                    </div>
+                    <div class="chevron">&gt;</div>
+                  </div>
+                  <div class="row metric-time">
+                    <div class="row-label-wrap">
+                      <div class="row-label">Recovery between reps</div>
+                      <div class="unit-toggle"><span>KM</span><span class="min">MIN</span></div>
+                    </div>
+                    <div class="row-value-wrap">
+                      <div class="row-value"><span>1.5</span><span class="unit">min</span></div>
+                      <div class="row-caption">Between reps</div>
+                    </div>
+                    <div class="chevron">&gt;</div>
+                  </div>
+                  <div class="row metric-distance">
+                    <div class="row-label-wrap">
+                      <div class="row-label">Warm-up</div>
+                      <div class="unit-toggle"><span class="km">KM</span><span>MIN</span></div>
+                    </div>
+                    <div class="row-value-wrap">
+                      <div class="row-value"><span>1.5</span><span class="unit">km</span></div>
+                      <div class="row-caption">Easy</div>
+                    </div>
+                    <div class="chevron">&gt;</div>
+                  </div>
+                  <div class="row metric-distance">
+                    <div class="row-label-wrap">
+                      <div class="row-label">Cool-down</div>
+                      <div class="unit-toggle"><span class="km">KM</span><span>MIN</span></div>
+                    </div>
+                    <div class="row-value-wrap">
+                      <div class="row-value"><span>1</span><span class="unit">km</span></div>
+                      <div class="row-caption">Easy</div>
+                    </div>
+                    <div class="chevron">&gt;</div>
+                  </div>
+                </div>
+                <div class="collapsed-spacer"></div>
+              </div>
+              <footer class="actions"><button class="primary">Update session</button></footer>
+            </div>
+          </div>
+        </article>
+
+        <article class="frame">
+          <div class="frame-label">Interval - rep target pace expanded</div>
+          <div class="phone">
+            <div class="status">
+              <span>00:29</span>
+              <div class="island">
+                <div class="island-thumb"></div>
+                <div class="island-dots"><i></i><i></i><i></i><i></i><i></i></div>
+              </div>
+              <div class="status-icons"><span class="wifi"></span><span class="battery">30</span></div>
+            </div>
+            <div class="app">
+              <header class="header">
+                <span class="cancel">Cancel</span>
+                <div class="day">Mon</div>
+                <h2 class="title">
+                  <span class="mono distance-text">6x800m</span>
+                  <span class="title-sep"> / </span>
+                  <span class="mono pace-text">3:47-4:10</span>
+                  <span class="title-sep"> / </span>
+                  <span class="effort-text">hard repeatable</span>
+                </h2>
+              </header>
+              <div class="scroll compressed">
+                <section class="session-section">
+                  <div class="section-label">Session type</div>
+                  <div class="type-row">
+                    <span class="chip">Easy</span>
+                    <span class="chip active-interval">Interval</span>
+                    <span class="chip">Tempo</span>
+                    <span class="chip">Long</span>
+                    <span class="chip">Rest</span>
+                  </div>
+                </section>
+                <div class="rows">
+                  <div class="row metric-distance">
+                    <div class="row-label-wrap">
+                      <div class="row-label">Repetitions</div>
+                      <div class="unit-toggle"><span class="km">KM</span><span>MIN</span></div>
+                    </div>
+                    <div class="row-value-wrap">
+                      <div class="row-value"><span>6x800m</span></div>
+                      <div class="row-caption">Main set</div>
+                    </div>
+                    <div class="chevron">&gt;</div>
+                  </div>
+                  <div class="row open metric-pace">
+                    <div class="row-label-wrap"><div class="row-label">Rep target pace</div></div>
+                    <div class="row-value-wrap">
+                      <div class="row-value compact">3:47-4:10/km</div>
+                      <div class="row-caption">Interval range from your profile</div>
+                    </div>
+                    <div class="chevron">&gt;</div>
+                    <div class="editor">
+                      <div class="editor-card pace-card">
+                        <div class="choice-group">
+                          <div class="choice-group-label">Training paces</div>
+                          <div class="chip-grid">
+                            <div class="choice profile selected-pace wide">
+                              <span class="choice-title">Interval range</span>
+                              <span class="choice-caption">3:47-4:10/km · hard repeatable</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="choice-group">
+                          <div class="choice-group-label">Manual paces</div>
+                          <div class="chip-grid">
+                            <div class="choice">3:44/km</div>
+                            <div class="choice">3:49/km</div>
+                            <div class="choice">3:54/km</div>
+                            <div class="choice">3:59/km</div>
+                            <div class="choice">4:04/km</div>
+                            <div class="choice">4:09/km</div>
+                            <div class="choice">4:14/km</div>
+                            <div class="choice custom">Custom...</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <footer class="actions"><button class="primary">Update session</button></footer>
+            </div>
+          </div>
+        </article>
+
+        <article class="frame">
+          <div class="frame-label">Long - target pace expanded</div>
+          <div class="phone long-phone">
+            <div class="status">
+              <span>00:29</span>
+              <div class="island">
+                <div class="island-thumb"></div>
+                <div class="island-dots"><i></i><i></i><i></i><i></i><i></i></div>
+              </div>
+              <div class="status-icons"><span class="wifi"></span><span class="battery">30</span></div>
+            </div>
+            <div class="app">
+              <header class="header">
+                <span class="cancel">Cancel</span>
+                <div class="day">Mon</div>
+                <h2 class="title">
+                  <span class="mono distance-text">16km</span>
+                  <span class="long-text">long</span>
+                  <span class="title-sep"> / </span>
+                  <span class="mono pace-text">5:33-6:06</span>
+                  <span class="title-sep"> / </span>
+                  <span class="effort-text">conversational</span>
+                </h2>
+              </header>
+              <div class="scroll">
+                <section class="session-section">
+                  <div class="section-label">Session type</div>
+                  <div class="type-row">
+                    <span class="chip">Easy</span>
+                    <span class="chip">Interval</span>
+                    <span class="chip">Tempo</span>
+                    <span class="chip active-long">Long</span>
+                    <span class="chip">Rest</span>
+                  </div>
+                </section>
+                <div class="rows">
+                  <div class="row metric-distance">
+                    <div class="row-label-wrap"><div class="row-label">Distance</div></div>
+                    <div class="row-value-wrap">
+                      <div class="row-value"><span>16</span><span class="unit">km</span></div>
+                    </div>
+                    <div class="chevron">&gt;</div>
+                  </div>
+                  <div class="row open metric-pace">
+                    <div class="row-label-wrap"><div class="row-label">Target pace</div></div>
+                    <div class="row-value-wrap">
+                      <div class="row-value compact">5:33-6:06/km</div>
+                      <div class="row-caption">Easy range from your profile</div>
+                    </div>
+                    <div class="chevron">&gt;</div>
+                    <div class="editor">
+                      <div class="editor-card pace-card">
+                        <div class="choice-group">
+                          <div class="choice-group-label">Training paces</div>
+                          <div class="chip-grid">
+                            <div class="choice profile selected-pace wide">
+                              <span class="choice-title">Easy range</span>
+                              <span class="choice-caption">5:33-6:06/km · conversational</span>
+                            </div>
+                            <div class="choice profile wide">
+                              <span class="choice-title">Steady range</span>
+                              <span class="choice-caption">4:59-5:19/km · steady</span>
+                            </div>
+                            <div class="choice profile wide">
+                              <span class="choice-title">Race pace</span>
+                              <span class="choice-caption">4:37/km</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="choice-group">
+                          <div class="choice-group-label">Manual paces</div>
+                          <div class="chip-grid">
+                            <div class="choice">5:35/km</div>
+                            <div class="choice">5:40/km</div>
+                            <div class="choice">5:45/km</div>
+                            <div class="choice">5:50/km</div>
+                            <div class="choice">5:55/km</div>
+                            <div class="choice">6:00/km</div>
+                            <div class="choice">6:05/km</div>
+                            <div class="choice custom">Custom...</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <footer class="actions"><button class="primary">Update session</button></footer>
+            </div>
+          </div>
+        </article>
+
+        <article class="frame">
+          <div class="frame-label">Tempo - collapsed editor</div>
+          <div class="phone tempo-phone">
+            <div class="status">
+              <span>00:29</span>
+              <div class="island">
+                <div class="island-thumb"></div>
+                <div class="island-dots"><i></i><i></i><i></i><i></i><i></i></div>
+              </div>
+              <div class="status-icons"><span class="wifi"></span><span class="battery">30</span></div>
+            </div>
+            <div class="app">
+              <header class="header">
+                <span class="cancel">Cancel</span>
+                <div class="day">Mon</div>
+                <h2 class="title">
+                  <span class="mono distance-text">10km</span>
+                  <span class="tempo-text">tempo</span>
+                  <span class="title-sep"> / </span>
+                  <span class="mono pace-text">4:21-4:35</span>
+                  <span class="title-sep"> / </span>
+                  <span class="effort-text">controlled hard</span>
+                </h2>
+              </header>
+              <div class="scroll compressed">
+                <section class="session-section">
+                  <div class="section-label">Session type</div>
+                  <div class="type-row">
+                    <span class="chip">Easy</span>
+                    <span class="chip">Interval</span>
+                    <span class="chip active-tempo">Tempo</span>
+                    <span class="chip">Long</span>
+                    <span class="chip">Rest</span>
+                  </div>
+                </section>
+                <div class="rows">
+                  <div class="row metric-distance">
+                    <div class="row-label-wrap"><div class="row-label">Distance</div></div>
+                    <div class="row-value-wrap">
+                      <div class="row-value"><span>10</span><span class="unit">km</span></div>
+                    </div>
+                    <div class="chevron">&gt;</div>
+                  </div>
+                  <div class="row metric-pace">
+                    <div class="row-label-wrap"><div class="row-label">Target pace</div></div>
+                    <div class="row-value-wrap">
+                      <div class="row-value compact">4:21-4:35/km</div>
+                      <div class="row-caption">Threshold range from your profile</div>
+                    </div>
+                    <div class="chevron">&gt;</div>
+                  </div>
+                  <div class="row metric-distance">
+                    <div class="row-label-wrap">
+                      <div class="row-label">Warm-up</div>
+                      <div class="unit-toggle"><span class="km">KM</span><span>MIN</span></div>
+                    </div>
+                    <div class="row-value-wrap">
+                      <div class="row-value"><span>2</span><span class="unit">km</span></div>
+                      <div class="row-caption">Easy</div>
+                    </div>
+                    <div class="chevron">&gt;</div>
+                  </div>
+                  <div class="row metric-distance">
+                    <div class="row-label-wrap">
+                      <div class="row-label">Cool-down</div>
+                      <div class="unit-toggle"><span class="km">KM</span><span>MIN</span></div>
+                    </div>
+                    <div class="row-value-wrap">
+                      <div class="row-value"><span>1.5</span><span class="unit">km</span></div>
+                      <div class="row-caption">Easy</div>
+                    </div>
+                    <div class="chevron">&gt;</div>
+                  </div>
+                </div>
+                <div class="collapsed-spacer"></div>
+              </div>
+              <footer class="actions"><button class="primary">Update session</button></footer>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

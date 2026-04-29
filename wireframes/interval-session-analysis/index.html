@@ -65,6 +65,11 @@
         --navy-bg: #edf1f8;
         --slate: #8a8e9a;
         --slate-bg: #f2f2f4;
+        --metric-distance: #3d55a4;
+        --metric-time: #9d711f;
+        --metric-pace: #187f7a;
+        --metric-hr: #bd433b;
+        --metric-effort: #765098;
         --serif: "Playfair Display", Georgia, serif;
         --sans: "DM Sans", sans-serif;
         --mono: "Space Mono", monospace;
@@ -84,7 +89,7 @@
       }
 
       .board {
-        width: 1160px;
+        width: 1240px;
         min-height: 1020px;
         margin: 0 auto;
         padding: 34px 40px 42px;
@@ -399,6 +404,12 @@
         background: rgba(253, 250, 245, 0.42);
       }
 
+      .chip.tempo {
+        color: var(--amber);
+        border: 1px solid rgba(212, 136, 42, 0.28);
+        background: rgba(253, 250, 245, 0.42);
+      }
+
       .headline {
         margin: 0 0 8px;
         color: var(--forest);
@@ -448,6 +459,26 @@
         line-height: 1;
         font-weight: 700;
         white-space: nowrap;
+      }
+
+      .metric.distance .metric-value {
+        color: var(--metric-distance);
+      }
+
+      .metric.time .metric-value {
+        color: var(--metric-time);
+      }
+
+      .metric.pace .metric-value {
+        color: var(--metric-pace);
+      }
+
+      .metric.hr .metric-value {
+        color: var(--metric-hr);
+      }
+
+      .metric.status .metric-value {
+        color: var(--forest);
       }
 
       .metric-label {
@@ -706,6 +737,76 @@
         color: var(--ink2);
         font-size: 12.5px;
         line-height: 1.48;
+      }
+
+      .quality-summary {
+        position: relative;
+        padding: 16px;
+        margin-bottom: 12px;
+        overflow: hidden;
+        border: 1.5px solid var(--border);
+        border-radius: 16px;
+        background: var(--surface);
+      }
+
+      .quality-summary::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--quality-accent);
+      }
+
+      .quality-summary.interval {
+        --quality-accent: var(--clay);
+      }
+
+      .quality-summary.tempo {
+        --quality-accent: var(--amber);
+      }
+
+      .quality-title-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 7px;
+      }
+
+      .quality-title {
+        margin: 0;
+        font-family: var(--serif);
+        font-size: 19px;
+        line-height: 1.1;
+        font-weight: 700;
+      }
+
+      .quality-target {
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .quality-status {
+        margin-bottom: 12px;
+        color: var(--forest);
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.35;
+      }
+
+      .quality-status .mono {
+        color: inherit;
+      }
+
+      .quality-note {
+        margin: 10px 0 0;
+        color: var(--ink2);
+        font-size: 11.5px;
+        line-height: 1.45;
       }
 
       .section {
@@ -968,7 +1069,7 @@
       }
 
       .pace-cell {
-        color: var(--ink2);
+        color: var(--metric-pace);
         font-family: var(--mono);
         font-size: 11px;
       }
@@ -985,7 +1086,88 @@
       }
 
       .hr-cell {
-        color: var(--ink);
+        color: var(--metric-hr);
+        font-family: var(--mono);
+        font-size: 11px;
+        font-weight: 700;
+        text-align: right;
+      }
+
+      .segment-table {
+        display: grid;
+        overflow: hidden;
+        border: 1px solid rgba(28, 21, 16, 0.08);
+        border-radius: 12px;
+      }
+
+      .segment-header,
+      .segment-row {
+        display: grid;
+        grid-template-columns: 68px 62px 1fr 42px;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .segment-header {
+        padding: 0 10px 8px;
+        color: var(--muted);
+        font-size: 8px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+
+      .segment-row {
+        min-height: 50px;
+        padding: 10px;
+        border-top: 1px dashed var(--border);
+        background: rgba(253, 250, 245, 0.55);
+      }
+
+      .segment-row:first-of-type {
+        border-top: 0;
+      }
+
+      .segment-distance {
+        color: var(--metric-distance);
+        font-family: var(--mono);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .segment-pace {
+        color: var(--metric-pace);
+        font-family: var(--mono);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .target-track {
+        position: relative;
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(24, 127, 122, 0.12);
+      }
+
+      .target-fill {
+        width: var(--fill);
+        height: 100%;
+        border-radius: inherit;
+        background: var(--metric-pace);
+      }
+
+      .target-marker {
+        position: absolute;
+        top: -3px;
+        left: 66%;
+        width: 3px;
+        height: 16px;
+        border-radius: 99px;
+        background: #8a8e9a;
+      }
+
+      .segment-hr {
+        color: var(--metric-hr);
         font-family: var(--mono);
         font-size: 11px;
         font-weight: 700;
@@ -1044,35 +1226,35 @@
   <body>
     <main class="board">
       <header class="board-head">
-        <h1 class="board-title">Small interval correction</h1>
+        <h1 class="board-title">Structured quality summaries</h1>
         <p class="board-copy">
-          Keep the product move small: Home gets a corrected summary, Run Detail gets enough interval context to explain it. No new analytics dashboard, no extra chart surface, and no whole-run average pace driving interval verdicts.
+          Keep the product move small: Run Detail gets one shared Quality Summary component for interval and tempo sessions. The Home/TODAY card is out of scope and will be handled in its own redesign.
         </p>
       </header>
 
       <section class="layout">
         <aside class="annotation">
-          <h2>Minimal scope</h2>
+          <h2>Scoped project</h2>
           <p>
-            The fix is not "add analytics everywhere". The fix is "grade the right part of the run".
+            The fix is not "add analytics everywhere". The fix is "grade the right part of the run" with one reusable component.
           </p>
 
           <div class="rule">
-            <div class="rule-label">Home verdict</div>
-            <strong>Use quality-work analysis first.</strong>
-            <p>If all 400m reps are inside range, the headline is On target. Home shows only total distance, reps in range, rep average, and interval BPM.</p>
+            <div class="rule-label">Out of scope</div>
+            <strong>Leave the TODAY card alone.</strong>
+            <p>This project does not redesign Home. It only gives Run Detail a reliable structured-session summary.</p>
           </div>
 
           <div class="rule">
             <div class="rule-label">Run detail</div>
-            <strong>Add one modest interval summary.</strong>
-            <p>Show work-rep stats above the existing splits. Do not introduce a new chart-led analytics screen.</p>
+            <strong>One component, two variants.</strong>
+            <p>`Interval summary` and `Tempo summary` share structure. Session accent changes, metric treatment stays consistent.</p>
           </div>
 
           <div class="rule">
             <div class="rule-label">Linear scope</div>
-            <strong>STV2-185 + STV2-67.</strong>
-            <p>Use interval HR and elapsed split time. Leave HR drift, load breakdowns, and Steady commentary out of this pass.</p>
+            <strong>STV2-192, STV2-194, STV2-195.</strong>
+            <p>Domain summary, shared Run Detail card, and target-aware Splits. Existing STV2-185/STV2-67 are linked.</p>
           </div>
 
           <div class="rule">
@@ -1091,103 +1273,9 @@
           </div>
           <div class="token-row">
             <span class="dot amber"></span>
-            <p><strong>Amber</strong> marks recoveries and secondary watch points.</p>
+            <p><strong>Amber</strong> marks tempo session identity.</p>
           </div>
         </aside>
-
-        <div class="frame">
-          <div class="frame-label">Home - corrected completed card</div>
-          <article class="phone">
-            <div class="status-bar">
-              <span>21:09</span>
-              <div class="status-icons">
-                <div class="bars"><span></span><span></span><span></span><span></span></div>
-                <span>5G</span>
-                <span class="battery">58</span>
-              </div>
-            </div>
-
-            <div class="home-scroll">
-              <div class="date-kicker">Apr 27 - 3, 2026</div>
-              <h2 class="screen-title">Week 1 · Base Phase</h2>
-
-              <section class="load-card">
-                <div class="load-top">
-                  <div class="label">Weekly volume</div>
-                  <div class="load-value"><strong>21.8km</strong> / 70km</div>
-                </div>
-                <div class="load-track"><div class="load-fill"></div></div>
-                <div class="load-copy">A little over planned mileage</div>
-              </section>
-
-              <section class="hero-card">
-                <div class="hero-top">
-                  <div class="chip completed">✓ Completed</div>
-                  <div class="chip interval">Interval</div>
-                </div>
-
-                <h3 class="headline">On target</h3>
-                <p class="hero-copy">
-                  All <span class="mono">6x400m</span> reps landed inside the planned <span class="mono">3:47-4:10/km</span> range.
-                </p>
-
-                <div class="metrics home-metrics">
-                  <div class="metric">
-                    <div class="metric-value">9.2km</div>
-                    <div class="metric-label">total distance</div>
-                  </div>
-                  <div class="metric">
-                    <div class="metric-value">6/6</div>
-                    <div class="metric-label">in range</div>
-                  </div>
-                  <div class="metric">
-                    <div class="metric-value">3:59</div>
-                    <div class="metric-label">rep avg</div>
-                  </div>
-                  <div class="metric">
-                    <div class="metric-value">172</div>
-                    <div class="metric-label">interval bpm</div>
-                  </div>
-                </div>
-
-                <div class="review-row">
-                  <div>
-                    <div class="review-title">Review run</div>
-                    <div class="review-copy">Open splits and interval HR.</div>
-                  </div>
-                  <div class="chevron">›</div>
-                </div>
-              </section>
-
-              <section class="injury-card">
-                <div class="alert-dot">!</div>
-                <div class="injury-copy">
-                  You flagged <span style="color: var(--clay);">Right Calf · Niggle · Before</span>. We will keep an eye on it across your next few sessions.
-                </div>
-              </section>
-
-              <div class="week-list">
-                <div class="label week-label">This week</div>
-                <div class="day-row">
-                  <div class="day">Mon<small>Apr 27</small></div>
-                  <div class="session-name"><span class="session-dot" style="background: var(--forest);"></span>Easy 12k</div>
-                  <div class="right-stat">12.6k</div>
-                </div>
-                <div class="day-row">
-                  <div class="day">Tue<small>Apr 28</small></div>
-                  <div class="session-name"><span class="session-dot"></span>6x400m · 3:47-4:10</div>
-                  <div class="right-stat">9.2k</div>
-                </div>
-              </div>
-            </div>
-
-            <nav class="nav-bar">
-              <div class="tab active"><div class="tab-icon"></div>Home</div>
-              <div class="tab"><div class="tab-icon"></div>Block</div>
-              <div class="tab"><div class="tab-icon"></div>Settings</div>
-            </nav>
-          </article>
-        </div>
 
         <div class="frame">
           <div class="frame-label">Run Detail - small addition</div>
@@ -1217,33 +1305,27 @@
                 <div class="run-meta">Tue Apr 28 · 9.2km total · 50:28 elapsed · Strava laps</div>
               </header>
 
-              <section class="summary-card">
-                <h3 class="summary-title">Intervals on target</h3>
-                <p class="summary-copy">
-                  <span class="mono">6/6</span> reps landed inside <span class="mono">3:47-4:10/km</span>. Whole-run average pace is not used to grade this session.
-                </p>
-              </section>
-
-              <section class="section">
-                <div class="section-head">
-                  <h3 class="section-title">Interval summary</h3>
-                  <div class="section-action">Target 3:47-4:10/km</div>
+              <section class="quality-summary interval">
+                <div class="quality-title-row">
+                  <h3 class="quality-title">Interval summary</h3>
+                  <div class="quality-target">Target 3:47-4:10/km</div>
                 </div>
-
+                <div class="quality-status"><span class="mono">6/6</span> reps inside range</div>
                 <div class="quality-grid">
-                  <div class="metric">
+                  <div class="metric status">
                     <div class="metric-value">6/6</div>
                     <div class="metric-label">in range</div>
                   </div>
-                  <div class="metric">
+                  <div class="metric pace">
                     <div class="metric-value">3:59</div>
                     <div class="metric-label">rep avg</div>
                   </div>
-                  <div class="metric">
+                  <div class="metric hr">
                     <div class="metric-value">172</div>
                     <div class="metric-label">interval bpm</div>
                   </div>
                 </div>
+                <p class="quality-note">Whole-run average pace is context only for this session.</p>
               </section>
 
               <section class="section">
@@ -1294,24 +1376,135 @@
 
               <section class="section">
                 <div class="section-head">
-                  <h3 class="section-title">Whole-run data</h3>
+                  <h3 class="section-title">Whole-run context</h3>
                   <div class="section-action">Context only</div>
                 </div>
                 <div class="quality-grid">
-                  <div class="metric">
+                  <div class="metric distance">
                     <div class="metric-value">9.2km</div>
                     <div class="metric-label">distance</div>
                   </div>
-                  <div class="metric">
+                  <div class="metric pace">
                     <div class="metric-value">5:29</div>
                     <div class="metric-label">avg pace</div>
                   </div>
-                  <div class="metric">
+                  <div class="metric hr">
                     <div class="metric-value">158</div>
                     <div class="metric-label">avg bpm</div>
                   </div>
                 </div>
                 <p class="tiny-note">These describe the full activity. The interval verdict uses the work reps above.</p>
+              </section>
+            </div>
+            <div class="bottom-fade"></div>
+          </article>
+        </div>
+
+        <div class="frame">
+          <div class="frame-label">Run Detail - tempo variant</div>
+          <article class="phone">
+            <div class="status-bar">
+              <span>21:09</span>
+              <div class="status-icons">
+                <div class="bars"><span></span><span></span><span></span><span></span></div>
+                <span>5G</span>
+                <span class="battery">58</span>
+              </div>
+            </div>
+
+            <div class="detail-scroll">
+              <div class="detail-nav">
+                <div class="back">Back</div>
+                <div class="nav-title">Run detail</div>
+                <div class="done">Done</div>
+              </div>
+
+              <header class="detail-header">
+                <div class="detail-chip-row">
+                  <div class="chip completed">Matched</div>
+                  <div class="chip tempo">Tempo</div>
+                </div>
+                <h2 class="run-title">6km tempo</h2>
+                <div class="run-meta">Thu Apr 30 · 10.1km total · 50:38 elapsed · Strava laps</div>
+              </header>
+
+              <section class="quality-summary tempo">
+                <div class="quality-title-row">
+                  <h3 class="quality-title">Tempo summary</h3>
+                  <div class="quality-target">Target 4:10-4:20/km</div>
+                </div>
+                <div class="quality-status"><span class="mono">6.0km</span> tempo block inside range</div>
+                <div class="quality-grid">
+                  <div class="metric distance">
+                    <div class="metric-value">6.0km</div>
+                    <div class="metric-label">tempo block</div>
+                  </div>
+                  <div class="metric pace">
+                    <div class="metric-value">4:14</div>
+                    <div class="metric-label">tempo avg</div>
+                  </div>
+                  <div class="metric hr">
+                    <div class="metric-value">164</div>
+                    <div class="metric-label">tempo bpm</div>
+                  </div>
+                </div>
+                <p class="quality-note">Warmup and cooldown stay visible, but do not grade the tempo target.</p>
+              </section>
+
+              <section class="section">
+                <div class="section-head">
+                  <h3 class="section-title">Splits</h3>
+                  <div class="section-action">Segments</div>
+                </div>
+
+                <div class="segment-table">
+                  <div class="segment-header">
+                    <div>Distance</div>
+                    <div>Pace</div>
+                    <div>VS target</div>
+                    <div>HR</div>
+                  </div>
+                  <div class="segment-row">
+                    <div class="segment-distance">2.0km</div>
+                    <div class="segment-pace">5:52</div>
+                    <div class="target-track"><div class="target-fill" style="--fill: 42%;"></div><div class="target-marker"></div></div>
+                    <div class="segment-hr">139</div>
+                  </div>
+                  <div class="segment-row">
+                    <div class="segment-distance">6.0km</div>
+                    <div class="segment-pace">4:14</div>
+                    <div class="target-track"><div class="target-fill" style="--fill: 68%;"></div><div class="target-marker"></div></div>
+                    <div class="segment-hr">164</div>
+                  </div>
+                  <div class="segment-row">
+                    <div class="segment-distance">2.1km</div>
+                    <div class="segment-pace">5:58</div>
+                    <div class="target-track"><div class="target-fill" style="--fill: 39%;"></div><div class="target-marker"></div></div>
+                    <div class="segment-hr">151</div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="section">
+                <div class="section-head">
+                  <h3 class="section-title">Whole-run context</h3>
+                  <div class="section-action">Context only</div>
+                </div>
+                <div class="quality-grid">
+                  <div class="metric distance">
+                    <div class="metric-value">10.1km</div>
+                    <div class="metric-label">distance</div>
+                  </div>
+                  <div class="metric pace">
+                    <div class="metric-value">5:01</div>
+                    <div class="metric-label">avg pace</div>
+                  </div>
+                  <div class="metric hr">
+                    <div class="metric-value">153</div>
+                    <div class="metric-label">avg bpm</div>
+                  </div>
+                </div>
+                <p class="tiny-note">These describe the full activity. The tempo verdict uses the tempo block.</p>
               </section>
             </div>
             <div class="bottom-fade"></div>

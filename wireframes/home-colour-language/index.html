@@ -1,0 +1,1796 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Steady Home Colour Language Pilot</title>
+    <style>
+      @font-face {
+        font-family: "Playfair Display";
+        src: url("../../packages/app/assets/fonts/PlayfairDisplay-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "Playfair Display";
+        src: url("../../packages/app/assets/fonts/PlayfairDisplay-Bold.ttf") format("truetype");
+        font-weight: 700;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-Medium.ttf") format("truetype");
+        font-weight: 500;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-SemiBold.ttf") format("truetype");
+        font-weight: 700;
+      }
+
+      @font-face {
+        font-family: "Space Mono";
+        src: url("../../packages/app/assets/fonts/SpaceMono-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "Space Mono";
+        src: url("../../packages/app/assets/fonts/SpaceMono-Bold.ttf") format("truetype");
+        font-weight: 700;
+      }
+
+      :root {
+        --cream: #f4efe6;
+        --surface: #fdfaf5;
+        --card: #f0eae0;
+        --ink: #1c1510;
+        --ink-2: #3d3028;
+        --muted: #9a8e7e;
+        --border: #e5ddd0;
+
+        --session-easy: #2a5c45;
+        --session-easy-bg: #eef4f1;
+        --session-interval: #c4522a;
+        --session-interval-bg: #fdf0eb;
+        --session-tempo: #d4882a;
+        --session-tempo-bg: #fdf6eb;
+        --session-long: #1b3a6b;
+        --session-long-bg: #edf1f8;
+        --session-rest: #8a8e9a;
+        --session-rest-bg: #f2f2f4;
+
+        --phase-base: #1b3a6b;
+        --phase-build: #c4522a;
+        --phase-recovery: #7c5cbf;
+        --phase-peak: #d4882a;
+        --phase-taper: #2a5c45;
+
+        --metric-distance: #3d55a4;
+        --metric-distance-bg: #eef1fb;
+        --metric-pace: #187f7a;
+        --metric-pace-bg: #e4f1ef;
+        --metric-time: #9d711f;
+        --metric-time-bg: #f9f2e5;
+        --metric-hr: #bd433b;
+        --metric-hr-bg: #fbeceb;
+        --metric-effort: #765098;
+        --metric-effort-bg: #f3eef7;
+
+        --status-complete: #2a5c45;
+        --status-complete-bg: #eef4f1;
+        --status-varied: #d4882a;
+        --status-varied-bg: #fdf6eb;
+        --status-missed: #c4522a;
+        --status-missed-bg: #fdf0eb;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: #e8dfd2;
+        color: var(--ink);
+        font-family: "DM Sans", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .board {
+        width: 1268px;
+        min-height: 1098px;
+        padding: 34px 36px 42px;
+      }
+
+      .board-title {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        gap: 28px;
+        align-items: end;
+        margin-bottom: 24px;
+      }
+
+      .board-title h1 {
+        margin: 0;
+        font-family: "Playfair Display", serif;
+        font-size: 36px;
+        line-height: 1.02;
+        letter-spacing: 0;
+      }
+
+      .board-title p {
+        max-width: 760px;
+        margin: 0 0 4px;
+        color: #6f6255;
+        font-size: 14px;
+        line-height: 1.46;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 300px repeat(2, 430px);
+        gap: 28px;
+        align-items: start;
+      }
+
+      .legend {
+        min-height: 932px;
+        border: 1px solid rgba(28, 21, 16, 0.09);
+        background: rgba(253, 250, 245, 0.64);
+        border-radius: 28px;
+        padding: 24px 22px;
+      }
+
+      .legend h2 {
+        margin: 0 0 6px;
+        font-family: "Playfair Display", serif;
+        font-size: 24px;
+        line-height: 1.08;
+      }
+
+      .legend-copy {
+        margin: 0 0 20px;
+        color: #6f6255;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .rule-card {
+        margin-bottom: 14px;
+        padding: 14px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        border-radius: 16px;
+      }
+
+      .rule-label,
+      .namespace-title,
+      .section-label,
+      .metric-label,
+      .chip,
+      .pill,
+      .week-meta,
+      .row-day,
+      .row-date {
+        font-weight: 700;
+        letter-spacing: 1.25px;
+        text-transform: uppercase;
+      }
+
+      .rule-label {
+        margin-bottom: 7px;
+        color: var(--muted);
+        font-size: 9px;
+      }
+
+      .rule {
+        margin: 0;
+        color: var(--ink-2);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .namespace {
+        margin-top: 22px;
+      }
+
+      .namespace-title {
+        margin-bottom: 9px;
+        color: var(--ink);
+        font-size: 11px;
+      }
+
+      .token-list {
+        display: grid;
+        gap: 9px;
+      }
+
+      .token {
+        display: grid;
+        grid-template-columns: 20px 1fr auto;
+        gap: 9px;
+        align-items: center;
+      }
+
+      .swatch {
+        width: 20px;
+        height: 20px;
+        border-radius: 999px;
+        box-shadow: inset 0 0 0 1px rgba(28, 21, 16, 0.1);
+      }
+
+      .token-name {
+        color: var(--ink-2);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .token-code {
+        color: var(--muted);
+        font-family: "Space Mono", monospace;
+        font-size: 9px;
+      }
+
+      .frame {
+        display: grid;
+        gap: 10px;
+      }
+
+      .frame-label {
+        color: #6f6255;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1.8px;
+        text-transform: uppercase;
+      }
+
+      .phone {
+        position: relative;
+        width: 430px;
+        height: 932px;
+        overflow: hidden;
+        background: var(--cream);
+        border: 1px solid rgba(28, 21, 16, 0.09);
+        border-radius: 38px;
+        box-shadow: 0 18px 45px rgba(61, 48, 40, 0.12);
+      }
+
+      .ios {
+        position: absolute;
+        inset: 0 0 auto;
+        z-index: 8;
+        height: 130px;
+        pointer-events: none;
+      }
+
+      .ios-time {
+        position: absolute;
+        top: 58px;
+        left: 38px;
+        color: #050403;
+        font-family: "Space Mono", monospace;
+        font-size: 19px;
+        font-weight: 700;
+      }
+
+      .island {
+        position: absolute;
+        top: 32px;
+        left: 50%;
+        width: 205px;
+        height: 41px;
+        transform: translateX(-50%);
+        border-radius: 999px;
+        background: #050403;
+      }
+
+      .island::before {
+        content: "";
+        position: absolute;
+        top: 9px;
+        left: 15px;
+        width: 23px;
+        height: 23px;
+        border-radius: 6px;
+        background:
+          radial-gradient(circle at 32% 36%, #c4522a 0 2px, transparent 2.4px),
+          radial-gradient(circle at 56% 43%, #2a5c45 0 2px, transparent 2.4px),
+          radial-gradient(circle at 42% 63%, #d4882a 0 2px, transparent 2.4px),
+          #fdfaf5;
+      }
+
+      .island::after {
+        content: "";
+        position: absolute;
+        top: 19px;
+        right: 20px;
+        width: 34px;
+        height: 4px;
+        border-radius: 999px;
+        background: repeating-linear-gradient(
+          90deg,
+          rgba(253, 250, 245, 0.72) 0 3px,
+          transparent 3px 7px
+        );
+      }
+
+      .ios-icons {
+        position: absolute;
+        top: 58px;
+        right: 38px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        color: #050403;
+      }
+
+      .wifi {
+        width: 24px;
+        height: 18px;
+      }
+
+      .battery {
+        position: relative;
+        width: 33px;
+        height: 18px;
+        border: 2px solid rgba(5, 4, 3, 0.28);
+        border-radius: 5px;
+      }
+
+      .battery::before {
+        content: "38";
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: var(--surface);
+        font-family: "Space Mono", monospace;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1;
+        border-radius: 3px;
+        background: #3d3733;
+      }
+
+      .battery::after {
+        content: "";
+        position: absolute;
+        top: 4px;
+        right: -5px;
+        width: 3px;
+        height: 8px;
+        border-radius: 0 3px 3px 0;
+        background: rgba(5, 4, 3, 0.24);
+      }
+
+      .screen {
+        position: absolute;
+        inset: 0 0 82px;
+        overflow: hidden;
+        background: var(--cream);
+      }
+
+      .content {
+        padding: 176px 18px 110px;
+      }
+
+      .content.week-scan {
+        padding-top: 150px;
+      }
+
+      .content.planned-scan {
+        padding-top: 150px;
+      }
+
+      .planned-scan .home-title {
+        margin-bottom: 22px;
+      }
+
+      .planned-scan .volume-card {
+        min-height: 88px;
+        margin-bottom: 18px;
+        padding-top: 16px;
+        padding-bottom: 16px;
+      }
+
+      .planned-scan .today-card {
+        padding-top: 20px;
+        padding-bottom: 18px;
+      }
+
+      .planned-scan .today-top {
+        margin-bottom: 18px;
+      }
+
+      .planned-scan .date-line {
+        margin-bottom: 16px;
+      }
+
+      .planned-scan .metric-row {
+        margin-bottom: 14px;
+      }
+
+      .planned-scan .finished-cta {
+        margin: 12px 0 17px;
+      }
+
+      .planned-scan .day-row {
+        min-height: 70px;
+      }
+
+      .bottom-tab {
+        position: absolute;
+        inset: auto 0 0;
+        z-index: 7;
+        height: 82px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        align-items: start;
+        padding-top: 15px;
+        border-top: 1px solid var(--border);
+        background: rgba(253, 250, 245, 0.94);
+      }
+
+      .tab {
+        display: grid;
+        justify-items: center;
+        gap: 5px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .tab svg {
+        width: 25px;
+        height: 25px;
+        fill: currentColor;
+        stroke: currentColor;
+        stroke-width: 1.6;
+      }
+
+      .tab.active {
+        color: var(--session-interval);
+      }
+
+      .scroll-indicator {
+        position: absolute;
+        top: 150px;
+        right: 4px;
+        z-index: 6;
+        width: 4px;
+        height: 642px;
+        border-radius: 999px;
+        background: rgba(28, 21, 16, 0.28);
+      }
+
+      .scroll-indicator.lower {
+        top: 208px;
+        height: 552px;
+      }
+
+      .week-meta {
+        margin: 0 0 20px 4px;
+        color: var(--muted);
+        font-size: 10px;
+      }
+
+      .home-title {
+        margin: 0 0 28px 4px;
+        color: var(--ink);
+        font-family: "Playfair Display", serif;
+        font-size: 33px;
+        line-height: 1.06;
+        font-weight: 700;
+        letter-spacing: 0;
+      }
+
+      .volume-card,
+      .today-card,
+      .niggle-banner {
+        border: 1.5px solid var(--border);
+        background: var(--surface);
+      }
+
+      .volume-card {
+        min-height: 98px;
+        padding: 18px 20px;
+        border-radius: 19px;
+        margin-bottom: 20px;
+      }
+
+      .volume-top {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 17px;
+      }
+
+      .volume-title {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.3px;
+        text-transform: uppercase;
+      }
+
+      .chevron {
+        width: 8px;
+        height: 8px;
+        border-right: 1.5px solid var(--muted);
+        border-bottom: 1.5px solid var(--muted);
+        transform: rotate(45deg);
+        margin-top: -4px;
+      }
+
+      .volume-values {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 6px;
+        font-family: "Space Mono", monospace;
+      }
+
+      .volume-actual {
+        color: var(--metric-distance);
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .volume-planned {
+        color: var(--muted);
+        font-size: 15px;
+      }
+
+      .volume-track {
+        height: 5px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: var(--border);
+      }
+
+      .volume-fill {
+        width: 31%;
+        height: 100%;
+        border-radius: 999px;
+        background: var(--metric-distance);
+      }
+
+      .volume-copy {
+        margin: 12px 0 0;
+        color: var(--ink-2);
+        font-size: 12px;
+      }
+
+      .today-card {
+        position: relative;
+        padding: 22px 22px 20px;
+        border-color: var(--border);
+        border-radius: 18px;
+        box-shadow: 0 2px 10px rgba(196, 82, 42, 0.13);
+      }
+
+      .today-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 24px;
+      }
+
+      .completed-pill,
+      .session-pill,
+      .match-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 31px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.3px;
+        text-transform: uppercase;
+      }
+
+      .completed-pill {
+        gap: 7px;
+        color: var(--status-complete);
+        border: 1.5px solid rgba(42, 92, 69, 0.22);
+        background: var(--status-complete-bg);
+      }
+
+      .session-pill {
+        color: var(--session-interval);
+        border: 1.5px solid rgba(196, 82, 42, 0.28);
+        background: var(--session-interval-bg);
+      }
+
+      .session-pill.easy {
+        color: var(--surface);
+        border-color: var(--session-easy);
+        background: var(--session-easy);
+      }
+
+      .session-pill.interval {
+        color: var(--session-interval);
+        border-color: rgba(196, 82, 42, 0.28);
+        background: var(--session-interval-bg);
+      }
+
+      .today-word {
+        color: var(--status-missed);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+      }
+
+      .today-heading {
+        margin: 0 0 12px;
+        color: var(--ink);
+        font-family: "Playfair Display", serif;
+        font-size: 33px;
+        line-height: 1.02;
+        font-weight: 700;
+        letter-spacing: 0;
+      }
+
+      .today-heading .distance {
+        font-family: "Space Mono", monospace;
+        font-size: 28px;
+        letter-spacing: -0.8px;
+      }
+
+      .date-line {
+        margin: -2px 0 20px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .summary {
+        margin: 0 0 21px;
+        color: var(--ink-2);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .number {
+        font-family: "Space Mono", monospace;
+        font-weight: 700;
+      }
+
+      .distance {
+        color: var(--metric-distance);
+      }
+
+      .pace {
+        color: var(--metric-pace);
+      }
+
+      .hr {
+        color: var(--metric-hr);
+      }
+
+      .effort {
+        color: var(--metric-effort);
+      }
+
+      .metric-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 11px;
+        margin-bottom: 18px;
+      }
+
+      .metric-card {
+        position: relative;
+        min-width: 0;
+        min-height: 72px;
+        padding: 13px 12px 11px 14px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 13px;
+        background: rgba(253, 250, 245, 0.72);
+      }
+
+      .metric-card::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 3px;
+        background: var(--metric);
+      }
+
+      .metric-value {
+        margin-bottom: 6px;
+        color: var(--metric);
+        font-family: "Space Mono", monospace;
+        font-size: 20px;
+        line-height: 1;
+        font-weight: 700;
+        letter-spacing: -0.2px;
+      }
+
+      .metric-label {
+        color: var(--muted);
+        font-size: 9px;
+      }
+
+      .metric-card.distance-card {
+        --metric: var(--metric-distance);
+      }
+
+      .metric-card.pace-card {
+        --metric: var(--metric-pace);
+      }
+
+      .metric-card.hr-card {
+        --metric: var(--metric-hr);
+      }
+
+      .metric-card.effort-card {
+        --metric: var(--metric-effort);
+      }
+
+      .metric-card.neutral-card {
+        --metric: var(--muted);
+      }
+
+      .metric-card.neutral-card .metric-value {
+        color: var(--ink-2);
+      }
+
+      .metric-value.text {
+        font-family: "DM Sans", sans-serif;
+        font-size: 17px;
+        letter-spacing: 0;
+      }
+
+      .target-effort {
+        margin: -3px 0 0;
+        color: var(--metric-effort);
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .steady-note {
+        display: grid;
+        grid-template-columns: 7px 1fr;
+        gap: 9px;
+        align-items: start;
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border);
+      }
+
+      .steady-note::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        margin-top: 7px;
+        border-radius: 999px;
+        background: var(--status-missed);
+      }
+
+      .steady-note p {
+        margin: 0;
+        color: var(--ink-2);
+        font-size: 12px;
+        line-height: 1.48;
+      }
+
+      .finished-cta {
+        margin: 14px 0 20px;
+      }
+
+      .finished-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 52px;
+        border-radius: 999px;
+        border: 1.5px solid var(--status-missed);
+        background: var(--status-missed);
+        color: var(--surface);
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .finished-copy {
+        margin: 7px 0 0;
+        color: var(--muted);
+        text-align: center;
+        font-size: 11px;
+      }
+
+      .feel-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 18px;
+      }
+
+      .feel-chip {
+        padding: 7px 11px;
+        border: 1px solid rgba(118, 80, 152, 0.18);
+        border-radius: 999px;
+        background: rgba(253, 250, 245, 0.62);
+        color: var(--ink-2);
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .feel-chip b {
+        color: var(--metric-effort);
+        font-weight: 700;
+      }
+
+      .review-link {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 16px;
+        align-items: center;
+        padding-top: 17px;
+        border-top: 1px solid var(--border);
+      }
+
+      .review-title {
+        margin: 0 0 4px;
+        color: var(--ink-2);
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .review-copy {
+        margin: 0;
+        color: var(--ink-2);
+        font-size: 12px;
+      }
+
+      .arrow {
+        color: var(--muted);
+        font-family: "Playfair Display", serif;
+        font-size: 25px;
+        line-height: 1;
+      }
+
+      .niggle-banner {
+        display: grid;
+        grid-template-columns: 28px 1fr;
+        gap: 13px;
+        align-items: center;
+        min-height: 64px;
+        margin: 12px 0 28px;
+        padding: 12px 15px;
+        border-color: rgba(196, 82, 42, 0.28);
+        border-radius: 13px;
+        background: rgba(253, 240, 235, 0.48);
+      }
+
+      .niggle-icon {
+        display: grid;
+        place-items: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 999px;
+        color: var(--surface);
+        background: var(--status-missed);
+        font-family: "Playfair Display", serif;
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      .niggle-copy {
+        margin: 0;
+        color: var(--ink-2);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .niggle-copy b {
+        color: var(--status-missed);
+        font-weight: 700;
+      }
+
+      .section-label {
+        margin: 0 0 17px;
+        color: var(--muted);
+        font-size: 10px;
+      }
+
+      .week-list {
+        display: grid;
+        gap: 0;
+      }
+
+      .day-row {
+        display: grid;
+        grid-template-columns: 54px 18px 1fr auto;
+        gap: 10px;
+        align-items: center;
+        min-height: 79px;
+        padding: 8px 0;
+      }
+
+      .day-row.today {
+        margin: 0 -8px;
+        padding: 10px 8px;
+        border-radius: 12px;
+        background: rgba(196, 82, 42, 0.045);
+      }
+
+      .row-day {
+        margin: 0 0 3px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .row-date {
+        margin: 0;
+        color: var(--muted);
+        font-size: 10px;
+        letter-spacing: 0.7px;
+      }
+
+      .session-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 999px;
+        background: var(--session-easy);
+      }
+
+      .session-dot.interval {
+        background: var(--session-interval);
+      }
+
+      .session-dot.tempo {
+        background: var(--session-tempo);
+      }
+
+      .session-dot.long {
+        background: var(--session-long);
+      }
+
+      .session-dot.rest {
+        background: var(--border);
+      }
+
+      .row-main {
+        min-width: 0;
+      }
+
+      .row-title {
+        margin: 0 0 4px;
+        color: var(--ink-2);
+        font-size: 13px;
+        font-weight: 500;
+        white-space: nowrap;
+      }
+
+      .row-title .number {
+        color: inherit;
+        font-size: 13px;
+      }
+
+      .row-caption {
+        margin: 0;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.25;
+        white-space: nowrap;
+      }
+
+      .row-caption .type {
+        color: var(--ink-2);
+      }
+
+      .rest-row .row-title,
+      .rest-row .row-caption .type {
+        color: var(--muted);
+      }
+
+      .row-status {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 9px;
+        min-width: 73px;
+      }
+
+      .row-metric {
+        color: var(--muted);
+        font-family: "Space Mono", monospace;
+        font-size: 12px;
+      }
+
+      .row-metric.actual-distance {
+        color: var(--metric-distance);
+        font-weight: 700;
+      }
+
+      .row-metric.status-held {
+        color: var(--ink-2);
+      }
+
+      .status-icon {
+        width: 20px;
+        height: 20px;
+        flex: 0 0 auto;
+      }
+
+      .status-icon circle,
+      .status-icon path {
+        fill: none;
+        stroke: var(--status-complete);
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 1.8;
+      }
+
+      .status-icon .accent {
+        fill: var(--status-varied);
+        stroke: var(--status-varied);
+      }
+
+      .micro-note {
+        margin: 17px 0 0;
+        padding: 13px 14px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: rgba(253, 250, 245, 0.58);
+        color: var(--ink-2);
+        font-size: 11px;
+        line-height: 1.48;
+      }
+
+      .micro-note b {
+        color: var(--ink);
+      }
+
+      .state-audit {
+        margin-top: 28px;
+        padding: 26px;
+        border: 1px solid rgba(28, 21, 16, 0.09);
+        border-radius: 28px;
+        background: rgba(253, 250, 245, 0.54);
+      }
+
+      .state-audit h2 {
+        margin: 0 0 6px;
+        font-family: "Playfair Display", serif;
+        font-size: 28px;
+        line-height: 1.05;
+      }
+
+      .state-audit > p {
+        max-width: 730px;
+        margin: 0 0 20px;
+        color: #6f6255;
+        font-size: 13px;
+        line-height: 1.48;
+      }
+
+      .state-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 18px;
+        align-items: start;
+      }
+
+      .state-panel {
+        display: grid;
+        gap: 9px;
+      }
+
+      .state-label {
+        color: #6f6255;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+      }
+
+      .state-panel .today-card {
+        min-height: 0;
+        padding: 18px;
+        box-shadow: none;
+      }
+
+      .state-panel .today-top {
+        margin-bottom: 15px;
+      }
+
+      .state-panel .today-heading {
+        font-size: 26px;
+        margin-bottom: 9px;
+      }
+
+      .state-panel .today-heading .distance {
+        font-size: 22px;
+      }
+
+      .state-panel .summary {
+        margin-bottom: 15px;
+        font-size: 12px;
+      }
+
+      .state-panel .metric-row {
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .state-panel .metric-card {
+        min-height: 62px;
+        padding: 11px 9px 9px 12px;
+      }
+
+      .state-panel .metric-value {
+        font-size: 15px;
+      }
+
+      .state-panel .metric-value.text {
+        font-size: 13px;
+      }
+
+      .state-panel .metric-label {
+        font-size: 8px;
+        letter-spacing: 1px;
+      }
+
+      .state-panel .date-line,
+      .state-panel .target-effort,
+      .state-panel .review-copy {
+        font-size: 12px;
+      }
+
+      .prompt-box {
+        padding-top: 14px;
+        border-top: 1px solid var(--border);
+      }
+
+      .prompt-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+
+      .prompt-title {
+        margin: 0 0 3px;
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .prompt-copy {
+        margin: 0;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .prompt-skip {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .option-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 8px;
+      }
+
+      .option-chip {
+        padding: 6px 9px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--ink-2);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .option-chip.selected {
+        color: var(--metric-effort);
+        border-color: rgba(118, 80, 152, 0.34);
+        background: var(--metric-effort-bg);
+      }
+
+      .save-feel {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 2px;
+        padding: 8px 13px;
+        border-radius: 999px;
+        color: var(--surface);
+        background: var(--status-missed);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .rest-card {
+        border-color: var(--border);
+        background: var(--surface);
+      }
+
+      .rest-card .session-pill {
+        color: var(--session-rest);
+        border-color: rgba(138, 142, 154, 0.24);
+        background: var(--session-rest-bg);
+      }
+
+      .empty-copy {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="board">
+      <div class="board-title">
+        <h1>Home colour-language pilot</h1>
+        <p>
+          High-fidelity wireframe based on the supplied Home screenshot. This pass keeps the
+          existing information architecture and tests semantic colour on Today and This week only.
+        </p>
+      </div>
+
+      <section class="layout">
+        <aside class="legend">
+          <h2>Language rules</h2>
+          <p class="legend-copy">
+            The goal is faster scanning, not a more colourful Home tab.
+          </p>
+
+          <div class="rule-card">
+            <div class="rule-label">Pilot scope</div>
+            <p class="rule">
+              Today and This week are the proposal. Weekly volume is shown for context, with only
+              the obvious distance-token correction in the collapsed card.
+            </p>
+          </div>
+
+          <div class="rule-card">
+            <div class="rule-label">Today card</div>
+            <p class="rule">
+              The session type moves into the chip. The card border and headline stay neutral.
+              Distance, pace, heart rate, and feel carry the metric colours.
+            </p>
+          </div>
+
+          <div class="rule-card">
+            <div class="rule-label">This week rows</div>
+            <p class="rule">
+              Each row keeps a small session dot. Status icons carry judgement. Actual distance can
+              use cobalt; future planned values stay muted.
+            </p>
+          </div>
+
+          <div class="rule-card">
+            <div class="rule-label">Guardrail</div>
+            <p class="rule">
+              A row should not carry more than two strong colour signals. If status needs attention,
+              metric colour yields first.
+            </p>
+          </div>
+
+          <div class="namespace">
+            <div class="namespace-title">Metric tokens used</div>
+            <div class="token-list">
+              <div class="token">
+                <span class="swatch" style="background: var(--metric-distance)"></span>
+                <span class="token-name">Distance / volume</span>
+                <span class="token-code">#3D55A4</span>
+              </div>
+              <div class="token">
+                <span class="swatch" style="background: var(--metric-pace)"></span>
+                <span class="token-name">Pace / speed</span>
+                <span class="token-code">#187F7A</span>
+              </div>
+              <div class="token">
+                <span class="swatch" style="background: var(--metric-hr)"></span>
+                <span class="token-name">Heart rate</span>
+                <span class="token-code">#BD433B</span>
+              </div>
+              <div class="token">
+                <span class="swatch" style="background: var(--metric-effort)"></span>
+                <span class="token-name">Effort / feel</span>
+                <span class="token-code">#765098</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="namespace">
+            <div class="namespace-title">Kept separate</div>
+            <div class="token-list">
+              <div class="token">
+                <span class="swatch" style="background: var(--phase-base)"></span>
+                <span class="token-name">Base phase</span>
+                <span class="token-code">phase</span>
+              </div>
+              <div class="token">
+                <span class="swatch" style="background: var(--session-interval)"></span>
+                <span class="token-name">Interval</span>
+                <span class="token-code">session</span>
+              </div>
+              <div class="token">
+                <span class="swatch" style="background: var(--status-complete)"></span>
+                <span class="token-name">Completed</span>
+                <span class="token-code">status</span>
+              </div>
+              <div class="token">
+                <span class="swatch" style="background: var(--status-varied)"></span>
+                <span class="token-name">Varied</span>
+                <span class="token-code">status</span>
+              </div>
+            </div>
+          </div>
+
+          <p class="micro-note">
+            <b>Intent:</b> remove the current ambiguity where interval clay colours the whole Today
+            card and off-target amber colours distance values. The value colour should say what the
+            number is; the status icon should say how it went.
+          </p>
+        </aside>
+
+        <div class="frame">
+          <div class="frame-label">01 Home top - Today colour language</div>
+          <div class="phone">
+            <div class="ios">
+              <span class="ios-time">23:49</span>
+              <span class="island"></span>
+              <span class="ios-icons">
+                <svg class="wifi" viewBox="0 0 28 20" aria-hidden="true">
+                  <path d="M3 6.5c6.7-5 15.3-5 22 0" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                  <path d="M7.5 11c3.9-3 9.1-3 13 0" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                  <path d="M12 15.3c1.3-1 2.7-1 4 0" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                </svg>
+                <span class="battery"></span>
+              </span>
+            </div>
+
+            <div class="screen">
+              <div class="content">
+                <p class="week-meta">APR 27 &ndash; 3 &middot; 2026</p>
+                <h2 class="home-title">Week 1 &middot; Base Phase</h2>
+
+                <section class="volume-card" aria-label="Weekly volume context">
+                  <div class="volume-top">
+                    <div class="volume-title">Weekly volume <span class="chevron"></span></div>
+                    <div class="volume-values">
+                      <span class="volume-actual">21.7km</span>
+                      <span class="volume-planned">/ 70.4km</span>
+                    </div>
+                  </div>
+                  <div class="volume-track">
+                    <div class="volume-fill"></div>
+                  </div>
+                  <p class="volume-copy">A little over planned mileage</p>
+                </section>
+
+                <section class="today-card" aria-label="Today's session">
+                  <div class="today-top">
+                    <span class="completed-pill">&#10003; Completed</span>
+                    <span class="session-pill">Interval</span>
+                  </div>
+
+                  <h3 class="today-heading">Eased off</h3>
+                  <p class="summary">
+                    <span class="number distance">9.2km</span> at
+                    <span class="number pace">5:29/km</span> &middot; Eased off
+                    <span class="number pace">79 sec/km</span> slower than interval range
+                  </p>
+
+                  <div class="metric-row">
+                    <div class="metric-card distance-card">
+                      <div class="metric-value">9.2km</div>
+                      <div class="metric-label">Distance</div>
+                    </div>
+                    <div class="metric-card pace-card">
+                      <div class="metric-value">5:29</div>
+                      <div class="metric-label">Avg pace</div>
+                    </div>
+                    <div class="metric-card hr-card">
+                      <div class="metric-value">158.4</div>
+                      <div class="metric-label">Avg bpm</div>
+                    </div>
+                  </div>
+
+                  <div class="feel-row">
+                    <span class="feel-chip">Legs: <b>Normal</b></span>
+                    <span class="feel-chip">Breathing: <b>Labored</b></span>
+                    <span class="feel-chip">Overall: <b>Could go again</b></span>
+                  </div>
+
+                  <div class="review-link">
+                    <div>
+                      <p class="review-title">Review run</p>
+                      <p class="review-copy">Open run detail and edit notes or feel.</p>
+                    </div>
+                    <span class="arrow">&rsaquo;</span>
+                  </div>
+                </section>
+
+                <section class="niggle-banner">
+                  <span class="niggle-icon">!</span>
+                  <p class="niggle-copy">
+                    You flagged <b>Right Calf &middot; Niggle &middot; Before</b>. Keep an eye on it across your next few sessions.
+                  </p>
+                </section>
+
+                <p class="section-label">This week</p>
+              </div>
+            </div>
+
+            <div class="scroll-indicator"></div>
+            <nav class="bottom-tab" aria-label="Primary tabs">
+              <div class="tab active">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M3 11.5 12 4l9 7.5v8.5h-6v-5.5H9V20H3Z" />
+                </svg>
+                <span>Home</span>
+              </div>
+              <div class="tab">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 6h12" fill="none" stroke-width="2.4" stroke-linecap="round" />
+                  <path d="M8 12h8" fill="none" stroke-width="2.4" stroke-linecap="round" />
+                  <path d="M10 18h4" fill="none" stroke-width="2.4" stroke-linecap="round" />
+                </svg>
+                <span>Block</span>
+              </div>
+              <div class="tab">
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none">
+                  <path d="M4 7h16M4 17h16" />
+                  <circle cx="9" cy="7" r="2" fill="var(--surface)" />
+                  <circle cx="15" cy="17" r="2" fill="var(--surface)" />
+                </svg>
+                <span>Settings</span>
+              </div>
+            </nav>
+          </div>
+        </div>
+
+        <div class="frame">
+          <div class="frame-label">02 Planned Today - not run yet</div>
+          <div class="phone">
+            <div class="ios">
+              <span class="ios-time">23:49</span>
+              <span class="island"></span>
+              <span class="ios-icons">
+                <svg class="wifi" viewBox="0 0 28 20" aria-hidden="true">
+                  <path d="M3 6.5c6.7-5 15.3-5 22 0" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                  <path d="M7.5 11c3.9-3 9.1-3 13 0" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                  <path d="M12 15.3c1.3-1 2.7-1 4 0" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                </svg>
+                <span class="battery"></span>
+              </span>
+            </div>
+
+            <div class="screen">
+              <div class="content planned-scan">
+                <p class="week-meta">APR 27 &ndash; 3 &middot; 2026</p>
+                <h2 class="home-title">Week 1 &middot; Base Phase</h2>
+
+                <section class="volume-card" aria-label="Weekly volume context">
+                  <div class="volume-top">
+                    <div class="volume-title">Weekly volume <span class="chevron"></span></div>
+                    <div class="volume-values">
+                      <span class="volume-actual">21.7km</span>
+                      <span class="volume-planned">/ 70.4km</span>
+                    </div>
+                  </div>
+                  <div class="volume-track">
+                    <div class="volume-fill"></div>
+                  </div>
+                  <p class="volume-copy">A little over planned mileage</p>
+                </section>
+
+                <section class="today-card" aria-label="Planned easy run">
+                  <div class="today-top">
+                    <span class="session-pill easy">Easy</span>
+                    <span class="today-word">Today</span>
+                  </div>
+                  <h3 class="today-heading"><span class="distance">8km</span> Easy Run</h3>
+                  <p class="date-line">Wednesday, Apr 29</p>
+
+                  <div class="metric-row">
+                    <div class="metric-card distance-card">
+                      <div class="metric-value">8km</div>
+                      <div class="metric-label">Distance</div>
+                    </div>
+                    <div class="metric-card pace-card">
+                      <div class="metric-value">5:33-6:06</div>
+                      <div class="metric-label">Target pace</div>
+                    </div>
+                    <div class="metric-card hr-card">
+                      <div class="metric-value text">Zone 2</div>
+                      <div class="metric-label">Heart rate</div>
+                    </div>
+                  </div>
+
+                  <p class="target-effort">conversational</p>
+                </section>
+
+                <div class="finished-cta">
+                  <div class="finished-button">&#10003; I just finished this run</div>
+                  <p class="finished-copy">Syncs from Strava &middot; takes a few seconds</p>
+                </div>
+
+                <p class="section-label">This week</p>
+                <section class="week-list" aria-label="This week">
+                  <article class="day-row">
+                    <div>
+                      <p class="row-day">Mon</p>
+                      <p class="row-date">Apr 27</p>
+                    </div>
+                    <span class="session-dot"></span>
+                    <div class="row-main">
+                      <p class="row-title"><span class="number">8km</span> &middot; <span class="number">5:33-6:06</span></p>
+                      <p class="row-caption"><span class="type">Easy Run</span> &middot; conversational pace</p>
+                    </div>
+                    <div class="row-status">
+                      <span class="row-metric actual-distance">12.6k</span>
+                      <svg class="status-icon" viewBox="0 0 24 24" aria-label="Varied">
+                        <circle cx="12" cy="12" r="8.5"></circle>
+                        <path d="m8.5 12.2 2.2 2.1 5-5.6"></path>
+                        <circle class="accent" cx="18" cy="6.3" r="2.1"></circle>
+                      </svg>
+                    </div>
+                  </article>
+
+                  <article class="day-row">
+                    <div>
+                      <p class="row-day">Tue</p>
+                      <p class="row-date">Apr 28</p>
+                    </div>
+                    <span class="session-dot interval"></span>
+                    <div class="row-main">
+                      <p class="row-title"><span class="number">6&times;800m</span> &middot; <span class="number">3:47-4:10</span></p>
+                      <p class="row-caption"><span class="type">Intervals</span> &middot; hard repeatable</p>
+                    </div>
+                    <div class="row-status">
+                      <span class="row-metric status-held">9.2k</span>
+                      <svg class="status-icon" viewBox="0 0 24 24" aria-label="Varied">
+                        <circle cx="12" cy="12" r="8.5"></circle>
+                        <path d="m8.5 12.2 2.2 2.1 5-5.6"></path>
+                        <circle class="accent" cx="18" cy="6.3" r="2.1"></circle>
+                      </svg>
+                    </div>
+                  </article>
+
+                  <article class="day-row today">
+                    <div>
+                      <p class="row-day">Wed</p>
+                      <p class="row-date">Apr 29</p>
+                    </div>
+                    <span class="session-dot"></span>
+                    <div class="row-main">
+                      <p class="row-title"><span class="number">8km</span> &middot; <span class="number">5:33-6:06</span></p>
+                      <p class="row-caption"><span class="type">Easy Run</span> &middot; conversational pace</p>
+                    </div>
+                    <div class="row-status">
+                      <span class="row-metric">8k</span>
+                    </div>
+                  </article>
+                </section>
+              </div>
+            </div>
+
+            <div class="scroll-indicator"></div>
+            <nav class="bottom-tab" aria-label="Primary tabs">
+              <div class="tab active">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M3 11.5 12 4l9 7.5v8.5h-6v-5.5H9V20H3Z" />
+                </svg>
+                <span>Home</span>
+              </div>
+              <div class="tab">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 6h12" fill="none" stroke-width="2.4" stroke-linecap="round" />
+                  <path d="M8 12h8" fill="none" stroke-width="2.4" stroke-linecap="round" />
+                  <path d="M10 18h4" fill="none" stroke-width="2.4" stroke-linecap="round" />
+                </svg>
+                <span>Block</span>
+              </div>
+              <div class="tab">
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none">
+                  <path d="M4 7h16M4 17h16" />
+                  <circle cx="9" cy="7" r="2" fill="var(--surface)" />
+                  <circle cx="15" cy="17" r="2" fill="var(--surface)" />
+                </svg>
+                <span>Settings</span>
+              </div>
+            </nav>
+          </div>
+        </div>
+      </section>
+
+      <section class="state-audit">
+        <h2>Today card state audit</h2>
+        <p>
+          These are the Today card branches currently present in the app. The shared rule: the card
+          itself stays parchment, session colour identifies the planned session, metric colour only
+          marks values, and status/action colours do not borrow metric meaning.
+        </p>
+
+        <div class="state-grid">
+          <div class="state-panel">
+            <div class="state-label">Planned today / not run yet</div>
+            <section class="today-card" aria-label="Planned easy run">
+              <div class="today-top">
+                <span class="session-pill easy">Easy</span>
+                <span class="today-word">Today</span>
+              </div>
+              <h3 class="today-heading"><span class="distance">8km</span> Easy Run</h3>
+              <p class="date-line">Wednesday, Apr 29</p>
+
+              <div class="metric-row">
+                <div class="metric-card distance-card">
+                  <div class="metric-value">8km</div>
+                  <div class="metric-label">Distance</div>
+                </div>
+                <div class="metric-card pace-card">
+                  <div class="metric-value">5:33-6:06</div>
+                  <div class="metric-label">Target pace</div>
+                </div>
+                <div class="metric-card hr-card">
+                  <div class="metric-value text">Zone 2</div>
+                  <div class="metric-label">Heart rate</div>
+                </div>
+              </div>
+
+              <p class="target-effort">conversational</p>
+              <div class="steady-note">
+                <p><b>Steady:</b> Keep this easy. Yesterday's intervals were slower than target.</p>
+              </div>
+            </section>
+            <div class="finished-cta">
+              <div class="finished-button">&#10003; I just finished this run</div>
+              <p class="finished-copy">Syncs from Strava &middot; takes a few seconds</p>
+            </div>
+          </div>
+
+          <div class="state-panel">
+            <div class="state-label">Completed / activity and feel saved</div>
+            <section class="today-card" aria-label="Completed interval run">
+              <div class="today-top">
+                <span class="completed-pill">&#10003; Completed</span>
+                <span class="session-pill interval">Interval</span>
+              </div>
+              <h3 class="today-heading">Eased off</h3>
+              <p class="summary">
+                <span class="number distance">9.2km</span> at
+                <span class="number pace">5:29/km</span> &middot; Eased off
+                <span class="number pace">79 sec/km</span> slower than interval range
+              </p>
+
+              <div class="metric-row">
+                <div class="metric-card distance-card">
+                  <div class="metric-value">9.2km</div>
+                  <div class="metric-label">Distance</div>
+                </div>
+                <div class="metric-card pace-card">
+                  <div class="metric-value">5:29</div>
+                  <div class="metric-label">Avg pace</div>
+                </div>
+                <div class="metric-card hr-card">
+                  <div class="metric-value">158.4</div>
+                  <div class="metric-label">Avg bpm</div>
+                </div>
+              </div>
+
+              <div class="feel-row">
+                <span class="feel-chip">Legs: <b>Normal</b></span>
+                <span class="feel-chip">Breathing: <b>Labored</b></span>
+                <span class="feel-chip">Overall: <b>Could go again</b></span>
+              </div>
+
+              <div class="review-link">
+                <div>
+                  <p class="review-title">Review run</p>
+                  <p class="review-copy">Open run detail and edit notes or feel.</p>
+                </div>
+                <span class="arrow">&rsaquo;</span>
+              </div>
+            </section>
+          </div>
+
+          <div class="state-panel">
+            <div class="state-label">Completed / feel needed</div>
+            <section class="today-card" aria-label="Completed run needing feel">
+              <div class="today-top">
+                <span class="completed-pill">&#10003; Completed</span>
+                <span class="session-pill interval">Interval</span>
+              </div>
+              <h3 class="today-heading">Eased off</h3>
+              <p class="summary">
+                <span class="number distance">9.2km</span> at
+                <span class="number pace">5:29/km</span> &middot; Add feel before you forget the session.
+              </p>
+
+              <div class="prompt-box">
+                <div class="prompt-head">
+                  <div>
+                    <p class="prompt-title">How did that feel?</p>
+                    <p class="prompt-copy">Three quick taps for your log.</p>
+                  </div>
+                  <span class="prompt-skip">Skip</span>
+                </div>
+
+                <div class="option-strip">
+                  <span class="option-chip">Fresh</span>
+                  <span class="option-chip selected">Normal</span>
+                  <span class="option-chip">Heavy</span>
+                </div>
+                <div class="option-strip">
+                  <span class="option-chip">Easy</span>
+                  <span class="option-chip">Controlled</span>
+                  <span class="option-chip selected">Labored</span>
+                </div>
+                <span class="save-feel">Save feel</span>
+              </div>
+            </section>
+          </div>
+
+          <div class="state-panel">
+            <div class="state-label">Run saved / no activity data yet</div>
+            <section class="today-card" aria-label="Run saved without activity data">
+              <div class="today-top">
+                <span class="completed-pill">&#10003; Completed</span>
+                <span class="session-pill interval">Interval</span>
+              </div>
+              <h3 class="today-heading">Run saved</h3>
+              <p class="summary">
+                Saved to your week. Open run detail to review feel, notes, or niggles.
+              </p>
+
+              <div class="metric-row">
+                <div class="metric-card distance-card">
+                  <div class="metric-value">6.4km</div>
+                  <div class="metric-label">Planned km</div>
+                </div>
+                <div class="metric-card pace-card">
+                  <div class="metric-value">3:47-4:10</div>
+                  <div class="metric-label">Target pace</div>
+                </div>
+                <div class="metric-card neutral-card">
+                  <div class="metric-value text">Interval</div>
+                  <div class="metric-label">Session</div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div class="state-panel">
+            <div class="state-label">Rest day / no session</div>
+            <section class="today-card rest-card" aria-label="Rest day">
+              <div class="today-top">
+                <span class="session-pill">Rest</span>
+                <span class="today-word">Today</span>
+              </div>
+              <h3 class="today-heading">Rest day</h3>
+              <p class="empty-copy">
+                Recovery is part of the plan. Keep the slot clear unless the plan changes.
+              </p>
+            </section>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,1254 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Steady - Long Run Quality Wireframes</title>
+    <style>
+      @font-face {
+        font-family: "Playfair Display";
+        src: url("../../packages/app/assets/fonts/PlayfairDisplay-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "Playfair Display";
+        src: url("../../packages/app/assets/fonts/PlayfairDisplay-Bold.ttf") format("truetype");
+        font-weight: 700;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-Medium.ttf") format("truetype");
+        font-weight: 500;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-SemiBold.ttf") format("truetype");
+        font-weight: 600;
+      }
+
+      @font-face {
+        font-family: "Space Mono";
+        src: url("../../packages/app/assets/fonts/SpaceMono-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "Space Mono";
+        src: url("../../packages/app/assets/fonts/SpaceMono-Bold.ttf") format("truetype");
+        font-weight: 700;
+      }
+
+      :root {
+        --cream: #f4efe6;
+        --surface: #fdfaf5;
+        --card: #f0eae0;
+        --ink: #1c1510;
+        --ink2: #3d3028;
+        --muted: #9a8e7e;
+        --border: #e5ddd0;
+        --clay: #c4522a;
+        --clay-bg: #fdf0eb;
+        --amber: #d4882a;
+        --amber-bg: #fdf6eb;
+        --forest: #2a5c45;
+        --forest-bg: #eef4f1;
+        --navy: #1b3a6b;
+        --navy-bg: #edf1f8;
+        --slate: #8a8e9a;
+        --slate-bg: #f2f2f4;
+      }
+
+      * {
+        box-sizing: border-box;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: geometricPrecision;
+      }
+
+      body {
+        margin: 0;
+        background: #e8dfd2;
+        color: var(--ink);
+        font-family: "DM Sans", sans-serif;
+      }
+
+      .board {
+        width: 1984px;
+        min-height: 1080px;
+        padding: 36px 40px 50px;
+      }
+
+      .board-title {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 32px;
+        margin-bottom: 24px;
+      }
+
+      .board-kicker {
+        margin-bottom: 6px;
+        color: var(--clay);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.45px;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 0;
+        font-family: "Playfair Display", serif;
+        font-size: 35px;
+        font-weight: 700;
+        line-height: 1.04;
+        letter-spacing: 0;
+      }
+
+      .board-title p {
+        max-width: 610px;
+        margin: 0 0 4px;
+        color: #6f6255;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, 430px);
+        gap: 32px;
+        align-items: start;
+      }
+
+      .frame {
+        display: grid;
+        gap: 10px;
+      }
+
+      .frame-label {
+        padding-left: 8px;
+        color: #6f6255;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1.8px;
+        text-transform: uppercase;
+      }
+
+      .phone {
+        position: relative;
+        width: 430px;
+        height: 932px;
+        overflow: hidden;
+        background: var(--cream);
+        border: 1px solid rgba(28, 21, 16, 0.1);
+        border-radius: 38px;
+        box-shadow: 0 18px 45px rgba(61, 48, 40, 0.13);
+      }
+
+      .status {
+        position: absolute;
+        inset: 0 0 auto;
+        z-index: 3;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        height: 72px;
+        padding: 25px 39px 0;
+        background: var(--cream);
+        color: #050403;
+        font-family: "Space Mono", monospace;
+        font-size: 18px;
+        font-weight: 700;
+      }
+
+      .island {
+        position: absolute;
+        top: 15px;
+        left: 50%;
+        width: 214px;
+        height: 38px;
+        transform: translateX(-50%);
+        border-radius: 22px;
+        background: #050403;
+      }
+
+      .phone-body {
+        position: absolute;
+        inset: 72px 0 0;
+        overflow: hidden;
+        padding: 0 20px;
+      }
+
+      .screen-head {
+        padding-top: 10px;
+        padding-bottom: 16px;
+      }
+
+      .step {
+        margin-bottom: 5px;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 1.55px;
+        text-transform: uppercase;
+      }
+
+      .title {
+        margin: 0;
+        color: var(--ink);
+        font-family: "Playfair Display", serif;
+        font-size: 25px;
+        font-weight: 700;
+        line-height: 1.1;
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .card {
+        border: 1.5px solid var(--border);
+        border-radius: 16px;
+        background: var(--surface);
+      }
+
+      .top-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 72px;
+        padding: 14px 18px;
+        margin-bottom: 14px;
+      }
+
+      .label {
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 1.55px;
+        text-transform: uppercase;
+      }
+
+      .value {
+        margin-top: 5px;
+        color: var(--ink);
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .mono {
+        font-family: "Space Mono", monospace;
+        font-weight: 700;
+      }
+
+      .change {
+        color: var(--clay);
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .section-card {
+        padding: 14px 16px;
+        margin-bottom: 10px;
+      }
+
+      .section-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .section-title {
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      .section-subtitle {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .week-total {
+        color: var(--clay);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .day-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .day-row {
+        display: grid;
+        grid-template-columns: 50px 18px 1fr 26px;
+        align-items: center;
+        min-height: 52px;
+        padding: 9px 13px;
+        border: 1.5px solid var(--border);
+        border-radius: 15px;
+        background: var(--surface);
+      }
+
+      .day-row.easy {
+        border-color: rgba(42, 92, 69, 0.24);
+        background: var(--forest-bg);
+      }
+
+      .day-row.interval {
+        border-color: rgba(196, 82, 42, 0.24);
+        background: var(--clay-bg);
+      }
+
+      .day-row.tempo {
+        border-color: rgba(212, 136, 42, 0.27);
+        background: var(--amber-bg);
+      }
+
+      .day-row.long {
+        border-color: rgba(27, 58, 107, 0.28);
+        background: var(--navy-bg);
+      }
+
+      .day-row.rest {
+        background: var(--surface);
+      }
+
+      .day {
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .easy .day,
+      .easy .dot {
+        color: var(--forest);
+      }
+
+      .interval .day,
+      .interval .dot {
+        color: var(--clay);
+      }
+
+      .tempo .day,
+      .tempo .dot {
+        color: var(--amber);
+      }
+
+      .long .day,
+      .long .dot {
+        color: var(--navy);
+      }
+
+      .rest .day,
+      .rest .dot {
+        color: var(--slate);
+      }
+
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: currentColor;
+      }
+
+      .session-main {
+        color: var(--ink);
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.15;
+      }
+
+      .session-sub {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.2;
+      }
+
+      .handle {
+        color: var(--muted);
+        font-size: 20px;
+        line-height: 1;
+      }
+
+      .mini-pills {
+        display: flex;
+        gap: 6px;
+        margin-top: 10px;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 28px;
+        padding: 0 10px;
+        border: 1.5px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+
+      .pill.active-navy {
+        border-color: var(--navy);
+        background: var(--navy-bg);
+        color: var(--navy);
+      }
+
+      .hint {
+        padding: 13px 15px;
+        margin-top: 10px;
+        border: 1.5px solid rgba(27, 58, 107, 0.22);
+        border-radius: 14px;
+        background: var(--navy-bg);
+      }
+
+      .hint strong {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--navy);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .hint span {
+        color: var(--ink2);
+        font-size: 12px;
+        line-height: 1.38;
+      }
+
+      .footer {
+        position: absolute;
+        inset: auto 0 0;
+        padding: 14px 20px 23px;
+        border-top: 1px solid var(--border);
+        background: var(--cream);
+      }
+
+      .cta {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 52px;
+        border-radius: 999px;
+        background: var(--clay);
+        color: var(--surface);
+        font-size: 16px;
+        font-weight: 500;
+      }
+
+      .tabs {
+        position: relative;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+        height: 46px;
+        padding: 4px;
+        margin: 8px 0 18px;
+        border: 1.5px solid var(--border);
+        border-radius: 24px;
+        background: var(--card);
+      }
+
+      .tab-active {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        bottom: 4px;
+        width: calc(50% - 6px);
+        border-radius: 20px;
+        background: var(--surface);
+      }
+
+      .tab {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .tab.on {
+        color: var(--ink);
+      }
+
+      .week-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .week-row {
+        padding: 10px 12px;
+        border: 1.5px solid transparent;
+        border-radius: 14px;
+      }
+
+      .week-row.selected {
+        border-color: rgba(196, 82, 42, 0.35);
+        background: var(--surface);
+      }
+
+      .week-top {
+        display: grid;
+        grid-template-columns: 48px 1fr 44px;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .week-no {
+        color: var(--muted);
+        font-family: "Space Mono", monospace;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .phase {
+        margin-top: 1px;
+        color: var(--muted);
+        font-size: 8px;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+
+      .dots {
+        display: flex;
+        gap: 5px;
+        align-items: center;
+      }
+
+      .dots i {
+        display: block;
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+      }
+
+      .dots .e {
+        background: var(--forest);
+      }
+
+      .dots .i {
+        background: var(--clay);
+      }
+
+      .dots .t {
+        background: var(--amber);
+      }
+
+      .dots .l {
+        background: var(--navy);
+        box-shadow: 0 0 0 3px rgba(27, 58, 107, 0.1);
+      }
+
+      .dots .r {
+        background: var(--slate);
+      }
+
+      .km {
+        text-align: right;
+        font-family: "Space Mono", monospace;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .bar {
+        height: 3px;
+        margin-top: 9px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(229, 221, 208, 0.72);
+      }
+
+      .bar i {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--clay);
+      }
+
+      .expanded-days {
+        display: grid;
+        gap: 5px;
+        margin-top: 10px;
+      }
+
+      .compact-day {
+        display: grid;
+        grid-template-columns: 36px 1fr 40px;
+        align-items: center;
+        min-height: 40px;
+        padding: 7px 9px;
+        border-radius: 10px;
+      }
+
+      .compact-day.easy {
+        background: var(--forest-bg);
+      }
+
+      .compact-day.interval {
+        background: var(--clay-bg);
+      }
+
+      .compact-day.tempo {
+        background: var(--amber-bg);
+      }
+
+      .compact-day.long {
+        background: var(--navy-bg);
+      }
+
+      .compact-day.rest {
+        background: var(--slate-bg);
+      }
+
+      .compact-day b {
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      .compact-title {
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .compact-sub {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 10px;
+        line-height: 1.2;
+      }
+
+      .edit-link {
+        color: var(--clay);
+        text-align: right;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .block-strip {
+        display: flex;
+        gap: 2px;
+        width: 196px;
+        height: 8px;
+        margin-top: 7px;
+        overflow: hidden;
+        border-radius: 999px;
+      }
+
+      .block-strip i {
+        display: block;
+        height: 100%;
+      }
+
+      .block-strip .easy-block {
+        background: var(--forest);
+      }
+
+      .block-strip .pace-block {
+        background: var(--navy);
+      }
+
+      .editor-body {
+        position: absolute;
+        inset: 72px 0 0;
+        padding: 76px 20px 112px;
+      }
+
+      .cancel {
+        position: absolute;
+        top: 24px;
+        left: 20px;
+        color: var(--clay);
+        font-size: 15px;
+        font-weight: 500;
+      }
+
+      .editor-day {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .editor-title {
+        margin-top: 10px;
+        color: var(--navy);
+        font-family: "Playfair Display", serif;
+        font-size: 20px;
+        font-weight: 700;
+        line-height: 1.25;
+      }
+
+      .editor-line {
+        height: 1px;
+        margin: 25px -20px 18px;
+        background: var(--border);
+      }
+
+      .chips {
+        display: flex;
+        gap: 9px;
+        margin: 12px 0 18px;
+      }
+
+      .type-chip {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 31px;
+        padding: 0 13px;
+        border: 1.5px solid var(--border);
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.4px;
+        text-transform: uppercase;
+      }
+
+      .type-chip.on-long {
+        border-color: var(--navy);
+        background: var(--navy-bg);
+        color: var(--navy);
+      }
+
+      .field-row {
+        display: grid;
+        grid-template-columns: 118px 1fr 16px;
+        align-items: center;
+        min-height: 76px;
+        border-top: 1px solid var(--border);
+      }
+
+      .field-name {
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 1.55px;
+        text-transform: uppercase;
+        line-height: 1.35;
+      }
+
+      .field-value {
+        color: var(--ink);
+        font-family: "Playfair Display", serif;
+        font-size: 24px;
+        font-weight: 700;
+        line-height: 1.1;
+      }
+
+      .field-value.small {
+        font-family: "DM Sans", sans-serif;
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .field-help {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .chev {
+        color: var(--muted);
+        font-size: 22px;
+        text-align: right;
+      }
+
+      .summary-card {
+        padding: 11px 12px;
+        margin-top: 10px;
+        border: 1.5px solid rgba(27, 58, 107, 0.25);
+        border-radius: 14px;
+        background: var(--navy-bg);
+      }
+
+      .summary-card .label {
+        color: var(--navy);
+      }
+
+      .summary-card p {
+        margin: 6px 0 0;
+        color: var(--ink2);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .structure-body {
+        position: absolute;
+        inset: 72px 0 0;
+        padding: 76px 20px 112px;
+      }
+
+      .structure-title {
+        margin-top: 9px;
+        color: var(--navy);
+        font-family: "Playfair Display", serif;
+        font-size: 22px;
+        font-weight: 700;
+      }
+
+      .total-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 13px 15px;
+        margin: 20px 0 12px;
+        border: 1.5px solid var(--border);
+        border-radius: 14px;
+        background: var(--surface);
+      }
+
+      .total-card strong {
+        font-family: "Space Mono", monospace;
+        color: var(--navy);
+      }
+
+      .block-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .block-row {
+        display: grid;
+        grid-template-columns: 28px 76px 1fr 34px;
+        align-items: center;
+        min-height: 54px;
+        padding: 8px 11px;
+        border: 1.5px solid var(--border);
+        border-radius: 14px;
+        background: var(--surface);
+      }
+
+      .block-index {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        border-radius: 999px;
+        background: var(--card);
+        color: var(--muted);
+        font-family: "Space Mono", monospace;
+        font-size: 10px;
+        font-weight: 700;
+      }
+
+      .block-dist {
+        font-family: "Space Mono", monospace;
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .block-effort {
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .block-effort.easy-text {
+        color: var(--forest);
+      }
+
+      .block-effort.pace-text {
+        color: var(--navy);
+      }
+
+      .block-note {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 10px;
+      }
+
+      .add-block {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        margin-top: 10px;
+        border: 1.5px dashed rgba(27, 58, 107, 0.34);
+        border-radius: 14px;
+        color: var(--navy);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .annotation {
+        padding: 10px 12px;
+        border: 1px solid rgba(154, 142, 126, 0.35);
+        border-radius: 12px;
+        background: rgba(253, 250, 245, 0.72);
+        color: #6f6255;
+        font-size: 11px;
+        line-height: 1.38;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="board">
+      <div class="board-title">
+        <div>
+          <div class="board-kicker">Design exploration</div>
+          <h1>Long runs with embedded quality</h1>
+        </div>
+        <p>
+          A high-level pass using the current onboarding and review screenshots as the visual base.
+          The intent is to keep the weekly template simple, then reveal the actual race-pace blocks
+          in generated weeks and in the long-run editor.
+        </p>
+      </div>
+
+      <section class="grid">
+        <article class="frame">
+          <div class="frame-label">01 / Template week stays light</div>
+          <div class="phone">
+            <div class="status">
+              <span>00:11</span>
+              <span class="island"></span>
+              <span>34</span>
+            </div>
+            <div class="phone-body">
+              <header class="screen-head">
+                <div class="step">Step 5 of 6</div>
+                <h2 class="title">Design your week</h2>
+                <p class="subtitle">This pattern repeats across all 16 weeks. Tap any day to adjust, or drag the grip to move it.</p>
+              </header>
+
+              <div class="card top-card">
+                <div>
+                  <div class="label">Starting point</div>
+                  <div class="value">6-run template</div>
+                  <div class="section-subtitle">Recommended base · ~70.4 km / week</div>
+                </div>
+                <div class="change">Change</div>
+              </div>
+
+              <div class="card section-card">
+                <div class="section-row">
+                  <div>
+                    <div class="section-title">Weekly layout</div>
+                    <div class="section-subtitle">Sunday remains the long-run slot.</div>
+                  </div>
+                  <div class="week-total mono">~70.4 km / week</div>
+                </div>
+              </div>
+
+              <div class="day-list">
+                <div class="day-row easy">
+                  <div class="day">Mon</div><div class="dot"></div>
+                  <div><div class="session-main">8km · 5:33-6:06</div><div class="session-sub">Easy Run · conversational pace</div></div>
+                  <div class="handle">=</div>
+                </div>
+                <div class="day-row interval">
+                  <div class="day">Tue</div><div class="dot"></div>
+                  <div><div class="session-main">6x800m · 3:47-4:10</div><div class="session-sub">Intervals · hard repeatable</div></div>
+                  <div class="handle">=</div>
+                </div>
+                <div class="day-row easy">
+                  <div class="day">Wed</div><div class="dot"></div>
+                  <div><div class="session-main">8km · 5:33-6:06</div><div class="session-sub">Easy Run · conversational pace</div></div>
+                  <div class="handle">=</div>
+                </div>
+                <div class="day-row tempo">
+                  <div class="day">Thu</div><div class="dot"></div>
+                  <div><div class="session-main">10km · 4:21-4:35</div><div class="session-sub">Tempo · controlled hard</div></div>
+                  <div class="handle">=</div>
+                </div>
+                <div class="day-row rest">
+                  <div class="day">Fri</div><div class="dot"></div>
+                  <div><div class="session-main">Rest day</div><div class="session-sub">Recovery slot</div></div>
+                  <div class="handle">=</div>
+                </div>
+                <div class="day-row easy">
+                  <div class="day">Sat</div><div class="dot"></div>
+                  <div><div class="session-main">12km · 5:33-6:06</div><div class="session-sub">Easy Run · conversational pace</div></div>
+                  <div class="handle">=</div>
+                </div>
+                <div class="day-row long">
+                  <div class="day">Sun</div><div class="dot"></div>
+                  <div><div class="session-main">22km · quality long</div><div class="session-sub">Long Run · race-pace blocks later</div></div>
+                  <div class="handle">=</div>
+                </div>
+              </div>
+
+              <div class="hint">
+                <strong>Long-run character</strong>
+                <span>Choose the role once here. Steady varies the internal blocks week by week during plan generation.</span>
+                <div class="mini-pills">
+                  <span class="pill">Easy</span>
+                  <span class="pill">Fast finish</span>
+                  <span class="pill active-navy">Race blocks</span>
+                </div>
+              </div>
+            </div>
+            <div class="footer">
+              <div class="cta">Generate 16-week plan &rarr;</div>
+            </div>
+          </div>
+          <div class="annotation">The template week should not become a full Garmin-style workout builder. It only captures that Sunday may carry long-run quality in the generated plan.</div>
+        </article>
+
+        <article class="frame">
+          <div class="frame-label">02 / Review shows generated specificity</div>
+          <div class="phone">
+            <div class="status">
+              <span>00:11</span>
+              <span class="island"></span>
+              <span>33</span>
+            </div>
+            <div class="phone-body">
+              <header class="screen-head">
+                <div class="step">Step 6 of 6</div>
+                <h2 class="title">Review your block</h2>
+                <p class="subtitle">Tap a week to inspect or edit sessions.</p>
+              </header>
+
+              <div class="tabs">
+                <span class="tab-active"></span>
+                <span class="tab">Structure</span>
+                <span class="tab on">Weeks</span>
+              </div>
+
+              <div class="week-list">
+                <div class="week-row">
+                  <div class="week-top">
+                    <div><div class="week-no">W7</div><div class="phase">Build</div></div>
+                    <div class="dots"><i class="e"></i><i class="i"></i><i class="e"></i><i class="t"></i><i class="r"></i><i class="e"></i><i class="l"></i></div>
+                    <div class="km">76km</div>
+                  </div>
+                  <div class="bar"><i style="width: 74%;"></i></div>
+                </div>
+
+                <div class="week-row">
+                  <div class="week-top">
+                    <div><div class="week-no">W8</div><div class="phase">Build</div></div>
+                    <div class="dots"><i class="e"></i><i class="i"></i><i class="e"></i><i class="t"></i><i class="r"></i><i class="e"></i><i class="l"></i></div>
+                    <div class="km">78km</div>
+                  </div>
+                  <div class="bar"><i style="width: 78%;"></i></div>
+                </div>
+
+                <div class="week-row selected">
+                  <div class="week-top">
+                    <div><div class="week-no" style="color: var(--clay);">W9</div><div class="phase">Build</div></div>
+                    <div class="dots"><i class="e"></i><i class="i"></i><i class="e"></i><i class="t"></i><i class="r"></i><i class="e"></i><i class="l"></i></div>
+                    <div class="km">82km</div>
+                  </div>
+                  <div class="bar"><i style="width: 82%;"></i></div>
+
+                  <div class="expanded-days">
+                    <div class="compact-day easy"><b>Mon</b><div><div class="compact-title">9km easy</div><div class="compact-sub">Conversational</div></div><div class="edit-link">Edit</div></div>
+                    <div class="compact-day interval"><b>Tue</b><div><div class="compact-title">7x800m</div><div class="compact-sub">Hard repeatable</div></div><div class="edit-link">Edit</div></div>
+                    <div class="compact-day easy"><b>Wed</b><div><div class="compact-title">10km easy</div><div class="compact-sub">Keep it relaxed</div></div><div class="edit-link">Edit</div></div>
+                    <div class="compact-day tempo"><b>Thu</b><div><div class="compact-title">12km tempo</div><div class="compact-sub">Controlled hard</div></div><div class="edit-link">Edit</div></div>
+                    <div class="compact-day rest"><b>Fri</b><div><div class="compact-title">Rest day</div><div class="compact-sub">Recovery slot</div></div><div class="edit-link">Edit</div></div>
+                    <div class="compact-day easy"><b>Sat</b><div><div class="compact-title">8km easy</div><div class="compact-sub">Short shakeout</div></div><div class="edit-link">Edit</div></div>
+                    <div class="compact-day long">
+                      <b>Sun</b>
+                      <div>
+                        <div class="compact-title">26km · 3 x 3km MP</div>
+                        <div class="compact-sub">6k easy · 3k MP · 2k easy · repeat · 4k easy</div>
+                        <div class="block-strip"><i class="easy-block" style="width: 23%;"></i><i class="pace-block" style="width: 12%;"></i><i class="easy-block" style="width: 8%;"></i><i class="pace-block" style="width: 12%;"></i><i class="easy-block" style="width: 8%;"></i><i class="pace-block" style="width: 12%;"></i><i class="easy-block" style="width: 25%;"></i></div>
+                      </div>
+                      <div class="edit-link">Edit</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="week-row">
+                  <div class="week-top">
+                    <div><div class="week-no">W10</div><div class="phase">Build</div></div>
+                    <div class="dots"><i class="e"></i><i class="i"></i><i class="e"></i><i class="t"></i><i class="r"></i><i class="e"></i><i class="l"></i></div>
+                    <div class="km">72km</div>
+                  </div>
+                  <div class="bar"><i style="width: 70%;"></i></div>
+                </div>
+              </div>
+            </div>
+            <div class="footer">
+              <div class="cta">Save plan and start training &rarr;</div>
+            </div>
+          </div>
+          <div class="annotation">The generated review is the first place the user sees exact embedded blocks. This keeps complexity contextual: only peak/build weeks need detail.</div>
+        </article>
+
+        <article class="frame">
+          <div class="frame-label">03 / Long-run editor adds a structure row</div>
+          <div class="phone">
+            <div class="status">
+              <span>00:11</span>
+              <span class="island"></span>
+              <span>33</span>
+            </div>
+            <div class="editor-body">
+              <div class="cancel">Cancel</div>
+              <div class="editor-day">Sun · Week 9</div>
+              <div class="editor-title">26km long · 3 x 3km race pace</div>
+              <div class="editor-line"></div>
+
+              <div class="label">Session type</div>
+              <div class="chips">
+                <span class="type-chip">Easy</span>
+                <span class="type-chip">Interval</span>
+                <span class="type-chip">Tempo</span>
+                <span class="type-chip on-long">Long</span>
+                <span class="type-chip">Rest</span>
+              </div>
+
+              <div class="field-row">
+                <div class="field-name">Long run style</div>
+                <div>
+                  <div class="field-value small">Race-pace blocks</div>
+                  <div class="field-help">Generated for peak specificity</div>
+                </div>
+                <div class="chev">&rsaquo;</div>
+              </div>
+
+              <div class="field-row">
+                <div class="field-name">Total distance</div>
+                <div>
+                  <div class="field-value">26 <span style="font-family: 'DM Sans'; font-size: 17px; color: var(--muted);">km</span></div>
+                </div>
+                <div class="chev">&rsaquo;</div>
+              </div>
+
+              <div class="field-row">
+                <div class="field-name">Easy pace</div>
+                <div>
+                  <div class="field-value">5:18-5:48/km</div>
+                  <div class="field-help">Conversation pace</div>
+                </div>
+                <div class="chev">&rsaquo;</div>
+              </div>
+
+              <div class="field-row">
+                <div class="field-name">Quality target</div>
+                <div>
+                  <div class="field-value">4:35/km</div>
+                  <div class="field-help">Marathon pace blocks</div>
+                </div>
+                <div class="chev">&rsaquo;</div>
+              </div>
+
+              <div class="field-row">
+                <div class="field-name">Run structure</div>
+                <div>
+                  <div class="field-value small">7 blocks</div>
+                  <div class="field-help">6k easy · 3k MP · 2k easy · repeat</div>
+                </div>
+                <div class="chev">&rsaquo;</div>
+              </div>
+
+              <div class="summary-card">
+                <div class="label">Stress note</div>
+                <p>Counts as the weekly long run and as a quality stimulus. Avoid stacking another hard session within 48 hours.</p>
+              </div>
+            </div>
+            <div class="footer">
+              <div class="cta">Update session</div>
+            </div>
+          </div>
+          <div class="annotation">Top-level session type stays LONG. The extra row describes how the long run is built, which avoids adding a sixth session type.</div>
+        </article>
+
+        <article class="frame">
+          <div class="frame-label">04 / Structure editor handles the details</div>
+          <div class="phone">
+            <div class="status">
+              <span>00:11</span>
+              <span class="island"></span>
+              <span>33</span>
+            </div>
+            <div class="structure-body">
+              <div class="cancel">Back</div>
+              <div class="editor-day">Sun · Week 9</div>
+              <div class="structure-title">Run structure</div>
+              <p class="subtitle" style="margin-top: 7px;">Adjust the blocks inside this long run. Easy blocks use long-run effort unless changed.</p>
+
+              <div class="total-card">
+                <div>
+                  <div class="label">Planned total</div>
+                  <div class="value">26km long run</div>
+                </div>
+                <strong>26.0km</strong>
+              </div>
+
+              <div class="block-list">
+                <div class="block-row">
+                  <div class="block-index">1</div>
+                  <div class="block-dist">6km</div>
+                  <div><div class="block-effort easy-text">Easy</div><div class="block-note">Settle in</div></div>
+                  <div class="handle">=</div>
+                </div>
+                <div class="block-row">
+                  <div class="block-index">2</div>
+                  <div class="block-dist">3km</div>
+                  <div><div class="block-effort pace-text">Race pace</div><div class="block-note">4:35/km</div></div>
+                  <div class="handle">=</div>
+                </div>
+                <div class="block-row">
+                  <div class="block-index">3</div>
+                  <div class="block-dist">2km</div>
+                  <div><div class="block-effort easy-text">Easy</div><div class="block-note">Float recovery</div></div>
+                  <div class="handle">=</div>
+                </div>
+                <div class="block-row">
+                  <div class="block-index">4</div>
+                  <div class="block-dist">3km</div>
+                  <div><div class="block-effort pace-text">Race pace</div><div class="block-note">4:35/km</div></div>
+                  <div class="handle">=</div>
+                </div>
+                <div class="block-row">
+                  <div class="block-index">5</div>
+                  <div class="block-dist">2km</div>
+                  <div><div class="block-effort easy-text">Easy</div><div class="block-note">Float recovery</div></div>
+                  <div class="handle">=</div>
+                </div>
+                <div class="block-row">
+                  <div class="block-index">6</div>
+                  <div class="block-dist">3km</div>
+                  <div><div class="block-effort pace-text">Race pace</div><div class="block-note">4:35/km</div></div>
+                  <div class="handle">=</div>
+                </div>
+                <div class="block-row">
+                  <div class="block-index">7</div>
+                  <div class="block-dist">7km</div>
+                  <div><div class="block-effort easy-text">Easy</div><div class="block-note">Home easy</div></div>
+                  <div class="handle">=</div>
+                </div>
+              </div>
+
+              <div class="add-block">+ Add block</div>
+
+              <div class="hint">
+                <strong>Propagation after edit</strong>
+                <span>If this came from plan review, saving should ask whether the change applies to this week only, following weeks, or matching long runs.</span>
+              </div>
+            </div>
+            <div class="footer">
+              <div class="cta">Update structure</div>
+            </div>
+          </div>
+          <div class="annotation">This is the only screen that needs detailed block editing. It can be hidden behind the Run structure row until someone needs it.</div>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

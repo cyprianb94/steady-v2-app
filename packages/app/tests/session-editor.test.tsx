@@ -211,10 +211,11 @@ describe('SessionEditor target pace editing', () => {
     );
 
     expect(screen.getByText('4:14-4:27/km')).toBeTruthy();
-    expect(screen.getByText('Threshold · profile pace')).toBeTruthy();
+    expect(screen.queryByText('Threshold · profile pace')).toBeNull();
+    expect(screen.getByText('Threshold · controlled hard')).toBeTruthy();
 
     fireEvent.click(screen.getByText('Target pace'));
-    expect(screen.getByText('Threshold')).toBeTruthy();
+    expect(screen.getAllByText('Threshold').length).toBeGreaterThan(0);
     expect(screen.getByText('4:14-4:27/km · controlled hard')).toBeTruthy();
     expect(screen.getByText('Race pace')).toBeTruthy();
 
@@ -304,7 +305,8 @@ describe('SessionEditor target pace editing', () => {
 
     fireEvent.click(screen.getByText('Target pace'));
 
-    expect(screen.getByText('Threshold')).toBeTruthy();
+    expect(screen.queryByText('Threshold · profile pace')).toBeNull();
+    expect(screen.getByText('Threshold · controlled hard')).toBeTruthy();
     expect(screen.getByText('4:16 /km')).toBeTruthy();
 
     fireEvent.click(screen.getByText('4:16 /km'));
@@ -397,7 +399,8 @@ describe('SessionEditor target pace editing', () => {
     );
 
     expect(screen.getByText('5:24-5:56/km')).toBeTruthy();
-    expect(screen.getByText('Easy · profile pace')).toBeTruthy();
+    expect(screen.queryByText('Easy · profile pace')).toBeNull();
+    expect(screen.getByText('Easy · conversational')).toBeTruthy();
 
     fireEvent.click(screen.getByText('Add session'));
 
