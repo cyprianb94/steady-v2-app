@@ -733,7 +733,7 @@ describe('HomeScreen', () => {
     expect(screen.getByText('Saturday, Apr 18')).toBeTruthy();
   });
 
-  it('renders the today note inline and keeps broader guidance in the lower coach card', () => {
+  it('keeps today annotations out of the Today card and renders coach guidance lower down', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-06T12:00:00Z')); // Monday
     const today = '2026-04-06';
@@ -772,12 +772,12 @@ describe('HomeScreen', () => {
 
     render(<HomeScreen />);
 
-    expect(screen.getByText(/consistency set the tone/i)).toBeTruthy();
+    expect(screen.queryByText(/consistency set the tone/i)).toBeNull();
     expect(screen.getByTestId('coach-annotation')).toBeTruthy();
     expect(screen.getByText(/keep today conversational/i)).toBeTruthy();
   });
 
-  it('suppresses the lower coach card when only one note is available', () => {
+  it('renders the lower coach card when a coach note is available', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-06T12:00:00Z')); // Monday
     const today = '2026-04-06';
@@ -817,7 +817,7 @@ describe('HomeScreen', () => {
     render(<HomeScreen />);
 
     expect(screen.getByText(/keep today conversational/i)).toBeTruthy();
-    expect(screen.queryByTestId('coach-annotation')).toBeNull();
+    expect(screen.getByTestId('coach-annotation')).toBeTruthy();
   });
 
   it('opens the planned-session sheet from the planned today hero without routing to Steady conversation', async () => {
@@ -1203,10 +1203,11 @@ describe('HomeScreen', () => {
     render(<HomeScreen />);
 
     await waitFor(() => {
-      expect(screen.getByText('Legs: Heavy')).toBeTruthy();
+      expect(screen.getByText('Feel')).toBeTruthy();
     });
-    expect(screen.getByText('Breathing: Controlled')).toBeTruthy();
-    expect(screen.getByText('Overall: Done')).toBeTruthy();
+    expect(screen.getByText('Done')).toBeTruthy();
+    expect(screen.queryByText('Legs: Heavy')).toBeNull();
+    expect(screen.queryByText('Breathing: Controlled')).toBeNull();
     expect(screen.queryByTestId('subjective-input-prompt')).toBeNull();
   });
 

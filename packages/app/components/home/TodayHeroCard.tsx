@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, View, Text, Pressable, StyleSheet } from 'react-native';
 import {
+  buildStructuredQualitySummary,
   normalizeSessionDuration,
-  sessionSupportsWarmupCooldown,
   summariseVsPlan,
   type Activity,
   type PlannedSession,
   type PvaHeadline,
+  type StructuredQualitySummary,
   type SubjectiveInput,
   type SubjectiveBreathing,
   type SubjectiveLegs,
@@ -25,7 +26,6 @@ import {
   formatSessionLabel,
   formatSessionTitle,
   formatStoredPace,
-  formatWarmupCooldown,
 } from '../../lib/units';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 
@@ -36,25 +36,19 @@ interface ActivitySummary {
   duration: number; // seconds
   avgHR?: number;
   elevationGain?: number;
+  splits?: Activity['splits'];
   subjectiveInput?: SubjectiveInput;
 }
 
 interface TodayHeroCardProps {
   session: PlannedSession | null;
   activity?: ActivitySummary;
-  steadyNote?: string | null;
   onPress?: () => void;
+  onLogRun?: () => void;
   onReviewRun?: () => void;
   onSaveSubjectiveInput?: (input: SubjectiveInput) => void | Promise<void>;
   onDismissSubjectiveInput?: () => void | Promise<void>;
 }
-
-const PLANNED_CARD_BG: Record<Exclude<PlannedSession['type'], 'REST'>, string> = {
-  EASY: '#E6F0EA',
-  INTERVAL: '#F9E3DA',
-  TEMPO: '#F1E8DA',
-  LONG: '#E5ECF7',
-};
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
@@ -68,6 +62,22 @@ const COMPLETED_HEADLINES: Record<PvaHeadline, string> = {
   'over-pace': 'Went out hot',
   'hr-high': 'Heart rate high',
 };
+
+type MetricKind = 'distance' | 'pace' | 'time' | 'effort' | 'neutral';
+
+interface PlannedTargetDisplay {
+  label: string;
+  primary: string | null;
+  primaryKind: MetricKind;
+  secondary: string | null;
+  secondaryKind: MetricKind;
+}
+
+interface CompletedEvidenceRow {
+  label: string;
+  value: string | null;
+  kind: MetricKind;
+}
 
 function formatSessionDate(date: string): string {
   const value = new Date(`${date}T00:00:00Z`);
@@ -83,25 +93,27 @@ function formatDuration(seconds: number): string {
     : `${minutes}:${String(remainder).padStart(2, '0')}`;
 }
 
-function plannedHeartRateZone(session: PlannedSession): string {
-  switch (session.type) {
-    case 'INTERVAL':
-      return 'Zone 5';
-    case 'TEMPO':
-      return 'Zone 4';
-    case 'LONG':
-      return 'Zone 2';
-    case 'EASY':
-    default:
-      return 'Zone 2';
-  }
-}
-
 function titleCase(value: string): string {
   return value
     .split('-')
     .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
     .join(' ');
+}
+
+function metricValueStyle(kind: MetricKind) {
+  switch (kind) {
+    case 'distance':
+      return styles.metricDistanceValue;
+    case 'pace':
+      return styles.metricPaceValue;
+    case 'time':
+      return styles.metricTimeValue;
+    case 'effort':
+      return styles.metricEffortValue;
+    case 'neutral':
+    default:
+      return styles.metricNeutralValue;
+  }
 }
 
 function sentenceCaseFact(fact: string): string {
@@ -120,7 +132,7 @@ function toSummaryActivity(activity: ActivitySummary): Activity {
     elevationGain: activity.elevationGain,
     avgPace: activity.avgPace,
     avgHR: activity.avgHR,
-    splits: [],
+    splits: activity.splits ?? [],
     subjectiveInput: activity.subjectiveInput,
   };
 }
@@ -147,62 +159,302 @@ function buildCompletedSummary(session: PlannedSession, activity?: ActivitySumma
   };
 }
 
-function buildCompletedMetrics(session: PlannedSession, activity: ActivitySummary | undefined, units: ReturnType<typeof usePreferences>['units']) {
-  if (!activity) {
-    const target = formatIntensityTargetDisplay(session, units, {
-      fallbackToLegacyPace: true,
-    }) ?? '—';
+function buildQualitySummary(
+  session: PlannedSession,
+  activity: ActivitySummary | undefined,
+): StructuredQualitySummary | null {
+  if (!activity || (session.type !== 'TEMPO' && session.type !== 'INTERVAL')) {
+    return null;
+  }
+
+  return buildStructuredQualitySummary(session, toSummaryActivity(activity));
+}
+
+function qualitySummaryNeedsReview(summary: StructuredQualitySummary | null): boolean {
+  if (!summary || summary.status !== 'available') {
+    return false;
+  }
+
+  if (summary.sessionType === 'INTERVAL') {
+    const reps = summary.intervalReps;
+    return reps?.inTargetRange != null && reps.inTargetRange < reps.planned;
+  }
+
+  const target = summary.targetPaceRange;
+  if (!target) {
+    return false;
+  }
+
+  const fastest = Math.min(target.minSecondsPerKm, target.maxSecondsPerKm);
+  const slowest = Math.max(target.minSecondsPerKm, target.maxSecondsPerKm);
+  return summary.averagePaceSecondsPerKm < fastest || summary.averagePaceSecondsPerKm > slowest;
+}
+
+function completedHeadline(
+  summary: ReturnType<typeof buildCompletedSummary>,
+  qualitySummary: StructuredQualitySummary | null,
+  needsReview: boolean,
+): string {
+  if (qualitySummary?.status === 'available') {
+    if (qualitySummary.sessionType === 'TEMPO') {
+      return needsReview ? 'Tempo needs review' : 'Tempo on target';
+    }
+
+    return needsReview ? 'Rep work needs review' : 'Rep work on target';
+  }
+
+  return summary.headline;
+}
+
+function qualityEvidenceSentence(
+  summary: StructuredQualitySummary | null,
+  units: ReturnType<typeof usePreferences>['units'],
+  needsReview: boolean,
+): string | null {
+  if (!summary || summary.status !== 'available') {
+    return null;
+  }
+
+  const pace = formatPace(summary.averagePaceSecondsPerKm, units, {
+    withUnit: true,
+    compactUnit: true,
+  });
+
+  if (summary.sessionType === 'TEMPO') {
+    return `Tempo block averaged ${pace} · ${needsReview ? 'outside target.' : 'inside target.'}`;
+  }
+
+  const reps = summary.intervalReps;
+  const repCopy = reps?.inTargetRange != null
+    ? `${reps.inTargetRange} / ${reps.planned} reps inside target`
+    : `${reps?.found ?? 0} / ${reps?.planned ?? 0} reps found`;
+  return `${repCopy} · rep average ${pace}.`;
+}
+
+function completedSummaryFact(subcopy: string): string {
+  const [, ...facts] = subcopy.split(' · ');
+  return facts.length ? facts.join(' · ') : subcopy;
+}
+
+function buildCompletedEvidenceRows({
+  session,
+  activity,
+  units,
+  qualitySummary,
+  canAddFeel,
+}: {
+  session: PlannedSession;
+  activity: ActivitySummary | undefined;
+  units: ReturnType<typeof usePreferences>['units'];
+  qualitySummary: StructuredQualitySummary | null;
+  canAddFeel: boolean;
+}): CompletedEvidenceRow[] {
+  if (qualitySummary?.status === 'available') {
+    if (qualitySummary.sessionType === 'INTERVAL') {
+      const reps = qualitySummary.intervalReps;
+      return [
+        {
+          label: reps?.inTargetRange != null ? 'Reps in range' : 'Reps found',
+          value: reps ? `${reps.inTargetRange ?? reps.found} / ${reps.planned}` : null,
+          kind: 'neutral',
+        },
+        {
+          label: 'Quality pace',
+          value: formatPace(qualitySummary.averagePaceSecondsPerKm, units, {
+            withUnit: true,
+            compactUnit: true,
+          }),
+          kind: 'pace',
+        },
+      ];
+    }
+
     return [
       {
-        value: formatDistance(session.distance ?? 0, units),
-        label: 'planned km',
+        label: 'Quality pace',
+        value: formatPace(qualitySummary.averagePaceSecondsPerKm, units, {
+          withUnit: true,
+          compactUnit: true,
+        }),
+        kind: 'pace',
       },
       {
-        value: target,
-        label: target.includes(':') ? 'target pace' : 'target effort',
-      },
-      {
-        value: SESSION_TYPE[session.type].label,
-        label: 'session',
+        label: 'Tempo time',
+        value: formatDuration(Math.round(
+          qualitySummary.averagePaceSecondsPerKm * qualitySummary.qualityDistanceKm,
+        )),
+        kind: 'time',
       },
     ];
   }
 
-  return [
+  if (!activity) {
+    const target = formatIntensityTargetDisplay(session, units, {
+      fallbackToLegacyPace: true,
+      withUnit: true,
+    });
+    return [
+      {
+        label: 'Planned',
+        value: formatSessionLabel(session, units),
+        kind: 'neutral',
+      },
+      {
+        label: 'Target',
+        value: target,
+        kind: target?.includes(':') ? 'pace' : 'effort',
+      },
+    ];
+  }
+
+  const rows: CompletedEvidenceRow[] = [
     {
-      value: formatDistance(activity.distance, units),
-      label: 'distance',
+      label: 'Distance',
+      value: `${formatDistance(activity.distance, units)} / ${formatDistance(session.distance ?? 0, units)}`,
+      kind: 'distance',
     },
     {
-      value: formatPace(activity.avgPace, units),
-      label: 'avg pace',
+      label: 'Pace',
+      value: formatPace(activity.avgPace, units, { withUnit: true, compactUnit: true }),
+      kind: 'pace',
     },
-    activity.avgHR != null
-      ? {
-          value: `${activity.avgHR}`,
-          label: 'avg bpm',
-        }
-      : {
-          value: formatDuration(activity.duration),
-          label: 'elapsed',
-        },
   ];
+
+  if (activity.subjectiveInput) {
+    rows.push({
+      label: 'Feel',
+      value: titleCase(activity.subjectiveInput.overall),
+      kind: 'effort',
+    });
+  } else if (canAddFeel) {
+    rows.push({
+      label: 'Feel',
+      value: 'add feel',
+      kind: 'effort',
+    });
+  }
+
+  return rows;
 }
 
-function SavedSubjectiveInput({ input }: { input: SubjectiveInput }) {
+function buildPlannedTargetDisplay(
+  session: PlannedSession,
+  units: ReturnType<typeof usePreferences>['units'],
+): PlannedTargetDisplay {
+  const targetParts = formatIntensityTargetParts(session, units, {
+    hideCompatibilityPace: true,
+    withUnit: true,
+  });
+  const legacyPace = targetParts.pace || targetParts.effort
+    ? null
+    : formatStoredPace(session.pace, units, { withUnit: true, compactUnit: true });
+  const pace = targetParts.pace ?? (legacyPace === '—' ? null : legacyPace);
+  const effort = targetParts.effort;
+  const prefersPacePrimary = session.type === 'TEMPO' || session.type === 'INTERVAL';
+  const label = session.type === 'TEMPO'
+    ? 'Tempo target'
+    : session.type === 'INTERVAL'
+      ? 'Rep target'
+      : 'Target';
+
+  if (prefersPacePrimary) {
+    return {
+      label,
+      primary: pace ?? effort,
+      primaryKind: pace ? 'pace' : effort ? 'effort' : 'neutral',
+      secondary: pace ? effort : null,
+      secondaryKind: 'effort',
+    };
+  }
+
+  return {
+    label,
+    primary: effort ?? pace,
+    primaryKind: effort ? 'effort' : pace ? 'pace' : 'neutral',
+    secondary: effort ? pace : null,
+    secondaryKind: 'pace',
+  };
+}
+
+function formatShortDuration(
+  duration: ReturnType<typeof normalizeSessionDuration>,
+  units: ReturnType<typeof usePreferences>['units'],
+  label: 'warm' | 'cool',
+): string | null {
+  if (!duration) {
+    return null;
+  }
+
+  if (duration.unit === 'min') {
+    return `${duration.value} min ${label}`;
+  }
+
+  return `${formatDistance(duration.value, units)} ${label}`;
+}
+
+function formatRecoveryDetail(
+  recovery: PlannedSession['recovery'],
+  units: ReturnType<typeof usePreferences>['units'],
+): string | null {
+  if (!recovery) {
+    return null;
+  }
+
+  if (typeof recovery === 'string') {
+    return `${recovery} recoveries`;
+  }
+
+  const normalized = normalizeSessionDuration(recovery);
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.unit === 'min') {
+    return `${normalized.value} min recoveries`;
+  }
+
+  return `${formatDistance(normalized.value, units)} recoveries`;
+}
+
+function buildPlannedDetailLine(
+  session: PlannedSession,
+  units: ReturnType<typeof usePreferences>['units'],
+): string | null {
+  const warmup = normalizeSessionDuration(session.warmup);
+  const cooldown = normalizeSessionDuration(session.cooldown);
+
+  if (session.type === 'TEMPO') {
+    const parts = [
+      typeof session.distance === 'number' ? `${formatDistance(session.distance, units)} total` : null,
+      formatShortDuration(warmup, units, 'warm'),
+      formatShortDuration(cooldown, units, 'cool'),
+    ].filter((part): part is string => Boolean(part));
+    return parts.length ? parts.join(' · ') : null;
+  }
+
+  if (session.type === 'INTERVAL') {
+    const parts = [
+      formatRecoveryDetail(session.recovery, units),
+      formatShortDuration(warmup, units, 'warm'),
+      formatShortDuration(cooldown, units, 'cool'),
+    ].filter((part): part is string => Boolean(part));
+    return parts.length ? parts.join(' · ') : null;
+  }
+
+  return null;
+}
+
+function CompletedEvidenceList({ rows }: { rows: CompletedEvidenceRow[] }) {
   return (
-    <View style={styles.savedFeelGroup}>
-      <View style={styles.savedFeelChips}>
-        <View style={styles.savedFeelChip}>
-          <Text style={styles.savedFeelChipText}>Legs: {titleCase(input.legs)}</Text>
+    <View style={styles.evidenceList}>
+      {rows.map((row) => (
+        <View key={row.label} style={styles.evidenceRow}>
+          <Text style={styles.evidenceLabel}>{row.label}</Text>
+          <Text style={[styles.evidenceValue, metricValueStyle(row.kind)]}>
+            {row.value}
+          </Text>
         </View>
-        <View style={styles.savedFeelChip}>
-          <Text style={styles.savedFeelChipText}>Breathing: {titleCase(input.breathing)}</Text>
-        </View>
-        <View style={styles.savedFeelChip}>
-          <Text style={styles.savedFeelChipText}>Overall: {titleCase(input.overall)}</Text>
-        </View>
-      </View>
+      ))}
     </View>
   );
 }
@@ -210,8 +462,8 @@ function SavedSubjectiveInput({ input }: { input: SubjectiveInput }) {
 export function TodayHeroCard({
   session,
   activity,
-  steadyNote,
   onPress,
+  onLogRun,
   onReviewRun,
   onSaveSubjectiveInput,
   onDismissSubjectiveInput,
@@ -266,58 +518,87 @@ export function TodayHeroCard({
   );
 
   if (!session || session.type === 'REST') {
+    const restMeta = SESSION_TYPE.REST;
     return (
-      <View style={[styles.card, { backgroundColor: '#F7F5F1' }]} testID="hero-card">
+      <View
+        style={[styles.card, styles.plannedCard, { backgroundColor: C.surface, borderColor: restMeta.color }]}
+        testID="hero-card"
+      >
+        <View style={styles.topRow}>
+          <Text
+            style={[
+              styles.typeLabel,
+              styles.typeLabelChip,
+              { color: C.surface, backgroundColor: restMeta.color, borderColor: restMeta.color },
+            ]}
+          >
+            REST
+          </Text>
+          <Text style={styles.todayBadge}>TODAY</Text>
+        </View>
         <Text style={styles.restTitle}>Rest day</Text>
-        <Text style={styles.restSubtitle}>Recovery is part of the plan. You earned this.</Text>
+        <Text style={styles.restSubtitle}>No planned run today.</Text>
       </View>
     );
   }
 
   const meta = SESSION_TYPE[session.type];
-  const isInterval = session.type === 'INTERVAL';
-  const supportsWarmupCooldown = sessionSupportsWarmupCooldown(session.type);
-  const warmup = supportsWarmupCooldown ? normalizeSessionDuration(session.warmup) : undefined;
-  const cooldown = supportsWarmupCooldown ? normalizeSessionDuration(session.cooldown) : undefined;
   const savedSubjectiveInput = activity?.subjectiveInput;
   const completedSummary = buildCompletedSummary(session, activity);
-  const completedMetrics = buildCompletedMetrics(session, activity, units);
-  const targetParts = formatIntensityTargetParts(session, units, { hideCompatibilityPace: true });
-  const targetValue = targetParts.pace ?? targetParts.effort ?? formatStoredPace(session.pace, units);
-  const targetLabel = targetParts.pace ? 'target pace' : targetParts.effort ? 'target effort' : 'target pace';
+  const qualitySummary = buildQualitySummary(session, activity);
+  const needsReview = qualitySummaryNeedsReview(qualitySummary);
+  const statusLabel = needsReview ? 'NEEDS REVIEW' : 'COMPLETED';
+  const qualityEvidence = qualityEvidenceSentence(qualitySummary, units, needsReview);
+  const plannedTarget = buildPlannedTargetDisplay(session, units);
+  const plannedDetailLine = buildPlannedDetailLine(session, units);
   const showSubjectivePrompt =
     !!session.actualActivityId &&
     !savedSubjectiveInput &&
     Boolean(onSaveSubjectiveInput || onDismissSubjectiveInput);
+  const completedRows = buildCompletedEvidenceRows({
+    session,
+    activity,
+    units,
+    qualitySummary,
+    canAddFeel: showSubjectivePrompt,
+  });
+  const completedHasNestedActions = showSubjectivePrompt || Boolean(onReviewRun);
 
   if (completed) {
     const content = (
       <>
         <View style={styles.completedTopRow}>
-          <View style={styles.completedBadge}>
-            <Text style={styles.completedBadgeTick}>✓</Text>
-            <Text style={styles.completedBadgeText}>Completed</Text>
-          </View>
           <View
             style={[
               styles.completedTypeChip,
-              { borderColor: `${meta.color}35`, backgroundColor: meta.bg },
+              { borderColor: meta.color, backgroundColor: meta.color },
             ]}
+            testID="hero-completed-session-chip"
           >
-            <Text style={[styles.completedTypeChipText, { color: meta.color }]}>{session.type}</Text>
+            <Text style={[styles.completedTypeChipText, { color: C.surface }]}>{session.type}</Text>
+          </View>
+          <View
+            style={[styles.completedBadge, needsReview && styles.reviewBadge]}
+            testID="hero-completed-status-chip"
+          >
+            <Text style={[styles.completedBadgeText, needsReview && styles.reviewBadgeText]}>
+              {statusLabel}
+            </Text>
           </View>
         </View>
 
-        <Text style={[styles.completedHeadline, { color: meta.color }]}>
-          {completedSummary.headline}
+        <Text style={styles.completedHeadline}>
+          {completedHeadline(completedSummary, qualitySummary, needsReview)}
         </Text>
         <Text style={styles.completedSubcopy}>
-          {activity ? (
+          {qualityEvidence ? (
+            <Text>{qualityEvidence}</Text>
+          ) : activity ? (
             <>
-              <Text style={styles.completedSubcopyMetric}>{formatDistance(activity.distance, units)}</Text>
+              <Text style={[styles.completedSubcopyMetric, styles.metricDistanceValue]}>{formatDistance(activity.distance, units)}</Text>
               <Text> at </Text>
-              <Text style={styles.completedSubcopyMetric}>{formatPace(activity.avgPace, units, { withUnit: true })}</Text>
-              <Text>{completedSummary.subcopy.split(' · ').length > 1 ? ` · ${completedSummary.subcopy.split(' · ').slice(1).join(' · ')}` : ''}</Text>
+              <Text style={[styles.completedSubcopyMetric, styles.metricPaceValue]}>{formatPace(activity.avgPace, units, { withUnit: true, compactUnit: true })}</Text>
+              <Text>{` · ${completedSummaryFact(completedSummary.subcopy)}`}</Text>
             </>
           ) : (
             <>
@@ -327,18 +608,8 @@ export function TodayHeroCard({
           )}
         </Text>
 
-        <View style={styles.completedMetricRow}>
-          {completedMetrics.map((metric) => (
-            <View key={metric.label} style={styles.completedMetricCard}>
-              <Text style={styles.completedMetricValue} numberOfLines={1}>{metric.value}</Text>
-              <Text style={styles.completedMetricLabel}>{metric.label}</Text>
-            </View>
-          ))}
-        </View>
+        <CompletedEvidenceList rows={completedRows} />
 
-        {savedSubjectiveInput ? (
-          <SavedSubjectiveInput input={savedSubjectiveInput} />
-        ) : null}
         {showSubjectivePrompt ? (
           <SubjectiveInputPrompt
             onSave={onSaveSubjectiveInput}
@@ -356,8 +627,14 @@ export function TodayHeroCard({
             testID="hero-review-run"
           >
             <View>
-              <Text style={styles.reviewLinkText}>Review run</Text>
-              <Text style={styles.reviewLinkHint}>Open run detail and edit notes or feel.</Text>
+              <Text style={styles.reviewLinkText}>
+                {qualitySummary ? 'Review quality work' : 'Review run'}
+              </Text>
+              <Text style={styles.reviewLinkHint}>
+                {qualitySummary
+                  ? 'Warm-up and cool-down stay context.'
+                  : 'Open run detail and edit notes or feel.'}
+              </Text>
             </View>
             <Text style={styles.reviewLinkArrow}>›</Text>
           </Pressable>
@@ -368,12 +645,12 @@ export function TodayHeroCard({
     if (onPress) {
       return (
         <Pressable
-          accessibilityRole="button"
+          accessibilityRole={completedHasNestedActions ? undefined : 'button'}
           onPress={onPress}
           style={({ pressed }) => [
             styles.card,
             styles.completedCard,
-            { backgroundColor: meta.bg },
+            { backgroundColor: C.surface, borderColor: meta.color },
             pressed && styles.cardPressed,
           ]}
           testID="hero-completed"
@@ -386,7 +663,7 @@ export function TodayHeroCard({
     }
 
     return (
-      <View style={[styles.card, styles.completedCard, { backgroundColor: meta.bg }]} testID="hero-completed">
+      <View style={[styles.card, styles.completedCard, { backgroundColor: C.surface, borderColor: meta.color }]} testID="hero-completed">
         <Animated.View style={completedRevealStyle}>
           {content}
         </Animated.View>
@@ -394,17 +671,6 @@ export function TodayHeroCard({
     );
   }
 
-  const plannedType = session.type as Exclude<PlannedSession['type'], 'REST'>;
-  const steadyNoteContent = steadyNote ? (
-    <>
-      <View style={styles.steadyNoteMain}>
-        <View style={[styles.steadyDot, { backgroundColor: meta.color }]} />
-        <Text style={styles.steadyText}>
-          <Text style={styles.steadyLabel}>Steady</Text>: {steadyNote}
-        </Text>
-      </View>
-    </>
-  ) : null;
   const plannedContent = (
     <>
       <View style={styles.topRow}>
@@ -424,48 +690,35 @@ export function TodayHeroCard({
       <Text style={[styles.mainTitle, { color: meta.color }]}>{formatSessionTitle(session, units)}</Text>
       <Text style={styles.dateText}>{formatSessionDate(session.date)}</Text>
 
-      <View style={styles.metricGrid}>
-        <View style={styles.metricCard}>
-          <Text style={[styles.metricValue, styles.metricValueMono]} numberOfLines={1}>
-            {isInterval ? `${session.reps}×${formatIntervalRepLength(session)}` : formatDistance(session.distance ?? 0, units)}
+      <View style={styles.targetFrame}>
+        <Text style={styles.targetLabel}>{plannedTarget.label}</Text>
+        {plannedTarget.primary ? (
+          <Text style={[styles.targetPrimary, metricValueStyle(plannedTarget.primaryKind)]} numberOfLines={1}>
+            {plannedTarget.primary}
           </Text>
-          <Text style={styles.metricLabel}>{isInterval ? 'session' : 'distance'}</Text>
-        </View>
-        <View style={styles.metricCard}>
-          <Text
-            style={[
-              styles.metricValue,
-              targetParts.pace ? styles.metricValueMono : styles.metricValueText,
-            ]}
-            numberOfLines={1}
-          >
-            {targetValue}
+        ) : null}
+        {plannedTarget.secondary ? (
+          <Text style={[styles.targetSecondary, metricValueStyle(plannedTarget.secondaryKind)]} numberOfLines={1}>
+            {plannedTarget.secondary}
           </Text>
-          <Text style={styles.metricLabel}>{targetLabel}</Text>
-        </View>
-        <View style={styles.metricCard}>
-          <Text style={[styles.metricValue, styles.metricValueText]} numberOfLines={1}>{plannedHeartRateZone(session)}</Text>
-          <Text style={styles.metricLabel}>heart rate</Text>
-        </View>
+        ) : null}
       </View>
 
-      {(targetParts.effort && targetParts.pace) || warmup || cooldown ? (
-        <View style={styles.extras}>
-          {targetParts.effort && targetParts.pace ? (
-            <Text style={styles.extraText}>{targetParts.effort}</Text>
-          ) : null}
-          {warmup ? (
-            <Text style={styles.extraText}>{formatWarmupCooldown(warmup, units, 'warmup')}</Text>
-          ) : null}
-          {cooldown ? (
-            <Text style={styles.extraText}>{formatWarmupCooldown(cooldown, units, 'cooldown')}</Text>
-          ) : null}
-        </View>
-      ) : null}
-      {steadyNote ? (
-        <View style={styles.steadyNote} testID="hero-steady-note">
-          {steadyNoteContent}
-        </View>
+      {plannedDetailLine ? <Text style={styles.detailLine}>{plannedDetailLine}</Text> : null}
+      {onLogRun ? (
+        <>
+          <Pressable
+            accessibilityRole="button"
+            onPress={(event) => {
+              event.stopPropagation?.();
+              onLogRun();
+            }}
+            style={styles.finishedRunButton}
+          >
+            <Text style={styles.finishedRunButtonText}>✓ I finished this run</Text>
+          </Pressable>
+          <Text style={styles.finishedRunHint}>Looks for a recent Strava activity.</Text>
+        </>
       ) : null}
       {showSubjectivePrompt ? (
         <SubjectiveInputPrompt
@@ -476,15 +729,17 @@ export function TodayHeroCard({
     </>
   );
 
+  const plannedHasNestedActions = Boolean(onLogRun) || showSubjectivePrompt;
+
   if (onPress) {
     return (
       <Pressable
-        accessibilityRole="button"
+        accessibilityRole={plannedHasNestedActions ? undefined : 'button'}
         onPress={onPress}
         style={({ pressed }) => [
           styles.card,
           styles.plannedCard,
-          { backgroundColor: PLANNED_CARD_BG[plannedType], borderColor: meta.color },
+          { backgroundColor: C.surface, borderColor: meta.color },
           pressed && styles.cardPressed,
         ]}
         testID="hero-card"
@@ -499,7 +754,7 @@ export function TodayHeroCard({
       style={[
         styles.card,
         styles.plannedCard,
-        { backgroundColor: PLANNED_CARD_BG[plannedType], borderColor: meta.color },
+        { backgroundColor: C.surface, borderColor: meta.color },
       ]}
       testID="hero-card"
     >
@@ -684,6 +939,13 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     color: C.forest,
   },
+  reviewBadge: {
+    backgroundColor: C.amberBg,
+    borderColor: `${C.amber}35`,
+  },
+  reviewBadgeText: {
+    color: C.amber,
+  },
   completedTypeChip: {
     borderWidth: 1,
     borderRadius: 999,
@@ -716,6 +978,30 @@ const styles = StyleSheet.create({
   completedSubcopyMetric: {
     fontFamily: FONTS.monoBold,
     color: C.ink,
+  },
+  evidenceList: {
+    borderTopWidth: 1,
+    borderTopColor: C.border,
+    marginBottom: 14,
+  },
+  evidenceRow: {
+    minHeight: 34,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 14,
+  },
+  evidenceLabel: {
+    fontFamily: FONTS.sans,
+    fontSize: 13,
+    color: C.ink2,
+  },
+  evidenceValue: {
+    flexShrink: 1,
+    textAlign: 'right',
+    fontSize: 13,
   },
   completedMetricRow: {
     flexDirection: 'row',
@@ -756,6 +1042,28 @@ const styles = StyleSheet.create({
     color: C.muted,
     marginBottom: 16,
   },
+  targetFrame: {
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 14,
+    backgroundColor: C.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 12,
+  },
+  targetLabel: {
+    fontFamily: FONTS.sans,
+    fontSize: 11,
+    color: C.muted,
+    marginBottom: 4,
+  },
+  targetPrimary: {
+    fontSize: 22,
+    marginBottom: 3,
+  },
+  targetSecondary: {
+    fontSize: 14,
+  },
   metricGrid: {
     flexDirection: 'row',
     gap: 10,
@@ -782,6 +1090,26 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.sansSemiBold,
     fontSize: 16,
   },
+  metricDistanceValue: {
+    fontFamily: FONTS.monoBold,
+    color: C.metricDistance,
+  },
+  metricPaceValue: {
+    fontFamily: FONTS.monoBold,
+    color: C.metricPace,
+  },
+  metricTimeValue: {
+    fontFamily: FONTS.monoBold,
+    color: C.metricTime,
+  },
+  metricEffortValue: {
+    fontFamily: FONTS.sansSemiBold,
+    color: C.metricEffort,
+  },
+  metricNeutralValue: {
+    fontFamily: FONTS.sansSemiBold,
+    color: C.ink,
+  },
   metricLabel: {
     fontFamily: FONTS.sans,
     fontSize: 11,
@@ -792,39 +1120,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
-  steadyNote: {
-    marginTop: 14,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(28,21,16,0.08)',
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  steadyNoteMain: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  steadyDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 999,
-    marginTop: 7,
-  },
-  steadyLabel: {
-    fontFamily: FONTS.sansSemiBold,
-    color: C.ink,
-  },
-  steadyText: {
-    flex: 1,
-    minWidth: 0,
+  detailLine: {
     fontFamily: FONTS.sans,
-    fontSize: 13,
-    lineHeight: 19,
-    color: C.ink2,
+    fontSize: 12,
+    lineHeight: 17,
+    color: C.muted,
+  },
+  finishedRunButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 50,
+    marginTop: 16,
+    borderRadius: 999,
+    backgroundColor: C.clay,
+  },
+  finishedRunButtonText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 15,
+    color: C.surface,
+  },
+  finishedRunHint: {
+    marginTop: 8,
+    textAlign: 'center',
+    fontFamily: FONTS.sans,
+    fontSize: 11,
+    color: C.muted,
   },
   extraText: {
     fontFamily: FONTS.sans,

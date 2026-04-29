@@ -29,7 +29,6 @@ import { PhaseThemeProvider } from '../../components/home/PhaseThemeProvider';
 import { TodayHeroCard } from '../../components/home/TodayHeroCard';
 import { RemainingDaysList } from '../../components/home/RemainingDaysList';
 import { CoachAnnotationCard } from '../../components/home/CoachAnnotationCard';
-import { FinishedRunCta } from '../../components/home/FinishedRunCta';
 import { NiggleBanner } from '../../components/home/NiggleBanner';
 import { WeeklyVolumeCard } from '../../components/home/WeeklyLoadCard';
 import { ResolveSessionSheet } from '../../components/home/ResolveSessionSheet';
@@ -220,8 +219,7 @@ export default function HomeScreen() {
     && !todaySession.skipped
     && !activityResolution.isSessionComplete(todaySession),
   );
-  const steadyNote = todaySession ? (plan.todayAnnotation ?? plan.coachAnnotation ?? null) : null;
-  const coachNote = plan.coachAnnotation && plan.coachAnnotation === steadyNote ? null : plan.coachAnnotation;
+  const coachNote = plan.coachAnnotation ?? null;
   const handleTodayHeroPress = runDetailNavigation.canOpenRunDetail(todaySession)
     ? () => runDetailNavigation.openRunDetail(todaySession)
     : canOpenResolveSessionSheet(todaySession, todayStatus)
@@ -473,16 +471,11 @@ export default function HomeScreen() {
               <TodayHeroCard
                 session={todaySession}
                 activity={todayActivity}
-                steadyNote={steadyNote}
                 onPress={handleTodayHeroPress}
+                onLogRun={showFinishedRunCta ? () => router.push('/sync-run') : undefined}
                 onReviewRun={handleReviewRunPress}
               />
               {todayActivity?.niggles?.length ? <NiggleBanner niggles={todayActivity.niggles} /> : null}
-              {showFinishedRunCta ? (
-                <View style={styles.ctaWrap}>
-                  <FinishedRunCta onPress={() => router.push('/sync-run')} />
-                </View>
-              ) : null}
               <CoachAnnotationCard annotation={coachNote} />
               <RemainingDaysList
                 sessions={weekSessions}
@@ -599,9 +592,6 @@ const styles = StyleSheet.create({
   },
   headerActionTextActive: {
     color: C.forest,
-  },
-  ctaWrap: {
-    marginTop: 14,
   },
   headerMeta: {
     fontFamily: FONTS.sans,
