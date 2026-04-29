@@ -7,13 +7,31 @@ interface NotebookRowValueProps {
   value: string;
   unit?: string;
   muted?: boolean;
+  color?: string;
+  unitColor?: string;
 }
 
-export function NotebookRowValue({ value, unit, muted = false }: NotebookRowValueProps) {
+export function NotebookRowValue({
+  value,
+  unit,
+  muted = false,
+  color,
+  unitColor,
+}: NotebookRowValueProps) {
   return (
     <View style={styles.row}>
-      <Text style={[styles.value, muted && styles.valueMuted]}>{value}</Text>
-      {unit ? <Text style={[styles.unit, muted && styles.unitMuted]}>{unit}</Text> : null}
+      <Text style={[styles.value, muted && styles.valueMuted, color ? { color } : null]}>
+        {value}
+      </Text>
+      {unit ? (
+        <Text style={[
+          styles.unit,
+          muted && styles.unitMuted,
+          unitColor ? { color: unitColor } : null,
+        ]}>
+          {unit}
+        </Text>
+      ) : null}
     </View>
   );
 }

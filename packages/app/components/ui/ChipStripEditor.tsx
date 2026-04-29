@@ -1,5 +1,6 @@
 import React from 'react';
 import type { SessionDurationUnit } from '@steady/types';
+import { C } from '../../constants/colours';
 import { EditableChipStrip } from './EditableChipStrip';
 
 interface ChipStripEditorProps {
@@ -9,6 +10,10 @@ interface ChipStripEditorProps {
   onSelect: (value: number) => void;
   customEditing?: boolean;
   customValue?: string;
+  activeColor?: string;
+  activeBackgroundColor?: string;
+  activeTextColor?: string;
+  activeCaptionColor?: string;
   onCustomPress: () => void;
   onCustomChangeText: (value: string) => void;
   onCustomBlur?: () => void;
@@ -23,6 +28,10 @@ function formatValueLabel(value: number, unit: SessionDurationUnit): string {
   return `${value} ${unit}`;
 }
 
+function metricColorForUnit(unit: SessionDurationUnit): string {
+  return unit === 'km' ? C.metricDistance : C.metricTime;
+}
+
 export function ChipStripEditor({
   presets,
   unit,
@@ -30,12 +39,20 @@ export function ChipStripEditor({
   onSelect,
   customEditing = false,
   customValue = '',
+  activeColor,
+  activeBackgroundColor,
+  activeTextColor,
+  activeCaptionColor,
   onCustomPress,
   onCustomChangeText,
   onCustomBlur,
   onCustomFocus,
 }: ChipStripEditorProps) {
   const isCustomValue = value != null && !presets.includes(value);
+  const resolvedActiveColor = activeColor ?? metricColorForUnit(unit);
+  const resolvedActiveBackgroundColor = activeBackgroundColor ?? `${resolvedActiveColor}14`;
+  const resolvedActiveTextColor = activeTextColor ?? resolvedActiveColor;
+  const resolvedActiveCaptionColor = activeCaptionColor ?? C.ink2;
 
   return (
     <EditableChipStrip
@@ -44,6 +61,10 @@ export function ChipStripEditor({
         label: formatValueLabel(preset, unit),
       }))}
       selectedKey={value != null ? String(value) : null}
+      activeColor={resolvedActiveColor}
+      activeBackgroundColor={resolvedActiveBackgroundColor}
+      activeTextColor={resolvedActiveTextColor}
+      activeCaptionColor={resolvedActiveCaptionColor}
       customActive={isCustomValue}
       customEditing={customEditing}
       customLabel={isCustomValue && value != null ? formatValueLabel(value, unit) : 'Custom...'}
