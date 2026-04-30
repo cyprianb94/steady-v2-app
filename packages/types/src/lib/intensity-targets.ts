@@ -116,6 +116,12 @@ const DEFAULT_INTENSITY_TARGETS: Partial<Record<SessionType, IntensityTarget>> =
     paceRange: { min: '3:45', max: '3:55' },
     effortCue: 'hard repeatable',
   },
+  RECOVERY: {
+    source: 'manual',
+    mode: 'effort',
+    profileKey: 'recovery',
+    effortCue: 'very easy',
+  },
 };
 
 export function normalizePace(value: unknown): string | undefined {

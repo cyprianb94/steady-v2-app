@@ -1,4 +1,4 @@
-export type SessionType = 'EASY' | 'INTERVAL' | 'TEMPO' | 'LONG' | 'REST';
+export type SessionType = 'EASY' | 'INTERVAL' | 'TEMPO' | 'LONG' | 'RECOVERY' | 'REST';
 export type SubjectiveLegs = 'fresh' | 'normal' | 'heavy' | 'dead';
 export type SubjectiveBreathing = 'easy' | 'controlled' | 'labored';
 export type SubjectiveOverall = 'could-go-again' | 'done' | 'shattered';
@@ -49,6 +49,52 @@ export interface SessionDurationSpec {
   value: number;
 }
 
+export const RUN_STRUCTURE_SEGMENT_KINDS = [
+  'WARMUP',
+  'RUN',
+  'RECOVERY',
+  'FLOAT',
+  'REST',
+  'STRIDE',
+  'COOLDOWN',
+] as const;
+
+export type RunStructureSegmentKind = typeof RUN_STRUCTURE_SEGMENT_KINDS[number];
+export type RunStructureVolumeUnit = 'km' | 'min' | 'sec';
+
+export interface RunStructureVolume {
+  unit: RunStructureVolumeUnit;
+  value: number;
+}
+
+export interface RunStructureProgression {
+  from?: IntensityTarget;
+  to?: IntensityTarget;
+}
+
+export interface RunStructureSegment {
+  id?: string;
+  kind: RunStructureSegmentKind;
+  volume: RunStructureVolume;
+  intensityTarget?: IntensityTarget;
+  progression?: RunStructureProgression;
+  note?: string;
+}
+
+export interface RunStructureRepeatGroup {
+  id?: string;
+  kind: 'REPEAT';
+  repeats: number;
+  segments: RunStructureSegment[];
+  note?: string;
+}
+
+export type RunStructureItem = RunStructureSegment | RunStructureRepeatGroup;
+
+export interface RunStructure {
+  items: RunStructureItem[];
+}
+
 export interface SubjectiveInput {
   legs: SubjectiveLegs;
   breathing: SubjectiveBreathing;
@@ -69,6 +115,9 @@ export interface PlannedSession {
   distance?: number; // km
   pace?: string; // 'M:SS' format e.g. '4:20'
   intensityTarget?: IntensityTarget;
+  plannedVolume?: SessionDurationSpec;
+  planNote?: string;
+  runStructure?: RunStructure;
 
   // INTERVAL
   reps?: number;

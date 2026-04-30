@@ -144,6 +144,59 @@ describe('BlockWeekList', () => {
     expect(screen.getByText('Tempo · controlled hard')).toBeTruthy();
   });
 
+  it('shows compact run-structure summaries and separate note indicators in expanded rows', () => {
+    const baseWeek = week(0, 'BUILD', 82);
+    const weeks = [{
+      ...baseWeek,
+      sessions: baseWeek.sessions.map((sessionValue, index) => {
+        if (index === 6) {
+          return {
+            ...(sessionValue as PlannedSession),
+            distance: 26,
+            plannedVolume: { unit: 'km', value: 26 },
+            planNote: 'Keep floats honest.',
+            runStructure: {
+              items: [
+                {
+                  kind: 'REPEAT',
+                  repeats: 3,
+                  segments: [
+                    {
+                      kind: 'RUN',
+                      volume: { unit: 'km', value: 3 },
+                      intensityTarget: {
+                        source: 'manual',
+                        mode: 'effort',
+                        profileKey: 'marathon',
+                        effortCue: 'race pace',
+                      },
+                    },
+                    {
+                      kind: 'FLOAT',
+                      volume: { unit: 'km', value: 1 },
+                    },
+                  ],
+                },
+              ],
+            },
+          } satisfies PlannedSession;
+        }
+
+        return sessionValue;
+      }),
+    }];
+
+    render(
+      <BlockWeekList
+        weeks={weeks}
+        expandedWeekIndex={0}
+      />,
+    );
+
+    expect(screen.getByText('3 x 3km marathon pace off 1km float')).toBeTruthy();
+    expect(screen.getByText('Long run · Marathon pace · Structure · Note')).toBeTruthy();
+  });
+
   it('lets consumers adapt labels without owning editing or propagation state', () => {
     const weeks = [week(4, 'PEAK', 92)];
 

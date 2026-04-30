@@ -139,4 +139,44 @@ describe('propagateChange structural fields', () => {
     expect(future.cooldown).toBeUndefined();
     expect(result[1].plannedKm).toBe(Math.round(sessionKm(future) * 10) / 10);
   });
+
+  it('propagates structured-session intent fields with the edited session', () => {
+    const template = fullWeek([easy(8)]);
+    const plan = [
+      week(1, [easy(8)]),
+      week(2, [easy(9)]),
+    ];
+    const updated = {
+      ...easy(10),
+      plannedVolume: { unit: 'km' as const, value: 10 },
+      planNote: 'Keep the strides relaxed.',
+      runStructure: {
+        items: [
+          {
+            kind: 'REPEAT' as const,
+            repeats: 6,
+            segments: [
+              { kind: 'STRIDE' as const, volume: { unit: 'sec' as const, value: 20 } },
+            ],
+          },
+        ],
+      },
+    };
+
+    const result = propagateChange(plan, 0, 0, updated, 'remaining', template);
+
+    expect(result[1].sessions[0]).toMatchObject({
+      distance: 11,
+      plannedVolume: { unit: 'km', value: 10 },
+      planNote: 'Keep the strides relaxed.',
+      runStructure: {
+        items: [
+          {
+            kind: 'REPEAT',
+            repeats: 6,
+          },
+        ],
+      },
+    });
+  });
 });

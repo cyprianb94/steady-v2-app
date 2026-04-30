@@ -23,6 +23,7 @@ export type SessionEditorResult = Partial<PlannedSession> | null;
 
 const PROFILE_KEYS_BY_SESSION_TYPE: Partial<Record<SessionType, TrainingPaceProfileKey[]>> = {
   EASY: ['recovery', 'easy', 'steady'],
+  RECOVERY: ['recovery', 'easy'],
   LONG: ['recovery', 'easy', 'steady', 'marathon'],
   TEMPO: ['threshold', 'marathon'],
   INTERVAL: ['interval'],
@@ -30,6 +31,7 @@ const PROFILE_KEYS_BY_SESSION_TYPE: Partial<Record<SessionType, TrainingPaceProf
 
 const DEFAULT_PROFILE_KEY_BY_SESSION_TYPE: Partial<Record<SessionType, TrainingPaceProfileKey>> = {
   EASY: 'easy',
+  RECOVERY: 'recovery',
   LONG: 'easy',
   TEMPO: 'threshold',
   INTERVAL: 'interval',
@@ -59,6 +61,9 @@ interface PlannedSessionEditFingerprint {
   recovery?: PlannedSession['recovery'];
   warmup?: PlannedSession['warmup'];
   cooldown?: PlannedSession['cooldown'];
+  plannedVolume?: PlannedSession['plannedVolume'];
+  planNote?: PlannedSession['planNote'];
+  runStructure?: PlannedSession['runStructure'];
 }
 
 function firstRouteParamValue(value: string | string[] | undefined): string | null {
@@ -255,6 +260,14 @@ export function applyTrainingPaceProfileTarget(
     return session;
   }
 
+  if (session.type === 'RECOVERY') {
+    const { pace: _pace, ...sessionWithoutPace } = session;
+    return {
+      ...sessionWithoutPace,
+      intensityTarget: target,
+    };
+  }
+
   return {
     ...session,
     pace: targetRepresentativePace(target, session.pace) ?? session.pace,
@@ -386,6 +399,9 @@ function plannedSessionEditFingerprint(
   if (normalized.recovery != null) fingerprint.recovery = normalized.recovery;
   if (normalized.warmup != null) fingerprint.warmup = normalized.warmup;
   if (normalized.cooldown != null) fingerprint.cooldown = normalized.cooldown;
+  if (normalized.plannedVolume != null) fingerprint.plannedVolume = normalized.plannedVolume;
+  if (normalized.planNote != null) fingerprint.planNote = normalized.planNote;
+  if (normalized.runStructure != null) fingerprint.runStructure = normalized.runStructure;
 
   return fingerprint;
 }

@@ -11,8 +11,10 @@ import {
 } from 'react-native';
 import {
   normalizePaceRange,
+  normalizeRunStructure,
   normalizeSessionDuration,
   sessionSupportsWarmupCooldown,
+  summariseRunStructure,
   type IntensityTarget,
   type PaceRange,
   type IntervalRecovery,
@@ -55,6 +57,7 @@ interface SessionEditorProps {
   trainingPaceProfile?: TrainingPaceProfile | null;
   onSave: (dayIndex: number, session: Partial<PlannedSession> | null) => void;
   onClose: () => void;
+  onEditRunStructure?: (dayIndex: number, session: Partial<PlannedSession>) => void;
   presentation?: 'sheet' | 'screen';
 }
 
@@ -68,6 +71,7 @@ interface DurationState {
 }
 
 const DISTANCE_PRESETS = [5, 8, 10, 12, 15];
+const RECOVERY_DURATION_PRESETS = [20, 30, 35, 40, 45, 60];
 const LONG_DISTANCE_PRESETS = [12, 15, 18, 20, 22];
 const REP_DURATION_KM_PRESETS = [0.2, 0.4, 0.6, 0.8, 1, 1.2, 1.6];
 const REP_DURATION_MIN_PRESETS = [1, 2, 3, 4, 5, 6, 8, 10];
@@ -77,7 +81,7 @@ const WARMUP_KM_PRESETS = [0, 1, 1.5, 2, 3];
 const WARMUP_MIN_PRESETS = [5, 10, 15, 20];
 const COOLDOWN_KM_PRESETS = [0, 0.5, 1, 1.5, 2];
 const COOLDOWN_MIN_PRESETS = [5, 10, 15];
-const SESSION_TYPES: SessionType[] = ['EASY', 'INTERVAL', 'TEMPO', 'LONG', 'REST'];
+const SESSION_TYPES: SessionType[] = ['EASY', 'RECOVERY', 'INTERVAL', 'TEMPO', 'LONG', 'REST'];
 const FULL_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
 const PACE_PRESET_OFFSETS = [-15, -10, -5, 0, 5, 10, 15];
 const MIN_TARGET_PACE_SECONDS = 150;
@@ -102,6 +106,8 @@ function typeChipLabel(type: SessionType): string {
       return 'Interval';
     case 'LONG':
       return 'Long';
+    case 'RECOVERY':
+      return 'Recovery';
     case 'REST':
       return 'Rest';
     case 'TEMPO':
@@ -165,6 +171,7 @@ function recoveryPresets(unit: SessionDurationUnit): number[] {
 }
 
 function distancePresets(type: SessionType): number[] {
+  if (type === 'RECOVERY') return RECOVERY_DURATION_PRESETS;
   return type === 'LONG' ? LONG_DISTANCE_PRESETS : DISTANCE_PRESETS;
 }
 
@@ -297,6 +304,7 @@ export function SessionEditor({
   trainingPaceProfile = null,
   onSave,
   onClose,
+  onEditRunStructure,
   presentation = 'sheet',
 }: SessionEditorProps) {
   const { units } = usePreferences();
@@ -314,7 +322,16 @@ export function SessionEditor({
   const initialPaceRange = manualPaceRangeDraft(initialIntensityTarget, initialPace);
   const initialManualRangeSelected = isManualRangeTarget(initialIntensityTarget);
   const [type, setType] = useState<SessionType>(init);
-  const [distance, setDistance] = useState(existing?.distance ?? 8);
+  const [distance, setDistance] = useState(
+    existing?.distance ?? (existing?.plannedVolume?.unit === 'km' ? existing.plannedVolume.value : 8),
+  );
+  const [plannedMinutes, setPlannedMinutes] = useState(
+    existing?.plannedVolume?.unit === 'min'
+      ? existing.plannedVolume.value
+      : TYPE_DEFAULTS[init].plannedVolume?.unit === 'min'
+        ? TYPE_DEFAULTS[init].plannedVolume.value
+        : 35,
+  );
   const [reps, setReps] = useState(existing?.reps || 6);
   const [repDist, setRepDist] = useState(existing?.repDist || 800);
   const [repDuration, setRepDuration] = useState<DurationState>(() => buildRepDurationState(existing));
@@ -341,14 +358,16 @@ export function SessionEditor({
   const [customPaceSelected, setCustomPaceSelected] = useState(initialManualRangeSelected);
   const [customWarmup, setCustomWarmup] = useState('');
   const [customCooldown, setCustomCooldown] = useState('');
+  const [planNote, setPlanNote] = useState(existing?.planNote ?? '');
 
   const isInterval = type === 'INTERVAL';
+  const isRecovery = type === 'RECOVERY';
   const isRest = type === 'REST';
   const supportsWarmupCooldown = sessionSupportsWarmupCooldown(type);
-  const canEditPace = !isRest;
+  const canEditPace = !isRest && !isRecovery;
   const typeMeta = SESSION_TYPE[type];
-  const distanceAccentColor = C.metricDistance;
-  const paceAccentColor = C.metricPace;
+  const distanceAccentColor = isRecovery ? C.metricTime : C.metricDistance;
+  const paceAccentColor = isRecovery ? C.metricEffort : C.metricPace;
   const repDurationAccentColor = durationMetricColor(repDuration.unit);
   const recoveryAccentColor = durationMetricColor(recovery.unit);
   const warmupAccentColor = durationMetricColor(warmup.unit);
@@ -369,9 +388,11 @@ export function SessionEditor({
   const targetForDisplay = intensityTarget ?? manualPaceIntensityTarget(pace);
   const targetDisplay = formatIntensityTargetParts(targetForDisplay, units, {
     withUnit: true,
-    includeEffort: false,
+    includeEffort: isRecovery,
   });
-  const targetPaceLabel = targetDisplay.pace ?? (pace ? `${pace}/km` : null);
+  const targetPaceLabel = isRecovery
+    ? targetDisplay.effort ?? 'very easy'
+    : targetDisplay.pace ?? (pace ? `${pace}/km` : null);
   const selectedProfileBand = selectedProfileKey
     ? profileBands.find((band) => band.profileKey === selectedProfileKey)
     : null;
@@ -379,7 +400,9 @@ export function SessionEditor({
     ? `${trainingPaceOptionLabel(selectedProfileBand)} · Training pace`
     : currentManualPaceRange
       ? 'Custom range'
-      : 'Custom pace';
+      : isRecovery
+        ? 'Recovery effort'
+        : 'Custom pace';
   const profilePaceOptions = profileBands.map((band) => {
     const target = intensityTargetForTrainingPaceProfileKey(trainingPaceProfile, band.profileKey);
     const parts = formatIntensityTargetParts(target, units, { withUnit: true });
@@ -389,6 +412,11 @@ export function SessionEditor({
       caption: parts.label ?? band.defaultEffortCue,
     };
   });
+  const structureSummary = summariseRunStructure(existing as PlannedSession | null);
+  const existingStructure = normalizeRunStructure(existing?.runStructure);
+  const preserveExistingStructure = Boolean(
+    existingStructure && existing?.type === type && !isRecovery && !isRest,
+  );
 
   const build = (): Partial<PlannedSession> | null => {
     if (isRest) {
@@ -396,12 +424,23 @@ export function SessionEditor({
     }
 
     const targetForSave = intensityTarget ?? manualPaceIntensityTarget(pace);
-    const session: Partial<PlannedSession> = {
-      type,
-      pace,
-    };
+    const session: Partial<PlannedSession> = { type };
+    if (!isRecovery) {
+      session.pace = pace;
+    }
     if (targetForSave) {
       session.intensityTarget = targetForSave;
+    }
+    const trimmedPlanNote = planNote.trim();
+    session.planNote = trimmedPlanNote.length > 0 ? trimmedPlanNote : undefined;
+    if (preserveExistingStructure && existingStructure) {
+      session.runStructure = existingStructure;
+      session.plannedVolume = existing?.plannedVolume;
+    }
+
+    if (isRecovery) {
+      session.plannedVolume = { unit: 'min', value: plannedMinutes };
+      return session;
     }
 
     if (supportsWarmupCooldown) {
@@ -469,7 +508,10 @@ export function SessionEditor({
       setRepDuration(buildRepDurationState(defaults));
       setRecovery(buildRecoveryState(defaults.recovery));
     } else if (nextType !== 'REST') {
-      setDistance(defaults.distance ?? distance);
+      setDistance(defaults.distance ?? (defaults.plannedVolume?.unit === 'km' ? defaults.plannedVolume.value : distance));
+      if (defaults.plannedVolume?.unit === 'min') {
+        setPlannedMinutes(defaults.plannedVolume.value);
+      }
     }
 
     if (!sessionSupportsWarmupCooldown(nextType)) {
@@ -605,6 +647,10 @@ export function SessionEditor({
     setCustomField((current) => (current === field ? null : current));
   }
 
+  function handleEditRunStructure() {
+    onEditRunStructure?.(dayIndex, build() ?? { type });
+  }
+
   function handleCustomNumberChange(
     field: Exclude<CustomField, 'pace' | null>,
     text: string,
@@ -613,7 +659,11 @@ export function SessionEditor({
       setCustomDistance(text);
       const parsed = parseCustomValue(text, true);
       if (parsed != null) {
-        setDistance(parsed);
+        if (type === 'RECOVERY') {
+          setPlannedMinutes(parsed);
+        } else {
+          setDistance(parsed);
+        }
       }
       return;
     }
@@ -768,6 +818,7 @@ export function SessionEditor({
     reps,
     repDist,
     repDuration: durationSpec(repDuration),
+    plannedVolume: isRecovery ? { unit: 'min' as const, value: plannedMinutes } : undefined,
     pace,
     intensityTarget,
   };
@@ -869,7 +920,7 @@ export function SessionEditor({
               ) : (
                 <NotebookRow
                   first
-                  label="Distance"
+                  label={isRecovery ? 'Duration' : 'Distance'}
                   accentColor={distanceAccentColor}
                   onTap={!isRest ? () => toggleRow('distance') : undefined}
                   expanded={expandedRow === 'distance'}
@@ -878,10 +929,14 @@ export function SessionEditor({
                       <View style={styles.editorBlock}>
                         <ChipStripEditor
                           presets={distancePresets(type)}
-                          unit="km"
-                          value={distance}
+                          unit={isRecovery ? 'min' : 'km'}
+                          value={isRecovery ? plannedMinutes : distance}
                           onSelect={(value) => {
-                            setDistance(value);
+                            if (isRecovery) {
+                              setPlannedMinutes(value);
+                            } else {
+                              setDistance(value);
+                            }
                             closeCustomField('distance');
                           }}
                           customEditing={customField === 'distance'}
@@ -901,8 +956,8 @@ export function SessionEditor({
                     <NotebookRowValue value="—" muted />
                   ) : (
                     <NotebookRowValue
-                      value={formatValue(distance)}
-                      unit="km"
+                      value={formatValue(isRecovery ? plannedMinutes : distance)}
+                      unit={isRecovery ? 'min' : 'km'}
                       color={expandedRow === 'distance' ? distanceAccentColor : undefined}
                       unitColor={expandedRow === 'distance' ? distanceAccentColor : undefined}
                     />
@@ -911,7 +966,7 @@ export function SessionEditor({
               )}
 
               <NotebookRow
-                label={isInterval ? 'Rep target pace' : 'Target pace'}
+                label={isRecovery ? 'Target effort' : isInterval ? 'Rep target pace' : 'Target pace'}
                 accentColor={paceAccentColor}
                 onTap={canEditPace ? () => toggleRow('pace') : undefined}
                 expanded={expandedRow === 'pace'}
@@ -1312,6 +1367,54 @@ export function SessionEditor({
                 </>
               ) : null}
         </View>
+
+        <View style={styles.detailSection}>
+          <Text style={styles.detailLabel}>Plan note</Text>
+          <TextInput
+            multiline
+            value={planNote}
+            onChangeText={setPlanNote}
+            placeholder="Add coach wording or context."
+            placeholderTextColor={C.muted}
+            selectionColor={typeMeta.color}
+            style={styles.planNoteInput}
+          />
+        </View>
+
+        {!isRest && !isRecovery ? (
+          <View style={styles.detailSection}>
+            <View style={styles.structureHeader}>
+              <View style={styles.structureTitleBlock}>
+                <Text style={styles.detailLabel}>Run structure</Text>
+                {structureSummary ? (
+                  <Text style={styles.structureSummary}>{structureSummary}</Text>
+                ) : (
+                  <Text style={styles.structureCaption}>
+                    Add repeats, strides, progressions, or race-pace blocks.
+                  </Text>
+                )}
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                onPress={handleEditRunStructure}
+                style={({ pressed }) => [
+                  styles.structureAction,
+                  { borderColor: typeMeta.color },
+                  pressed && styles.structureActionPressed,
+                ]}
+              >
+                <Text style={[styles.structureActionText, { color: typeMeta.color }]}>
+                  {structureSummary ? 'Edit run structure' : 'Add run structure'}
+                </Text>
+              </Pressable>
+            </View>
+            {structureSummary ? (
+              <Text style={styles.structureFootnote}>
+                This session has a detailed structure. Edit the structure to change the workout.
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
       </ScrollView>
 
       {customField ? null : (
@@ -1500,6 +1603,76 @@ const styles = StyleSheet.create({
   },
   editorBlock: {
     gap: 10,
+  },
+  detailSection: {
+    marginTop: 12,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: C.surface,
+    gap: 10,
+  },
+  detailLabel: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 10,
+    lineHeight: 14,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: C.muted,
+  },
+  planNoteInput: {
+    minHeight: 82,
+    padding: 0,
+    fontFamily: FONTS.sans,
+    fontSize: 14,
+    lineHeight: 20,
+    color: C.ink,
+    textAlignVertical: 'top',
+  },
+  structureHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  structureTitleBlock: {
+    flex: 1,
+    gap: 5,
+  },
+  structureSummary: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 13,
+    lineHeight: 18,
+    color: C.ink,
+  },
+  structureCaption: {
+    fontFamily: FONTS.sans,
+    fontSize: 12,
+    lineHeight: 17,
+    color: C.muted,
+  },
+  structureAction: {
+    minHeight: 38,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.surface,
+  },
+  structureActionPressed: {
+    opacity: 0.78,
+  },
+  structureActionText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 12,
+  },
+  structureFootnote: {
+    fontFamily: FONTS.sans,
+    fontSize: 11,
+    lineHeight: 16,
+    color: C.muted,
   },
   targetPaceCard: {
     gap: 12,

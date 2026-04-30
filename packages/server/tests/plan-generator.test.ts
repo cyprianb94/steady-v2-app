@@ -158,6 +158,72 @@ describe('generatePlan', () => {
       expect(week.plannedKm).toBeGreaterThan(0);
     }
   });
+
+  it('preserves plan notes, planned volume, recovery roles, and run structure from the template', () => {
+    const template: (PlannedSession | null)[] = [
+      {
+        id: 'recovery-template',
+        type: 'RECOVERY',
+        date: '2026-01-01',
+        plannedVolume: { unit: 'min', value: 35 },
+      },
+      {
+        id: 'structured-long-template',
+        type: 'LONG',
+        date: '2026-01-07',
+        plannedVolume: { unit: 'km', value: 26 },
+        planNote: 'Keep floats controlled.',
+        runStructure: {
+          items: [
+            {
+              kind: 'REPEAT',
+              repeats: 3,
+              segments: [
+                {
+                  kind: 'RUN',
+                  volume: { unit: 'km', value: 3 },
+                  intensityTarget: {
+                    source: 'manual',
+                    mode: 'effort',
+                    profileKey: 'marathon',
+                    effortCue: 'race pace',
+                  },
+                },
+                { kind: 'FLOAT', volume: { unit: 'km', value: 1 } },
+              ],
+            },
+          ],
+        },
+      },
+    ];
+
+    const plan = generatePlan(template, 1, 0, {
+      BASE: 1,
+      BUILD: 0,
+      RECOVERY: 0,
+      PEAK: 0,
+      TAPER: 0,
+    });
+
+    expect(plan[0].sessions[0]).toMatchObject({
+      type: 'RECOVERY',
+      plannedVolume: { unit: 'min', value: 35 },
+    });
+    expect(plan[0].sessions[1]).toMatchObject({
+      type: 'LONG',
+      plannedVolume: { unit: 'km', value: 26 },
+      planNote: 'Keep floats controlled.',
+      runStructure: {
+        items: [
+          {
+            kind: 'REPEAT',
+            repeats: 3,
+          },
+        ],
+      },
+    });
+    expect(plan[0].plannedKm).toBe(26);
+  });
 });
 
 describe('progressive overload', () => {

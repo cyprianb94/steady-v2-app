@@ -37,5 +37,7 @@ export const C = {
   forestBg: '#EEF4F1',
   navy: '#1B3A6B',
   navyBg: '#EDF1F8',
+  lavender: '#8B78B8',
+  lavenderBg: '#F3F0FA',
   slate: '#8A8E9A',
 } as const;

@@ -150,6 +150,128 @@ describe('ResolveSessionSheet', () => {
     expect(screen.queryByText(/—\/km/)).toBeNull();
   });
 
+  it('renders run structure intent, plan-note indicator, and recovery duration in planned rows', async () => {
+    const { rerender } = render(
+      <ResolveSessionSheet
+        open
+        session={intervalSession({
+          type: 'LONG',
+          distance: 26,
+          plannedVolume: { unit: 'km', value: 26 },
+          planNote: 'Keep floats honest.',
+          runStructure: {
+            items: [
+              {
+                kind: 'REPEAT',
+                repeats: 3,
+                segments: [
+                  {
+                    kind: 'RUN',
+                    volume: { unit: 'km', value: 3 },
+                    intensityTarget: {
+                      source: 'manual',
+                      mode: 'effort',
+                      profileKey: 'marathon',
+                      effortCue: 'race pace',
+                    },
+                  },
+                  {
+                    kind: 'FLOAT',
+                    volume: { unit: 'km', value: 1 },
+                  },
+                ],
+              },
+            ],
+          },
+        })}
+        status="missed"
+        possibleMatches={[]}
+        onDismiss={vi.fn()}
+        onLogSession={vi.fn()}
+        onMarkSkipped={vi.fn()}
+        onEditSkipped={vi.fn()}
+        onAttachMatch={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText('RUN STRUCTURE')).toBeTruthy();
+    expect(screen.getByText('3 x 3km marathon pace off 1km float')).toBeTruthy();
+    expect(screen.getByText('Plan note saved')).toBeTruthy();
+
+    rerender(
+      <ResolveSessionSheet
+        open
+        session={intervalSession({
+          type: 'RECOVERY',
+          plannedVolume: { unit: 'min', value: 35 },
+          intensityTarget: {
+            source: 'manual',
+            mode: 'effort',
+            profileKey: 'recovery',
+            effortCue: 'very easy',
+          },
+        })}
+        status="missed"
+        possibleMatches={[]}
+        onDismiss={vi.fn()}
+        onLogSession={vi.fn()}
+        onMarkSkipped={vi.fn()}
+        onEditSkipped={vi.fn()}
+        onAttachMatch={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText('DURATION')).toBeTruthy();
+    expect(screen.getByText('35min')).toBeTruthy();
+    expect(screen.getByText('TARGET EFFORT')).toBeTruthy();
+    expect(screen.getByText('very easy')).toBeTruthy();
+  });
+
+  it('does not show fallback quick-interval rows for structured-only intervals', async () => {
+    render(
+      <ResolveSessionSheet
+        open
+        session={{
+          id: 'fartlek',
+          type: 'INTERVAL',
+          date: '2026-04-23',
+          runStructure: {
+            items: [
+              {
+                kind: 'REPEAT',
+                repeats: 4,
+                segments: [
+                  { kind: 'RUN', volume: { unit: 'sec', value: 90 } },
+                  { kind: 'RECOVERY', volume: { unit: 'sec', value: 90 } },
+                ],
+              },
+              {
+                kind: 'REPEAT',
+                repeats: 4,
+                segments: [
+                  { kind: 'RUN', volume: { unit: 'sec', value: 30 } },
+                  { kind: 'RECOVERY', volume: { unit: 'sec', value: 30 } },
+                ],
+              },
+            ],
+          },
+        }}
+        status="missed"
+        possibleMatches={[]}
+        onDismiss={vi.fn()}
+        onLogSession={vi.fn()}
+        onMarkSkipped={vi.fn()}
+        onEditSkipped={vi.fn()}
+        onAttachMatch={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText('RUN STRUCTURE')).toBeTruthy();
+    expect(screen.getByText('4 x 1.5min on/off, 4 x 30s on/off')).toBeTruthy();
+    expect(screen.queryByText('REPETITIONS')).toBeNull();
+    expect(screen.queryByText('6×800m')).toBeNull();
+  });
+
   it('renders skipped sessions as editable and still loggable', async () => {
     const onEditSkipped = vi.fn();
 

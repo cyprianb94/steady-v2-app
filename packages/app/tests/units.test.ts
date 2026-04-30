@@ -4,6 +4,7 @@ import {
   formatCompactSessionLabel,
   formatIntensityTargetDisplay,
   formatSessionLabel,
+  formatSessionTitle,
   formatSplitLabel,
   inferSplitLabelMode,
 } from '../lib/units';
@@ -164,5 +165,37 @@ describe('intensity target display', () => {
 
     expect(formatSessionLabel(session, 'metric')).toBe('10×1km · 4:00-4:10 · hard repeatable');
     expect(formatCompactSessionLabel(session, 'metric')).toBe('10×1km · 4:00-4:10');
+  });
+
+  it('uses run structure as canonical label for structured-only intervals', () => {
+    const session: PlannedSession = {
+      id: 'fartlek-ladder',
+      type: 'INTERVAL',
+      date: '2026-04-11',
+      runStructure: {
+        items: [
+          {
+            kind: 'REPEAT',
+            repeats: 4,
+            segments: [
+              { kind: 'RUN', volume: { unit: 'sec', value: 90 } },
+              { kind: 'RECOVERY', volume: { unit: 'sec', value: 90 } },
+            ],
+          },
+          {
+            kind: 'REPEAT',
+            repeats: 4,
+            segments: [
+              { kind: 'RUN', volume: { unit: 'sec', value: 30 } },
+              { kind: 'RECOVERY', volume: { unit: 'sec', value: 30 } },
+            ],
+          },
+        ],
+      },
+    };
+
+    expect(formatSessionLabel(session, 'metric')).toBe('4 x 1.5min on/off, 4 x 30s on/off');
+    expect(formatCompactSessionLabel(session, 'metric')).toBe('4 x 1.5min on/off, 4 x 30s on/off');
+    expect(formatSessionTitle(session, 'metric')).toBe('4 x 1.5min on/off, 4 x 30s on/off');
   });
 });

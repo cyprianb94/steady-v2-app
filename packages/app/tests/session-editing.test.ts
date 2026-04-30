@@ -194,6 +194,60 @@ describe('session edit materialization', () => {
       repDuration: { unit: 'min', value: 4 },
     });
   });
+
+  it('preserves structured-session fields on same-type simple edits', () => {
+    const existingLong: PlannedSession = {
+      id: 'long-structured',
+      type: 'LONG',
+      date: '2026-04-12',
+      distance: 26,
+      plannedVolume: { unit: 'km', value: 26 },
+      planNote: 'Coach note: floats should stay honest.',
+      runStructure: {
+        items: [
+          {
+            kind: 'REPEAT',
+            repeats: 3,
+            segments: [
+              {
+                kind: 'RUN',
+                volume: { unit: 'km', value: 3 },
+                intensityTarget: {
+                  source: 'manual',
+                  mode: 'effort',
+                  profileKey: 'marathon',
+                  effortCue: 'race pace',
+                },
+              },
+              { kind: 'FLOAT', volume: { unit: 'km', value: 1 } },
+            ],
+          },
+        ],
+      },
+    };
+
+    const updated = materializeEditedSession(
+      existingLong,
+      { type: 'LONG', distance: 28, pace: '5:10' },
+      { id: 'fallback', date: 'preview', type: 'LONG' },
+    );
+
+    expect(updated).toMatchObject({
+      id: 'long-structured',
+      type: 'LONG',
+      distance: 28,
+      plannedVolume: { unit: 'km', value: 26 },
+      planNote: 'Coach note: floats should stay honest.',
+      runStructure: {
+        items: [
+          {
+            kind: 'REPEAT',
+            repeats: 3,
+          },
+        ],
+      },
+    });
+  });
 });
 
 describe('session edit material change detection', () => {
@@ -230,6 +284,14 @@ describe('session edit material change detection', () => {
     expect(hasMaterialSessionEdit(
       existingEasy,
       { type: 'EASY', distance: 10, pace: '5:20' },
+      { id: 'fallback', date: 'preview', type: 'EASY' },
+    )).toBe(true);
+  });
+
+  it('detects plan-note-only edits as material changes', () => {
+    expect(hasMaterialSessionEdit(
+      existingEasy,
+      { type: 'EASY', distance: 8, pace: '5:20', planNote: 'Keep this relaxed.' },
       { id: 'fallback', date: 'preview', type: 'EASY' },
     )).toBe(true);
   });

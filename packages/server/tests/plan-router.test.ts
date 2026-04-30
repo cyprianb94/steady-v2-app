@@ -158,6 +158,90 @@ describe('plan router', () => {
     });
   });
 
+  it('preserves recovery sessions and structured-session fields through router validation', async () => {
+    const saved = await caller.plan.save({
+      raceName: 'London Marathon',
+      raceDate: '2026-10-04',
+      raceDistance: 'Marathon',
+      targetTime: 'sub-3:30',
+      phases: { BASE: 1, BUILD: 0, RECOVERY: 0, PEAK: 0, TAPER: 0 },
+      progressionPct: 0,
+      templateWeek: [null, null, null, null, null, null, null],
+      weeks: [
+        {
+          weekNumber: 1,
+          phase: 'BASE',
+          plannedKm: 26,
+          sessions: [
+            {
+              id: 'structured-long',
+              type: 'LONG',
+              date: '2026-04-06',
+              plannedVolume: { unit: 'km', value: 26 },
+              planNote: 'Coach note: keep floats controlled.',
+              runStructure: {
+                items: [
+                  {
+                    kind: 'REPEAT',
+                    repeats: 3,
+                    segments: [
+                      {
+                        kind: 'RUN',
+                        volume: { unit: 'km', value: 3 },
+                        intensityTarget: {
+                          source: 'manual',
+                          mode: 'effort',
+                          profileKey: 'marathon',
+                          effortCue: 'race pace',
+                        },
+                      },
+                      { kind: 'FLOAT', volume: { unit: 'km', value: 1 } },
+                    ],
+                  },
+                ],
+              },
+            },
+            {
+              id: 'recovery-run',
+              type: 'RECOVERY',
+              date: '2026-04-07',
+              plannedVolume: { unit: 'min', value: 35 },
+              intensityTarget: {
+                source: 'manual',
+                mode: 'effort',
+                profileKey: 'recovery',
+                effortCue: 'very easy',
+              },
+            },
+            null, null, null, null, null,
+          ],
+        },
+      ],
+    });
+
+    expect(saved.weeks[0].sessions[0]).toMatchObject({
+      type: 'LONG',
+      plannedVolume: { unit: 'km', value: 26 },
+      planNote: 'Coach note: keep floats controlled.',
+      runStructure: {
+        items: [
+          {
+            kind: 'REPEAT',
+            repeats: 3,
+          },
+        ],
+      },
+    });
+    expect(saved.weeks[0].sessions[1]).toMatchObject({
+      type: 'RECOVERY',
+      plannedVolume: { unit: 'min', value: 35 },
+      intensityTarget: {
+        profileKey: 'recovery',
+        effortCue: 'very easy',
+      },
+    });
+  });
+
   it('saves and exposes the active plan training pace profile through stable router APIs', async () => {
     const profile = deriveTrainingPaceProfile({
       raceDistance: 'Marathon',

@@ -91,6 +91,8 @@ function lowerSessionType(session: PlannedSession): string {
       return 'tempo';
     case 'LONG':
       return 'long run';
+    case 'RECOVERY':
+      return 'recovery run';
     case 'EASY':
     default:
       return 'easy';
@@ -147,6 +149,7 @@ function resolvePaceTarget(session: PlannedSession): ResolvedPaceTarget | null {
 function getPlannedHeartRateLabel(session: PlannedSession): string {
   switch (session.type) {
     case 'EASY':
+    case 'RECOVERY':
     case 'LONG':
       return 'Zone 2';
     case 'TEMPO':

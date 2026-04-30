@@ -31,7 +31,7 @@ function styleRgb(hex: string): string {
 }
 
 function makeSummary(): WeeklyVolumeSummary {
-  return {
+  const summary = {
     plannedDistanceKm: 64,
     actualDistanceKm: 12.4,
     plannedSeconds: 20_100,
@@ -116,6 +116,17 @@ function makeSummary(): WeeklyVolumeSummary {
       },
     ],
   };
+
+  return {
+    ...summary,
+    plannedExactDistanceKm: summary.plannedDistanceKm,
+    plannedEstimatedDistanceKm: 0,
+    days: summary.days.map((day) => ({
+      ...day,
+      plannedExactDistanceKm: day.plannedDistanceKm,
+      plannedEstimatedDistanceKm: 0,
+    })),
+  } as WeeklyVolumeSummary;
 }
 
 describe('WeeklyVolumeCard', () => {
@@ -446,6 +457,24 @@ describe('WeeklyVolumeCard', () => {
 
     expect(screen.getByTestId('weekly-volume-tooltip')).toBeTruthy();
     expect(screen.getByText('Tue intervals')).toBeTruthy();
+  });
+
+  it('marks estimated planned distance in the distance tooltip', () => {
+    const summary = makeSummary();
+    summary.days[6] = {
+      ...summary.days[6],
+      plannedDistanceKm: 12,
+      plannedExactDistanceKm: 0,
+      plannedEstimatedDistanceKm: 12,
+    };
+
+    render(<WeeklyVolumeCard summary={summary} />);
+
+    fireEvent.click(screen.getByTestId('weekly-volume-collapsed'));
+    fireEvent.click(screen.getByTestId('weekly-volume-bucket-6'));
+
+    expect(screen.getByText('planned 12km')).toBeTruthy();
+    expect(screen.getByText('includes 12km estimated')).toBeTruthy();
   });
 
   it('hides rounded zero-minute overrun copy in time mode', () => {

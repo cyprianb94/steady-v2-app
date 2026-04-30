@@ -44,7 +44,16 @@ function copyExactStructuralFields(
 ): PlannedSession {
   const next = copyIntensityMetadata(session, updated);
 
-  for (const field of ['repDist', 'repDuration', 'recovery', 'warmup', 'cooldown'] as const) {
+  for (const field of [
+    'repDist',
+    'repDuration',
+    'recovery',
+    'warmup',
+    'cooldown',
+    'plannedVolume',
+    'planNote',
+    'runStructure',
+  ] as const) {
     if (updated[field] == null) {
       delete next[field];
     } else {

@@ -4,6 +4,7 @@ import { Animated, Easing, View, Text, Pressable, StyleSheet } from 'react-nativ
 import {
   buildStructuredQualitySummary,
   normalizeSessionDuration,
+  summariseRunStructure,
   summariseVsPlan,
   type Activity,
   type PlannedSession,
@@ -444,6 +445,15 @@ function buildPlannedDetailLine(
   session: PlannedSession,
   units: ReturnType<typeof usePreferences>['units'],
 ): string | null {
+  const structureSummary = summariseRunStructure(session);
+  if (structureSummary) {
+    return session.planNote ? `${structureSummary} · Note` : structureSummary;
+  }
+
+  if (session.planNote) {
+    return 'Plan note saved';
+  }
+
   const warmup = normalizeSessionDuration(session.warmup);
   const cooldown = normalizeSessionDuration(session.cooldown);
 

@@ -129,6 +129,41 @@ describe('buildWeeklyVolumeSummary', () => {
     expect(summary.days[0].plannedSeconds).toBe(2352);
   });
 
+  it('separates exact and estimated planned distance for structured time-based sessions', () => {
+    const summary = buildWeeklyVolumeSummary({
+      today: '2026-04-06',
+      weekStartDate: '2026-04-06',
+      sessions: [
+        session({
+          id: 'progression',
+          type: 'LONG',
+          distance: undefined,
+          plannedVolume: { unit: 'min', value: 60 },
+          pace: '5:00',
+          runStructure: {
+            items: [
+              {
+                kind: 'RUN',
+                volume: { unit: 'min', value: 60 },
+                intensityTarget: { source: 'manual', mode: 'pace', pace: '5:00' },
+              },
+            ],
+          },
+        }),
+      ],
+    });
+
+    expect(summary.plannedDistanceKm).toBe(12);
+    expect(summary.plannedExactDistanceKm).toBe(0);
+    expect(summary.plannedEstimatedDistanceKm).toBe(12);
+    expect(summary.days[0]).toMatchObject({
+      plannedDistanceKm: 12,
+      plannedExactDistanceKm: 0,
+      plannedEstimatedDistanceKm: 12,
+      plannedSeconds: 3600,
+    });
+  });
+
   it('marks missed, planned, and upcoming days without actual activity', () => {
     const summary = buildWeeklyVolumeSummary({
       today: '2026-04-09',

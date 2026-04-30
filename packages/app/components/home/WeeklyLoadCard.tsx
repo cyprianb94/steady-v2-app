@@ -56,6 +56,7 @@ const TYPE_LABELS: Record<SessionType, string> = {
   INTERVAL: 'intervals',
   TEMPO: 'tempo',
   LONG: 'long run',
+  RECOVERY: 'recovery',
   REST: 'rest',
 };
 
@@ -64,6 +65,7 @@ const TYPE_COLOURS: Record<SessionType, { solid: string; pale: string }> = {
   INTERVAL: { solid: C.clay, pale: C.clayBg },
   TEMPO: { solid: C.amber, pale: C.amberBg },
   LONG: { solid: C.navy, pale: C.navyBg },
+  RECOVERY: { solid: C.lavender, pale: C.lavenderBg },
   REST: { solid: C.slate, pale: C.border },
 };
 
@@ -362,6 +364,11 @@ function WeeklyVolumeTooltip({
       <Text style={styles.tooltipLine}>
         planned {formatMetricValue(values.planned, metric, units)}
       </Text>
+      {metric === 'distance' && day.plannedEstimatedDistanceKm > 0 ? (
+        <Text style={styles.tooltipLine}>
+          includes {formatMetricValue(day.plannedEstimatedDistanceKm, metric, units)} estimated
+        </Text>
+      ) : null}
       <Text style={styles.tooltipLine}>
         done {formatMetricValue(values.actual, metric, units)}
       </Text>
@@ -1093,6 +1100,8 @@ export function WeeklyVolumeCard({
 export function WeeklyLoadCard({ actualKm, plannedKm }: WeeklyLoadCardProps) {
   const summary: WeeklyVolumeSummary = {
     plannedDistanceKm: plannedKm,
+    plannedExactDistanceKm: plannedKm,
+    plannedEstimatedDistanceKm: 0,
     actualDistanceKm: actualKm,
     plannedSeconds: 0,
     actualSeconds: 0,
@@ -1100,6 +1109,8 @@ export function WeeklyLoadCard({ actualKm, plannedKm }: WeeklyLoadCardProps) {
       dayIndex,
       date: '',
       plannedDistanceKm: 0,
+      plannedExactDistanceKm: 0,
+      plannedEstimatedDistanceKm: 0,
       actualDistanceKm: 0,
       plannedSeconds: 0,
       actualSeconds: 0,

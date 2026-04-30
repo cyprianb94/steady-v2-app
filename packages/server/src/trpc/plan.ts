@@ -5,6 +5,7 @@ import {
   EFFORT_CUES,
   INTENSITY_TARGET_MODES,
   INTENSITY_TARGET_SOURCES,
+  RUN_STRUCTURE_SEGMENT_KINDS,
   TRAINING_PACE_PROFILE_BAND_ORDER,
   TRAINING_PACE_PROFILE_KEYS,
   generatePlan,
@@ -37,7 +38,7 @@ const InjuryUpdateSchema = z.object({
 });
 
 const PhaseNameSchema = z.enum(['BASE', 'BUILD', 'RECOVERY', 'PEAK', 'TAPER']);
-const SessionTypeSchema = z.enum(['EASY', 'INTERVAL', 'TEMPO', 'LONG', 'REST']);
+const SessionTypeSchema = z.enum(['EASY', 'INTERVAL', 'TEMPO', 'LONG', 'RECOVERY', 'REST']);
 const RecoveryDurationSchema = z.enum(['45s', '60s', '90s', '2min', '3min', '4min', '5min']);
 const SessionDurationSchema = z.object({
   unit: z.enum(['km', 'min']),
@@ -56,6 +57,32 @@ const IntensityTargetSchema = z.object({
   pace: z.string().optional(),
   paceRange: PaceRangeSchema.optional(),
   effortCue: z.enum(EFFORT_CUES).optional(),
+});
+const RunStructureVolumeSchema = z.object({
+  unit: z.enum(['km', 'min', 'sec']),
+  value: z.number().positive(),
+});
+const RunStructureProgressionSchema = z.object({
+  from: IntensityTargetSchema.optional(),
+  to: IntensityTargetSchema.optional(),
+});
+const RunStructureSegmentSchema = z.object({
+  id: z.string().optional(),
+  kind: z.enum(RUN_STRUCTURE_SEGMENT_KINDS),
+  volume: RunStructureVolumeSchema,
+  intensityTarget: IntensityTargetSchema.optional(),
+  progression: RunStructureProgressionSchema.optional(),
+  note: z.string().optional(),
+});
+const RunStructureRepeatSchema = z.object({
+  id: z.string().optional(),
+  kind: z.literal('REPEAT'),
+  repeats: z.number().int().positive(),
+  segments: z.array(RunStructureSegmentSchema).min(1),
+  note: z.string().optional(),
+});
+const RunStructureSchema = z.object({
+  items: z.array(z.union([RunStructureSegmentSchema, RunStructureRepeatSchema])).min(1),
 });
 const TrainingPaceProfileBandEditabilitySchema = z.union([
   z.object({ editable: z.literal(true) }),
@@ -102,6 +129,9 @@ const PlannedSessionSchema = z.object({
   distance: z.number().optional(),
   pace: z.string().optional(),
   intensityTarget: IntensityTargetSchema.optional(),
+  plannedVolume: SessionDurationSchema.optional(),
+  planNote: z.string().optional(),
+  runStructure: RunStructureSchema.optional(),
   reps: z.number().int().optional(),
   repDist: z.number().int().optional(),
   repDuration: SessionDurationSchema.optional(),

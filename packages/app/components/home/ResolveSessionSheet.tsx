@@ -4,6 +4,7 @@ import {
   expectedDistance,
   normalizeSessionDuration,
   sessionSupportsWarmupCooldown,
+  summariseRunStructure,
   type Activity,
   type PlannedSession,
   type SkippedSessionReason,
@@ -238,6 +239,30 @@ function buildBookendRow(session: PlannedSession, units: DistanceUnits): Planned
 }
 
 function buildPlannedRows(session: PlannedSession, units: DistanceUnits): PlannedSessionRow[] {
+  const structureSummary = summariseRunStructure(session);
+  const structureRows: PlannedSessionRow[] = structureSummary
+    ? [
+        {
+          label: 'RUN STRUCTURE',
+          parts: [copyPart(structureSummary)],
+          accentColor: SESSION_TYPE[session.type].color,
+          subparts: session.planNote ? [mutedPart('Plan note saved')] : undefined,
+        },
+      ]
+    : session.planNote
+      ? [
+          {
+            label: 'PLAN NOTE',
+            parts: [mutedPart('Plan note saved')],
+            accentColor: C.border,
+          },
+        ]
+      : [];
+
+  if (structureSummary && session.type === 'INTERVAL') {
+    return structureRows;
+  }
+
   if (session.type === 'INTERVAL') {
     const recovery = formatRecoveryValue(session.recovery, units);
     const bookendRow = buildBookendRow(session, units);
@@ -261,24 +286,30 @@ function buildPlannedRows(session: PlannedSession, units: DistanceUnits): Planne
       },
     ];
 
-    return bookendRow ? [...rows, bookendRow] : rows;
+    return bookendRow ? [...structureRows, ...rows, bookendRow] : [...structureRows, ...rows];
   }
 
+  const plannedVolume = normalizeSessionDuration(session.plannedVolume);
   const rows: PlannedSessionRow[] = [
     {
-      label: 'DISTANCE',
-      parts: [metricPart(formatDistance(session.distance ?? expectedDistance(session), units), C.metricDistance)],
-      accentColor: C.metricDistance,
+      label: plannedVolume?.unit === 'min' ? 'DURATION' : 'DISTANCE',
+      parts: plannedVolume?.unit === 'min'
+        ? [metricPart(`${plannedVolume.value}min`, C.metricTime)]
+        : [metricPart(formatDistance(
+            plannedVolume?.unit === 'km' ? plannedVolume.value : session.distance ?? expectedDistance(session),
+            units,
+          ), C.metricDistance)],
+      accentColor: plannedVolume?.unit === 'min' ? C.metricTime : C.metricDistance,
     },
     {
-      label: 'TARGET PACE',
-      accentColor: C.metricPace,
+      label: session.type === 'RECOVERY' ? 'TARGET EFFORT' : 'TARGET PACE',
+      accentColor: session.type === 'RECOVERY' ? C.metricEffort : C.metricPace,
       ...targetDisplayParts(session, units),
     },
   ];
 
   if (!sessionSupportsWarmupCooldown(session.type)) {
-    return rows;
+    return [...structureRows, ...rows];
   }
 
   const bookendRow = buildBookendRow(session, units);
@@ -287,7 +318,7 @@ function buildPlannedRows(session: PlannedSession, units: DistanceUnits): Planne
     rows.push(bookendRow);
   }
 
-  return rows;
+  return [...structureRows, ...rows];
 }
 
 function PlannedRowMarker({ color }: { color: string }) {

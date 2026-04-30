@@ -1,6 +1,7 @@
 import type { IntervalRecovery, PlannedSession, RecoveryDuration, SessionDurationSpec } from '../session';
 import { RECOVERY_KM, RECOVERY_KM_PER_MIN, sessionDurationKm, sessionSupportsWarmupCooldown } from '../session';
 import { representativeSessionPaceSeconds } from './intensity-targets';
+import { totalStructuredSessionKm } from './structured-session';
 
 function durationKm(value: SessionDurationSpec | null | undefined, paceSeconds: number | null): number {
   if (!value || value.value <= 0) return 0;
@@ -32,6 +33,10 @@ function recoveryKm(value: IntervalRecovery | null | undefined): number {
 export function sessionKm(session: PlannedSession | null): number {
   if (!session || session.type === 'REST') return 0;
 
+  if (session.plannedVolume || session.runStructure) {
+    return totalStructuredSessionKm(session);
+  }
+
   const usesBookends = sessionSupportsWarmupCooldown(session.type);
   const warmup = usesBookends ? sessionDurationKm(session.warmup) : 0;
   const cooldown = usesBookends ? sessionDurationKm(session.cooldown) : 0;
@@ -54,6 +59,11 @@ export function sessionKm(session: PlannedSession | null): number {
  * Expected distance for a planned session (for matching/comparison).
  */
 export function expectedDistance(session: PlannedSession): number {
+  if (session.plannedVolume || session.runStructure) {
+    const structuredKm = totalStructuredSessionKm(session);
+    if (structuredKm > 0) return structuredKm;
+  }
+
   const usesBookends = sessionSupportsWarmupCooldown(session.type);
   const warmup = usesBookends ? sessionDurationKm(session.warmup) : 0;
   const cooldown = usesBookends ? sessionDurationKm(session.cooldown) : 0;

@@ -1,6 +1,7 @@
 import {
   expectedDistance,
   getSessionIntensityTarget,
+  summariseRunStructure,
   secondsToPace,
   summariseVsPlan,
   type User,
@@ -172,6 +173,8 @@ function formatSwapSessionType(session: PlannedSession): string {
       return 'Tempo';
     case 'EASY':
       return 'Easy';
+    case 'RECOVERY':
+      return 'Recovery';
     case 'REST':
       return 'Rest';
   }
@@ -236,16 +239,40 @@ function buildConversationFrame(
 
 function formatSession(s: PlannedSession): string {
   if (s.type === 'REST') return 'REST';
+  const structure = summariseRunStructure(s);
+  if (structure) {
+    const volume = formatOptionalSessionVolume(s);
+    let desc = volume ? `${s.type} ${volume}` : s.type;
+    const target = formatSessionTarget(s);
+    if (target) desc += ` @ ${target}`;
+    desc += ` | structure: ${structure}`;
+    if (s.planNote) desc += ` | note: ${s.planNote}`;
+    return desc;
+  }
+
   if (s.type === 'INTERVAL') {
     let desc = `INTERVAL ${s.reps ?? 6}×${formatIntervalRepLength(s)}`;
     const target = formatSessionTarget(s);
     if (target) desc += ` @ ${target}`;
+    if (s.planNote) desc += ` | note: ${s.planNote}`;
     return desc;
   }
-  let desc = `${s.type} ${s.distance ?? '?'}km`;
+  let desc = `${s.type} ${formatSessionVolume(s)}`;
   const target = formatSessionTarget(s);
   if (target) desc += ` @ ${target}`;
+  if (s.planNote) desc += ` | note: ${s.planNote}`;
   return desc;
+}
+
+function formatOptionalSessionVolume(session: PlannedSession): string | null {
+  if (session.plannedVolume?.unit === 'min') return `${session.plannedVolume.value}min`;
+  if (session.plannedVolume?.unit === 'km') return `${session.plannedVolume.value}km`;
+  if (session.distance != null) return `${session.distance}km`;
+  return null;
+}
+
+function formatSessionVolume(session: PlannedSession): string {
+  return formatOptionalSessionVolume(session) ?? '?km';
 }
 
 function formatSessionTarget(session: PlannedSession): string | null {

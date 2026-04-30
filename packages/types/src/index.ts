@@ -3,6 +3,14 @@ export type {
   PlannedSession,
   SessionDurationSpec,
   SessionDurationUnit,
+  RunStructure,
+  RunStructureItem,
+  RunStructureProgression,
+  RunStructureRepeatGroup,
+  RunStructureSegment,
+  RunStructureSegmentKind,
+  RunStructureVolume,
+  RunStructureVolumeUnit,
   RecoveryDuration,
   IntervalRecovery,
   SubjectiveBreathing,
@@ -24,6 +32,7 @@ export {
   INTENSITY_TARGET_SOURCES,
   RECOVERY_KM,
   RECOVERY_KM_PER_MIN,
+  RUN_STRUCTURE_SEGMENT_KINDS,
   TRAINING_PACE_PROFILE_KEYS,
   normalizeSessionDuration,
   sessionDurationKm,
@@ -141,6 +150,23 @@ export type {
   StructuredQualityTargetPaceRange,
   UnavailableStructuredQualitySummary,
 } from './lib/structured-quality-summary';
+export {
+  deriveSessionDemand,
+  deriveSessionFocus,
+  getSessionIntentSummary,
+  normalizePlannedVolume,
+  normalizeRunStructure,
+  plannedSessionMinutes,
+  structuredSessionSeconds,
+  structuredSessionVolume,
+  summariseRunStructure,
+  totalStructuredSessionKm,
+} from './lib/structured-session';
+export type {
+  SessionDemand,
+  SessionDemandLevel,
+  StructuredSessionVolume,
+} from './lib/structured-session';
 export {
   TRAINING_PACE_PROFILE_BAND_ORDER,
   TRAINING_PACE_PROFILE_DEFAULT_EFFORT_CUES,

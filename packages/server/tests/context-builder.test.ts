@@ -155,6 +155,83 @@ describe('buildSystemPrompt — structure', () => {
     expect(prompt).not.toContain('TEMPO 10km @ 4:25');
   });
 
+  it('includes plan note and run-structure intent without claiming segment execution', () => {
+    const structuredLong = makeSession({
+      type: 'LONG',
+      distance: 26,
+      plannedVolume: { unit: 'km', value: 26 },
+      date: '2026-03-22',
+      planNote: 'Keep the floats honest.',
+      runStructure: {
+        items: [
+          {
+            kind: 'REPEAT',
+            repeats: 3,
+            segments: [
+              {
+                kind: 'RUN',
+                volume: { unit: 'km', value: 3 },
+                intensityTarget: {
+                  source: 'manual',
+                  mode: 'effort',
+                  profileKey: 'marathon',
+                  effortCue: 'race pace',
+                },
+              },
+              {
+                kind: 'FLOAT',
+                volume: { unit: 'km', value: 1 },
+              },
+            ],
+          },
+        ],
+      },
+    });
+    const plan = makePlan([
+      makeWeek(10, 'BUILD', [structuredLong, null, null, null, null, null, null]),
+    ]);
+
+    const prompt = buildSystemPrompt(USER, plan, [], 'free_form');
+
+    expect(prompt).toContain('LONG 26km | structure: 3 x 3km marathon pace off 1km float | note: Keep the floats honest.');
+    expect(prompt).not.toContain('hit every segment');
+  });
+
+  it('does not invent simple interval reps when structure is canonical', () => {
+    const fartlek = makeSession({
+      type: 'INTERVAL',
+      date: '2026-03-22',
+      runStructure: {
+        items: [
+          {
+            kind: 'REPEAT',
+            repeats: 4,
+            segments: [
+              { kind: 'RUN', volume: { unit: 'sec', value: 90 } },
+              { kind: 'RECOVERY', volume: { unit: 'sec', value: 90 } },
+            ],
+          },
+          {
+            kind: 'REPEAT',
+            repeats: 4,
+            segments: [
+              { kind: 'RUN', volume: { unit: 'sec', value: 30 } },
+              { kind: 'RECOVERY', volume: { unit: 'sec', value: 30 } },
+            ],
+          },
+        ],
+      },
+    });
+    const plan = makePlan([
+      makeWeek(10, 'BUILD', [fartlek, null, null, null, null, null, null]),
+    ]);
+
+    const prompt = buildSystemPrompt(USER, plan, [], 'free_form');
+
+    expect(prompt).toContain('INTERVAL | structure: 4 x 1.5min on/off, 4 x 30s on/off');
+    expect(prompt).not.toContain('INTERVAL 6×800m');
+  });
+
   it('shows REST for null sessions', () => {
     const prompt = buildSystemPrompt(USER, PLAN, [], 'free_form');
     expect(prompt).toContain('REST');

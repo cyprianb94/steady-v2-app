@@ -1,4 +1,9 @@
-import { defaultIntensityTargetForSessionType, type PlannedSession } from '@steady/types';
+import {
+  defaultIntensityTargetForSessionType,
+  deriveSessionFocus,
+  summariseRunStructure,
+  type PlannedSession,
+} from '@steady/types';
 import { SESSION_TYPE } from '../constants/session-types';
 import {
   formatDistance,
@@ -51,7 +56,11 @@ function formatRunTitle(session: Partial<PlannedSession>, units: DistanceUnits):
     return pace ? `${base} · ${pace}` : base;
   }
 
-  const distanceLabel = session.distance != null ? formatDistance(session.distance, units) : '?';
+  const distanceLabel = session.plannedVolume?.unit === 'min'
+    ? `${session.plannedVolume.value}min`
+    : session.plannedVolume?.unit === 'km'
+      ? formatDistance(session.plannedVolume.value, units)
+      : session.distance != null ? formatDistance(session.distance, units) : '?';
   const pace = targetPaceLabel(session, units) ?? legacyPaceLabel(session, units);
   return pace ? `${distanceLabel} · ${pace}` : distanceLabel;
 }
@@ -66,9 +75,22 @@ export function formatSessionRowText(
 
   const typeLabel = SESSION_TYPE[session.type ?? 'EASY'].label;
   const effort = effortLabel(session, units);
+  const structureSummary = summariseRunStructure(session as PlannedSession);
+  const focus = deriveSessionFocus(session as PlannedSession);
+  const indicators = [
+    structureSummary ? 'Structure' : null,
+    session.planNote ? 'Note' : null,
+  ].filter((part): part is string => Boolean(part));
+
+  if (structureSummary) {
+    return {
+      title: structureSummary,
+      caption: [focus, ...indicators].join(' · '),
+    };
+  }
 
   return {
     title: formatRunTitle(session, units),
-    caption: effort ? `${typeLabel} · ${effort}` : typeLabel,
+    caption: [effort ? `${typeLabel} · ${effort}` : typeLabel, ...indicators].join(' · '),
   };
 }

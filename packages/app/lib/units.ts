@@ -2,6 +2,7 @@ import {
   normalizeIntensityTarget,
   normalizeSessionDuration,
   parsePaceSeconds,
+  summariseRunStructure,
   type IntensityTarget,
   type PlannedSession,
   type SessionDurationSpec,
@@ -330,10 +331,22 @@ function lowercaseSessionType(type: PlannedSession['type'] | undefined): string 
       return 'long';
     case 'INTERVAL':
       return 'interval';
+    case 'RECOVERY':
+      return 'recovery';
     case 'EASY':
     default:
       return 'easy';
   }
+}
+
+function formatPlannedVolume(session: SessionLike, units: DistanceUnits): string | null {
+  if (session.plannedVolume?.unit === 'min') {
+    return `${session.plannedVolume.value}min`;
+  }
+  if (session.plannedVolume?.unit === 'km') {
+    return formatDistance(session.plannedVolume.value, units);
+  }
+  return null;
 }
 
 function formattedIntervalTarget(
@@ -376,7 +389,12 @@ export function formatSessionLabel(
   units: DistanceUnits,
 ): string {
   if (!session || session.type === 'REST') return 'Rest';
+  const structureSummary = summariseRunStructure(session as PlannedSession);
   if (session.type === 'INTERVAL') {
+    if (structureSummary) {
+      return structureSummary;
+    }
+
     const target = formattedIntervalTarget(session, units);
     if (target) {
       return `${session.reps ?? 6}×${formatIntervalRepLength(session)}${target}`;
@@ -385,13 +403,17 @@ export function formatSessionLabel(
     return `${session.reps ?? 6}×${formatIntervalRepLength(session)} · ${formatStoredPace(session.pace, units)}`;
   }
 
-  const distanceLabel = session.distance != null ? formatDistance(session.distance, units) : '?';
+  const distanceLabel = formatPlannedVolume(session, units)
+    ?? (session.distance != null ? formatDistance(session.distance, units) : '?');
   const target = formatIntensityTargetDisplay(session, units, { hideCompatibilityPace: true });
   if (target) {
     return `${distanceLabel} ${lowercaseSessionType(session.type)} · ${target}`;
   }
 
-  return `${distanceLabel} ${lowercaseSessionType(session.type)} · ${formatStoredPace(session.pace, units)}`;
+  const pace = formatStoredPace(session.pace, units);
+  return pace === '—'
+    ? `${distanceLabel} ${lowercaseSessionType(session.type)}`
+    : `${distanceLabel} ${lowercaseSessionType(session.type)} · ${pace}`;
 }
 
 export function formatCompactSessionLabel(
@@ -399,9 +421,14 @@ export function formatCompactSessionLabel(
   units: DistanceUnits,
 ): string {
   if (!session || session.type === 'REST') return 'Rest';
+  const structureSummary = summariseRunStructure(session);
 
   switch (session.type) {
     case 'INTERVAL': {
+      if (structureSummary) {
+        return structureSummary;
+      }
+
       const base = session.reps && (session.repDist || session.repDuration)
         ? `${session.reps}×${formatIntervalRepLength(session)}`
         : 'Intervals';
@@ -417,16 +444,27 @@ export function formatCompactSessionLabel(
       return target ? `Tempo ${distance} · ${target}` : `Tempo ${distance}`;
     }
     case 'LONG': {
-      const distance = formatDistance(session.distance ?? 0, units, { compactMetric: true });
+      const distance = formatPlannedVolume(session, units)
+        ?? formatDistance(session.distance ?? 0, units, { compactMetric: true });
       const target = formatIntensityTargetDisplay(session, units, {
         hideCompatibilityPace: true,
         includeEffort: true,
       });
       return target ? `Long ${distance} · ${target}` : `Long ${distance}`;
     }
+    case 'RECOVERY': {
+      const volume = formatPlannedVolume(session, units)
+        ?? formatDistance(session.distance ?? 0, units, { compactMetric: true });
+      const target = formatIntensityTargetDisplay(session, units, {
+        hideCompatibilityPace: true,
+        includeEffort: true,
+      });
+      return target ? `Recovery ${volume} · ${target}` : `Recovery ${volume}`;
+    }
     case 'EASY':
     default: {
-      const distance = formatDistance(session.distance ?? 0, units, { compactMetric: true });
+      const distance = formatPlannedVolume(session, units)
+        ?? formatDistance(session.distance ?? 0, units, { compactMetric: true });
       const target = formatIntensityTargetDisplay(session, units, {
         hideCompatibilityPace: true,
         includeEffort: true,
@@ -441,6 +479,11 @@ export function formatSessionTitle(
   units: DistanceUnits,
 ): string {
   if (session.type === 'INTERVAL') {
+    const structureSummary = summariseRunStructure(session);
+    if (structureSummary) {
+      return structureSummary;
+    }
+
     return `${session.reps}×${formatIntervalRepLength(session)} Intervals`;
   }
 
@@ -448,9 +491,11 @@ export function formatSessionTitle(
     ? 'Tempo'
     : session.type === 'LONG'
       ? 'Long Run'
-      : 'Easy Run';
+      : session.type === 'RECOVERY'
+        ? 'Recovery Run'
+        : 'Easy Run';
 
-  return `${formatDistance(session.distance ?? 0, units)} ${typeTitle}`;
+  return `${formatPlannedVolume(session, units) ?? formatDistance(session.distance ?? 0, units)} ${typeTitle}`;
 }
 
 export function formatWarmupCooldown(

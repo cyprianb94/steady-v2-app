@@ -36,7 +36,7 @@ describe('template starter generation', () => {
     expect(sevenRun.every((session) => session && session.type !== 'REST')).toBe(true);
   });
 
-  it('includes structured intensity defaults without modelling recovery as a session type', () => {
+  it('includes structured intensity defaults and a first-class recovery role', () => {
     const template = createStarterTemplate('template', 7);
 
     expect(template[0]).toMatchObject({
@@ -65,7 +65,8 @@ describe('template starter generation', () => {
       },
     });
     expect(template[4]).toMatchObject({
-      type: 'EASY',
+      type: 'RECOVERY',
+      plannedVolume: { unit: 'min', value: 35 },
       intensityTarget: {
         mode: 'effort',
         profileKey: 'recovery',
@@ -98,9 +99,10 @@ describe('template starter generation', () => {
       intensityTarget: trainingPaceBandToIntensityTarget(profile.bands.threshold),
     });
     expect(template[4]).toMatchObject({
-      type: 'EASY',
-      pace: '6:20',
+      type: 'RECOVERY',
+      plannedVolume: { unit: 'min', value: 35 },
       intensityTarget: trainingPaceBandToIntensityTarget(profile.bands.recovery),
     });
+    expect(template[4]).not.toHaveProperty('pace');
   });
 });

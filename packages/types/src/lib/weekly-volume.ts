@@ -9,6 +9,7 @@ import type {
 import type { WeeklyVolumeMetric } from '../user';
 import { representativeSessionPaceSeconds } from './intensity-targets';
 import { sessionKm } from './session-km';
+import { structuredSessionSeconds, structuredSessionVolume } from './structured-session';
 import { addDaysIso } from './week-dates';
 
 export type WeeklyVolumeDayStatus =
@@ -25,6 +26,8 @@ export interface WeeklyVolumeDay {
   date: string;
   sessionId?: string;
   plannedDistanceKm: number;
+  plannedExactDistanceKm: number;
+  plannedEstimatedDistanceKm: number;
   actualDistanceKm: number;
   plannedSeconds: number;
   actualSeconds: number;
@@ -35,6 +38,8 @@ export interface WeeklyVolumeDay {
 
 export interface WeeklyVolumeSummary {
   plannedDistanceKm: number;
+  plannedExactDistanceKm: number;
+  plannedEstimatedDistanceKm: number;
   actualDistanceKm: number;
   plannedSeconds: number;
   actualSeconds: number;
@@ -59,6 +64,7 @@ const FALLBACK_PACE_SECONDS: Record<SessionType, number> = {
   INTERVAL: 240,
   TEMPO: 270,
   LONG: 330,
+  RECOVERY: 390,
   REST: 0,
 };
 
@@ -127,6 +133,14 @@ function recoverySeconds(value: IntervalRecovery | null | undefined, paceSeconds
 
 function plannedSessionSeconds(session: PlannedSession | null): number {
   if (!session || session.type === 'REST') return 0;
+
+  const structuredVolume = structuredSessionVolume(session);
+  if (session.plannedVolume?.unit === 'min') {
+    return Math.round(session.plannedVolume.value * 60);
+  }
+  if (structuredVolume.structuredSeconds > 0) {
+    return structuredSessionSeconds(session);
+  }
 
   const paceSeconds = paceSecondsFor(session);
   const easyPaceSeconds = FALLBACK_PACE_SECONDS.EASY;
@@ -266,9 +280,14 @@ export function buildWeeklyVolumeSummary({
 }: BuildWeeklyVolumeSummaryInput): WeeklyVolumeSummary {
   const maps = activityMaps(activities);
   let plannedDistanceTotalKm = 0;
+  let plannedExactDistanceTotalKm = 0;
+  let plannedEstimatedDistanceTotalKm = 0;
   const days = Array.from({ length: 7 }, (_, dayIndex): WeeklyVolumeDay => {
     const normalized = normalizeSessionDate(sessions[dayIndex] ?? null, dayIndex, weekStartDate);
     const session = normalized.session;
+    const structuredVolume = structuredSessionVolume(session);
+    const plannedExactDistanceKm = structuredVolume.exactKm;
+    const plannedEstimatedDistanceKm = structuredVolume.estimatedKm;
     const plannedDistanceExactKm = sessionKm(session);
     const plannedDistanceKm = roundDistance(plannedDistanceExactKm);
     const plannedSeconds = plannedSessionSeconds(session);
@@ -290,12 +309,16 @@ export function buildWeeklyVolumeSummary({
         ? plannedSeconds
         : 0;
     plannedDistanceTotalKm += plannedDistanceExactKm;
+    plannedExactDistanceTotalKm += plannedExactDistanceKm;
+    plannedEstimatedDistanceTotalKm += plannedEstimatedDistanceKm;
 
     return {
       dayIndex,
       date: normalized.date,
       sessionId: session?.id,
       plannedDistanceKm,
+      plannedExactDistanceKm: roundDistance(plannedExactDistanceKm),
+      plannedEstimatedDistanceKm: roundDistance(plannedEstimatedDistanceKm),
       actualDistanceKm: roundDistance(actualDistanceExactKm),
       plannedSeconds,
       actualSeconds: Math.round(actualSeconds),
@@ -314,6 +337,8 @@ export function buildWeeklyVolumeSummary({
 
   return {
     plannedDistanceKm: roundDistance(plannedDistanceTotalKm),
+    plannedExactDistanceKm: roundDistance(plannedExactDistanceTotalKm),
+    plannedEstimatedDistanceKm: roundDistance(plannedEstimatedDistanceTotalKm),
     actualDistanceKm: roundDistance(days.reduce((sum, day) => sum + day.actualDistanceKm, 0)),
     plannedSeconds: days.reduce((sum, day) => sum + day.plannedSeconds, 0),
     actualSeconds: days.reduce((sum, day) => sum + day.actualSeconds, 0),

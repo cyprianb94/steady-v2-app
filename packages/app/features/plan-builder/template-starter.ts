@@ -26,7 +26,11 @@ const TEMPO_TARGET = defaultIntensityTargetForSessionType('TEMPO');
 const EASY_6: TemplateDay = { type: 'EASY', distance: 6, pace: '5:30', intensityTarget: EASY_TARGET };
 const EASY_8: TemplateDay = { type: 'EASY', distance: 8, pace: '5:25', intensityTarget: EASY_TARGET };
 const EASY_10: TemplateDay = { type: 'EASY', distance: 10, pace: '5:20', intensityTarget: EASY_TARGET };
-const RECOVERY_5: TemplateDay = { type: 'EASY', distance: 5, pace: '5:45', intensityTarget: recoveryIntensityTarget() };
+const RECOVERY_35: TemplateDay = {
+  type: 'RECOVERY',
+  plannedVolume: { unit: 'min', value: 35 },
+  intensityTarget: recoveryIntensityTarget(),
+};
 const LONG_10: TemplateDay = { type: 'LONG', distance: 10, pace: '5:20', intensityTarget: LONG_TARGET };
 const LONG_12: TemplateDay = { type: 'LONG', distance: 12, pace: '5:15', intensityTarget: LONG_TARGET };
 const LONG_14: TemplateDay = { type: 'LONG', distance: 14, pace: '5:15', intensityTarget: LONG_TARGET };
@@ -116,7 +120,7 @@ export function createRunCountTemplate(runCount: TemplateRunCount): TemplateDay[
         STEADY_TEMPLATE[1],
         STEADY_TEMPLATE[2],
         STEADY_TEMPLATE[3],
-        RECOVERY_5,
+        RECOVERY_35,
         STEADY_TEMPLATE[5],
         STEADY_TEMPLATE[6],
       ].map(cloneTemplateDay);

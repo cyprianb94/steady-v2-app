@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { PlannedSession, TrainingPaceProfile } from '@steady/types';
 import { C } from '../../constants/colours';
+import { RunStructureEditor } from './RunStructureEditor';
 import { SessionEditor } from './SessionEditor';
 
 interface SessionEditorScreenProps {
@@ -21,6 +22,20 @@ export function SessionEditorScreen({
   onClose,
 }: SessionEditorScreenProps) {
   const insets = useSafeAreaInsets();
+  const [structureDraft, setStructureDraft] = React.useState<Partial<PlannedSession> | null>(null);
+
+  if (structureDraft) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <RunStructureEditor
+          dayIndex={dayIndex}
+          session={structureDraft}
+          onSave={onSave}
+          onClose={() => setStructureDraft(null)}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
@@ -30,6 +45,7 @@ export function SessionEditorScreen({
         trainingPaceProfile={trainingPaceProfile}
         onSave={onSave}
         onClose={onClose}
+        onEditRunStructure={(_, session) => setStructureDraft(session)}
         presentation="screen"
       />
     </View>

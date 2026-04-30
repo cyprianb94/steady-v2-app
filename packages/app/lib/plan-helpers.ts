@@ -72,6 +72,11 @@ export const TYPE_DEFAULTS: Record<SessionType, Partial<PlannedSession> & { type
     pace: '5:10',
     intensityTarget: defaultIntensityTargetForSessionType('LONG'),
   },
+  RECOVERY: {
+    type: 'RECOVERY',
+    plannedVolume: { unit: 'min', value: 35 },
+    intensityTarget: defaultIntensityTargetForSessionType('RECOVERY'),
+  },
   REST: { type: 'REST' },
 };
 

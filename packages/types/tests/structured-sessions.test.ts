@@ -1,0 +1,238 @@
+import { describe, expect, it } from 'vitest';
+import type { PlannedSession, RunStructure } from '../src';
+import {
+  deriveSessionDemand,
+  deriveSessionFocus,
+  normalizeRunStructure,
+  sessionKm,
+  structuredSessionVolume,
+  summariseRunStructure,
+} from '../src';
+
+function session(overrides: Partial<PlannedSession>): PlannedSession {
+  return {
+    id: 'session-1',
+    type: 'EASY',
+    date: '2026-04-06',
+    ...overrides,
+  };
+}
+
+describe('structured session model', () => {
+  it('represents marathon-pace long-run blocks without changing the parent role', () => {
+    const structured = session({
+      type: 'LONG',
+      plannedVolume: { unit: 'km', value: 26 },
+      runStructure: {
+        items: [
+          {
+            kind: 'REPEAT',
+            repeats: 3,
+            segments: [
+              {
+                kind: 'RUN',
+                volume: { unit: 'km', value: 3 },
+                intensityTarget: { source: 'manual', mode: 'effort', profileKey: 'marathon', effortCue: 'race pace' },
+              },
+              {
+                kind: 'FLOAT',
+                volume: { unit: 'km', value: 1 },
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(structured.type).toBe('LONG');
+    expect(summariseRunStructure(structured)).toBe('3 x 3km marathon pace off 1km float');
+    expect(deriveSessionFocus(structured)).toBe('Long run · Marathon pace');
+    expect(deriveSessionDemand(structured).level).toBe('demanding');
+    expect(sessionKm(structured)).toBe(26);
+  });
+
+  it('keeps seconds-level short reps precise in fartlek ladders', () => {
+    const fartlek = session({
+      type: 'INTERVAL',
+      runStructure: {
+        items: [
+          onOff(4, { unit: 'sec', value: 90 }),
+          onOff(4, { unit: 'min', value: 1 }),
+          onOff(4, { unit: 'sec', value: 30 }),
+        ],
+      },
+    });
+
+    expect(summariseRunStructure(fartlek)).toBe('4 x 1.5min on/off, 4 x 1min on/off, 4 x 30s on/off');
+    expect(structuredSessionVolume(fartlek)).toMatchObject({
+      exactKm: 0,
+      estimatedKm: 0,
+      structuredSeconds: 1440,
+    });
+  });
+
+  it('represents threshold cruise intervals as time-based structured work', () => {
+    const cruise = session({
+      type: 'TEMPO',
+      runStructure: {
+        items: [
+          {
+            kind: 'REPEAT',
+            repeats: 3,
+            segments: [
+              {
+                kind: 'RUN',
+                volume: { unit: 'min', value: 10 },
+                intensityTarget: { source: 'manual', mode: 'effort', profileKey: 'threshold', effortCue: 'controlled hard' },
+              },
+              {
+                kind: 'RECOVERY',
+                volume: { unit: 'min', value: 2 },
+                intensityTarget: { source: 'manual', mode: 'effort', profileKey: 'easy', effortCue: 'conversational' },
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(summariseRunStructure(cruise)).toBe('3 x 10min threshold, 2min jog');
+    expect(deriveSessionFocus(cruise)).toBe('Tempo · Threshold');
+    expect(structuredSessionVolume(cruise)).toMatchObject({
+      structuredSeconds: 2160,
+    });
+  });
+
+  it('keeps easy runs with strides easy for demand while preserving seconds', () => {
+    const strides = session({
+      type: 'EASY',
+      distance: 8,
+      runStructure: {
+        items: [
+          {
+            kind: 'RUN',
+            volume: { unit: 'km', value: 8 },
+            intensityTarget: { source: 'manual', mode: 'effort', profileKey: 'easy', effortCue: 'conversational' },
+          },
+          {
+            kind: 'REPEAT',
+            repeats: 6,
+            segments: [
+              {
+                kind: 'STRIDE',
+                volume: { unit: 'sec', value: 20 },
+                intensityTarget: { source: 'manual', mode: 'effort', profileKey: 'interval', effortCue: 'hard repeatable' },
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(summariseRunStructure(strides)).toBe('8km easy, 6 x 20s strides');
+    expect(deriveSessionFocus(strides)).toBe('Easy run · Strides');
+    expect(deriveSessionDemand(strides)).toMatchObject({
+      level: 'easy',
+      isQuality: false,
+    });
+    expect(structuredSessionVolume(strides)).toMatchObject({
+      exactKm: 8,
+      structuredSeconds: 120,
+    });
+  });
+
+  it('represents time-led progression runs without fake fixed chunks', () => {
+    const progression = session({
+      type: 'LONG',
+      plannedVolume: { unit: 'min', value: 60 },
+      runStructure: {
+        items: [
+          {
+            kind: 'RUN',
+            volume: { unit: 'min', value: 60 },
+            progression: {
+              from: { source: 'manual', mode: 'effort', profileKey: 'easy', effortCue: 'conversational' },
+              to: { source: 'manual', mode: 'effort', profileKey: 'marathon', effortCue: 'race pace' },
+            },
+          },
+        ],
+      },
+    });
+
+    expect(summariseRunStructure(progression)).toBe('60min progression easy to marathon pace');
+    expect(deriveSessionFocus(progression)).toBe('Long run · Progression');
+    expect(structuredSessionVolume(progression)).toMatchObject({
+      plannedMinutes: 60,
+      structuredSeconds: 3600,
+    });
+  });
+
+  it('distinguishes plan note from structure-driven totals and demand', () => {
+    const noted = session({
+      type: 'LONG',
+      distance: 18,
+      planNote: 'Coach note: keep this relaxed even if you feel good.',
+    });
+
+    expect(summariseRunStructure(noted)).toBeNull();
+    expect(structuredSessionVolume(noted)).toMatchObject({
+      exactKm: 18,
+      estimatedKm: 0,
+      plannedMinutes: 0,
+    });
+    expect(deriveSessionFocus(noted)).toBe('Long run');
+  });
+
+  it('normalizes recovery sessions as a first-class very-easy role', () => {
+    const recovery = session({
+      type: 'RECOVERY',
+      plannedVolume: { unit: 'min', value: 35 },
+      intensityTarget: { source: 'manual', mode: 'effort', profileKey: 'recovery', effortCue: 'very easy' },
+    });
+
+    expect(deriveSessionFocus(recovery)).toBe('Recovery run');
+    expect(deriveSessionDemand(recovery).level).toBe('recovery');
+    expect(structuredSessionVolume(recovery)).toMatchObject({
+      exactKm: 0,
+      estimatedKm: 0,
+      plannedMinutes: 35,
+      structuredSeconds: 0,
+    });
+  });
+
+  it('rejects nested repeat groups in v1 normalization', () => {
+    const invalid = {
+      items: [
+        {
+          kind: 'REPEAT',
+          repeats: 2,
+          segments: [
+            {
+              kind: 'REPEAT',
+              repeats: 2,
+              segments: [
+                { kind: 'RUN', volume: { unit: 'km', value: 1 } },
+              ],
+            },
+          ],
+        },
+      ],
+    } as unknown as RunStructure;
+
+    expect(normalizeRunStructure(invalid)).toBeUndefined();
+  });
+});
+
+function onOff(
+  repeats: number,
+  volume: { unit: 'min' | 'sec'; value: number },
+): RunStructure['items'][number] {
+  return {
+    kind: 'REPEAT',
+    repeats,
+    segments: [
+      { kind: 'RUN', volume },
+      { kind: 'RECOVERY', volume },
+    ],
+  };
+}

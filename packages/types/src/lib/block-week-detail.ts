@@ -42,6 +42,8 @@ function getSessionLabel(session: PlannedSession | null): string {
       return 'Tempo';
     case 'LONG':
       return 'Long Run';
+    case 'RECOVERY':
+      return 'Recovery Run';
     default:
       return 'Rest';
   }
@@ -55,6 +57,8 @@ function getDistanceLabel(session: PlannedSession | null): string | null {
     }
     return null;
   }
+  if (session.plannedVolume?.unit === 'min') return `${session.plannedVolume.value}min`;
+  if (session.plannedVolume?.unit === 'km') return `${session.plannedVolume.value}km`;
   return session.distance != null ? `${session.distance}km` : null;
 }
 

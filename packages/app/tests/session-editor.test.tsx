@@ -181,6 +181,151 @@ describe('SessionEditor colour language', () => {
       screen.getAllByText('MIN').some((label) => label.style.color === rgb(C.metricTime)),
     ).toBe(true);
   });
+
+  it('uses the recovery session colour and time metric for recovery duration', () => {
+    renderSessionEditor({
+      type: 'RECOVERY',
+      plannedVolume: { unit: 'min', value: 35 },
+      intensityTarget: {
+        source: 'manual',
+        mode: 'effort',
+        profileKey: 'recovery',
+        effortCue: 'very easy',
+      },
+    });
+
+    expect(screen.getByText('Recovery').parentElement?.style.borderColor).toBe(rgb(C.lavender));
+
+    fireEvent.click(screen.getByText('Duration'));
+
+    expectSelectedMetricChip('35 min', C.metricTime);
+  });
+});
+
+describe('SessionEditor recovery role', () => {
+  it('saves Recovery as a first-class time-led session', () => {
+    const onSave = vi.fn();
+
+    render(
+      <SessionEditor
+        dayIndex={1}
+        existing={null}
+        onSave={onSave}
+        onClose={vi.fn()}
+        presentation="screen"
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Recovery'));
+    fireEvent.click(screen.getByText('Add session'));
+
+    expect(onSave).toHaveBeenCalledWith(1, expect.objectContaining({
+      type: 'RECOVERY',
+      plannedVolume: { unit: 'min', value: 35 },
+      intensityTarget: {
+        source: 'manual',
+        mode: 'effort',
+        profileKey: 'recovery',
+        effortCue: 'very easy',
+      },
+    }));
+    expect(onSave.mock.calls[0][1]).not.toHaveProperty('pace');
+  });
+});
+
+describe('SessionEditor plan note and structure entry', () => {
+  it('saves a plan note without creating run structure', () => {
+    const onSave = vi.fn();
+
+    render(
+      <SessionEditor
+        dayIndex={6}
+        existing={{ type: 'LONG', distance: 18, pace: '5:10' }}
+        onSave={onSave}
+        onClose={vi.fn()}
+        presentation="screen"
+      />,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Add coach wording or context.'), {
+      target: { value: 'Keep this relaxed even if the weather is good.' },
+    });
+    fireEvent.click(screen.getByText('Update session'));
+
+    expect(onSave).toHaveBeenCalledWith(6, expect.objectContaining({
+      type: 'LONG',
+      planNote: 'Keep this relaxed even if the weather is good.',
+    }));
+    expect(onSave.mock.calls[0][1]).not.toHaveProperty('runStructure');
+  });
+
+  it('preserves existing run structure when saving from the simple editor', () => {
+    const onSave = vi.fn();
+    const runStructure = {
+      items: [
+        {
+          kind: 'REPEAT' as const,
+          repeats: 3,
+          segments: [
+            {
+              kind: 'RUN' as const,
+              volume: { unit: 'km' as const, value: 3 },
+              intensityTarget: {
+                source: 'manual' as const,
+                mode: 'effort' as const,
+                profileKey: 'marathon' as const,
+                effortCue: 'race pace' as const,
+              },
+            },
+            {
+              kind: 'FLOAT' as const,
+              volume: { unit: 'km' as const, value: 1 },
+            },
+          ],
+        },
+      ],
+    };
+
+    render(
+      <SessionEditor
+        dayIndex={6}
+        existing={{
+          type: 'LONG',
+          distance: 26,
+          plannedVolume: { unit: 'km', value: 26 },
+          pace: '5:10',
+          runStructure,
+          planNote: 'Keep floats honest.',
+        }}
+        onSave={onSave}
+        onClose={vi.fn()}
+        presentation="screen"
+      />,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Add coach wording or context.'), {
+      target: { value: 'Keep floats honest, then cool down.' },
+    });
+    fireEvent.click(screen.getByText('Update session'));
+
+    expect(onSave).toHaveBeenCalledWith(6, expect.objectContaining({
+      type: 'LONG',
+      plannedVolume: { unit: 'km', value: 26 },
+      planNote: 'Keep floats honest, then cool down.',
+      runStructure,
+    }));
+  });
+
+  it('shows a quiet run-structure entry point from the simple editor', () => {
+    renderSessionEditor({
+      type: 'EASY',
+      distance: 8,
+      pace: '5:20',
+    });
+
+    expect(screen.getByText('Run structure')).toBeTruthy();
+    expect(screen.getByText('Add run structure')).toBeTruthy();
+  });
 });
 
 describe('SessionEditor keyboard-safe custom duration editing', () => {
@@ -334,10 +479,10 @@ describe('SessionEditor target pace editing', () => {
 
     fireEvent.click(screen.getByText('Target pace'));
 
-    expect(screen.getByText('Recovery')).toBeTruthy();
+    expect(screen.getAllByText('Recovery').length).toBeGreaterThan(1);
     expect(screen.getByText(/very easy/)).toBeTruthy();
 
-    fireEvent.click(screen.getByText('Recovery'));
+    fireEvent.click(screen.getAllByText('Recovery')[1]);
     fireEvent.click(screen.getByText('Update session'));
 
     expect(onSave).toHaveBeenCalledWith(6, expect.objectContaining({

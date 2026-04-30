@@ -50,6 +50,47 @@ describe('TodayHeroCard', () => {
     expect(screen.queryByText('4:20')).toBeNull();
   });
 
+  it('shows top-line run structure intent on the planned hero', () => {
+    render(
+      <TodayHeroCard
+        session={{
+          id: 'structured-long',
+          type: 'LONG',
+          date: '2026-04-09',
+          distance: 26,
+          plannedVolume: { unit: 'km', value: 26 },
+          planNote: 'Keep floats honest.',
+          runStructure: {
+            items: [
+              {
+                kind: 'REPEAT',
+                repeats: 3,
+                segments: [
+                  {
+                    kind: 'RUN',
+                    volume: { unit: 'km', value: 3 },
+                    intensityTarget: {
+                      source: 'manual',
+                      mode: 'effort',
+                      profileKey: 'marathon',
+                      effortCue: 'race pace',
+                    },
+                  },
+                  {
+                    kind: 'FLOAT',
+                    volume: { unit: 'km', value: 1 },
+                  },
+                ],
+              },
+            ],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText('3 x 3km marathon pace off 1km float · Note')).toBeTruthy();
+  });
+
   it('shows easy effort and pace in one target area without planned heart rate', () => {
     render(
       <TodayHeroCard

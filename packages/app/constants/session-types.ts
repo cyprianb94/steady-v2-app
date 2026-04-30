@@ -14,5 +14,6 @@ export const SESSION_TYPE: Record<SessionType, SessionTypeMeta> = {
   INTERVAL: { color: C.clay, bg: C.clayBg, label: 'Intervals', abbr: 'I', emoji: '▲' },
   TEMPO: { color: C.amber, bg: C.amberBg, label: 'Tempo', abbr: 'T', emoji: '◆' },
   LONG: { color: C.navy, bg: C.navyBg, label: 'Long Run', abbr: 'L', emoji: '◉' },
+  RECOVERY: { color: C.lavender, bg: C.lavenderBg, label: 'Recovery Run', abbr: 'Rc', emoji: '◇' },
   REST: { color: C.slate, bg: '#F2F2F4', label: 'Rest', abbr: 'R', emoji: '—' },
 };
