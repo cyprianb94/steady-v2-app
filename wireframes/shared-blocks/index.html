@@ -1,0 +1,1169 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Steady Shared Blocks Wireframes</title>
+    <style>
+      @font-face {
+        font-family: "Playfair Display";
+        src: url("../../packages/app/assets/fonts/PlayfairDisplay-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "Playfair Display";
+        src: url("../../packages/app/assets/fonts/PlayfairDisplay-Bold.ttf") format("truetype");
+        font-weight: 700;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-Medium.ttf") format("truetype");
+        font-weight: 500;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-SemiBold.ttf") format("truetype");
+        font-weight: 700;
+      }
+
+      @font-face {
+        font-family: "Space Mono";
+        src: url("../../packages/app/assets/fonts/SpaceMono-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "Space Mono";
+        src: url("../../packages/app/assets/fonts/SpaceMono-Bold.ttf") format("truetype");
+        font-weight: 700;
+      }
+
+      :root {
+        --cream: #f4efe6;
+        --surface: #fdfaf5;
+        --card: #f0eae0;
+        --ink: #1c1510;
+        --ink2: #3d3028;
+        --muted: #9a8e7e;
+        --border: #e5ddd0;
+        --forest: #2a5c45;
+        --forest-bg: #eef4f1;
+        --clay: #c4522a;
+        --clay-bg: #fdf0eb;
+        --amber: #d4882a;
+        --amber-bg: #fdf6eb;
+        --navy: #1b3a6b;
+        --navy-bg: #edf1f8;
+        --slate: #8a8e9a;
+        --slate-bg: #f2f2f4;
+        --serif: "Playfair Display", Georgia, serif;
+        --sans: "DM Sans", sans-serif;
+        --mono: "Space Mono", monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: #e8dfd2;
+        color: var(--ink);
+        font-family: var(--sans);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .stage {
+        width: 1720px;
+        min-height: 1040px;
+        margin: 0 auto;
+        padding: 34px 36px 46px;
+      }
+
+      .header {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        gap: 26px;
+        align-items: end;
+        margin-bottom: 24px;
+      }
+
+      h1 {
+        margin: 0;
+        font-family: var(--serif);
+        font-size: 42px;
+        line-height: 0.96;
+      }
+
+      .header p {
+        max-width: 940px;
+        margin: 0;
+        color: #66594d;
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .board {
+        display: grid;
+        grid-template-columns: 286px repeat(4, 1fr);
+        gap: 22px;
+        align-items: start;
+      }
+
+      .brief {
+        min-height: 858px;
+        padding: 18px;
+        border: 1px solid rgba(28, 21, 16, 0.08);
+        border-radius: 24px;
+        background: rgba(253, 250, 245, 0.72);
+      }
+
+      .brief h2 {
+        margin: 0 0 8px;
+        font-family: var(--serif);
+        font-size: 24px;
+        line-height: 1.08;
+      }
+
+      .brief p {
+        margin: 0;
+        color: #66594d;
+        font-size: 12px;
+        line-height: 1.48;
+      }
+
+      .rule {
+        margin-top: 12px;
+        padding: 13px;
+        border: 1.5px solid var(--border);
+        border-radius: 14px;
+        background: var(--surface);
+      }
+
+      .rule strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 13px;
+        line-height: 1.25;
+      }
+
+      .kicker,
+      .label,
+      .tag,
+      .day,
+      .nav-item,
+      .meta-label {
+        color: var(--muted);
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+      }
+
+      .phone-wrap {
+        position: relative;
+      }
+
+      .frame-label {
+        margin: 0 0 8px;
+        color: var(--ink2);
+        font-family: var(--serif);
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .phone {
+        position: relative;
+        width: 320px;
+        height: 858px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        border: 1.5px solid #ddd2c2;
+        border-radius: 38px;
+        background: var(--cream);
+        box-shadow: 0 22px 58px -32px rgba(28, 21, 16, 0.36);
+      }
+
+      .phone::before {
+        content: "";
+        position: absolute;
+        top: 9px;
+        left: 50%;
+        z-index: 4;
+        width: 106px;
+        height: 25px;
+        transform: translateX(-50%);
+        border-radius: 999px;
+        background: var(--ink);
+      }
+
+      .status {
+        height: 52px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        padding: 0 22px 7px;
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+
+      .status-icons {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+
+      .signal {
+        display: flex;
+        align-items: flex-end;
+        gap: 2px;
+        height: 10px;
+      }
+
+      .signal span {
+        width: 3px;
+        border-radius: 999px;
+        background: var(--ink);
+      }
+
+      .signal span:nth-child(1) { height: 4px; opacity: 0.45; }
+      .signal span:nth-child(2) { height: 6px; opacity: 0.65; }
+      .signal span:nth-child(3) { height: 8px; opacity: 0.85; }
+      .signal span:nth-child(4) { height: 10px; }
+
+      .battery {
+        position: relative;
+        width: 23px;
+        height: 12px;
+        border: 1.5px solid var(--ink);
+        border-radius: 4px;
+      }
+
+      .battery::before {
+        content: "";
+        position: absolute;
+        top: 3px;
+        right: -3px;
+        width: 2px;
+        height: 5px;
+        border-radius: 2px;
+        background: var(--ink);
+      }
+
+      .battery::after {
+        content: "";
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 14px;
+        height: 6px;
+        border-radius: 2px;
+        background: var(--ink);
+      }
+
+      .screen {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .scroll {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+        padding: 9px 16px 20px;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+
+      .brand {
+        font-family: var(--serif);
+        font-size: 21px;
+        font-weight: 700;
+      }
+
+      .link-pill {
+        padding: 5px 9px;
+        border: 1.5px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--ink2);
+        font-size: 10px;
+        font-weight: 700;
+      }
+
+      .hero-card,
+      .card,
+      .session,
+      .setting-row,
+      .qr-card {
+        border: 1.5px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+      }
+
+      .hero-card {
+        padding: 15px;
+        background: var(--card);
+      }
+
+      .share-source {
+        display: flex;
+        gap: 9px;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .avatar {
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--ink);
+        color: var(--cream);
+        font-family: var(--serif);
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .source-name {
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.15;
+      }
+
+      .source-sub {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 10.5px;
+      }
+
+      h2,
+      h3 {
+        margin: 0;
+        font-family: var(--serif);
+        line-height: 1.04;
+      }
+
+      h2 {
+        max-width: 235px;
+        font-size: 29px;
+      }
+
+      h3 {
+        font-size: 20px;
+      }
+
+      .summary {
+        margin: 9px 0 0;
+        color: var(--ink2);
+        font-size: 12.5px;
+        line-height: 1.45;
+      }
+
+      .tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 12px;
+      }
+
+      .tag {
+        padding: 5px 8px;
+        border: 1.5px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--ink2);
+        letter-spacing: 0;
+        text-transform: none;
+        font-family: var(--mono);
+        font-size: 10px;
+      }
+
+      .card {
+        padding: 12px;
+        margin-top: 9px;
+      }
+
+      .card.tint-forest {
+        border-color: rgba(42, 92, 69, 0.28);
+        background: var(--forest-bg);
+      }
+
+      .card.tint-navy {
+        border-color: rgba(27, 58, 107, 0.28);
+        background: var(--navy-bg);
+      }
+
+      .card.tint-clay {
+        border-color: rgba(196, 82, 42, 0.28);
+        background: var(--clay-bg);
+      }
+
+      .row {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        align-items: baseline;
+      }
+
+      .row + .row {
+        margin-top: 8px;
+      }
+
+      .value {
+        font-family: var(--mono);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .mono {
+        font-family: var(--mono);
+      }
+
+      .phase-bar {
+        display: grid;
+        grid-template-columns: 1.1fr 3fr 1fr 0.8fr;
+        gap: 3px;
+        height: 12px;
+        margin: 12px 0 7px;
+      }
+
+      .phase-bar span {
+        border-radius: 999px;
+      }
+
+      .base { background: var(--navy); }
+      .build { background: var(--clay); }
+      .peak { background: var(--amber); }
+      .taper { background: var(--forest); }
+
+      .week-list {
+        display: grid;
+        gap: 6px;
+        margin-top: 9px;
+      }
+
+      .session {
+        min-height: 42px;
+        display: grid;
+        grid-template-columns: 31px 1fr auto;
+        gap: 8px;
+        align-items: center;
+        padding: 8px 9px;
+      }
+
+      .session.easy {
+        border-color: rgba(42, 92, 69, 0.35);
+        background: var(--forest-bg);
+      }
+
+      .session.long {
+        border-color: rgba(27, 58, 107, 0.35);
+        background: var(--navy-bg);
+      }
+
+      .session.tempo {
+        border-color: rgba(212, 136, 42, 0.35);
+        background: var(--amber-bg);
+      }
+
+      .session.interval {
+        border-color: rgba(196, 82, 42, 0.35);
+        background: var(--clay-bg);
+      }
+
+      .session.rest {
+        background: var(--slate-bg);
+      }
+
+      .session-title {
+        color: var(--ink);
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.15;
+      }
+
+      .session-sub {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 10px;
+      }
+
+      .session-km {
+        color: var(--ink2);
+        font-family: var(--mono);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .button {
+        width: 100%;
+        height: 43px;
+        display: grid;
+        place-items: center;
+        margin-top: 10px;
+        border: 1.5px solid var(--clay);
+        border-radius: 999px;
+        background: var(--clay);
+        color: var(--surface);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .button.secondary {
+        border-color: var(--border);
+        background: var(--surface);
+        color: var(--ink);
+      }
+
+      .small-note {
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 10.5px;
+        line-height: 1.35;
+        text-align: center;
+      }
+
+      .form-title {
+        margin: 2px 0 12px;
+      }
+
+      .setting-row {
+        display: flex;
+        min-height: 54px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 10px 12px;
+        margin-top: 8px;
+      }
+
+      .setting-row strong {
+        display: block;
+        color: var(--ink);
+        font-size: 13px;
+      }
+
+      .setting-row span {
+        display: block;
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 10.5px;
+      }
+
+      .chips {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        margin-top: 8px;
+      }
+
+      .chip {
+        height: 34px;
+        display: grid;
+        place-items: center;
+        border: 1.5px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--ink2);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .chip.active {
+        border-color: var(--clay);
+        background: var(--clay-bg);
+        color: var(--clay);
+      }
+
+      .divider {
+        height: 1px;
+        margin: 11px 0;
+        background: var(--border);
+      }
+
+      .week-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 9px;
+      }
+
+      .week-header h2 {
+        font-size: 26px;
+      }
+
+      .today-card {
+        padding: 13px;
+        border: 1.5px solid rgba(196, 82, 42, 0.35);
+        border-radius: 12px;
+        background: var(--clay-bg);
+        box-shadow: 0 2px 10px rgba(196, 82, 42, 0.18);
+      }
+
+      .today-card h3 {
+        margin-top: 4px;
+        font-size: 22px;
+      }
+
+      .bottom-nav {
+        height: 67px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        border-top: 1.5px solid var(--border);
+        background: var(--surface);
+        flex-shrink: 0;
+      }
+
+      .nav-item {
+        display: grid;
+        place-items: center;
+        color: var(--muted);
+        letter-spacing: 0;
+        text-transform: none;
+        font-size: 10px;
+      }
+
+      .nav-item.active {
+        color: var(--clay);
+      }
+
+      .nav-dot {
+        width: 7px;
+        height: 7px;
+        margin-bottom: 4px;
+        border-radius: 999px;
+        background: currentColor;
+      }
+
+      .share-list {
+        margin-top: 10px;
+      }
+
+      .qr-card {
+        display: grid;
+        grid-template-columns: 112px 1fr;
+        gap: 12px;
+        align-items: center;
+        padding: 12px;
+        margin-top: 9px;
+        background: var(--card);
+      }
+
+      .qr {
+        width: 112px;
+        height: 112px;
+        display: grid;
+        grid-template-columns: repeat(9, 1fr);
+        grid-template-rows: repeat(9, 1fr);
+        gap: 3px;
+        padding: 8px;
+        border: 1.5px solid var(--border);
+        border-radius: 10px;
+        background: var(--surface);
+      }
+
+      .qr span {
+        border-radius: 2px;
+        background: transparent;
+      }
+
+      .qr .on {
+        background: var(--ink);
+      }
+
+      .stat-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 7px;
+        margin-top: 9px;
+      }
+
+      .stat {
+        padding: 10px;
+        border: 1.5px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+      }
+
+      .stat strong {
+        display: block;
+        font-family: var(--mono);
+        font-size: 17px;
+        line-height: 1;
+      }
+
+      .stat span {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 10px;
+      }
+
+      .switch {
+        position: relative;
+        width: 43px;
+        height: 25px;
+        border-radius: 999px;
+        background: var(--forest);
+        flex-shrink: 0;
+      }
+
+      .switch::after {
+        content: "";
+        position: absolute;
+        top: 3px;
+        right: 3px;
+        width: 19px;
+        height: 19px;
+        border-radius: 50%;
+        background: var(--surface);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="stage">
+      <header class="header">
+        <h1>Shared Blocks</h1>
+        <p>
+          Lightweight sharing for training blocks. A club, coach, or runner shares an unlisted link; another runner previews the block and imports an editable copy. No marketplace, no paywall, no live subscription to someone else's plan.
+        </p>
+      </header>
+
+      <section class="board">
+        <aside class="brief">
+          <p class="kicker">Product direction</p>
+          <h2>Sharing, not a marketplace.</h2>
+          <p>
+            The first version should prove whether trusted links drive adoption before Steady invests in public discovery.
+          </p>
+
+          <div class="rule">
+            <strong>Free principle</strong>
+            <p>Any runner can create, share, import, fork, and follow a block for free.</p>
+          </div>
+
+          <div class="rule">
+            <strong>Distribution loop</strong>
+            <p>QR code at a club run, Instagram link, WhatsApp post, or coach handoff.</p>
+          </div>
+
+          <div class="rule">
+            <strong>Technical constraint</strong>
+            <p>Imported blocks are snapshots. The runner owns their editable copy.</p>
+          </div>
+
+          <div class="rule">
+            <strong>Paid bridge</strong>
+            <p>Steady AI can adapt a shared block around missed sessions, recent training, or injury.</p>
+          </div>
+        </aside>
+
+        <article class="phone-wrap">
+          <p class="frame-label">1. Public preview</p>
+          <div class="phone">
+            <div class="status">
+              <span>9:41</span>
+              <div class="status-icons">
+                <div class="signal"><span></span><span></span><span></span><span></span></div>
+                <div class="battery"></div>
+              </div>
+            </div>
+            <div class="screen">
+              <div class="scroll">
+                <div class="topbar">
+                  <div class="brand">Steady</div>
+                  <div class="link-pill">Shared block</div>
+                </div>
+
+                <section class="hero-card">
+                  <div class="share-source">
+                    <div class="avatar">RL</div>
+                    <div>
+                      <div class="source-name">Running Late</div>
+                      <div class="source-sub">Hackney, London</div>
+                    </div>
+                  </div>
+                  <h2>Hackney Half block</h2>
+                  <p class="summary">
+                    A 10-week half marathon block built around Wednesday and Saturday club runs.
+                  </p>
+                  <div class="tags">
+                    <span class="tag">10 weeks</span>
+                    <span class="tag">Half</span>
+                    <span class="tag">42-56km</span>
+                  </div>
+                </section>
+
+                <section class="card tint-forest">
+                  <p class="label">Club anchors</p>
+                  <div class="row">
+                    <span>Wednesday social 5km</span>
+                    <strong class="value">5km</strong>
+                  </div>
+                  <div class="row">
+                    <span>Saturday steady 10km</span>
+                    <strong class="value">10km</strong>
+                  </div>
+                </section>
+
+                <section class="card">
+                  <div class="row">
+                    <p class="label">Structure</p>
+                    <span class="value muted">2 · 5 · 2 · 1</span>
+                  </div>
+                  <div class="phase-bar">
+                    <span class="base"></span>
+                    <span class="build"></span>
+                    <span class="peak"></span>
+                    <span class="taper"></span>
+                  </div>
+                  <p class="summary">Base, build, peak, then taper. Two club sessions stay fixed each week.</p>
+                </section>
+
+                <section class="card">
+                  <p class="label">Typical week</p>
+                  <div class="week-list">
+                    <div class="session easy">
+                      <span class="day">Wed</span>
+                      <div>
+                        <div class="session-title">Club social run</div>
+                        <div class="session-sub">Meet at Running Late</div>
+                      </div>
+                      <span class="session-km">5km</span>
+                    </div>
+                    <div class="session tempo">
+                      <span class="day">Fri</span>
+                      <div>
+                        <div class="session-title">Tempo</div>
+                        <div class="session-sub">20min steady effort</div>
+                      </div>
+                      <span class="session-km">10km</span>
+                    </div>
+                    <div class="session long">
+                      <span class="day">Sat</span>
+                      <div>
+                        <div class="session-title">Club long run</div>
+                        <div class="session-sub">Builds through the block</div>
+                      </div>
+                      <span class="session-km">14km</span>
+                    </div>
+                  </div>
+                </section>
+
+                <div class="button">Add to Steady</div>
+                <div class="button secondary">Preview full block</div>
+                <p class="small-note">Adds an editable copy. The shared block itself stays unchanged.</p>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="phone-wrap">
+          <p class="frame-label">2. Add editable copy</p>
+          <div class="phone">
+            <div class="status">
+              <span>9:41</span>
+              <div class="status-icons">
+                <div class="signal"><span></span><span></span><span></span><span></span></div>
+                <div class="battery"></div>
+              </div>
+            </div>
+            <div class="screen">
+              <div class="scroll">
+                <div class="topbar">
+                  <div class="brand">Steady</div>
+                  <div class="link-pill">Import</div>
+                </div>
+
+                <div class="form-title">
+                  <p class="kicker">Shared by Running Late</p>
+                  <h2>Add Hackney Half block</h2>
+                  <p class="summary">Set the first week, check the level, then make it your own.</p>
+                </div>
+
+                <div class="setting-row">
+                  <div>
+                    <strong>Start week</strong>
+                    <span>First session begins Monday</span>
+                  </div>
+                  <div class="value">4 May</div>
+                </div>
+
+                <div class="setting-row">
+                  <div>
+                    <strong>Race date</strong>
+                    <span>Used to place the taper</span>
+                  </div>
+                  <div class="value">12 Jul</div>
+                </div>
+
+                <section class="card tint-clay">
+                  <p class="label">What happens next</p>
+                  <p class="summary">
+                    Steady creates a new block in your account. You can edit every session after importing.
+                  </p>
+                </section>
+
+                <section class="card">
+                  <p class="label">Level</p>
+                  <div class="chips">
+                    <div class="chip">Lighter</div>
+                    <div class="chip active">Steady</div>
+                    <div class="chip">Higher</div>
+                  </div>
+                  <p class="summary">The first pilot can ship with one level. Variants can come later.</p>
+                </section>
+
+                <section class="card">
+                  <p class="label">Weekly pattern</p>
+                  <div class="row">
+                    <span>Sessions per week</span>
+                    <strong class="value">5</strong>
+                  </div>
+                  <div class="row">
+                    <span>Peak volume</span>
+                    <strong class="value">56km</strong>
+                  </div>
+                  <div class="row">
+                    <span>Fixed club sessions</span>
+                    <strong class="value">2</strong>
+                  </div>
+                </section>
+
+                <div class="button">Add editable copy</div>
+                <div class="button secondary">Cancel</div>
+                <p class="small-note">Keeps a small Running Late attribution. Your training data stays yours.</p>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="phone-wrap">
+          <p class="frame-label">3. Inside Steady</p>
+          <div class="phone">
+            <div class="status">
+              <span>9:41</span>
+              <div class="status-icons">
+                <div class="signal"><span></span><span></span><span></span><span></span></div>
+                <div class="battery"></div>
+              </div>
+            </div>
+            <div class="screen">
+              <div class="scroll">
+                <div class="week-header">
+                  <div>
+                    <p class="kicker">Week 1 of 10</p>
+                    <h2>Hackney Half</h2>
+                  </div>
+                  <div class="link-pill">Shared</div>
+                </div>
+
+                <section class="card tint-forest">
+                  <div class="share-source">
+                    <div class="avatar">RL</div>
+                    <div>
+                      <div class="source-name">Shared by Running Late</div>
+                      <div class="source-sub">Imported as your editable copy</div>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <span>Week volume</span>
+                    <strong class="value">42km</strong>
+                  </div>
+                </section>
+
+                <section class="today-card">
+                  <p class="label">Today</p>
+                  <h3>Club social run</h3>
+                  <p class="summary">5km easy from Running Late Coffee. Keep it relaxed.</p>
+                  <div class="tags">
+                    <span class="tag">EASY</span>
+                    <span class="tag">5km</span>
+                    <span class="tag">@ 5:35/km</span>
+                  </div>
+                </section>
+
+                <section class="card">
+                  <p class="label">This week</p>
+                  <div class="week-list">
+                    <div class="session rest">
+                      <span class="day">Mon</span>
+                      <div><div class="session-title">Rest day</div></div>
+                      <span></span>
+                    </div>
+                    <div class="session interval">
+                      <span class="day">Tue</span>
+                      <div>
+                        <div class="session-title">6x800m</div>
+                        <div class="session-sub">90s jog recovery</div>
+                      </div>
+                      <span class="session-km">9km</span>
+                    </div>
+                    <div class="session easy">
+                      <span class="day">Wed</span>
+                      <div>
+                        <div class="session-title">Club social run</div>
+                        <div class="session-sub">Running Late anchor</div>
+                      </div>
+                      <span class="session-km">5km</span>
+                    </div>
+                    <div class="session easy">
+                      <span class="day">Thu</span>
+                      <div>
+                        <div class="session-title">Easy run</div>
+                        <div class="session-sub">Keep it comfortable</div>
+                      </div>
+                      <span class="session-km">6km</span>
+                    </div>
+                    <div class="session tempo">
+                      <span class="day">Fri</span>
+                      <div>
+                        <div class="session-title">Tempo</div>
+                        <div class="session-sub">20min steady effort</div>
+                      </div>
+                      <span class="session-km">10km</span>
+                    </div>
+                    <div class="session long">
+                      <span class="day">Sat</span>
+                      <div>
+                        <div class="session-title">Club long run</div>
+                        <div class="session-sub">Builds through block</div>
+                      </div>
+                      <span class="session-km">12km</span>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="card tint-clay">
+                  <p class="label">Steady AI</p>
+                  <p class="summary">Adapt this shared block around your recent training, missed sessions, or injury.</p>
+                </section>
+              </div>
+
+              <nav class="bottom-nav">
+                <div class="nav-item active"><div><div class="nav-dot"></div>Home</div></div>
+                <div class="nav-item"><div><div class="nav-dot"></div>Block</div></div>
+                <div class="nav-item"><div><div class="nav-dot"></div>Settings</div></div>
+              </nav>
+            </div>
+          </div>
+        </article>
+
+        <article class="phone-wrap">
+          <p class="frame-label">4. Creator sharing</p>
+          <div class="phone">
+            <div class="status">
+              <span>9:41</span>
+              <div class="status-icons">
+                <div class="signal"><span></span><span></span><span></span><span></span></div>
+                <div class="battery"></div>
+              </div>
+            </div>
+            <div class="screen">
+              <div class="scroll">
+                <div class="topbar">
+                  <div class="brand">Steady</div>
+                  <div class="link-pill">Share</div>
+                </div>
+
+                <div class="form-title">
+                  <p class="kicker">Running Late</p>
+                  <h2>Share Hackney Half block</h2>
+                  <p class="summary">Anyone with the link can preview the block and add their own editable copy.</p>
+                </div>
+
+                <div class="setting-row">
+                  <div>
+                    <strong>Unlisted link</strong>
+                    <span>Only people with the link can open it</span>
+                  </div>
+                  <div class="switch"></div>
+                </div>
+
+                <section class="qr-card">
+                  <div class="qr" aria-label="QR code placeholder">
+                    <span class="on"></span><span class="on"></span><span class="on"></span><span></span><span class="on"></span><span></span><span class="on"></span><span class="on"></span><span class="on"></span>
+                    <span class="on"></span><span></span><span class="on"></span><span></span><span></span><span class="on"></span><span class="on"></span><span></span><span class="on"></span>
+                    <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span></span><span></span><span class="on"></span><span class="on"></span><span class="on"></span>
+                    <span></span><span></span><span class="on"></span><span></span><span class="on"></span><span></span><span></span><span class="on"></span><span></span>
+                    <span class="on"></span><span></span><span></span><span class="on"></span><span class="on"></span><span class="on"></span><span></span><span></span><span class="on"></span>
+                    <span></span><span class="on"></span><span></span><span></span><span class="on"></span><span></span><span class="on"></span><span></span><span></span>
+                    <span class="on"></span><span class="on"></span><span class="on"></span><span></span><span></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span>
+                    <span class="on"></span><span></span><span class="on"></span><span class="on"></span><span></span><span></span><span class="on"></span><span></span><span class="on"></span>
+                    <span class="on"></span><span class="on"></span><span class="on"></span><span></span><span class="on"></span><span></span><span class="on"></span><span class="on"></span><span class="on"></span>
+                  </div>
+                  <div>
+                    <p class="label">QR code</p>
+                    <p class="summary">Print this for club runs or add it to a cafe poster.</p>
+                  </div>
+                </section>
+
+                <div class="button">Copy link</div>
+                <div class="button secondary">Download QR</div>
+
+                <section class="card">
+                  <p class="label">Link details</p>
+                  <div class="divider"></div>
+                  <div class="row">
+                    <span>Shared snapshot</span>
+                    <strong class="value">v1</strong>
+                  </div>
+                  <div class="row">
+                    <span>Imported copies update</span>
+                    <strong class="value">No</strong>
+                  </div>
+                  <div class="row">
+                    <span>Runner training data visible</span>
+                    <strong class="value">No</strong>
+                  </div>
+                </section>
+
+                <section class="stat-grid">
+                  <div class="stat">
+                    <strong>184</strong>
+                    <span>views later</span>
+                  </div>
+                  <div class="stat">
+                    <strong>42</strong>
+                    <span>imports later</span>
+                  </div>
+                </section>
+
+                <div class="button secondary">Disable link</div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

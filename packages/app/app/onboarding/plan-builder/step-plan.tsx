@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Alert } from 'react-native';
+import { usePreventRemove } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { PropagateModal } from '../../../components/plan-builder/PropagateModal';
 import { SessionEditorScreen } from '../../../components/plan-builder/SessionEditorScreen';
@@ -190,6 +191,10 @@ export default function StepPlan() {
   const SharedReviewBlock = getSharedPlanBuilderReviewComponent();
 
   const [saving, setSaving] = useState(false);
+
+  usePreventRemove(editing !== null, () => {
+    setEditing(null);
+  });
 
   const handleDone = async () => {
     setSaving(true);

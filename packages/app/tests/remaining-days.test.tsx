@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { vi, describe, it, expect } from 'vitest';
 import type { PlannedSession } from '@steady/types';
 import { createActivityResolution } from '../features/run/activity-resolution';
@@ -256,6 +256,36 @@ describe('RemainingDaysList', () => {
 
     fireEvent.click(screen.getAllByTestId('compact-day-row-pressable')[0]);
     expect(onSessionPress).toHaveBeenCalledWith(sessions[0], 'missed');
+  });
+
+  it('keeps the Wednesday row pressable when Thursday is today', () => {
+    const onSessionPress = vi.fn();
+    const sessions: (PlannedSession | null)[] = [
+      { id: 'mon-session', type: 'EASY', date: '2026-04-27', distance: 12, pace: '5:33-5:55' },
+      { id: 'tue-session', type: 'INTERVAL', date: '2026-04-28', reps: 6, repDist: 400, pace: '3:40-3:50' },
+      { id: 'wed-session', type: 'EASY', date: '2026-04-29', distance: 8, pace: '5:33-5:55' },
+      { id: 'thu-session', type: 'TEMPO', date: '2026-04-30', distance: 10, pace: '4:21-4:32' },
+      null,
+      { id: 'sat-session', type: 'EASY', date: '2026-05-02', distance: 12, pace: '5:33-5:55' },
+      { id: 'sun-session', type: 'LONG', date: '2026-05-03', distance: 20, pace: '5:33-5:55' },
+    ];
+
+    renderRemainingDaysList({
+      sessions,
+      today: '2026-04-30',
+      weekStartDate: '2026-04-27',
+      onSessionPress,
+    });
+
+    const wednesdayRow = screen
+      .getAllByTestId('compact-day-row-pressable')
+      .find((row) => within(row).queryByText('Wed'));
+    if (!wednesdayRow) {
+      throw new Error('Expected Wednesday week row to be pressable');
+    }
+
+    fireEvent.click(wednesdayRow);
+    expect(onSessionPress).toHaveBeenCalledWith(sessions[2], 'missed');
   });
 
   it('makes today and future unlogged planned rows pressable so a new week is inspectable', () => {

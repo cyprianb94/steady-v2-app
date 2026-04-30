@@ -235,6 +235,17 @@ describe('BlockTab', () => {
   it('keeps pace ranges in the Block row title and moves effort cues to the caption', () => {
     mockAuth.session = { user: { id: 'runner-1' } };
     const currentPlan = plan();
+    currentPlan.weeks[0].sessions[1] = {
+      ...currentPlan.weeks[0].sessions[1]!,
+      reps: 6,
+      repDist: 400,
+      intensityTarget: {
+        source: 'manual',
+        mode: 'pace',
+        profileKey: 'interval',
+        paceRange: { min: '3:40', max: '3:50' },
+      },
+    };
     currentPlan.weeks[0].sessions[3] = {
       ...currentPlan.weeks[0].sessions[3]!,
       intensityTarget: {
@@ -249,6 +260,10 @@ describe('BlockTab', () => {
 
     render(<BlockTab />);
     fireEvent.click(screen.getByTestId('block-week-row-press-1'));
+
+    const intervalRow = screen.getByTestId('block-day-1-1');
+    expect(intervalRow.textContent).toContain('6×400m · 3:40-3:50');
+    expect(intervalRow.textContent).toContain('Intervals · hard repeatable');
 
     const tempoRow = screen.getByTestId('block-day-1-3');
     expect(tempoRow.textContent).toContain('8km · 4:15-4:25');

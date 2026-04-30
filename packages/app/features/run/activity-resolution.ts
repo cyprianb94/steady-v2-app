@@ -94,9 +94,7 @@ export function createActivityResolution(
     if (session.actualActivityId) {
       const linkedActivity = activityById.get(session.actualActivityId);
       if (linkedActivity) {
-        return isActivityCompatibleWithSession(session, linkedActivity)
-          ? linkedActivity
-          : undefined;
+        return linkedActivity;
       }
     }
 
@@ -111,9 +109,7 @@ export function createActivityResolution(
     if (session.actualActivityId) {
       const linkedActivity = activityById.get(session.actualActivityId);
       if (linkedActivity) {
-        return isActivityCompatibleWithSession(session, linkedActivity)
-          ? linkedActivity.id
-          : null;
+        return linkedActivity.id;
       }
       return isFutureSession(session, today) ? null : session.actualActivityId;
     }
@@ -129,7 +125,7 @@ export function createActivityResolution(
     if (session.actualActivityId) {
       const linkedActivity = activityById.get(session.actualActivityId);
       if (linkedActivity) {
-        return isActivityCompatibleWithSession(session, linkedActivity);
+        return true;
       }
       return !isFutureSession(session, today);
     }

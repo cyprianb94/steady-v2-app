@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { usePreventRemove } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { deriveTrainingPaceProfile } from '@steady/types';
 
@@ -69,6 +70,9 @@ describe('StepPlan session editing', () => {
 
     expect(screen.getByText('Cancel')).toBeTruthy();
     expect(screen.getByText('Target pace')).toBeTruthy();
+    expect(
+      vi.mocked(usePreventRemove).mock.calls.some(([preventRemove]) => preventRemove === true),
+    ).toBe(true);
 
     fireEvent.click(screen.getByText('Rest'));
     fireEvent.click(screen.getByText('Update session'));

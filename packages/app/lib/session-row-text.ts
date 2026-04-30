@@ -1,4 +1,4 @@
-import type { PlannedSession } from '@steady/types';
+import { defaultIntensityTargetForSessionType, type PlannedSession } from '@steady/types';
 import { SESSION_TYPE } from '../constants/session-types';
 import {
   formatDistance,
@@ -26,9 +26,16 @@ function targetPaceLabel(session: Partial<PlannedSession>, units: DistanceUnits)
 }
 
 function effortLabel(session: Partial<PlannedSession>, units: DistanceUnits): string | null {
-  const effort = formatIntensityTargetParts(session, units, {
+  const explicitEffort = formatIntensityTargetParts(session, units, {
     hideCompatibilityPace: true,
   }).effort;
+  const effort = explicitEffort ?? (
+    session.type === 'INTERVAL'
+      ? formatIntensityTargetParts(defaultIntensityTargetForSessionType('INTERVAL'), units, {
+          hideCompatibilityPace: true,
+        }).effort
+      : null
+  );
 
   return effort === 'conversational' ? 'conversational pace' : effort;
 }

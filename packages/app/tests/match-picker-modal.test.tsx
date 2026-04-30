@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Activity, PlannedSession } from '@steady/types';
 import { MatchPickerModal } from '../components/sync-run/MatchPickerModal';
@@ -56,5 +56,61 @@ describe('MatchPickerModal', () => {
     expect(screen.getByText('Thu Apr 23 · target conversational')).toBeTruthy();
     expect(screen.queryByText(/target —/)).toBeNull();
     expect(screen.queryByText(/—\/km/)).toBeNull();
+  });
+
+  it('shows an explicit unmatch action when the run already has a current match', () => {
+    const onSelect = vi.fn();
+
+    render(
+      <MatchPickerModal
+        visible
+        activity={{
+          ...activity,
+          matchedSessionId: 'session-1',
+        }}
+        sessionOptions={[
+          session({ id: 'session-1' }),
+          session({ id: 'session-2', date: '2026-04-24', distance: 10, type: 'TEMPO', pace: '4:20' }),
+        ]}
+        selectedSessionId="session-1"
+        recommendedSessionId="session-1"
+        todaySessionId={null}
+        onSelect={onSelect}
+        onClose={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Change this run's match")).toBeTruthy();
+    expect(screen.getByText('Current match')).toBeTruthy();
+    expect(screen.getAllByText('Thu · 8km Easy Run').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('CURRENT').length).toBeGreaterThan(0);
+    expect(screen.getByText('Change to another session')).toBeTruthy();
+    expect(screen.queryByText('Keep unmatched')).toBeNull();
+
+    fireEvent.click(screen.getByText('Unmatch this run'));
+    expect(onSelect).toHaveBeenCalledWith(null);
+  });
+
+  it('makes a pending unmatch state explicit before save', () => {
+    render(
+      <MatchPickerModal
+        visible
+        activity={{
+          ...activity,
+          matchedSessionId: 'session-1',
+        }}
+        sessionOptions={[session({ id: 'session-1' })]}
+        selectedSessionId={null}
+        recommendedSessionId="session-1"
+        todaySessionId={null}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Will become bonus mileage after you save.')).toBeTruthy();
+    expect(screen.getByText('PENDING')).toBeTruthy();
   });
 });

@@ -80,5 +80,7 @@ export function RemainingDaysList({
 const styles = StyleSheet.create({
   wrapper: {
     marginTop: 22,
+    position: 'relative',
+    zIndex: 1,
   },
 });

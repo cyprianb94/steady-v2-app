@@ -1,6 +1,7 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { usePreventRemove } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
 
 import StepTemplate from '../app/onboarding/plan-builder/step-template';
@@ -91,6 +92,26 @@ describe('StepTemplate starter choice', () => {
     const template = JSON.parse(call.params.template);
     expect(template[0].type).toBe('EASY');
     expect(template[1]).toBeNull();
+  });
+
+  it('keeps back gestures inside the inline session editor on Step 5', () => {
+    render(<StepTemplate />);
+
+    fireEvent.click(screen.getByText('Tue'));
+
+    expect(screen.getByText('Update session')).toBeTruthy();
+
+    const preventRemoveCall = [...vi.mocked(usePreventRemove).mock.calls]
+      .reverse()
+      .find(([preventRemove]) => preventRemove === true);
+    expect(preventRemoveCall).toBeTruthy();
+
+    act(() => {
+      preventRemoveCall?.[1]({ data: { action: { type: 'GO_BACK' } } } as any);
+    });
+
+    expect(screen.getByText('Design your week')).toBeTruthy();
+    expect(screen.queryByText('Update session')).toBeNull();
   });
 
   it('asks for confirmation before replacing an edited week with a different starter mode', () => {

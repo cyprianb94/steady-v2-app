@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { usePreventRemove } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { sessionKm, type PlannedSession, type TrainingPaceProfile } from '@steady/types';
 import { Btn } from '../../../components/ui/Btn';
@@ -171,6 +172,10 @@ export default function StepTemplate() {
       : starterMode === 'template'
         ? `This pattern repeats across all ${weeks} weeks. Tap any day to adjust, or drag the grip to move it.`
         : 'Build a week from scratch and add only the sessions you know you can support. Dragging unlocks once the week has shape.';
+
+  usePreventRemove(editing !== null, () => {
+    setEditing(null);
+  });
 
   function applyStarterSelection(selection: TemplateStarterSelection) {
     setStarterSelection(selection);

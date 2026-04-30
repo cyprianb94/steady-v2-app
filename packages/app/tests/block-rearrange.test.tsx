@@ -204,7 +204,7 @@ describe('BlockTab session rearrange', () => {
     expect(screen.getByText('8km · 5:20')).toBeTruthy();
     expect(screen.getByText('6×400m · 3:50')).toBeTruthy();
     expect(screen.getByText('Easy Run')).toBeTruthy();
-    expect(screen.getByText('Intervals')).toBeTruthy();
+    expect(screen.getByText('Intervals · hard repeatable')).toBeTruthy();
   });
 
   it('emits a light haptic when expanding a week, but not when collapsing it', () => {
@@ -507,7 +507,7 @@ describe('BlockTab session rearrange', () => {
     expect(screen.queryByText('Do you want to apply reschedule?')).toBeNull();
   });
 
-  it('clears a stale completed badge when the loaded linked activity no longer matches the session date', async () => {
+  it('keeps an explicitly linked completed row clickable when the activity date differs from the session date', async () => {
     planState.current = makePlan([
       makeWeek(1, [
         session('mon', 'EASY', { date: '2026-04-06', distance: 8 }),
@@ -543,8 +543,12 @@ describe('BlockTab session rearrange', () => {
     openWeek(1);
 
     await waitFor(() => expect(mockActivityListQuery).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.queryByTestId('block-day-status-1-6')).toBeNull());
+    await waitFor(() => expect(screen.getByTestId('block-day-status-1-6')).toBeTruthy());
+    expect(screen.queryByTestId('block-drag-handle-1-6')).toBeNull();
     expect(screen.queryByText('✓')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('block-day-1-6'));
+    expect(mockRouterPush).toHaveBeenCalledWith('/sync-run/act-sun');
   });
 
   it('does not count or lock a future linked-only long run in the current week', async () => {

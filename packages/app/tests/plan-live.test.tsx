@@ -68,7 +68,7 @@ describe('PlanLiveScreen', () => {
     mockConnectStravaAndRefresh.mockResolvedValue(true);
   });
 
-  it('makes Connect Strava primary and keeps Go to Home secondary after plan save', () => {
+  it('makes Connect Strava primary and keeps the training CTA secondary after plan save', () => {
     render(<PlanLiveScreen />);
 
     expect(screen.getByText('Plan is live.')).toBeTruthy();
@@ -76,6 +76,7 @@ describe('PlanLiveScreen', () => {
     expect(screen.getByText('3:30')).toBeTruthy();
     expect(screen.getByText('48km')).toBeTruthy();
     expect(screen.getByText('8km easy at 5:30/km')).toBeTruthy();
+    expect(screen.getByText("Let's start training")).toBeTruthy();
 
     fireEvent.click(screen.getByTestId('plan-live-home'));
 
@@ -98,6 +99,7 @@ describe('PlanLiveScreen', () => {
     expect(screen.queryByText('Connect Strava')).toBeNull();
     expect(screen.queryByTestId('plan-live-connect-strava')).toBeNull();
     expect(screen.getByTestId('plan-live-home')).toBeTruthy();
+    expect(screen.getByText("Let's start training")).toBeTruthy();
   });
 
   it('connects Strava through the shared workflow before entering Home', async () => {

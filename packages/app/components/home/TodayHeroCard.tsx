@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Animated, Easing, View, Text, Pressable, StyleSheet } from 'react-native';
 import {
   buildStructuredQualitySummary,
@@ -62,6 +63,9 @@ const COMPLETED_HEADLINES: Record<PvaHeadline, string> = {
   'over-pace': 'Went out hot',
   'hr-high': 'Heart rate high',
 };
+const SESSION_CARD_GRADIENT_LOCATIONS = [0, 0.34, 0.68, 1] as const;
+const SESSION_CARD_GRADIENT_START = { x: 0, y: 0.5 } as const;
+const SESSION_CARD_GRADIENT_END = { x: 1, y: 0.5 } as const;
 
 type MetricKind = 'distance' | 'pace' | 'time' | 'effort' | 'neutral';
 
@@ -114,6 +118,26 @@ function metricValueStyle(kind: MetricKind) {
     default:
       return styles.metricNeutralValue;
   }
+}
+
+function sessionCardGradientColors(sessionType: PlannedSession['type']) {
+  const meta = SESSION_TYPE[sessionType];
+
+  return [`${meta.color}0C`, `${meta.color}07`, `${meta.color}02`, `${meta.color}00`] as const;
+}
+
+function SessionCardAtmosphere({ sessionType }: { sessionType: PlannedSession['type'] }) {
+  return (
+    <LinearGradient
+      colors={sessionCardGradientColors(sessionType)}
+      locations={SESSION_CARD_GRADIENT_LOCATIONS}
+      start={SESSION_CARD_GRADIENT_START}
+      end={SESSION_CARD_GRADIENT_END}
+      pointerEvents="none"
+      style={styles.sessionAtmosphere}
+      testID="hero-card-atmosphere"
+    />
+  );
 }
 
 function sentenceCaseFact(fact: string): string {
@@ -524,6 +548,7 @@ export function TodayHeroCard({
         style={[styles.card, styles.plannedCard, { backgroundColor: C.surface, borderColor: restMeta.color }]}
         testID="hero-card"
       >
+        <SessionCardAtmosphere sessionType="REST" />
         <View style={styles.topRow}>
           <Text
             style={[
@@ -744,6 +769,7 @@ export function TodayHeroCard({
         ]}
         testID="hero-card"
       >
+        <SessionCardAtmosphere sessionType={session.type} />
         {plannedContent}
       </Pressable>
     );
@@ -758,6 +784,7 @@ export function TodayHeroCard({
       ]}
       testID="hero-card"
     >
+      <SessionCardAtmosphere sessionType={session.type} />
       {plannedContent}
     </View>
   );
@@ -871,6 +898,10 @@ const styles = StyleSheet.create({
     padding: 20,
     minHeight: 180,
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  sessionAtmosphere: {
+    ...StyleSheet.absoluteFillObject,
   },
   completedCard: {
     justifyContent: 'flex-start',

@@ -42,7 +42,7 @@ describe('CompactDayRow', () => {
     );
 
     expect(screen.getByText('6×800m · 3:50')).toBeTruthy();
-    expect(screen.getByText('Intervals')).toBeTruthy();
+    expect(screen.getByText('Intervals · hard repeatable')).toBeTruthy();
   });
 
   it('shows a checkmark when session has actualActivityId', () => {

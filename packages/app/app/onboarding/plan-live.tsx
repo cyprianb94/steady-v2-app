@@ -210,7 +210,7 @@ export default function PlanLiveScreen() {
           />
         ) : null}
         <Btn
-          title="Go to Home"
+          title="Let's start training"
           variant={stravaConnected ? undefined : 'secondary'}
           fullWidth
           disabled={busy}

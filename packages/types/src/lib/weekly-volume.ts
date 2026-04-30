@@ -185,7 +185,7 @@ function activityForSession(
 ): Activity | undefined {
   if (session.actualActivityId) {
     const linkedActivity = maps.byId.get(session.actualActivityId);
-    if (linkedActivity && isActivityCompatibleWithSession(session, linkedActivity)) {
+    if (linkedActivity) {
       return linkedActivity;
     }
   }

@@ -611,9 +611,20 @@ export default function SyncRunDetailScreen() {
     );
   }
 
+  const persistedMatchedSessionId = activity.matchedSessionId ?? null;
+  const pendingUnmatch = Boolean(persistedMatchedSessionId && selectedSessionId == null);
+  const pendingRematch = Boolean(
+    persistedMatchedSessionId
+    && selectedSession
+    && selectedSession.id !== persistedMatchedSessionId,
+  );
+  const hasPendingMatchChange = pendingUnmatch || pendingRematch;
   const matchedChipText = selectedSession
-    ? `Matched to ${formatSessionTitle(selectedSession, units)}`
-    : 'Bonus run';
+    ? `${pendingRematch ? 'Will match to' : 'Matched to'} ${formatSessionTitle(selectedSession, units)}`
+    : pendingUnmatch
+      ? 'Will be bonus run'
+      : 'Bonus run';
+  const matchedChipActionText = hasPendingMatchChange ? 'Save to apply' : 'Change';
   const matchedChipStyle = selectedSession ? styles.matchChipConnected : styles.matchChipUnmatched;
   const matchedChipTextStyle = selectedSession ? styles.matchChipTextConnected : styles.matchChipTextUnmatched;
   const maxAveragePaceDelta = splitPaces.reduce(
@@ -667,7 +678,7 @@ export default function SyncRunDetailScreen() {
             <Text style={[styles.matchChipText, matchedChipTextStyle]} numberOfLines={1}>
               {matchedChipText}
             </Text>
-            <Text style={[styles.matchChipAction, matchedChipTextStyle]}>Change</Text>
+            <Text style={[styles.matchChipAction, matchedChipTextStyle]}>{matchedChipActionText}</Text>
           </Pressable>
           <Text style={styles.runTitle}>
             {selectedSession ? formatSessionTitle(selectedSession, units) : activity.name ?? 'Bonus run'}

@@ -125,6 +125,7 @@ export function CompactDayRow({ dayName, dateLabel, session, status, metricLabel
     return (
       <Pressable
         accessibilityRole="button"
+        hitSlop={6}
         onPress={handlePress}
         onPressIn={() => animatePress(1, 90)}
         onPressOut={() => animatePress(0, 150)}
@@ -150,6 +151,8 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   pressableRow: {
+    width: '100%',
+    minHeight: 58,
     borderRadius: 10,
   },
   rowPressed: {

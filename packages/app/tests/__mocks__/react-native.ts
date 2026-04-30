@@ -47,6 +47,7 @@ function createMockComponent(tag: string) {
       accessibilityState: _accessibilityState,
       accessibilityIgnoresInvertColors: _accessibilityIgnoresInvertColors,
       delayLongPress: _delayLongPress,
+      hitSlop: _hitSlop,
       numberOfLines: _numberOfLines,
       onLayout: _onLayout,
       onPress,

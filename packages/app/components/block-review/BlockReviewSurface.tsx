@@ -56,6 +56,12 @@ const TAB_PRESS_EXPANSION = typeof document !== 'undefined'
       hitSlop: { top: 10, right: 10, bottom: 10, left: 10 },
       pressRetentionOffset: { top: 12, right: 12, bottom: 12, left: 12 },
     };
+const ACTION_PRESS_EXPANSION = typeof document !== 'undefined'
+  ? {}
+  : {
+      hitSlop: { top: 8, right: 8, bottom: 8, left: 8 },
+      pressRetentionOffset: { top: 10, right: 10, bottom: 10, left: 10 },
+    };
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 
@@ -993,16 +999,23 @@ function BlockReviewPhaseSummaryCard({
   return (
     <View style={styles.structureCard} testID="block-review-phase-summary">
       <View style={styles.structureCopy}>
-        <Text style={styles.structureTitle}>Phase structure</Text>
+        <View style={styles.structureTitleRow}>
+          <Text style={styles.structureTitle}>Phase structure</Text>
+          {onEditStructure ? (
+            <Pressable
+              {...ACTION_PRESS_EXPANSION}
+              onPress={onEditStructure}
+              style={styles.structureEditButton}
+              testID="block-review-edit-structure"
+            >
+              <Text style={styles.structureEdit}>Edit</Text>
+            </Pressable>
+          ) : null}
+        </View>
         <Text style={styles.structureValue}>{model.structureLabel}</Text>
       </View>
       <View style={styles.structureAction}>
         <BlockReviewMiniPhaseStrip model={model} />
-        {onEditStructure ? (
-          <Pressable onPress={onEditStructure} testID="block-review-edit-structure">
-            <Text style={styles.structureEdit}>Edit</Text>
-          </Pressable>
-        ) : null}
       </View>
     </View>
   );
@@ -1048,7 +1061,12 @@ export function BlockReviewOverloadCard({ control }: { control: BlockReviewOverl
           </Text>
         </View>
         {control.onChangeProgression ? (
-          <Pressable onPress={control.onChangeProgression} testID="block-review-overload-change">
+          <Pressable
+            {...ACTION_PRESS_EXPANSION}
+            onPress={control.onChangeProgression}
+            style={styles.overloadChangeButton}
+            testID="block-review-overload-change"
+          >
             <Text style={styles.overloadChange}>change</Text>
           </Pressable>
         ) : null}
@@ -1571,6 +1589,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: C.muted,
   },
+  overloadChangeButton: {
+    minHeight: 34,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 17,
+  },
   customOverload: {
     marginTop: 12,
     gap: 10,
@@ -1705,7 +1730,14 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  structureTitleRow: {
+    minHeight: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   structureTitle: {
+    flexShrink: 1,
     fontFamily: FONTS.sansSemiBold,
     fontSize: 15,
     color: C.ink,
@@ -1719,7 +1751,14 @@ const styles = StyleSheet.create({
   },
   structureAction: {
     alignItems: 'flex-end',
-    gap: 9,
+    justifyContent: 'center',
+  },
+  structureEditButton: {
+    minHeight: 32,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
   },
   structureEdit: {
     fontFamily: FONTS.sansSemiBold,

@@ -1,0 +1,1206 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Steady - Structured Sessions and Recovery Runs</title>
+    <style>
+      @font-face {
+        font-family: "Playfair Display";
+        src: url("../../packages/app/assets/fonts/PlayfairDisplay-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "Playfair Display";
+        src: url("../../packages/app/assets/fonts/PlayfairDisplay-Bold.ttf") format("truetype");
+        font-weight: 700;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-Medium.ttf") format("truetype");
+        font-weight: 500;
+      }
+
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../packages/app/assets/fonts/DMSans-SemiBold.ttf") format("truetype");
+        font-weight: 600;
+      }
+
+      @font-face {
+        font-family: "Space Mono";
+        src: url("../../packages/app/assets/fonts/SpaceMono-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "Space Mono";
+        src: url("../../packages/app/assets/fonts/SpaceMono-Bold.ttf") format("truetype");
+        font-weight: 700;
+      }
+
+      :root {
+        --cream: #f4efe6;
+        --surface: #fdfaf5;
+        --card: #f0eae0;
+        --border: #e5ddd0;
+        --ink: #1c1510;
+        --ink2: #3d3028;
+        --muted: #9a8e7e;
+        --forest: #2a5c45;
+        --forest-bg: #eef4f1;
+        --clay: #c4522a;
+        --clay-bg: #fdf0eb;
+        --amber: #d4882a;
+        --amber-bg: #fdf6eb;
+        --navy: #1b3a6b;
+        --navy-bg: #edf1f8;
+        --slate: #8a8e9a;
+        --slate-bg: #f2f2f4;
+        --recovery: #6f5ba7;
+        --recovery-bg: #f1eef8;
+        --metric-distance: #3d55a4;
+        --metric-time: #9d711f;
+        --metric-pace: #187f7a;
+        --metric-effort: #765098;
+        --serif: "Playfair Display", Georgia, serif;
+        --sans: "DM Sans", sans-serif;
+        --mono: "Space Mono", monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: geometricPrecision;
+      }
+
+      body {
+        margin: 0;
+        background: #e8dfd2;
+        color: var(--ink);
+        font-family: var(--sans);
+      }
+
+      .board {
+        width: 2380px;
+        min-height: 1080px;
+        padding: 34px 40px 50px;
+      }
+
+      .board-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 32px;
+        margin-bottom: 24px;
+      }
+
+      .kicker {
+        margin-bottom: 6px;
+        color: var(--clay);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.55px;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2 {
+        margin: 0;
+        letter-spacing: 0;
+      }
+
+      h1 {
+        font-family: var(--serif);
+        font-size: 34px;
+        font-weight: 700;
+        line-height: 1.05;
+      }
+
+      .board-title p {
+        max-width: 660px;
+        margin: 0 0 4px;
+        color: #6f6255;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(5, 420px);
+        gap: 28px;
+        align-items: start;
+      }
+
+      .frame {
+        display: grid;
+        gap: 10px;
+      }
+
+      .frame-label {
+        padding-left: 8px;
+        color: #6f6255;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1.7px;
+        text-transform: uppercase;
+      }
+
+      .phone {
+        position: relative;
+        width: 420px;
+        height: 910px;
+        overflow: hidden;
+        background: var(--cream);
+        border: 1px solid rgba(28, 21, 16, 0.1);
+        border-radius: 30px;
+        box-shadow: 0 18px 45px rgba(61, 48, 40, 0.13);
+      }
+
+      .status {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 74px;
+        padding: 22px 40px 0;
+        color: #050403;
+        font-size: 24px;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      .status-left {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+
+      .muted-bell {
+        width: 14px;
+        height: 19px;
+        border: 3px solid #050403;
+        border-top-color: transparent;
+        border-radius: 10px 10px 5px 5px;
+        transform: rotate(-10deg);
+        position: relative;
+      }
+
+      .muted-bell::after {
+        content: "";
+        position: absolute;
+        left: -5px;
+        top: 6px;
+        width: 25px;
+        height: 3px;
+        background: #050403;
+        transform: rotate(46deg);
+        border-radius: 4px;
+      }
+
+      .status-icons {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+      }
+
+      .signal {
+        display: flex;
+        align-items: flex-end;
+        gap: 3px;
+        height: 20px;
+      }
+
+      .signal span {
+        width: 5px;
+        border-radius: 999px;
+        background: #050403;
+      }
+
+      .signal span:nth-child(1) { height: 9px; opacity: 1; }
+      .signal span:nth-child(2) { height: 13px; opacity: 0.9; }
+      .signal span:nth-child(3) { height: 17px; opacity: 0.28; }
+      .signal span:nth-child(4) { height: 20px; opacity: 0.28; }
+
+      .wifi {
+        width: 28px;
+        height: 20px;
+        border-top: 5px solid #050403;
+        border-left: 5px solid transparent;
+        border-right: 5px solid transparent;
+        border-radius: 20px 20px 0 0;
+        position: relative;
+      }
+
+      .wifi::before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 4px;
+        width: 14px;
+        height: 10px;
+        transform: translateX(-50%);
+        border-top: 4px solid #050403;
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-radius: 16px 16px 0 0;
+      }
+
+      .wifi::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        bottom: 0;
+        width: 5px;
+        height: 5px;
+        transform: translateX(-50%);
+        background: #050403;
+        border-radius: 999px;
+      }
+
+      .battery {
+        min-width: 45px;
+        height: 23px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 7px;
+        border-radius: 11px;
+        background: #35c75a;
+        color: white;
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .screen {
+        position: absolute;
+        inset: 74px 0 0;
+        overflow: hidden;
+        padding: 0 19px;
+      }
+
+      .screen.scroll {
+        overflow-y: auto;
+        scrollbar-width: none;
+      }
+
+      .screen.scroll::-webkit-scrollbar {
+        display: none;
+      }
+
+      .design-screen .title {
+        font-size: 28px;
+      }
+
+      .design-screen .subtitle {
+        font-size: 13px;
+        line-height: 1.35;
+      }
+
+      .design-screen .design-card {
+        margin-top: 14px;
+        padding: 13px 15px;
+      }
+
+      .design-screen .compact-day-list {
+        gap: 6px;
+      }
+
+      .design-screen .compact-day-list .day-row {
+        min-height: 40px;
+        padding: 7px 13px;
+      }
+
+      .top-link {
+        margin: 10px 0 28px;
+        color: var(--clay);
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .step {
+        margin: 15px 0 10px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 2.3px;
+        text-transform: uppercase;
+      }
+
+      .title {
+        font-family: var(--serif);
+        font-size: 31px;
+        font-weight: 400;
+        line-height: 1.08;
+        color: var(--ink);
+      }
+
+      .subtitle {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.45;
+      }
+
+      .session-day {
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom: 12px;
+      }
+
+      .session-preview {
+        font-family: var(--serif);
+        font-size: 19px;
+        color: var(--navy);
+        margin-bottom: 20px;
+      }
+
+      .divider {
+        height: 1px;
+        margin: 0 -19px 18px;
+        background: var(--border);
+      }
+
+      .section-label {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 2.5px;
+        text-transform: uppercase;
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 14px 0 16px;
+      }
+
+      .chip {
+        min-height: 30px;
+        padding: 6px 13px;
+        border: 1.5px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 1.8px;
+        text-transform: uppercase;
+      }
+
+      .chip.easy.selected { border-color: var(--forest); color: var(--forest); background: var(--forest-bg); }
+      .chip.interval.selected { border-color: var(--clay); color: var(--clay); background: var(--clay-bg); }
+      .chip.tempo.selected { border-color: var(--amber); color: var(--amber); background: var(--amber-bg); }
+      .chip.long.selected { border-color: var(--navy); color: var(--navy); background: var(--navy-bg); }
+      .chip.recovery.selected { border-color: var(--recovery); color: var(--recovery); background: var(--recovery-bg); }
+
+      .card {
+        border: 1.5px solid var(--border);
+        border-radius: 18px;
+        background: var(--surface);
+      }
+
+      .notebook-row {
+        min-height: 72px;
+        display: grid;
+        grid-template-columns: 1fr auto 15px;
+        align-items: center;
+        gap: 12px;
+        padding: 16px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .notebook-row:last-child {
+        border-bottom: 0;
+      }
+
+      .row-label {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 2.4px;
+        text-transform: uppercase;
+      }
+
+      .row-value {
+        font-family: var(--mono);
+        font-size: 21px;
+        font-weight: 700;
+        color: var(--ink);
+        white-space: nowrap;
+      }
+
+      .row-caption {
+        margin-top: 5px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .chev {
+        color: var(--muted);
+        font-size: 26px;
+      }
+
+      .distance { color: var(--metric-distance); }
+      .pace { color: var(--metric-pace); }
+      .time { color: var(--metric-time); }
+      .effort { color: var(--metric-effort); }
+
+      .bottom-cta {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        min-height: 96px;
+        padding: 17px 19px 20px;
+        border-top: 1px solid var(--border);
+        background: rgba(253, 250, 245, 0.94);
+      }
+
+      .button {
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        background: var(--clay);
+        color: var(--surface);
+        font-size: 15px;
+        font-weight: 500;
+      }
+
+      .design-card {
+        padding: 17px;
+        margin-top: 20px;
+      }
+
+      .card-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+      }
+
+      .card-title {
+        color: var(--ink);
+        font-size: 15px;
+        font-weight: 500;
+      }
+
+      .card-caption {
+        margin-top: 5px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .day-list {
+        display: grid;
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .compact-day-list {
+        gap: 7px;
+      }
+
+      .day-row {
+        min-height: 52px;
+        display: grid;
+        grid-template-columns: 48px 19px 1fr 26px;
+        align-items: center;
+        gap: 11px;
+        padding: 11px 14px;
+        border: 1.5px solid var(--border);
+        border-radius: 18px;
+        background: var(--surface);
+      }
+
+      .compact-day-list .day-row {
+        min-height: 45px;
+        padding: 8px 13px;
+        border-radius: 15px;
+      }
+
+      .compact-day-list .block-title {
+        font-size: 13px;
+      }
+
+      .compact-day-list .block-sub {
+        font-size: 11px;
+        margin-top: 2px;
+      }
+
+      .day-row.easy { background: var(--forest-bg); border-color: rgba(42, 92, 69, 0.22); }
+      .day-row.interval { background: var(--clay-bg); border-color: rgba(196, 82, 42, 0.22); }
+      .day-row.tempo { background: var(--amber-bg); border-color: rgba(212, 136, 42, 0.22); }
+      .day-row.long { background: var(--navy-bg); border-color: rgba(27, 58, 107, 0.22); }
+      .day-row.recovery { background: var(--recovery-bg); border-color: rgba(111, 91, 167, 0.26); }
+
+      .day-name {
+        font-size: 14px;
+        color: var(--muted);
+      }
+
+      .day-row.easy .day-name { color: var(--forest); }
+      .day-row.interval .day-name { color: var(--clay); }
+      .day-row.tempo .day-name { color: var(--amber); }
+      .day-row.long .day-name { color: var(--navy); }
+      .day-row.recovery .day-name { color: var(--recovery); }
+
+      .dot {
+        width: 11px;
+        height: 11px;
+        border-radius: 999px;
+        background: currentColor;
+      }
+
+      .dot-wrap {
+        position: relative;
+        color: var(--slate);
+        width: 16px;
+        height: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .dot-wrap.easy { color: var(--forest); }
+      .dot-wrap.interval { color: var(--clay); }
+      .dot-wrap.tempo { color: var(--amber); }
+      .dot-wrap.long { color: var(--navy); }
+      .dot-wrap.recovery { color: var(--recovery); }
+      .dot-wrap.rest { color: var(--slate); }
+
+      .dot-wrap.structured::after {
+        content: "";
+        position: absolute;
+        right: -2px;
+        top: -2px;
+        width: 6px;
+        height: 6px;
+        border: 1.5px solid var(--surface);
+        border-radius: 999px;
+        background: currentColor;
+      }
+
+      .dot-wrap.note::before {
+        content: "";
+        position: absolute;
+        left: -2px;
+        bottom: -1px;
+        width: 5px;
+        height: 5px;
+        border-left: 1.5px solid var(--muted);
+        border-bottom: 1.5px solid var(--muted);
+        transform: rotate(-45deg);
+      }
+
+      .grip {
+        display: grid;
+        gap: 4px;
+        justify-items: end;
+      }
+
+      .grip span {
+        width: 20px;
+        height: 3px;
+        border-radius: 999px;
+        background: #9a8e7e;
+      }
+
+      .week-card {
+        margin-top: 18px;
+        padding: 13px;
+        border: 1.5px solid rgba(196, 82, 42, 0.28);
+        border-radius: 14px;
+        background: var(--surface);
+      }
+
+      .week-top {
+        display: grid;
+        grid-template-columns: 48px 1fr auto;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .week-index {
+        color: var(--clay);
+        font-family: var(--mono);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .phase {
+        color: var(--muted);
+        font-size: 11px;
+        text-transform: uppercase;
+      }
+
+      .dots {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+
+      .phase-line {
+        height: 3px;
+        border-radius: 999px;
+        background: var(--navy);
+        margin-bottom: 18px;
+      }
+
+      .block-row {
+        min-height: 64px;
+        display: grid;
+        grid-template-columns: 58px 20px 1fr 28px;
+        gap: 9px;
+        align-items: center;
+      }
+
+      .block-day {
+        color: var(--ink2);
+        font-size: 15px;
+      }
+
+      .block-date {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .block-title {
+        color: var(--ink);
+        font-size: 15px;
+        font-weight: 500;
+      }
+
+      .block-sub {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .segmented {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0;
+        height: 51px;
+        margin: 25px 0 13px;
+        padding: 4px;
+        border: 1.5px solid var(--border);
+        border-radius: 999px;
+        background: var(--card);
+      }
+
+      .segmented div {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .segmented .active {
+        background: var(--surface);
+        color: var(--ink);
+      }
+
+      .summary-week {
+        display: grid;
+        grid-template-columns: 50px 1fr auto;
+        align-items: center;
+        gap: 12px;
+        min-height: 68px;
+      }
+
+      .thin-line {
+        height: 3px;
+        border-radius: 999px;
+        background: var(--navy);
+      }
+
+      .home-volume {
+        margin-top: 12px;
+        padding: 20px;
+      }
+
+      .volume-bar {
+        height: 6px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: var(--border);
+        margin: 18px 0 12px;
+      }
+
+      .volume-bar span {
+        display: block;
+        width: 44%;
+        height: 100%;
+        border-radius: 999px;
+        background: var(--metric-distance);
+      }
+
+      .today-card {
+        margin-top: 20px;
+        padding: 22px;
+        border: 1.8px solid var(--navy);
+        border-radius: 18px;
+        background: linear-gradient(90deg, var(--navy-bg), var(--surface));
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 64px;
+        min-height: 31px;
+        padding: 0 14px;
+        border-radius: 999px;
+        background: currentColor;
+        color: var(--surface);
+        font-size: 13px;
+        letter-spacing: 1.4px;
+        text-transform: uppercase;
+      }
+
+      .tag span {
+        color: var(--surface);
+      }
+
+      .today-title {
+        margin-top: 36px;
+        color: var(--navy);
+        font-family: var(--serif);
+        font-size: 32px;
+        line-height: 1.05;
+      }
+
+      .target-box {
+        margin-top: 23px;
+        padding: 16px;
+        border: 1.4px solid var(--border);
+        border-radius: 14px;
+        background: var(--surface);
+      }
+
+      .mini-week-list {
+        display: grid;
+        gap: 20px;
+        margin-top: 18px;
+      }
+
+      .mini-row {
+        display: grid;
+        grid-template-columns: 52px 20px 1fr auto 28px;
+        gap: 9px;
+        align-items: center;
+      }
+
+      .tabbar {
+        position: absolute;
+        inset: auto 0 0;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: space-around;
+        border-top: 1px solid var(--border);
+        background: rgba(253, 250, 245, 0.96);
+      }
+
+      .tab {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .tab.active {
+        color: var(--clay);
+      }
+
+      .structure-list {
+        display: grid;
+        gap: 9px;
+        margin-top: 13px;
+      }
+
+      .structure-row,
+      .repeat-card {
+        border: 1.5px solid var(--border);
+        border-radius: 14px;
+        background: var(--surface);
+      }
+
+      .structure-row {
+        min-height: 62px;
+        display: grid;
+        grid-template-columns: 30px 1fr auto;
+        align-items: center;
+        gap: 10px;
+        padding: 11px 13px;
+      }
+
+      .repeat-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 11px 13px;
+        border-bottom: 1px solid var(--border);
+        background: var(--card);
+      }
+
+      .repeat-body {
+        display: grid;
+        gap: 8px;
+        padding: 9px;
+      }
+
+      .structure-summary {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-top: 14px;
+      }
+
+      .metric-card {
+        min-height: 62px;
+        padding: 10px;
+        border: 1.5px solid var(--border);
+        border-radius: 13px;
+        background: var(--surface);
+      }
+
+      .metric-label {
+        color: var(--muted);
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+      }
+
+      .metric-num {
+        margin-top: 6px;
+        font-family: var(--mono);
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .warning {
+        margin-top: 12px;
+        padding: 10px 12px;
+        border: 1.4px solid rgba(212, 136, 42, 0.55);
+        border-radius: 12px;
+        background: var(--amber-bg);
+        color: #7b561f;
+        font-size: 11px;
+        line-height: 1.35;
+      }
+
+      .design-screen .title {
+        font-size: 28px;
+      }
+
+      .design-screen .subtitle {
+        font-size: 13px;
+        line-height: 1.35;
+      }
+
+      .design-screen .design-card {
+        margin-top: 14px;
+        padding: 13px 15px;
+      }
+
+      .design-screen .compact-day-list {
+        gap: 6px;
+      }
+
+      .design-screen .compact-day-list .day-row {
+        min-height: 40px;
+        padding: 7px 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="board">
+      <header class="board-title">
+        <div>
+          <div class="kicker">Structured sessions and recovery runs</div>
+          <h1>Add the new elements inside the app screens we already have.</h1>
+        </div>
+        <p>
+          This pass keeps the current edit session, plan builder, review block, and home surfaces intact.
+          The only new surface is the full-screen Run structure editor.
+        </p>
+      </header>
+
+      <section class="grid">
+        <article class="frame">
+          <div class="frame-label">01 - Edit session</div>
+          <div class="phone">
+            <div class="status">
+              <div class="status-left"><span>21:12</span><span class="muted-bell"></span></div>
+              <div class="status-icons"><span class="signal"><span></span><span></span><span></span><span></span></span><span class="wifi"></span><span class="battery">99</span></div>
+            </div>
+            <div class="screen">
+              <div class="top-link">Cancel</div>
+              <div class="session-day">Sunday</div>
+              <div class="session-preview">26km long · 5:33-5:55 · conversational</div>
+              <div class="divider"></div>
+
+              <div class="section-label">Session type</div>
+              <div class="chips">
+                <span class="chip recovery">Recovery</span>
+                <span class="chip">Easy</span>
+                <span class="chip">Interval</span>
+                <span class="chip">Tempo</span>
+                <span class="chip long selected">Long</span>
+                <span class="chip">Rest</span>
+              </div>
+
+              <div class="card">
+                <div class="notebook-row">
+                  <div class="row-label">Distance</div>
+                  <div><span class="row-value">26</span> <span class="row-caption">km</span></div>
+                  <div class="chev">›</div>
+                </div>
+                <div class="notebook-row">
+                  <div>
+                    <div class="row-label">Target pace</div>
+                  </div>
+                  <div>
+                    <div class="row-value">5:33-5:55/km</div>
+                    <div class="row-caption" style="text-align: right">Easy · Training pace</div>
+                  </div>
+                  <div class="chev">›</div>
+                </div>
+                <div class="notebook-row">
+                  <div>
+                    <div class="row-label">Plan note</div>
+                    <div class="row-caption">Take gels every 35min.</div>
+                  </div>
+                  <div></div>
+                  <div class="chev">›</div>
+                </div>
+                <div class="notebook-row">
+                  <div>
+                    <div class="row-label">Run structure</div>
+                    <div class="row-caption">3 × 3km MP off 1km float</div>
+                  </div>
+                  <div class="dot-wrap long structured"><span class="dot"></span></div>
+                  <div class="chev">›</div>
+                </div>
+              </div>
+
+              <div class="bottom-cta"><div class="button">Update session</div></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="frame">
+          <div class="frame-label">02 - Design your week</div>
+          <div class="phone">
+            <div class="status">
+              <div class="status-left"><span>21:12</span><span class="muted-bell"></span></div>
+              <div class="status-icons"><span class="signal"><span></span><span></span><span></span><span></span></span><span class="wifi"></span><span class="battery">99</span></div>
+            </div>
+            <div class="screen scroll design-screen">
+              <div class="step">Step 5 of 6</div>
+              <h2 class="title">Design your week</h2>
+              <div class="subtitle">This pattern repeats across all 16 weeks. Tap any day to adjust, or drag the grip to move it.</div>
+
+              <div class="card design-card">
+                <div class="section-label">Starting point</div>
+                <div class="card-row" style="margin-top: 10px">
+                  <div>
+                    <div class="card-title">6-run template</div>
+                    <div class="card-caption">Recommended base · ~70.4 km / week</div>
+                  </div>
+                  <div style="color: var(--clay); font-size: 14px">Change</div>
+                </div>
+              </div>
+
+              <div class="card design-card" style="padding: 14px 16px">
+                <div class="card-row">
+                  <div>
+                    <div class="card-title">Weekly layout</div>
+                    <div class="card-caption">Use the grip to move sessions between days.</div>
+                  </div>
+                  <div class="row-value distance" style="font-size: 14px">~70.4 km / week</div>
+                </div>
+              </div>
+
+              <div class="day-list compact-day-list">
+                <div class="day-row easy"><div class="day-name">Mon</div><div class="dot-wrap easy"><span class="dot"></span></div><div><div class="block-title">8km · 5:33-5:55</div><div class="block-sub">Easy Run · conversational pace</div></div><div class="grip"><span></span><span></span><span></span></div></div>
+                <div class="day-row interval"><div class="day-name">Tue</div><div class="dot-wrap interval"><span class="dot"></span></div><div><div class="block-title">6×800m · 3:53-4:04</div><div class="block-sub">Intervals · hard repeatable</div></div><div class="grip"><span></span><span></span><span></span></div></div>
+                <div class="day-row recovery"><div class="day-name">Wed</div><div class="dot-wrap recovery"><span class="dot"></span></div><div><div class="block-title">35min · very easy</div><div class="block-sub">Recovery · recovery effort</div></div><div class="grip"><span></span><span></span><span></span></div></div>
+                <div class="day-row tempo"><div class="day-name">Thu</div><div class="dot-wrap tempo structured"><span class="dot"></span></div><div><div class="block-title">3×10min · 4:21-4:32</div><div class="block-sub">Tempo · threshold focus</div></div><div class="grip"><span></span><span></span><span></span></div></div>
+                <div class="day-row"><div class="day-name">Fri</div><div class="dot-wrap rest"><span class="dot"></span></div><div><div class="block-title">Rest day</div><div class="block-sub">No run</div></div><div class="grip"><span></span><span></span><span></span></div></div>
+                <div class="day-row easy"><div class="day-name">Sat</div><div class="dot-wrap easy structured"><span class="dot"></span></div><div><div class="block-title">8km · strides</div><div class="block-sub">Easy Run · 6 × 20s sharp</div></div><div class="grip"><span></span><span></span><span></span></div></div>
+                <div class="day-row long"><div class="day-name">Sun</div><div class="dot-wrap long structured note"><span class="dot"></span></div><div><div class="block-title">26km · 3×3km MP</div><div class="block-sub">Long Run · marathon pace focus</div></div><div class="grip"><span></span><span></span><span></span></div></div>
+              </div>
+
+              <div class="card design-card">
+                <div class="card-row">
+                  <div class="section-label">Template volume</div>
+                  <div class="row-value distance" style="font-size: 14px">~70.4 km / week</div>
+                </div>
+              </div>
+              <div class="subtitle" style="font-size: 12px; margin-bottom: 112px">Includes warm-up, cool-down, and recovery jogging between reps.</div>
+
+              <div class="bottom-cta"><div class="button">Generate 16-week plan →</div></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="frame">
+          <div class="frame-label">03 - Review your block</div>
+          <div class="phone">
+            <div class="status">
+              <div class="status-left"><span>21:12</span><span class="muted-bell"></span></div>
+              <div class="status-icons"><span class="signal"><span></span><span></span><span></span><span></span></span><span class="wifi"></span><span class="battery">99</span></div>
+            </div>
+            <div class="screen scroll">
+              <div class="step">Step 6 of 6</div>
+              <h2 class="title">Review your block</h2>
+              <div class="subtitle">Tap a week to inspect or edit sessions.</div>
+              <div class="segmented"><div>Structure</div><div class="active">Weeks</div></div>
+
+              <div class="week-card">
+                <div class="week-top">
+                  <div><div class="week-index">W1</div><div class="phase">Base</div></div>
+                  <div class="dots">
+                    <div class="dot-wrap easy"><span class="dot"></span></div>
+                    <div class="dot-wrap interval"><span class="dot"></span></div>
+                    <div class="dot-wrap recovery"><span class="dot"></span></div>
+                    <div class="dot-wrap tempo structured"><span class="dot"></span></div>
+                    <div class="dot-wrap rest"><span class="dot"></span></div>
+                    <div class="dot-wrap easy structured"><span class="dot"></span></div>
+                    <div class="dot-wrap long structured note"><span class="dot"></span></div>
+                  </div>
+                  <div class="row-value" style="font-size: 13px">70km</div>
+                </div>
+                <div class="phase-line"></div>
+                <div class="block-row"><div><div class="block-day">Mon</div><div class="block-date">27 Apr</div></div><div class="dot-wrap easy"><span class="dot"></span></div><div><div class="block-title">8km · 5:33-5:55</div><div class="block-sub">Easy Run · conversational pace</div></div><div class="grip"><span></span><span></span><span></span></div></div>
+                <div class="block-row"><div><div class="block-day">Tue</div><div class="block-date">28 Apr</div></div><div class="dot-wrap interval"><span class="dot"></span></div><div><div class="block-title">6×800m · 3:53-4:04</div><div class="block-sub">Intervals · hard repeatable</div></div><div class="grip"><span></span><span></span><span></span></div></div>
+                <div class="block-row"><div><div class="block-day">Wed</div><div class="block-date">29 Apr</div></div><div class="dot-wrap recovery"><span class="dot"></span></div><div><div class="block-title">35min · very easy</div><div class="block-sub">Recovery · recovery effort</div></div><div class="grip"><span></span><span></span><span></span></div></div>
+                <div class="block-row"><div><div class="block-day">Thu</div><div class="block-date">30 Apr</div></div><div class="dot-wrap tempo structured"><span class="dot"></span></div><div><div class="block-title">3×10min · threshold</div><div class="block-sub">Tempo · 2min jog recoveries</div></div><div class="grip"><span></span><span></span><span></span></div></div>
+                <div class="block-row"><div><div class="block-day">Fri</div><div class="block-date">1 May</div></div><div class="dot-wrap rest"><span class="dot"></span></div><div><div class="block-title">Rest day</div><div class="block-sub">No run</div></div><div class="grip"><span></span><span></span><span></span></div></div>
+                <div class="block-row"><div><div class="block-day">Sat</div><div class="block-date">2 May</div></div><div class="dot-wrap easy structured"><span class="dot"></span></div><div><div class="block-title">8km · strides</div><div class="block-sub">Easy Run · 6 × 20s sharp</div></div><div class="grip"><span></span><span></span><span></span></div></div>
+                <div class="block-row"><div><div class="block-day">Sun</div><div class="block-date">3 May</div></div><div class="dot-wrap long structured note"><span class="dot"></span></div><div><div class="block-title">26km · 3×3km MP</div><div class="block-sub">Long Run · 1km float recoveries</div></div><div class="grip"><span></span><span></span><span></span></div></div>
+              </div>
+
+              <div class="summary-week"><div><div class="week-index" style="color: var(--muted)">W2</div><div class="phase">Base</div></div><div class="dots"><div class="dot-wrap easy"><span class="dot"></span></div><div class="dot-wrap interval"><span class="dot"></span></div><div class="dot-wrap recovery"><span class="dot"></span></div><div class="dot-wrap tempo"><span class="dot"></span></div><div class="dot-wrap rest"><span class="dot"></span></div><div class="dot-wrap easy"><span class="dot"></span></div><div class="dot-wrap long"><span class="dot"></span></div></div><div class="row-value" style="font-size: 13px">70km</div></div>
+              <div class="thin-line"></div>
+              <div class="summary-week"><div><div class="week-index" style="color: var(--muted)">W3</div><div class="phase">Base</div></div><div class="dots"><div class="dot-wrap easy"><span class="dot"></span></div><div class="dot-wrap interval"><span class="dot"></span></div><div class="dot-wrap recovery"><span class="dot"></span></div><div class="dot-wrap tempo"><span class="dot"></span></div><div class="dot-wrap rest"><span class="dot"></span></div><div class="dot-wrap easy"><span class="dot"></span></div><div class="dot-wrap long"><span class="dot"></span></div></div><div class="row-value" style="font-size: 13px">70km</div></div>
+              <div class="thin-line"></div>
+              <div style="height: 130px"></div>
+
+              <div class="bottom-cta"><div class="button">Save plan and start training →</div></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="frame">
+          <div class="frame-label">04 - Home / block today</div>
+          <div class="phone">
+            <div class="status">
+              <div class="status-left"><span>21:13</span><span class="muted-bell"></span></div>
+              <div class="status-icons"><span class="signal"><span></span><span></span><span></span><span></span></span><span class="wifi"></span><span class="battery">99</span></div>
+            </div>
+            <div class="screen scroll" style="padding-bottom: 86px">
+              <div class="step" style="margin-top: 36px">Apr 27 - 3 · 2026</div>
+              <h2 class="title" style="font-size: 34px">Week 1 · Base Phase</h2>
+
+              <div class="card home-volume">
+                <div class="card-row">
+                  <div class="section-label">Weekly volume⌄</div>
+                  <div class="row-value distance" style="font-size: 16px">29.8km <span style="color: var(--muted)">/ 67.5km</span></div>
+                </div>
+                <div class="volume-bar"><span></span></div>
+                <div class="card-title" style="font-size: 14px">A little over planned mileage</div>
+              </div>
+
+              <div class="today-card">
+                <div class="card-row">
+                  <div class="tag" style="color: var(--navy)"><span>Long</span></div>
+                  <div style="color: var(--amber); font-size: 11px; letter-spacing: 1.7px; text-transform: uppercase">Today</div>
+                </div>
+                <div class="today-title">26km Long Run</div>
+                <div class="subtitle">Sunday, May 3</div>
+                <div class="target-box">
+                  <div class="card-caption">Focus</div>
+                  <div class="effort" style="font-size: 24px; margin-top: 7px">Marathon pace</div>
+                  <div class="pace" style="font-family: var(--mono); font-size: 16px; font-weight: 700; margin-top: 8px">3 × 3km MP off 1km float</div>
+                </div>
+                <div class="button" style="margin-top: 27px">✓ I finished this run</div>
+                <div class="card-caption" style="text-align: center; margin-top: 12px">Looks for a recent Strava activity.</div>
+              </div>
+
+              <div class="step" style="margin-top: 30px">This week</div>
+              <div class="mini-week-list">
+                <div class="mini-row"><div><div class="block-day">Mon</div><div class="block-date">Apr 27</div></div><div class="dot-wrap easy"><span class="dot"></span></div><div><div class="block-title">12km · 5:33-5:55</div><div class="block-sub">Easy Run · conversational pace</div></div><div class="card-caption">12.6k</div><div style="color: var(--forest); font-size: 20px">✓</div></div>
+                <div class="mini-row"><div><div class="block-day">Tue</div><div class="block-date">Apr 28</div></div><div class="dot-wrap interval"><span class="dot"></span></div><div><div class="block-title">6×400m · 3:40-3:50</div><div class="block-sub">Intervals · hard repeatable</div></div><div class="card-caption">9.2k</div><div style="color: var(--forest); font-size: 20px">✓</div></div>
+                <div class="mini-row"><div><div class="block-day">Wed</div><div class="block-date">Apr 29</div></div><div class="dot-wrap recovery"><span class="dot"></span></div><div><div class="block-title">35min · very easy</div><div class="block-sub">Recovery · recovery effort</div></div><div class="card-caption">35m</div><div></div></div>
+              </div>
+              <nav class="tabbar"><div class="tab active">Home</div><div class="tab">Block</div><div class="tab">Settings</div></nav>
+            </div>
+          </div>
+        </article>
+
+        <article class="frame">
+          <div class="frame-label">05 - Run structure</div>
+          <div class="phone">
+            <div class="status">
+              <div class="status-left"><span>21:12</span><span class="muted-bell"></span></div>
+              <div class="status-icons"><span class="signal"><span></span><span></span><span></span><span></span></span><span class="wifi"></span><span class="battery">99</span></div>
+            </div>
+            <div class="screen scroll">
+              <div class="top-link">Cancel</div>
+              <div class="session-day">Sunday</div>
+              <div class="session-preview">26km long · 3×3km MP off 1km float</div>
+              <div class="divider"></div>
+
+              <div class="section-label">Run structure</div>
+              <div class="structure-summary">
+                <div class="metric-card"><div class="metric-label">Adds up to</div><div class="metric-num distance">26km</div></div>
+                <div class="metric-card"><div class="metric-label">Quality</div><div class="metric-num distance">9km</div></div>
+                <div class="metric-card"><div class="metric-label">Repeats</div><div class="metric-num">3</div></div>
+              </div>
+
+              <div class="structure-list">
+                <div class="structure-row"><div class="grip"><span></span><span></span><span></span></div><div><div class="block-title">Warm-up</div><div class="block-sub">Easy range · conversational</div></div><div class="row-value distance" style="font-size: 13px">5km</div></div>
+                <div class="repeat-card">
+                  <div class="repeat-head"><div class="block-title">Repeat group</div><div class="row-caption">3 rounds</div></div>
+                  <div class="repeat-body">
+                    <div class="structure-row"><div class="grip"><span></span><span></span><span></span></div><div><div class="block-title">Run</div><div class="block-sub">Marathon pace · race pace</div></div><div class="row-value distance" style="font-size: 13px">3km</div></div>
+                    <div class="structure-row"><div class="grip"><span></span><span></span><span></span></div><div><div class="block-title">Float</div><div class="block-sub">Steady range · controlled</div></div><div class="row-value distance" style="font-size: 13px">1km</div></div>
+                  </div>
+                </div>
+                <div class="structure-row"><div class="grip"><span></span><span></span><span></span></div><div><div class="block-title">Run</div><div class="block-sub">Easy range · finish relaxed</div></div><div class="row-value distance" style="font-size: 13px">9km</div></div>
+              </div>
+
+              <div class="card" style="margin-top: 13px">
+                <div class="notebook-row">
+                  <div><div class="row-label">Plan note</div><div class="row-caption">Take gels every 35min. Do not force the final easy section.</div></div>
+                  <div></div>
+                  <div class="chev">›</div>
+                </div>
+              </div>
+
+              <div style="height: 104px"></div>
+              <div class="bottom-cta"><div class="button">Save run structure</div></div>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

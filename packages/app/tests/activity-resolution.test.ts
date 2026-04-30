@@ -128,7 +128,7 @@ describe('createActivityResolution', () => {
     expect(resolution.statusForDay(session, 0, 0)).toBe('completed');
   });
 
-  it('ignores a loaded linked activity when its local date no longer matches the session date', () => {
+  it('keeps an explicit cross-date link openable so the runner can review or unmatch it', () => {
     const resolution = createActivityResolution([
       {
         id: 'activity-1',
@@ -151,6 +151,38 @@ describe('createActivityResolution', () => {
       distance: 20,
       pace: '5:10',
       actualActivityId: 'activity-1',
+    };
+
+    expect(resolution.activityForSession(session)).toMatchObject({ id: 'activity-1' });
+    expect(resolution.activityIdForSession(session)).toBe('activity-1');
+    expect(resolution.isSessionComplete(session)).toBe(true);
+    expect(resolution.completionStatusForSession(session)).toBe('off-target');
+    expect(resolution.statusForDay(session, 0, 0)).toBe('off-target');
+    expect(resolution.weekActualKm([session])).toBe(12);
+  });
+
+  it('ignores a passive matched-session activity when its local date no longer matches the session date', () => {
+    const resolution = createActivityResolution([
+      {
+        id: 'activity-1',
+        userId: 'user-1',
+        source: 'strava',
+        externalId: 'strava-1',
+        startTime: '2026-04-12T16:04:00.000Z',
+        distance: 12,
+        duration: 4316,
+        avgPace: 359,
+        avgHR: 150,
+        splits: [],
+        matchedSessionId: 'session-1',
+      },
+    ]);
+    const session = {
+      id: 'session-1',
+      type: 'LONG' as const,
+      date: '2026-04-20',
+      distance: 20,
+      pace: '5:10',
     };
 
     expect(resolution.activityForSession(session)).toBeUndefined();

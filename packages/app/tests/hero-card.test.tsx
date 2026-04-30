@@ -5,6 +5,7 @@ import { vi, describe, it, expect } from 'vitest';
 vi.mock('../lib/trpc', () => ({ trpc: {} }));
 
 import { TodayHeroCard } from '../components/home/TodayHeroCard';
+import { C } from '../constants/colours';
 
 describe('TodayHeroCard', () => {
   it('shows session type label, distance, and pace for an easy run', () => {
@@ -360,6 +361,55 @@ describe('TodayHeroCard', () => {
 
     const typeChip = screen.getByTestId('hero-type-chip');
     expect(typeChip.getAttribute('style')).toContain('background-color: rgb(212, 136, 42)');
+  });
+
+  it.each([
+    [
+      'EASY',
+      `${C.forest}0C|${C.forest}07|${C.forest}02|${C.forest}00`,
+    ],
+    [
+      'INTERVAL',
+      `${C.clay}0C|${C.clay}07|${C.clay}02|${C.clay}00`,
+    ],
+    [
+      'TEMPO',
+      `${C.amber}0C|${C.amber}07|${C.amber}02|${C.amber}00`,
+    ],
+    [
+      'LONG',
+      `${C.navy}0C|${C.navy}07|${C.navy}02|${C.navy}00`,
+    ],
+  ] as const)('uses the %s session atmosphere on planned cards', (
+    type,
+    expectedGradient,
+  ) => {
+    render(
+      <TodayHeroCard
+        session={{
+          id: `s-${type.toLowerCase()}`,
+          type,
+          date: '2026-04-09',
+          distance: 8,
+          pace: type === 'INTERVAL' ? '3:50' : '5:20',
+          reps: type === 'INTERVAL' ? 6 : undefined,
+          repDist: type === 'INTERVAL' ? 400 : undefined,
+          recovery: type === 'INTERVAL' ? '90s' : undefined,
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('hero-card').getAttribute('style')).toContain(
+      'background-color: rgb(253, 250, 245)',
+    );
+    expect(screen.getByTestId('hero-card-atmosphere').getAttribute('data-colors')).toBe(
+      expectedGradient,
+    );
+    expect(screen.getByTestId('hero-card-atmosphere').getAttribute('data-locations')).toBe(
+      '0|0.34|0.68|1',
+    );
+    expect(screen.getByTestId('hero-card-atmosphere').getAttribute('data-start')).toBe('0|0.5');
+    expect(screen.getByTestId('hero-card-atmosphere').getAttribute('data-end')).toBe('1|0.5');
   });
 
   it('shows completed state with actual distance and pace when activity exists', () => {

@@ -7,6 +7,7 @@ import { isSessionSelectable } from '../../features/sync/sync-run-detail';
 import { usePreferences } from '../../providers/preferences-context';
 import {
   formatDistance,
+  type DistanceUnits,
   formatIntensityTargetDisplay,
   formatPace,
   formatSessionTitle,
@@ -24,6 +25,17 @@ function formatRunSummaryDate(startTime: string): string {
 function formatSessionDate(date: string): string {
   const value = new Date(`${date}T00:00:00Z`);
   return `${WEEKDAYS[value.getUTCDay()]} ${MONTHS[value.getUTCMonth()]} ${value.getUTCDate()}`;
+}
+
+function formatSessionOptionTitle(
+  session: PlannedSession,
+  units: DistanceUnits,
+  todaySessionId?: string | null,
+): string {
+  const dayLabel = session.id === todaySessionId
+    ? 'Today'
+    : WEEKDAYS[new Date(`${session.date}T00:00:00Z`).getUTCDay()];
+  return `${dayLabel} · ${formatSessionTitle(session, units)}`;
 }
 
 interface MatchPickerModalProps {
@@ -50,6 +62,18 @@ export function MatchPickerModal({
   onConfirm,
 }: MatchPickerModalProps) {
   const { units } = usePreferences();
+  const currentMatchedSessionId = activity.matchedSessionId ?? null;
+  const currentMatchedSession = currentMatchedSessionId
+    ? sessionOptions.find((session) => session.id === currentMatchedSessionId) ?? null
+    : null;
+  const hasCurrentMatch = Boolean(currentMatchedSessionId);
+  const title = hasCurrentMatch
+    ? "Change this run's match"
+    : 'Match this run to the plan';
+  const description = hasCurrentMatch
+    ? 'Move it to a different session, or unmatch it and keep the run as bonus mileage.'
+    : 'Choose the planned session this run belongs to, or keep it as a bonus run.';
+  const unmatchSelected = hasCurrentMatch && selectedSessionId == null;
 
   return (
     <SyncRunModalShell
@@ -59,10 +83,8 @@ export function MatchPickerModal({
       rightActionLabel="Done"
       onRightAction={onConfirm}
     >
-      <Text style={styles.screenTitle}>Match this run to the plan</Text>
-      <Text style={styles.screenSub}>
-        Choose the planned session this run belongs to, or keep it as a bonus run.
-      </Text>
+      <Text style={styles.screenTitle}>{title}</Text>
+      <Text style={styles.screenSub}>{description}</Text>
 
       <View style={styles.runSummary}>
         <View style={styles.summaryIcon}>
@@ -79,12 +101,58 @@ export function MatchPickerModal({
         </View>
       </View>
 
-      <Text style={styles.groupLabel}>Planned sessions</Text>
+      {hasCurrentMatch ? (
+        <>
+          <Text style={styles.groupLabel}>Current match</Text>
+          <View style={styles.currentMatchCard}>
+            <View style={styles.currentMatchBody}>
+              <Text style={styles.currentMatchTitle}>
+                {currentMatchedSession
+                  ? formatSessionOptionTitle(currentMatchedSession, units, todaySessionId)
+                  : 'Session no longer available'}
+              </Text>
+              <Text style={styles.currentMatchSub}>
+                {currentMatchedSession
+                  ? `${formatSessionDate(currentMatchedSession.date)} · currently linked`
+                  : 'Unmatch this run before saving or choose another session below.'}
+              </Text>
+            </View>
+            <Text style={[styles.optionTag, styles.optionTagCurrent]}>CURRENT</Text>
+          </View>
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => onSelect(null)}
+            style={[styles.option, styles.unmatchOption, unmatchSelected && styles.unmatchOptionSelected]}
+          >
+            <View style={[styles.radio, unmatchSelected && styles.radioSelected]}>
+              <View style={[styles.radioDot, unmatchSelected && styles.radioDotSelected]} />
+            </View>
+            <View style={styles.optionBody}>
+              <Text style={styles.optionTitle}>Unmatch this run</Text>
+              <Text style={styles.optionSub}>
+                {unmatchSelected
+                  ? 'Will become bonus mileage after you save.'
+                  : 'Remove the planned-session link and keep the run as bonus mileage.'}
+              </Text>
+            </View>
+            <Text style={[styles.optionTag, unmatchSelected ? styles.optionTagSuggested : styles.optionTagUnmatch]}>
+              {unmatchSelected ? 'PENDING' : 'UNMATCH'}
+            </Text>
+          </Pressable>
+
+          <View style={styles.divider} />
+        </>
+      ) : null}
+
+      <Text style={styles.groupLabel}>{hasCurrentMatch ? 'Change to another session' : 'Planned sessions'}</Text>
       {sessionOptions.map((session) => {
         const selected = selectedSessionId === session.id;
         const selectable = isSessionSelectable(session, activity.id);
         const tag = !selectable
           ? 'TAKEN'
+          : session.id === currentMatchedSessionId
+            ? 'CURRENT'
           : session.id === recommendedSessionId
             ? 'SUGGESTED'
             : session.id === todaySessionId
@@ -112,7 +180,7 @@ export function MatchPickerModal({
             </View>
             <View style={styles.optionBody}>
               <Text style={styles.optionTitle}>
-                {session.id === todaySessionId ? 'Today' : WEEKDAYS[new Date(`${session.date}T00:00:00Z`).getUTCDay()]} · {formatSessionTitle(session, units)}
+                {formatSessionOptionTitle(session, units, todaySessionId)}
               </Text>
               <Text style={styles.optionSub}>
                 {formatSessionDate(session.date)}{target ? ` · target ${target}` : ''}
@@ -122,6 +190,7 @@ export function MatchPickerModal({
               style={[
                 styles.optionTag,
                 tag === 'TAKEN' && styles.optionTagTaken,
+                tag === 'CURRENT' && styles.optionTagCurrent,
                 tag === 'SUGGESTED' && styles.optionTagSuggested,
                 tag === 'TODAY' && styles.optionTagToday,
                 tag === 'PAST' && styles.optionTagPast,
@@ -133,21 +202,25 @@ export function MatchPickerModal({
         );
       })}
 
-      <View style={styles.divider} />
-      <Text style={styles.groupLabel}>Keep unmatched</Text>
-      <Pressable
-        onPress={() => onSelect(null)}
-        style={[styles.option, selectedSessionId == null && styles.optionSelected]}
-      >
-        <View style={[styles.radio, selectedSessionId == null && styles.radioSelected]}>
-          <View style={[styles.radioDot, selectedSessionId == null && styles.radioDotSelected]} />
-        </View>
-        <View style={styles.optionBody}>
-          <Text style={styles.optionTitle}>Bonus run</Text>
-          <Text style={styles.optionSub}>Keep this run as extra mileage with no planned session attached</Text>
-        </View>
-        <Text style={[styles.optionTag, styles.optionTagNeutral]}>BONUS</Text>
-      </Pressable>
+      {!hasCurrentMatch ? (
+        <>
+          <View style={styles.divider} />
+          <Text style={styles.groupLabel}>Keep unmatched</Text>
+          <Pressable
+            onPress={() => onSelect(null)}
+            style={[styles.option, selectedSessionId == null && styles.optionSelected]}
+          >
+            <View style={[styles.radio, selectedSessionId == null && styles.radioSelected]}>
+              <View style={[styles.radioDot, selectedSessionId == null && styles.radioDotSelected]} />
+            </View>
+            <View style={styles.optionBody}>
+              <Text style={styles.optionTitle}>Bonus run</Text>
+              <Text style={styles.optionSub}>Keep this run as extra mileage with no planned session attached</Text>
+            </View>
+            <Text style={[styles.optionTag, styles.optionTagNeutral]}>BONUS</Text>
+          </Pressable>
+        </>
+      ) : null}
     </SyncRunModalShell>
   );
 }
@@ -207,6 +280,32 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: C.muted,
   },
+  currentMatchCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: C.surface,
+    marginBottom: 10,
+  },
+  currentMatchBody: {
+    flex: 1,
+  },
+  currentMatchTitle: {
+    fontFamily: FONTS.serifBold,
+    fontSize: 15,
+    color: C.ink,
+    marginBottom: 3,
+  },
+  currentMatchSub: {
+    fontFamily: FONTS.sans,
+    fontSize: 12,
+    color: C.muted,
+  },
   groupLabel: {
     fontFamily: FONTS.sansSemiBold,
     fontSize: 10,
@@ -234,6 +333,15 @@ const styles = StyleSheet.create({
   },
   optionDisabled: {
     opacity: 0.45,
+  },
+  unmatchOption: {
+    borderColor: 'rgba(196,82,42,0.36)',
+    backgroundColor: C.clayBg,
+  },
+  unmatchOptionSelected: {
+    borderWidth: 1.5,
+    borderColor: C.forest,
+    backgroundColor: C.forestBg,
   },
   radio: {
     width: 22,
@@ -287,11 +395,19 @@ const styles = StyleSheet.create({
     color: C.surface,
     backgroundColor: C.clay,
   },
+  optionTagCurrent: {
+    color: C.surface,
+    backgroundColor: C.forest,
+  },
   optionTagToday: {
     color: C.surface,
     backgroundColor: C.navy,
   },
   optionTagPast: {
+    color: C.surface,
+    backgroundColor: C.clay,
+  },
+  optionTagUnmatch: {
     color: C.surface,
     backgroundColor: C.clay,
   },

@@ -173,6 +173,62 @@ describe('buildWeeklyVolumeSummary', () => {
     expect(summary.actualDistanceKm).toBe(8);
   });
 
+  it('counts an explicit cross-date match against the linked session', () => {
+    const summary = buildWeeklyVolumeSummary({
+      today: '2026-04-09',
+      weekStartDate: '2026-04-06',
+      sessions: [
+        null,
+        null,
+        session({ id: 'wed', date: '2026-04-08', actualActivityId: 'activity-1' }),
+      ],
+      activities: [
+        activity({
+          id: 'activity-1',
+          matchedSessionId: 'wed',
+          startTime: '2026-04-07T18:00:00.000Z',
+          distance: 8.2,
+          duration: 2480,
+        }),
+      ],
+    });
+
+    expect(summary.days[2]).toMatchObject({
+      actualDistanceKm: 8.2,
+      actualSeconds: 2480,
+      status: 'over',
+    });
+    expect(summary.actualDistanceKm).toBe(8.2);
+  });
+
+  it('ignores a passive cross-date matched-session activity', () => {
+    const summary = buildWeeklyVolumeSummary({
+      today: '2026-04-09',
+      weekStartDate: '2026-04-06',
+      sessions: [
+        null,
+        null,
+        session({ id: 'wed', date: '2026-04-08' }),
+      ],
+      activities: [
+        activity({
+          id: 'activity-1',
+          matchedSessionId: 'wed',
+          startTime: '2026-04-07T18:00:00.000Z',
+          distance: 8.2,
+          duration: 2480,
+        }),
+      ],
+    });
+
+    expect(summary.days[2]).toMatchObject({
+      actualDistanceKm: 0,
+      actualSeconds: 0,
+      status: 'missed',
+    });
+    expect(summary.actualDistanceKm).toBe(0);
+  });
+
   it('exposes exact distance overrun for chart tooltips', () => {
     const summary = buildWeeklyVolumeSummary({
       today: '2026-04-06',

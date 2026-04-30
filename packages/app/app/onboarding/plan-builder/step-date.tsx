@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -64,6 +64,7 @@ export default function StepDate() {
   const [raceDate, setRaceDate] = useState(() => defaultRaceDate(todayIso));
   const [raceName, setRaceName] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const raceNameInputRef = useRef<TextInput>(null);
 
   const weeks = weeksToRace(todayIso, raceDate);
 
@@ -108,18 +109,24 @@ export default function StepDate() {
 
         <View style={styles.section}>
           <SectionLabel>Race name</SectionLabel>
-          <View style={styles.inputBox}>
+          <Pressable
+            onPress={() => raceNameInputRef.current?.focus()}
+            style={styles.inputBox}
+            testID="race-name-field"
+          >
             <SearchIcon />
             <TextInput
+              ref={raceNameInputRef}
               value={raceName}
               onChangeText={setRaceName}
               placeholder={race === 'Ultra' ? 'e.g. UTMB 2026' : 'e.g. London Marathon'}
               placeholderTextColor={C.muted}
               selectionColor={C.clay}
               style={styles.input}
+              testID="race-name-input"
             />
             <Text style={styles.optionalLabel}>optional</Text>
-          </View>
+          </Pressable>
         </View>
       </ScrollView>
 

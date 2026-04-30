@@ -55,6 +55,7 @@ const appTestHarness = vi.hoisted(() => {
   };
   const useLocalSearchParams = vi.fn(() => ({}));
   const useIsFocused = vi.fn(() => true);
+  const usePreventRemove = vi.fn();
   const asyncStorage = {
     getItem: vi.fn(),
     setItem: vi.fn(),
@@ -91,6 +92,7 @@ const appTestHarness = vi.hoisted(() => {
     router,
     useLocalSearchParams,
     useIsFocused,
+    usePreventRemove,
     asyncStorage,
     linking,
     queryParams,
@@ -129,8 +131,21 @@ vi.mock('expo-font', () => ({
 vi.mock('expo-splash-screen', () => appTestHarness.splashScreen);
 
 vi.mock('expo-linear-gradient', () => ({
-  LinearGradient: ({ children }: { children: any }) =>
-    React.createElement(React.Fragment, null, children),
+  LinearGradient: ({ children, colors, end, locations, start, testID }: any) =>
+    testID
+      ? React.createElement(
+          'div',
+          {
+            'data-testid': testID,
+            'data-colors': Array.isArray(colors) ? colors.join('|') : undefined,
+            'data-end': end ? `${end.x}|${end.y}` : undefined,
+            'data-locations': Array.isArray(locations) ? locations.join('|') : undefined,
+            'data-start': start ? `${start.x}|${start.y}` : undefined,
+            'data-rn': 'LinearGradient',
+          },
+          children,
+        )
+      : React.createElement(React.Fragment, null, children),
 }));
 
 vi.mock('react-native-reanimated', () => {
@@ -207,6 +222,7 @@ vi.mock('expo-haptics', () => ({
 
 vi.mock('@react-navigation/native', () => ({
   useIsFocused: () => appTestHarness.useIsFocused(),
+  usePreventRemove: appTestHarness.usePreventRemove,
 }));
 
 vi.mock('react-native-safe-area-context', () => ({
@@ -275,6 +291,7 @@ beforeEach(() => {
 
   appTestHarness.useIsFocused.mockReset();
   appTestHarness.useIsFocused.mockReturnValue(true);
+  appTestHarness.usePreventRemove.mockReset();
 
   appTestHarness.asyncStorage.getItem.mockReset();
   appTestHarness.asyncStorage.getItem.mockResolvedValue(null);
