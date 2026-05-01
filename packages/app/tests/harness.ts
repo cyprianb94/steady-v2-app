@@ -166,6 +166,7 @@ vi.mock('react-native-reanimated', () => {
     entering: _entering,
     exiting: _exiting,
     layout: _layout,
+    onLayout: _onLayout,
     style,
     ...props
   }: any) {

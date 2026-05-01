@@ -205,7 +205,7 @@ export const TextInput = React.forwardRef(function MockTextInput(
 });
 
 export const ScrollView = React.forwardRef(function MockScrollView(
-  { testID, children, style, automaticallyAdjustKeyboardInsets: _automaticallyAdjustKeyboardInsets, contentContainerStyle: _contentContainerStyle, showsVerticalScrollIndicator: _showsVerticalScrollIndicator, snapToInterval: _snapToInterval, decelerationRate: _decelerationRate, nestedScrollEnabled: _nestedScrollEnabled, scrollEnabled = true, keyboardDismissMode: _keyboardDismissMode, keyboardShouldPersistTaps: _keyboardShouldPersistTaps, onMomentumScrollEnd: _onMomentumScrollEnd, refreshControl: _refreshControl, ...props }: any,
+  { testID, children, style, automaticallyAdjustKeyboardInsets: _automaticallyAdjustKeyboardInsets, contentContainerStyle: _contentContainerStyle, showsVerticalScrollIndicator: _showsVerticalScrollIndicator, snapToInterval: _snapToInterval, decelerationRate: _decelerationRate, nestedScrollEnabled: _nestedScrollEnabled, scrollEnabled = true, keyboardDismissMode: _keyboardDismissMode, keyboardShouldPersistTaps: _keyboardShouldPersistTaps, onLayout: _onLayout, onMomentumScrollEnd: _onMomentumScrollEnd, refreshControl: _refreshControl, scrollEventThrottle: _scrollEventThrottle, ...props }: any,
   ref: any,
 ) {
   const resolved = style ? resolveStyle(style) : undefined;

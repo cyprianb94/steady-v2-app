@@ -61,7 +61,7 @@ vi.mock('../lib/plan-api', () => ({
   updatePlanWeeks: mockUpdatePlanWeeks,
 }));
 
-import BlockTab from '../app/(tabs)/block';
+import BlockTab, { getRescheduleRevealScrollTarget } from '../app/(tabs)/block';
 import {
   consumeSessionEditReturn,
   stashSessionEditReturn,
@@ -252,6 +252,22 @@ describe('BlockTab session rearrange', () => {
     expect(input[1].sessions[2]?.id).toBe('w2-easy');
     expect(input[1].swapLog).toEqual([{ from: 0, to: 2 }]);
     expect(mockRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('calculates a smooth reveal target when the pending reschedule CTA is hidden below the tab bar', () => {
+    expect(getRescheduleRevealScrollTarget({
+      currentY: 0,
+      viewportHeight: 760,
+      rowY: 620,
+      rowHeight: 560,
+    })).toBe(552);
+
+    expect(getRescheduleRevealScrollTarget({
+      currentY: 560,
+      viewportHeight: 760,
+      rowY: 620,
+      rowHeight: 560,
+    })).toBeNull();
   });
 
   it('respects this-week scope from the propagation picker', async () => {

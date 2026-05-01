@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   StyleSheet,
-  View,
   type LayoutChangeEvent,
   type StyleProp,
   type ViewStyle,
@@ -22,23 +21,25 @@ interface AnimatedWeekExpansionProps {
   expanded: boolean;
   expandedMarginTop?: number;
   expandedPaddingTop?: number;
+  expandedPaddingBottom?: number;
   expandedTranslateY?: number;
   showDivider?: boolean;
   onCollapseEnd?: () => void;
   style?: StyleProp<ViewStyle>;
 }
 
-const EXPAND_DURATION_MS = 200;
-const COLLAPSE_DURATION_MS = 130;
+const EXPAND_DURATION_MS = 260;
+const COLLAPSE_DURATION_MS = 210;
 const EXPANDED_MARGIN_TOP = 12;
 const EXPANDED_PADDING_TOP = 10;
-const EXPANDED_TRANSLATE_Y = -4;
+const EXPANDED_TRANSLATE_Y = -6;
 
 export function AnimatedWeekExpansion({
   children,
   expanded,
   expandedMarginTop = EXPANDED_MARGIN_TOP,
   expandedPaddingTop = EXPANDED_PADDING_TOP,
+  expandedPaddingBottom = 0,
   expandedTranslateY = EXPANDED_TRANSLATE_Y,
   showDivider = true,
   onCollapseEnd,
@@ -62,7 +63,7 @@ export function AnimatedWeekExpansion({
       expanded ? 1 : 0,
       {
         duration: expanded ? EXPAND_DURATION_MS : COLLAPSE_DURATION_MS,
-        easing: expanded ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic),
+        easing: Easing.out(Easing.cubic),
         reduceMotion: ReduceMotion.System,
       },
       (finished) => {
@@ -75,20 +76,22 @@ export function AnimatedWeekExpansion({
 
   const revealStyle = useAnimatedStyle(() => ({
     height: contentHeight.value * progress.value,
-    opacity: expanded
-      ? progress.value
-      : interpolate(progress.value, [0, 0.08, 1], [0, 1, 1]),
+    opacity: interpolate(progress.value, [0, 0.16, 1], [0, 1, 1]),
     marginTop: expandedMarginTop * progress.value,
     paddingTop: showDivider ? expandedPaddingTop * progress.value : 0,
+    paddingBottom: expandedPaddingBottom * progress.value,
     borderTopWidth: showDivider ? progress.value : 0,
     borderTopColor: C.border,
     overflow: 'hidden',
+  }), [expandedMarginTop, expandedPaddingBottom, expandedPaddingTop, showDivider]);
+
+  const contentMotionStyle = useAnimatedStyle(() => ({
     transform: [
       {
         translateY: interpolate(progress.value, [0, 1], [expandedTranslateY, 0]),
       },
     ],
-  }), [expanded, expandedMarginTop, expandedPaddingTop, expandedTranslateY, showDivider]);
+  }), [expandedTranslateY]);
 
   function handleLayout(event: LayoutChangeEvent) {
     const nextHeight = event.nativeEvent.layout.height;
@@ -105,15 +108,16 @@ export function AnimatedWeekExpansion({
       pointerEvents={expanded ? 'auto' : 'none'}
       style={[style, revealStyle]}
     >
-      <View
+      <Animated.View
         onLayout={handleLayout}
         style={[
           styles.content,
+          contentMotionStyle,
           expanded && measuredHeight <= 0 && styles.measuringContent,
         ]}
       >
         {children}
-      </View>
+      </Animated.View>
     </Animated.View>
   );
 }

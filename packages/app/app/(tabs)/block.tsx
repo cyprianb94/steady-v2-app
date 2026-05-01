@@ -8,6 +8,9 @@ import {
   Animated,
   RefreshControl,
   ActivityIndicator,
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -88,6 +91,39 @@ const COMPACT_PHASE_LABEL: Record<BlockPhaseSegment['name'], string> = {
 };
 
 const EMPTY_WEEK_SESSIONS: (PlannedSession | null)[] = [null, null, null, null, null, null, null];
+const RESCHEDULE_REVEAL_BOTTOM_INSET = 118;
+const RESCHEDULE_REVEAL_EXTRA_GAP = 14;
+
+type RescheduleRevealMetrics = {
+  currentY: number;
+  viewportHeight: number;
+  rowY: number;
+  rowHeight: number;
+  bottomInset?: number;
+  extraGap?: number;
+};
+
+export function getRescheduleRevealScrollTarget({
+  currentY,
+  viewportHeight,
+  rowY,
+  rowHeight,
+  bottomInset = RESCHEDULE_REVEAL_BOTTOM_INSET,
+  extraGap = RESCHEDULE_REVEAL_EXTRA_GAP,
+}: RescheduleRevealMetrics): number | null {
+  if (viewportHeight <= 0 || rowHeight <= 0) {
+    return null;
+  }
+
+  const targetBottom = rowY + rowHeight + extraGap;
+  const visibleBottom = currentY + viewportHeight - bottomInset;
+
+  if (targetBottom <= visibleBottom) {
+    return null;
+  }
+
+  return Math.max(0, targetBottom - viewportHeight + bottomInset);
+}
 
 const INACTIVE_PHASE_BACKGROUND: Record<PlanWeek['phase'], string> = {
   BASE: `${C.navy}59`,
@@ -363,6 +399,9 @@ export default function BlockTab() {
   const [isScrubbingVolumeChart, setIsScrubbingVolumeChart] = useState(false);
   const [preservedReschedule, setPreservedReschedule] = useState<PreservedRescheduleDraft | null>(null);
   const processedEditNonceRef = useRef<string | null>(null);
+  const blockScrollRef = useRef<ScrollView | null>(null);
+  const scrollMetricsRef = useRef({ y: 0, viewportHeight: 0 });
+  const weekRowLayoutRef = useRef<Record<number, { y: number; height: number }>>({});
   const today = useTodayIso();
 
   const activityResolution = useActivityResolution({
@@ -535,6 +574,18 @@ export default function BlockTab() {
     });
   }, [plan, safeCurrentWeekIndex]);
 
+  useEffect(() => {
+    if (!reschedule.hasChanges || rescheduleWeekIndex == null) {
+      return;
+    }
+
+    const revealTimer = setTimeout(() => {
+      revealPendingRescheduleCta(rescheduleWeekIndex);
+    }, 260);
+
+    return () => clearTimeout(revealTimer);
+  }, [reschedule.hasChanges, rescheduleWeekIndex, reschedule.swapLog.length]);
+
   if (authLoading || loading) {
     return (
       <View style={styles.centered}>
@@ -586,6 +637,42 @@ export default function BlockTab() {
     ? plan.weeks[pendingEdit.weekIndex]?.weekNumber ?? null
     : null;
   const visibleExpandedWeekNumber = pendingEditWeekNumber ?? expandedWeekNumber;
+
+  function handleBlockScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
+    scrollMetricsRef.current.y = event.nativeEvent.contentOffset.y;
+  }
+
+  function handleBlockScrollLayout(event: LayoutChangeEvent) {
+    scrollMetricsRef.current.viewportHeight = event.nativeEvent.layout.height;
+  }
+
+  function handleWeekRowLayout(weekIndex: number, event: LayoutChangeEvent) {
+    const { y, height } = event.nativeEvent.layout;
+    weekRowLayoutRef.current[weekIndex] = { y, height };
+  }
+
+  function revealPendingRescheduleCta(weekIndex: number) {
+    const rowLayout = weekRowLayoutRef.current[weekIndex];
+    const scrollMetrics = scrollMetricsRef.current;
+
+    if (!rowLayout || scrollMetrics.viewportHeight <= 0) {
+      return;
+    }
+
+    const targetY = getRescheduleRevealScrollTarget({
+      currentY: scrollMetrics.y,
+      viewportHeight: scrollMetrics.viewportHeight,
+      rowY: rowLayout.y,
+      rowHeight: rowLayout.height,
+    });
+
+    if (targetY == null) {
+      return;
+    }
+
+    blockScrollRef.current?.scrollTo({ y: targetY, animated: true });
+    scrollMetricsRef.current.y = targetY;
+  }
 
   function toggleWeek(weekNumber: number) {
     if (!plan) {
@@ -716,9 +803,13 @@ export default function BlockTab() {
   return (
     <>
       <ScrollView
+        ref={blockScrollRef}
         style={styles.container}
         contentContainerStyle={styles.content}
         scrollEnabled={!reschedule.isHandleActive && !isScrubbingVolumeChart}
+        onLayout={handleBlockScrollLayout}
+        onScroll={handleBlockScroll}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={refreshing || syncing}
@@ -870,13 +961,13 @@ export default function BlockTab() {
           <View
             key={week.weekNumber}
             testID={`block-week-row-${week.weekNumber}`}
+            onLayout={(event) => handleWeekRowLayout(i, event)}
             style={[
               styles.weekRow,
               isCurrent && styles.weekRowCurrent,
               isPast && styles.weekRowPast,
               injuryWeek && styles.weekRowInjury,
-              shouldRenderExpandedWeek && isFuture && styles.weekRowFutureExpanded,
-              shouldRenderExpandedWeek && styles.weekRowExpanded,
+              isExpanded && isFuture && styles.weekRowFutureExpanded,
             ]}
           >
             <Pressable
@@ -976,6 +1067,7 @@ export default function BlockTab() {
             {shouldRenderExpandedWeek ? (
               <AnimatedWeekExpansion
                 expanded={isExpanded}
+                expandedPaddingBottom={12}
                 showDivider={isPast}
                 onCollapseEnd={() => {
                   setCollapsingWeekNumber((current) => (
@@ -1347,9 +1439,6 @@ const styles = StyleSheet.create({
     backgroundColor: C.surface,
     borderColor: `${C.muted}55`,
     borderWidth: 1.5,
-  },
-  weekRowExpanded: {
-    paddingBottom: 12,
   },
   weekLeft: {
     width: 38,
