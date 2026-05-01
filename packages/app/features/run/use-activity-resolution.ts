@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Activity } from '@steady/types';
 import { trpc } from '../../lib/trpc';
 import { logNonNetworkError } from '../../lib/network-errors';
@@ -17,12 +17,6 @@ interface UseActivityResolutionOptions {
   fetchErrorMessage: string;
 }
 
-const activitySnapshotCache = new Map<string, Activity[]>();
-
-function readCachedActivities(planId?: string | null): Activity[] {
-  return planId ? (activitySnapshotCache.get(planId) ?? []) : [];
-}
-
 export function useActivityResolution({
   enabled,
   isFocused,
@@ -35,22 +29,27 @@ export function useActivityResolution({
     return createActivityResolution(getScreenshotDemoActivities(), { today });
   }
 
-  const [activities, setActivities] = useState<Activity[]>(() => readCachedActivities(planId));
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const activePlanIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!enabled) {
-      activitySnapshotCache.clear();
+      activePlanIdRef.current = null;
       setActivities([]);
       return;
     }
 
     if (!planId) {
+      activePlanIdRef.current = null;
       setActivities([]);
       return;
     }
 
     const resolvedPlanId = planId;
-    setActivities(readCachedActivities(resolvedPlanId));
+    if (activePlanIdRef.current !== resolvedPlanId) {
+      activePlanIdRef.current = resolvedPlanId;
+      setActivities([]);
+    }
 
     if (!isFocused) {
       return;
@@ -62,7 +61,6 @@ export function useActivityResolution({
       try {
         const nextActivities = await trpc.activity.list.query();
         if (!cancelled) {
-          activitySnapshotCache.set(resolvedPlanId, nextActivities);
           setActivities(nextActivities);
         }
       } catch (error) {

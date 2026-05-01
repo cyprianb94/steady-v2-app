@@ -2196,6 +2196,7 @@ const styles = StyleSheet.create({
     color: C.clay,
   },
   convertCard: {
+    marginTop: 12,
     borderWidth: 1,
     borderColor: `${C.clay}30`,
     borderRadius: 12,

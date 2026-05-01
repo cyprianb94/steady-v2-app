@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Activity } from '@steady/types';
 
@@ -46,7 +46,7 @@ describe('useActivityResolution', () => {
     mockActivityList.mockReset();
   });
 
-  it('hydrates a remounted screen from the last successful activity snapshot while the next fetch is in flight', async () => {
+  it('starts a remounted screen clean instead of flashing the previous activity snapshot', async () => {
     mockActivityList.mockResolvedValueOnce(activities);
     const { useActivityResolution } = await import('../features/run/use-activity-resolution');
 
@@ -82,13 +82,16 @@ describe('useActivityResolution', () => {
       },
     });
 
-    expect(second.result.current.weekActualKm(weekSessions)).toBe(8.2);
+    expect(second.result.current.activityForSession(weekSessions[0])).toBeUndefined();
+    expect(second.result.current.weekActualKm(weekSessions)).toBe(8);
 
     if (!resolveSecondFetch) {
       throw new Error('Expected the second activity fetch to be pending.');
     }
 
-    (resolveSecondFetch as (value: Activity[]) => void)(activities);
+    await act(async () => {
+      (resolveSecondFetch as (value: Activity[]) => void)(activities);
+    });
     await waitFor(() => expect(second.result.current.weekActualKm(weekSessions)).toBe(8.2));
   });
 

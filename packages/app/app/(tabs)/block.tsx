@@ -1033,7 +1033,7 @@ export default function BlockTab() {
                       {`${weekEntries.length} XT`}
                     </Text>
                   ) : volumeSummary.showActual && volumeSummary.actualKm != null ? (
-                    <Text style={styles.weekKmComposite}>
+                    <Text numberOfLines={1} style={styles.weekKmComposite}>
                       <Text style={styles.weekKmActual}>{formatDistance(volumeSummary.actualKm, units)}</Text>
                       <Text style={styles.weekKmDivider}> / </Text>
                       <Text style={styles.weekKmPlanned}>{formatDistance(volumeSummary.plannedKm, units)}</Text>
@@ -1046,21 +1046,32 @@ export default function BlockTab() {
                 </View>
               </View>
 
-              <View
-                style={[
-                  styles.volumeTrack,
-                  volumeTone === 'current' && styles.volumeTrackCurrent,
-                ]}
-              >
-                <AnimatedProgressFill
-                  progress={getWeekVolumeRatio(volumeSummary.barKm, maxKm)}
-                  fillStyle={[
-                    styles.volumeFill,
-                    volumeTone === 'past' && styles.volumeFillPast,
-                    volumeTone === 'current' && styles.volumeFillCurrent,
-                    volumeTone === 'future' && styles.volumeFillFuture,
-                  ]}
-                />
+              <View style={styles.volumeTrack}>
+                {volumeTone === 'current' ? (
+                  <>
+                    <AnimatedProgressFill
+                      progress={getWeekVolumeRatio(volumeSummary.plannedKm, maxKm)}
+                      fillStyle={[styles.volumeFill, styles.volumeFillFuture]}
+                    />
+                    {volumeSummary.actualKm != null ? (
+                      <View pointerEvents="none" style={styles.volumeFillOverlay}>
+                        <AnimatedProgressFill
+                          progress={getWeekVolumeRatio(volumeSummary.actualKm, maxKm)}
+                          fillStyle={[styles.volumeFill, styles.volumeFillCurrent]}
+                        />
+                      </View>
+                    ) : null}
+                  </>
+                ) : (
+                  <AnimatedProgressFill
+                    progress={getWeekVolumeRatio(volumeSummary.barKm, maxKm)}
+                    fillStyle={[
+                      styles.volumeFill,
+                      volumeTone === 'past' && styles.volumeFillPast,
+                      volumeTone === 'future' && styles.volumeFillFuture,
+                    ]}
+                  />
+                )}
               </View>
             </Pressable>
 
@@ -1504,17 +1515,19 @@ const styles = StyleSheet.create({
     color: C.muted,
   },
   weekRight: {
-    width: 50,
-    alignItems: 'flex-end',
+    width: 92,
+    alignItems: 'center',
   },
   weekKm: {
     fontFamily: FONTS.mono,
     fontSize: 10,
     color: C.ink,
+    textAlign: 'center',
   },
   weekKmComposite: {
     fontFamily: FONTS.mono,
     fontSize: 10,
+    textAlign: 'center',
   },
   weekKmActual: {
     color: C.forest,
@@ -1535,12 +1548,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: 'transparent',
   },
-  volumeTrackCurrent: {
-    backgroundColor: C.border,
-  },
   volumeFill: {
     height: '100%',
     borderRadius: 999,
+  },
+  volumeFillOverlay: {
+    ...StyleSheet.absoluteFillObject,
   },
   volumeFillPast: {
     backgroundColor: C.forest,
