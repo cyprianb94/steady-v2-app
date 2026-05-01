@@ -1,11 +1,16 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { vi, describe, it, expect } from 'vitest';
+import { deriveTrainingPaceProfile } from '@steady/types';
 
 vi.mock('../lib/trpc', () => ({ trpc: {} }));
 
 import { TodayHeroCard } from '../components/home/TodayHeroCard';
 import { C } from '../constants/colours';
+
+const byExactTextContent = (text: string) => (_content: string, node: Element | null) => (
+  node?.getAttribute('data-rn') === 'Text' && node.textContent === text
+);
 
 describe('TodayHeroCard', () => {
   it('shows session type label, distance, and pace for an easy run', () => {
@@ -50,7 +55,7 @@ describe('TodayHeroCard', () => {
     expect(screen.queryByText('4:20')).toBeNull();
   });
 
-  it('shows top-line run structure intent on the planned hero', () => {
+  it('uses run structure as the planned hero target for structured sessions', () => {
     render(
       <TodayHeroCard
         session={{
@@ -88,7 +93,126 @@ describe('TodayHeroCard', () => {
       />,
     );
 
-    expect(screen.getByText('3 x 3km marathon pace off 1km float · Note')).toBeTruthy();
+    expect(screen.getByText('Structure')).toBeTruthy();
+    expect(screen.getByText(byExactTextContent('3 x 3km marathon pace off 1km float'))).toBeTruthy();
+    expect(screen.queryByText('Plan note saved')).toBeNull();
+    expect(screen.queryByText('Target')).toBeNull();
+  });
+
+  it('breaks longer structured session summaries into readable lines', () => {
+    render(
+      <TodayHeroCard
+        session={{
+          id: 'structured-progression',
+          type: 'LONG',
+          date: '2026-04-09',
+          plannedVolume: { unit: 'km', value: 15 },
+          runStructure: {
+            items: [
+              {
+                kind: 'RUN',
+                volume: { unit: 'km', value: 5 },
+                progression: {
+                  from: {
+                    source: 'manual',
+                    mode: 'effort',
+                    profileKey: 'easy',
+                    effortCue: 'conversational',
+                  },
+                  to: {
+                    source: 'manual',
+                    mode: 'effort',
+                    profileKey: 'marathon',
+                    effortCue: 'race pace',
+                  },
+                },
+              },
+              {
+                kind: 'RUN',
+                volume: { unit: 'km', value: 5 },
+                intensityTarget: {
+                  source: 'manual',
+                  mode: 'effort',
+                  profileKey: 'marathon',
+                  effortCue: 'race pace',
+                },
+              },
+              {
+                kind: 'RUN',
+                volume: { unit: 'km', value: 5 },
+                intensityTarget: {
+                  source: 'manual',
+                  mode: 'effort',
+                  profileKey: 'threshold',
+                  effortCue: 'controlled hard',
+                },
+              },
+            ],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText(byExactTextContent('5km progression easy to marathon pace'))).toBeTruthy();
+    expect(screen.getByText(byExactTextContent('5km marathon pace'))).toBeTruthy();
+    expect(screen.getByText(byExactTextContent('5km threshold'))).toBeTruthy();
+  });
+
+  it('adds profile pace references to structured session lines', () => {
+    const trainingPaceProfile = deriveTrainingPaceProfile({
+      raceDistance: 'Marathon',
+      targetTime: 'sub-3:15',
+    });
+
+    render(
+      <TodayHeroCard
+        trainingPaceProfile={trainingPaceProfile}
+        session={{
+          id: 'structured-profile-progression',
+          type: 'LONG',
+          date: '2026-04-09',
+          plannedVolume: { unit: 'km', value: 15 },
+          runStructure: {
+            items: [
+              {
+                kind: 'RUN',
+                volume: { unit: 'km', value: 8 },
+                intensityTarget: {
+                  source: 'manual',
+                  mode: 'effort',
+                  profileKey: 'easy',
+                  effortCue: 'conversational',
+                },
+              },
+              {
+                kind: 'RUN',
+                volume: { unit: 'km', value: 4 },
+                intensityTarget: {
+                  source: 'manual',
+                  mode: 'effort',
+                  profileKey: 'steady',
+                  effortCue: 'steady',
+                },
+              },
+              {
+                kind: 'RUN',
+                volume: { unit: 'km', value: 3 },
+                intensityTarget: {
+                  source: 'manual',
+                  mode: 'effort',
+                  profileKey: 'marathon',
+                  effortCue: 'race pace',
+                },
+              },
+            ],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText(byExactTextContent('8km easy · 5:33-5:55/km'))).toBeTruthy();
+    expect(screen.getByText(byExactTextContent('4km steady · 4:59-5:13/km'))).toBeTruthy();
+    expect(screen.getByText(byExactTextContent('3km marathon pace · 4:37/km'))).toBeTruthy();
   });
 
   it('shows easy effort and pace in one target area without planned heart rate', () => {
@@ -395,6 +519,10 @@ describe('TodayHeroCard', () => {
     expect(screen.getByText('Tempo target')).toBeTruthy();
     expect(screen.queryByText('Zone 4')).toBeNull();
     expect(screen.queryByText('heart rate')).toBeNull();
+
+    const targetFrame = screen.getByTestId('hero-target-frame');
+    expect(targetFrame.getAttribute('style')).toContain('border-width: 1px 1px 1px 4px');
+    expect(targetFrame.getAttribute('style')).toContain('rgb(212, 136, 42)');
 
     const heroCard = screen.getByTestId('hero-card');
     expect(heroCard.getAttribute('style')).toContain('border-width: 1.5px');

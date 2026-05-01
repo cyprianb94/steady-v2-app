@@ -11,6 +11,7 @@ import {
   hasMaterialSessionEdit,
   materializeEditedSession,
   parseTrainingPaceProfileRouteParam,
+  type SessionEditorResult,
 } from '../../../features/plan-builder/session-editing';
 import {
   getSharedPlanBuilderReviewComponent,
@@ -25,7 +26,7 @@ interface EditingSession {
 }
 
 interface PendingEdit extends EditingSession {
-  updated: Partial<PlannedSession> | null;
+  updated: SessionEditorResult;
   desc: string;
 }
 
@@ -86,7 +87,7 @@ export default function StepPlan() {
     setEditing({ weekIndex, dayIndex });
   }
 
-  function handleEditorSave(dayIndex: number, updated: Partial<PlannedSession> | null) {
+  function handleEditorSave(dayIndex: number, updated: SessionEditorResult) {
     if (!editing) {
       return;
     }

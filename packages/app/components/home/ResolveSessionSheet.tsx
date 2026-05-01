@@ -5,9 +5,11 @@ import {
   normalizeSessionDuration,
   sessionSupportsWarmupCooldown,
   summariseRunStructure,
+  totalStructuredSessionKm,
   type Activity,
   type PlannedSession,
   type SkippedSessionReason,
+  type TrainingPaceProfile,
 } from '@steady/types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C } from '../../constants/colours';
@@ -22,6 +24,13 @@ import {
   formatStoredPace,
   type DistanceUnits,
 } from '../../lib/units';
+import {
+  buildStructuredRunDisplayLines,
+  structuredRunDisplayText,
+  type StructuredRunDisplayKind,
+  type StructuredRunDisplayLine,
+  type StructuredRunDisplayToken,
+} from '../../lib/structured-run-display';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
@@ -38,6 +47,7 @@ interface ResolveSessionSheetProps {
   onMarkSkipped: (session: PlannedSession) => void;
   onEditSkipped: (session: PlannedSession) => void;
   onAttachMatch: (session: PlannedSession, activityId: string) => void | Promise<void>;
+  trainingPaceProfile?: TrainingPaceProfile | null;
 }
 
 type LoadedResolveSessionSheetProps = Omit<ResolveSessionSheetProps, 'session'> & {
@@ -49,6 +59,7 @@ interface PlannedSessionRow {
   parts: PlannedSessionValuePart[];
   accentColor: string;
   subparts?: PlannedSessionValuePart[];
+  lineParts?: PlannedSessionValuePart[][];
 }
 
 interface PlannedSessionValuePart {
@@ -154,6 +165,39 @@ function mutedPart(text: string): PlannedSessionValuePart {
   return { text, color: C.muted, muted: true };
 }
 
+function structuredTokenColor(kind: StructuredRunDisplayKind): string | undefined {
+  if (kind === 'distance') return C.metricDistance;
+  if (kind === 'pace') return C.metricPace;
+  if (kind === 'time') return C.metricTime;
+  return undefined;
+}
+
+function structuredTokenPart(token: StructuredRunDisplayToken): PlannedSessionValuePart {
+  const color = structuredTokenColor(token.kind);
+  return {
+    text: token.text,
+    color,
+    mono: token.kind !== 'neutral',
+  };
+}
+
+function structuredLineParts(line: StructuredRunDisplayLine): PlannedSessionValuePart[] {
+  return line.map(structuredTokenPart);
+}
+
+function buildPlanNoteRow(planNote: string | undefined): PlannedSessionRow | null {
+  const note = planNote?.trim();
+  if (!note) {
+    return null;
+  }
+
+  return {
+    label: 'PLAN NOTE',
+    parts: [copyPart(note, C.ink2)],
+    accentColor: C.muted,
+  };
+}
+
 function durationMetricColor(duration: PlannedSession['warmup'] | PlannedSession['cooldown'] | PlannedSession['repDuration']): string {
   const normalized = normalizeSessionDuration(duration);
   return normalized?.unit === 'min' ? C.metricTime : C.metricDistance;
@@ -238,30 +282,61 @@ function buildBookendRow(session: PlannedSession, units: DistanceUnits): Planned
   return null;
 }
 
-function buildPlannedRows(session: PlannedSession, units: DistanceUnits): PlannedSessionRow[] {
-  const structureSummary = summariseRunStructure(session);
-  const structureRows: PlannedSessionRow[] = structureSummary
-    ? [
-        {
-          label: 'RUN STRUCTURE',
-          parts: [copyPart(structureSummary)],
-          accentColor: SESSION_TYPE[session.type].color,
-          subparts: session.planNote ? [mutedPart('Plan note saved')] : undefined,
-        },
-      ]
-    : session.planNote
-      ? [
-          {
-            label: 'PLAN NOTE',
-            parts: [mutedPart('Plan note saved')],
-            accentColor: C.border,
-          },
-        ]
-      : [];
+function buildVolumeRow(
+  session: PlannedSession,
+  units: DistanceUnits,
+  options: { allowFallback: boolean; allowStructuredTotal: boolean },
+): PlannedSessionRow | null {
+  const plannedVolume = normalizeSessionDuration(session.plannedVolume);
+  const structuredDistance = options.allowStructuredTotal ? totalStructuredSessionKm(session) : 0;
 
-  if (structureSummary && session.type === 'INTERVAL') {
-    return structureRows;
+  if (!structuredDistance && plannedVolume?.unit === 'min') {
+    return {
+      label: 'DURATION',
+      parts: [metricPart(`${plannedVolume.value}min`, C.metricTime)],
+      accentColor: C.metricTime,
+    };
   }
+
+  const distance = structuredDistance || (plannedVolume?.unit === 'km'
+    ? plannedVolume.value
+    : session.distance || (options.allowFallback ? expectedDistance(session) : 0));
+
+  if (!distance) {
+    return null;
+  }
+
+  return {
+    label: 'DISTANCE',
+    parts: [metricPart(formatDistance(distance, units), C.metricDistance)],
+    accentColor: C.metricDistance,
+  };
+}
+
+function buildPlannedRows(
+  session: PlannedSession,
+  units: DistanceUnits,
+  trainingPaceProfile: TrainingPaceProfile | null | undefined,
+): PlannedSessionRow[] {
+  const structureSummary = summariseRunStructure(session);
+
+  if (structureSummary) {
+    const structureLines = buildStructuredRunDisplayLines(session, units, trainingPaceProfile);
+    return [
+      {
+        label: 'RUN STRUCTURE',
+        parts: [copyPart(structureLines ? structuredRunDisplayText(structureLines) : structureSummary)],
+        lineParts: structureLines?.map(structuredLineParts),
+        accentColor: SESSION_TYPE[session.type].color,
+      },
+      buildVolumeRow(session, units, { allowFallback: false, allowStructuredTotal: true }),
+      buildPlanNoteRow(session.planNote),
+    ].filter((row): row is PlannedSessionRow => Boolean(row));
+  }
+
+  const structureRows: PlannedSessionRow[] = [
+    buildPlanNoteRow(session.planNote),
+  ].filter((row): row is PlannedSessionRow => Boolean(row));
 
   if (session.type === 'INTERVAL') {
     const recovery = formatRecoveryValue(session.recovery, units);
@@ -289,18 +364,9 @@ function buildPlannedRows(session: PlannedSession, units: DistanceUnits): Planne
     return bookendRow ? [...structureRows, ...rows, bookendRow] : [...structureRows, ...rows];
   }
 
-  const plannedVolume = normalizeSessionDuration(session.plannedVolume);
+  const volumeRow = buildVolumeRow(session, units, { allowFallback: true, allowStructuredTotal: false });
   const rows: PlannedSessionRow[] = [
-    {
-      label: plannedVolume?.unit === 'min' ? 'DURATION' : 'DISTANCE',
-      parts: plannedVolume?.unit === 'min'
-        ? [metricPart(`${plannedVolume.value}min`, C.metricTime)]
-        : [metricPart(formatDistance(
-            plannedVolume?.unit === 'km' ? plannedVolume.value : session.distance ?? expectedDistance(session),
-            units,
-          ), C.metricDistance)],
-      accentColor: plannedVolume?.unit === 'min' ? C.metricTime : C.metricDistance,
-    },
+    ...(volumeRow ? [volumeRow] : []),
     {
       label: session.type === 'RECOVERY' ? 'TARGET EFFORT' : 'TARGET PACE',
       accentColor: session.type === 'RECOVERY' ? C.metricEffort : C.metricPace,
@@ -328,20 +394,42 @@ function PlannedRowMarker({ color }: { color: string }) {
 function PlannedRowValue({ row }: { row: PlannedSessionRow }) {
   return (
     <View style={styles.plannedValueWrap}>
-      <Text style={styles.plannedValueText}>
-        {row.parts.map((part, index) => (
+      {row.lineParts ? (
+        row.lineParts.map((line, lineIndex) => (
           <Text
-            key={`${part.text}-${index}`}
-            style={[
-              part.mono ? styles.plannedValueMetric : styles.plannedValueCopy,
-              part.muted && styles.plannedValueMuted,
-              part.color ? { color: part.color } : null,
-            ]}
+            key={`${row.label}-${lineIndex}`}
+            style={styles.plannedValueText}
           >
-            {part.text}
+            {line.map((part, index) => (
+              <Text
+                key={`${part.text}-${index}`}
+                style={[
+                  part.mono ? styles.plannedValueMetric : styles.plannedValueCopy,
+                  part.muted && styles.plannedValueMuted,
+                  part.color ? { color: part.color } : null,
+                ]}
+              >
+                {part.text}
+              </Text>
+            ))}
           </Text>
-        ))}
-      </Text>
+        ))
+      ) : (
+        <Text style={styles.plannedValueText}>
+          {row.parts.map((part, index) => (
+            <Text
+              key={`${part.text}-${index}`}
+              style={[
+                part.mono ? styles.plannedValueMetric : styles.plannedValueCopy,
+                part.muted && styles.plannedValueMuted,
+                part.color ? { color: part.color } : null,
+              ]}
+            >
+              {part.text}
+            </Text>
+          ))}
+        </Text>
+      )}
       {row.subparts ? (
         <Text style={styles.plannedSubText}>
           {row.subparts.map((part, index) => (
@@ -381,6 +469,7 @@ export function ResolveSessionSheet({
   onMarkSkipped,
   onEditSkipped,
   onAttachMatch,
+  trainingPaceProfile,
 }: ResolveSessionSheetProps) {
   if (!open || !session) {
     return null;
@@ -398,6 +487,7 @@ export function ResolveSessionSheet({
       onMarkSkipped={onMarkSkipped}
       onEditSkipped={onEditSkipped}
       onAttachMatch={onAttachMatch}
+      trainingPaceProfile={trainingPaceProfile}
     />
   );
 }
@@ -441,6 +531,7 @@ function ResolveSessionSheetMounted({
   onMarkSkipped,
   onEditSkipped,
   onAttachMatch,
+  trainingPaceProfile,
   bottomSheet,
 }: LoadedResolveSessionSheetProps & { bottomSheet: any }) {
   const {
@@ -483,8 +574,8 @@ function ResolveSessionSheetMounted({
   ), []);
 
   const plannedRows = useMemo(
-    () => (session ? buildPlannedRows(session, units) : []),
-    [session, units],
+    () => (session ? buildPlannedRows(session, units, trainingPaceProfile) : []),
+    [session, trainingPaceProfile, units],
   );
 
   const handlePrimaryPress = useCallback(() => {

@@ -471,6 +471,7 @@ export default function HomeScreen() {
               <TodayHeroCard
                 session={todaySession}
                 activity={todayActivity}
+                trainingPaceProfile={plan.trainingPaceProfile}
                 onPress={handleTodayHeroPress}
                 onLogRun={showFinishedRunCta ? () => router.push('/sync-run') : undefined}
                 onReviewRun={handleReviewRunPress}
@@ -492,6 +493,7 @@ export default function HomeScreen() {
         <ResolveSessionSheet
           open={Boolean(resolvingSession)}
           session={resolvingSession?.session ?? null}
+          trainingPaceProfile={plan.trainingPaceProfile}
           status={resolvingSession?.status ?? 'missed'}
           possibleMatches={possibleResolveMatches}
           busy={resolveSessionBusy}

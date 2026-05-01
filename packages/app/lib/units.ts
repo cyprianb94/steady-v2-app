@@ -3,6 +3,7 @@ import {
   normalizeSessionDuration,
   parsePaceSeconds,
   summariseRunStructure,
+  totalStructuredSessionKm,
   type IntensityTarget,
   type PlannedSession,
   type SessionDurationSpec,
@@ -340,6 +341,13 @@ function lowercaseSessionType(type: PlannedSession['type'] | undefined): string 
 }
 
 function formatPlannedVolume(session: SessionLike, units: DistanceUnits): string | null {
+  if (session.runStructure) {
+    const structuredKm = totalStructuredSessionKm(session as PlannedSession);
+    if (structuredKm > 0) {
+      return formatDistance(structuredKm, units);
+    }
+  }
+
   if (session.plannedVolume?.unit === 'min') {
     return `${session.plannedVolume.value}min`;
   }

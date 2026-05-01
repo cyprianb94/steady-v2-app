@@ -14,6 +14,7 @@ import {
   type SubjectiveBreathing,
   type SubjectiveLegs,
   type SubjectiveOverall,
+  type TrainingPaceProfile,
 } from '@steady/types';
 import { SESSION_TYPE } from '../../constants/session-types';
 import { FONTS } from '../../constants/typography';
@@ -29,6 +30,10 @@ import {
   formatSessionTitle,
   formatStoredPace,
 } from '../../lib/units';
+import {
+  buildStructuredRunDisplayLines,
+  type StructuredRunDisplayLine,
+} from '../../lib/structured-run-display';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 interface ActivitySummary {
@@ -50,6 +55,7 @@ interface TodayHeroCardProps {
   onReviewRun?: () => void;
   onSaveSubjectiveInput?: (input: SubjectiveInput) => void | Promise<void>;
   onDismissSubjectiveInput?: () => void | Promise<void>;
+  trainingPaceProfile?: TrainingPaceProfile | null;
 }
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
@@ -76,6 +82,7 @@ interface PlannedTargetDisplay {
   primaryKind: MetricKind;
   secondary: string | null;
   secondaryKind: MetricKind;
+  structureLines?: StructuredRunDisplayLine[];
 }
 
 interface CompletedEvidenceRow {
@@ -119,6 +126,30 @@ function metricValueStyle(kind: MetricKind) {
     default:
       return styles.metricNeutralValue;
   }
+}
+
+function StructureSummaryText({ lines }: { lines: StructuredRunDisplayLine[] }) {
+  return (
+    <View style={styles.structureSummaryLines}>
+      {lines.map((line, index) => (
+        <Text
+          key={`${line.map((part) => part.text).join('')}-${index}`}
+          style={styles.structureSummaryLine}
+        >
+          {line.map((part, tokenIndex) => (
+            <Text
+              key={`${part.text}-${tokenIndex}`}
+              style={part.kind === 'neutral'
+                ? undefined
+                : [styles.structureMetricToken, metricValueStyle(part.kind)]}
+            >
+              {part.text}
+            </Text>
+          ))}
+        </Text>
+      ))}
+    </View>
+  );
 }
 
 function sessionCardGradientColors(sessionType: PlannedSession['type']) {
@@ -365,7 +396,20 @@ function buildCompletedEvidenceRows({
 function buildPlannedTargetDisplay(
   session: PlannedSession,
   units: ReturnType<typeof usePreferences>['units'],
+  trainingPaceProfile: TrainingPaceProfile | null | undefined,
 ): PlannedTargetDisplay {
+  const structureLines = buildStructuredRunDisplayLines(session, units, trainingPaceProfile);
+  if (structureLines) {
+    return {
+      label: 'Structure',
+      primary: null,
+      primaryKind: 'neutral',
+      secondary: null,
+      secondaryKind: 'neutral',
+      structureLines,
+    };
+  }
+
   const targetParts = formatIntensityTargetParts(session, units, {
     hideCompatibilityPace: true,
     withUnit: true,
@@ -447,7 +491,7 @@ function buildPlannedDetailLine(
 ): string | null {
   const structureSummary = summariseRunStructure(session);
   if (structureSummary) {
-    return session.planNote ? `${structureSummary} · Note` : structureSummary;
+    return null;
   }
 
   if (session.planNote) {
@@ -501,6 +545,7 @@ export function TodayHeroCard({
   onReviewRun,
   onSaveSubjectiveInput,
   onDismissSubjectiveInput,
+  trainingPaceProfile,
 }: TodayHeroCardProps) {
   const { units } = usePreferences();
   const completed = Boolean(session && session.type !== 'REST' && (session.actualActivityId || activity));
@@ -584,7 +629,7 @@ export function TodayHeroCard({
   const needsReview = qualitySummaryNeedsReview(qualitySummary);
   const statusLabel = needsReview ? 'NEEDS REVIEW' : 'COMPLETED';
   const qualityEvidence = qualityEvidenceSentence(qualitySummary, units, needsReview);
-  const plannedTarget = buildPlannedTargetDisplay(session, units);
+  const plannedTarget = buildPlannedTargetDisplay(session, units, trainingPaceProfile);
   const plannedDetailLine = buildPlannedDetailLine(session, units);
   const showSubjectivePrompt =
     !!session.actualActivityId &&
@@ -725,8 +770,18 @@ export function TodayHeroCard({
       <Text style={[styles.mainTitle, { color: meta.color }]}>{formatSessionTitle(session, units)}</Text>
       <Text style={styles.dateText}>{formatSessionDate(session.date)}</Text>
 
-      <View style={styles.targetFrame}>
+      <View
+        style={[
+          styles.targetFrame,
+          styles.targetFrameWithRail,
+          { borderLeftColor: meta.color },
+        ]}
+        testID="hero-target-frame"
+      >
         <Text style={styles.targetLabel}>{plannedTarget.label}</Text>
+        {plannedTarget.structureLines ? (
+          <StructureSummaryText lines={plannedTarget.structureLines} />
+        ) : null}
         {plannedTarget.primary ? (
           <Text style={[styles.targetPrimary, metricValueStyle(plannedTarget.primaryKind)]} numberOfLines={1}>
             {plannedTarget.primary}
@@ -1092,6 +1147,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginBottom: 12,
   },
+  targetFrameWithRail: {
+    borderLeftWidth: 4,
+    paddingLeft: 12,
+  },
   targetLabel: {
     fontFamily: FONTS.sans,
     fontSize: 11,
@@ -1104,6 +1163,19 @@ const styles = StyleSheet.create({
   },
   targetSecondary: {
     fontSize: 14,
+  },
+  structureSummaryLines: {
+    gap: 4,
+  },
+  structureSummaryLine: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 18,
+    lineHeight: 24,
+    color: C.ink,
+  },
+  structureMetricToken: {
+    fontSize: 18,
+    lineHeight: 24,
   },
   metricGrid: {
     flexDirection: 'row',

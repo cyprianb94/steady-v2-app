@@ -2,23 +2,37 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
-import type { SessionDurationUnit } from '@steady/types';
+import type { RunStructureVolumeUnit, SessionDurationUnit } from '@steady/types';
 import { triggerSelectionChangeHaptic } from '../../lib/haptics';
 
-interface UnitTogglePillProps {
-  value: SessionDurationUnit;
-  onChange: (value: SessionDurationUnit) => void;
+type UnitToggleValue = SessionDurationUnit | RunStructureVolumeUnit;
+
+interface UnitTogglePillProps<T extends UnitToggleValue = SessionDurationUnit> {
+  value: T;
+  onChange: (value: T) => void;
+  options?: readonly T[];
   disabled?: boolean;
 }
 
 const OPTIONS: SessionDurationUnit[] = ['km', 'min'];
 
-export function UnitTogglePill({ value, onChange, disabled = false }: UnitTogglePillProps) {
+function activeColorFor(option: UnitToggleValue): string {
+  return option === 'km' ? C.metricDistance : C.metricTime;
+}
+
+export function UnitTogglePill<T extends UnitToggleValue = SessionDurationUnit>({
+  value,
+  onChange,
+  options,
+  disabled = false,
+}: UnitTogglePillProps<T>) {
+  const resolvedOptions = (options ?? OPTIONS) as unknown as readonly T[];
+
   return (
     <View style={[styles.shell, disabled && styles.disabled]}>
-      {OPTIONS.map((option) => {
+      {resolvedOptions.map((option) => {
         const active = option === value;
-        const activeColor = option === 'km' ? C.metricDistance : C.metricTime;
+        const activeColor = activeColorFor(option);
         const activeBackgroundColor = `${activeColor}14`;
         return (
           <Pressable

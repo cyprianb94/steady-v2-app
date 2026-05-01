@@ -26,6 +26,11 @@ describe('structured session model', () => {
       runStructure: {
         items: [
           {
+            kind: 'WARMUP',
+            volume: { unit: 'km', value: 5 },
+            intensityTarget: { source: 'manual', mode: 'effort', profileKey: 'easy', effortCue: 'conversational' },
+          },
+          {
             kind: 'REPEAT',
             repeats: 3,
             segments: [
@@ -40,15 +45,59 @@ describe('structured session model', () => {
               },
             ],
           },
+          {
+            kind: 'RUN',
+            volume: { unit: 'km', value: 9 },
+            intensityTarget: { source: 'manual', mode: 'effort', profileKey: 'easy', effortCue: 'conversational' },
+          },
         ],
       },
     });
 
     expect(structured.type).toBe('LONG');
-    expect(summariseRunStructure(structured)).toBe('3 x 3km marathon pace off 1km float');
+    expect(summariseRunStructure(structured)).toBe('5km easy, 3 x 3km marathon pace off 1km float, 9km easy');
     expect(deriveSessionFocus(structured)).toBe('Long run · Marathon pace');
     expect(deriveSessionDemand(structured).level).toBe('demanding');
     expect(sessionKm(structured)).toBe(26);
+  });
+
+  it('uses the structured total instead of stale parent distance once structure exists', () => {
+    const structured = session({
+      type: 'LONG',
+      distance: 18,
+      plannedVolume: { unit: 'km', value: 18 },
+      runStructure: {
+        items: [
+          {
+            kind: 'RUN',
+            volume: { unit: 'km', value: 13 },
+            intensityTarget: { source: 'manual', mode: 'effort', profileKey: 'easy', effortCue: 'conversational' },
+          },
+          {
+            kind: 'REPEAT',
+            repeats: 2,
+            segments: [
+              {
+                kind: 'RECOVERY',
+                volume: { unit: 'km', value: 0.4 },
+                intensityTarget: { source: 'manual', mode: 'pace', pace: '4:22' },
+              },
+              {
+                kind: 'RUN',
+                volume: { unit: 'km', value: 1 },
+                intensityTarget: { source: 'manual', mode: 'effort', profileKey: 'easy', effortCue: 'conversational' },
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(structuredSessionVolume(structured)).toMatchObject({
+      exactKm: 15.8,
+      structuredExactKm: 15.8,
+    });
+    expect(sessionKm(structured)).toBe(15.8);
   });
 
   it('keeps seconds-level short reps precise in fartlek ladders', () => {

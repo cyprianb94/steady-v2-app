@@ -1,7 +1,13 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { PlannedSession, TrainingPaceProfile } from '@steady/types';
+import {
+  normalizeRunStructure,
+  type PlannedSession,
+  type SessionFormat,
+  type TrainingPaceProfile,
+} from '@steady/types';
+import type { SessionEditorResult } from '../../features/plan-builder/session-editing';
 import { C } from '../../constants/colours';
 import { RunStructureEditor } from './RunStructureEditor';
 import { SessionEditor } from './SessionEditor';
@@ -10,7 +16,7 @@ interface SessionEditorScreenProps {
   dayIndex: number;
   existing: Partial<PlannedSession> | null;
   trainingPaceProfile?: TrainingPaceProfile | null;
-  onSave: (dayIndex: number, session: Partial<PlannedSession> | null) => void;
+  onSave: (dayIndex: number, session: SessionEditorResult) => void;
   onClose: () => void;
 }
 
@@ -22,16 +28,25 @@ export function SessionEditorScreen({
   onClose,
 }: SessionEditorScreenProps) {
   const insets = useSafeAreaInsets();
-  const [structureDraft, setStructureDraft] = React.useState<Partial<PlannedSession> | null>(null);
+  const initialFormat: SessionFormat = existing?.format === 'structured' || normalizeRunStructure(existing?.runStructure)
+    ? 'structured'
+    : 'simple';
+  const [format, setFormat] = React.useState<SessionFormat>(initialFormat);
+  const [draft, setDraft] = React.useState<Partial<PlannedSession> | null>(existing);
 
-  if (structureDraft) {
+  if (format === 'structured') {
     return (
       <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <RunStructureEditor
           dayIndex={dayIndex}
-          session={structureDraft}
+          session={draft ?? { type: 'EASY', format: 'structured' }}
+          trainingPaceProfile={trainingPaceProfile}
           onSave={onSave}
-          onClose={() => setStructureDraft(null)}
+          onClose={onClose}
+          onChangeFormat={(nextFormat, session) => {
+            setDraft(session);
+            setFormat(nextFormat);
+          }}
         />
       </View>
     );
@@ -41,11 +56,17 @@ export function SessionEditorScreen({
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <SessionEditor
         dayIndex={dayIndex}
-        existing={existing}
+        existing={draft}
         trainingPaceProfile={trainingPaceProfile}
         onSave={onSave}
         onClose={onClose}
-        onEditRunStructure={(_, session) => setStructureDraft(session)}
+        onChangeFormat={(nextFormat, session) => {
+          setDraft({
+            ...session,
+            format: nextFormat,
+          });
+          setFormat(nextFormat);
+        }}
         presentation="screen"
       />
     </View>

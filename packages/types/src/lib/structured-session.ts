@@ -299,26 +299,29 @@ export function structuredSessionVolume(session: PlannedSession | null): Structu
 
   const totals = { ...empty };
   const topLevel = topLevelVolume(session);
-  totals.exactKm = topLevel.exactKm;
   totals.plannedMinutes = topLevel.plannedMinutes;
 
   const structure = normalizeRunStructure(session.runStructure);
   if (!structure) {
     return {
       ...totals,
-      exactKm: roundKm(totals.exactKm),
+      exactKm: roundKm(topLevel.exactKm),
       plannedMinutes: roundSeconds(totals.plannedMinutes),
     };
   }
 
   structure.items.forEach((item) => addItemVolume(totals, item, session));
 
-  if (totals.exactKm === 0 && totals.structuredExactKm > 0) {
+  if (totals.structuredExactKm > 0) {
     totals.exactKm = totals.structuredExactKm;
   }
 
   if (totals.structuredEstimatedKm > 0) {
     totals.estimatedKm = totals.structuredEstimatedKm;
+  }
+
+  if (totals.exactKm === 0 && totals.estimatedKm === 0 && topLevel.exactKm > 0) {
+    totals.exactKm = topLevel.exactKm;
   }
 
   return {

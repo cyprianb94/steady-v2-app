@@ -2,10 +2,10 @@ import React, { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { PlannedSession } from '@steady/types';
 import { SessionEditorScreen } from '../components/plan-builder/SessionEditorScreen';
 import { C } from '../constants/colours';
 import { FONTS } from '../constants/typography';
+import type { SessionEditorResult } from '../features/plan-builder/session-editing';
 import { stashSessionEditReturn } from '../features/plan-builder/session-edit-return';
 import { usePlan } from '../hooks/usePlan';
 
@@ -44,7 +44,7 @@ export default function EditSessionScreen() {
     router.back();
   }
 
-  function save(_: number, updated: Partial<PlannedSession> | null) {
+  function save(_: number, updated: SessionEditorResult) {
     if (weekIndex == null || dayIndex == null) {
       router.back();
       return;

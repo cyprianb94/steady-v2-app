@@ -1,5 +1,6 @@
 export type {
   SessionType,
+  SessionFormat,
   PlannedSession,
   SessionDurationSpec,
   SessionDurationUnit,

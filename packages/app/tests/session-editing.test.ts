@@ -248,6 +248,53 @@ describe('session edit materialization', () => {
       },
     });
   });
+
+  it('clears structured-session fields when converting a structured run to simple', () => {
+    const existingLong: PlannedSession = {
+      id: 'long-convert',
+      type: 'LONG',
+      date: '2026-04-12',
+      distance: 15.8,
+      plannedVolume: { unit: 'km', value: 15.8 },
+      pace: '5:10',
+      runStructure: {
+        items: [
+          { kind: 'RUN', volume: { unit: 'km', value: 13 } },
+          {
+            kind: 'REPEAT',
+            repeats: 2,
+            segments: [
+              { kind: 'RECOVERY', volume: { unit: 'km', value: 0.4 } },
+              { kind: 'RUN', volume: { unit: 'km', value: 1 } },
+            ],
+          },
+        ],
+      },
+    };
+
+    const updated = materializeEditedSession(
+      existingLong,
+      {
+        type: 'LONG',
+        distance: 18,
+        pace: '5:10',
+        clearPlannedVolume: true,
+        clearRunStructure: true,
+        plannedVolume: undefined,
+        runStructure: undefined,
+      },
+      { id: 'fallback', date: 'preview', type: 'LONG' },
+    );
+
+    expect(updated).toMatchObject({
+      id: 'long-convert',
+      type: 'LONG',
+      distance: 18,
+      pace: '5:10',
+    });
+    expect(updated).not.toHaveProperty('plannedVolume');
+    expect(updated).not.toHaveProperty('runStructure');
+  });
 });
 
 describe('session edit material change detection', () => {

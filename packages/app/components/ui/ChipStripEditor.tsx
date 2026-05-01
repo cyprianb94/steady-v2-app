@@ -1,11 +1,13 @@
 import React from 'react';
-import type { SessionDurationUnit } from '@steady/types';
+import type { RunStructureVolumeUnit, SessionDurationUnit } from '@steady/types';
 import { C } from '../../constants/colours';
 import { EditableChipStrip } from './EditableChipStrip';
 
+type ChipStripUnit = SessionDurationUnit | RunStructureVolumeUnit;
+
 interface ChipStripEditorProps {
   presets: number[];
-  unit: SessionDurationUnit;
+  unit: ChipStripUnit;
   value: number | null;
   onSelect: (value: number) => void;
   customEditing?: boolean;
@@ -21,9 +23,13 @@ interface ChipStripEditorProps {
   onCustomFocus?: () => void;
 }
 
-function formatValueLabel(value: number, unit: SessionDurationUnit): string {
+function formatValueLabel(value: number, unit: ChipStripUnit): string {
   if (value === 0) {
     return 'Off';
+  }
+
+  if (unit === 'sec') {
+    return `${value}s`;
   }
 
   if (unit === 'km' && value > 0 && value < 1) {
@@ -33,7 +39,7 @@ function formatValueLabel(value: number, unit: SessionDurationUnit): string {
   return `${value} ${unit}`;
 }
 
-function metricColorForUnit(unit: SessionDurationUnit): string {
+function metricColorForUnit(unit: ChipStripUnit): string {
   return unit === 'km' ? C.metricDistance : C.metricTime;
 }
 

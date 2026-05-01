@@ -30,6 +30,7 @@ import {
   hasMaterialSessionEdit,
   materializeEditedSession,
   resolveProfileLinkedSessionTarget,
+  type SessionEditorResult,
 } from '../../features/plan-builder/session-editing';
 import { consumeSessionEditReturn } from '../../features/plan-builder/session-edit-return';
 import { useDirectWeekReschedule } from '../../features/plan-builder/use-direct-week-reschedule';
@@ -236,7 +237,7 @@ interface PreservedRescheduleDraft {
 interface PendingEdit {
   weekIndex: number;
   dayIndex: number;
-  updated: Partial<PlannedSession> | null;
+  updated: SessionEditorResult;
   desc: string;
   nonce?: string;
 }
@@ -244,7 +245,7 @@ interface PendingEdit {
 function materializeSessionForWeek(
   week: PlanWeek,
   dayIndex: number,
-  updated: Partial<PlannedSession> | null,
+  updated: SessionEditorResult,
 ): PlannedSession | null {
   const existing = week.sessions[dayIndex];
   return materializeEditedSession(existing, updated, {
@@ -257,7 +258,7 @@ function materializeSessionForWeek(
 function hasMaterialSessionEditForWeek(
   week: PlanWeek,
   dayIndex: number,
-  updated: Partial<PlannedSession> | null,
+  updated: SessionEditorResult,
 ): boolean {
   const existing = week.sessions[dayIndex];
   return hasMaterialSessionEdit(existing, updated, {
@@ -319,7 +320,7 @@ function parseEditSessionResult(value: string | string[] | undefined): ParsedEdi
     const parsed = JSON.parse(raw) as {
       weekIndex?: unknown;
       dayIndex?: unknown;
-      updated?: Partial<PlannedSession> | null;
+      updated?: SessionEditorResult;
     };
 
     if (

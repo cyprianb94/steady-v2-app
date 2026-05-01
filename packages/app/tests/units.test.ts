@@ -167,6 +167,38 @@ describe('intensity target display', () => {
     expect(formatCompactSessionLabel(session, 'metric')).toBe('10×1km · 4:00-4:10');
   });
 
+  it('formats structured distance instead of stale parent distance', () => {
+    const session: PlannedSession = {
+      id: 'structured-long',
+      type: 'LONG',
+      date: '2026-04-11',
+      distance: 18,
+      plannedVolume: { unit: 'km', value: 18 },
+      intensityTarget: {
+        source: 'manual',
+        mode: 'effort',
+        profileKey: 'easy',
+        effortCue: 'conversational',
+      },
+      runStructure: {
+        items: [
+          { kind: 'RUN', volume: { unit: 'km', value: 13 } },
+          {
+            kind: 'REPEAT',
+            repeats: 2,
+            segments: [
+              { kind: 'RECOVERY', volume: { unit: 'km', value: 0.4 } },
+              { kind: 'RUN', volume: { unit: 'km', value: 1 } },
+            ],
+          },
+        ],
+      },
+    };
+
+    expect(formatSessionTitle(session, 'metric')).toBe('15.8km Long Run');
+    expect(formatCompactSessionLabel(session, 'metric')).toBe('Long 15.8km · conversational');
+  });
+
   it('uses run structure as canonical label for structured-only intervals', () => {
     const session: PlannedSession = {
       id: 'fartlek-ladder',

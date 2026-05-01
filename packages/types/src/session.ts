@@ -1,4 +1,5 @@
 export type SessionType = 'EASY' | 'INTERVAL' | 'TEMPO' | 'LONG' | 'RECOVERY' | 'REST';
+export type SessionFormat = 'simple' | 'structured';
 export type SubjectiveLegs = 'fresh' | 'normal' | 'heavy' | 'dead';
 export type SubjectiveBreathing = 'easy' | 'controlled' | 'labored';
 export type SubjectiveOverall = 'could-go-again' | 'done' | 'shattered';
@@ -109,6 +110,7 @@ export interface SkippedSession {
 export interface PlannedSession {
   id: string;
   type: SessionType;
+  format?: SessionFormat;
   date: string; // ISO date 'YYYY-MM-DD'
 
   // EASY, TEMPO, LONG

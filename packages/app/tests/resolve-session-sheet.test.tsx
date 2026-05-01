@@ -1,8 +1,12 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { Activity, PlannedSession } from '@steady/types';
+import { deriveTrainingPaceProfile, type Activity, type PlannedSession } from '@steady/types';
 import { ResolveSessionSheet } from '../components/home/ResolveSessionSheet';
+
+const byExactTextContent = (text: string) => (_content: string, node: Element | null) => (
+  node?.getAttribute('data-rn') === 'Text' && node.textContent === text
+);
 
 function intervalSession(overrides: Partial<PlannedSession> = {}): PlannedSession {
   return {
@@ -150,7 +154,7 @@ describe('ResolveSessionSheet', () => {
     expect(screen.queryByText(/—\/km/)).toBeNull();
   });
 
-  it('renders run structure intent, plan-note indicator, and recovery duration in planned rows', async () => {
+  it('renders run structure, distance, plan note, and recovery duration in planned rows', async () => {
     const { rerender } = render(
       <ResolveSessionSheet
         open
@@ -161,6 +165,10 @@ describe('ResolveSessionSheet', () => {
           planNote: 'Keep floats honest.',
           runStructure: {
             items: [
+              {
+                kind: 'WARMUP',
+                volume: { unit: 'km', value: 5 },
+              },
               {
                 kind: 'REPEAT',
                 repeats: 3,
@@ -181,6 +189,10 @@ describe('ResolveSessionSheet', () => {
                   },
                 ],
               },
+              {
+                kind: 'RUN',
+                volume: { unit: 'km', value: 9 },
+              },
             ],
           },
         })}
@@ -195,8 +207,15 @@ describe('ResolveSessionSheet', () => {
     );
 
     expect(await screen.findByText('RUN STRUCTURE')).toBeTruthy();
-    expect(screen.getByText('3 x 3km marathon pace off 1km float')).toBeTruthy();
-    expect(screen.getByText('Plan note saved')).toBeTruthy();
+    expect(screen.getAllByText(byExactTextContent('5km')).length).toBeGreaterThan(0);
+    expect(screen.getByText(byExactTextContent('3 x 3km marathon pace off 1km float'))).toBeTruthy();
+    expect(screen.getAllByText(byExactTextContent('9km')).length).toBeGreaterThan(0);
+    expect(screen.getByText('DISTANCE')).toBeTruthy();
+    expect(screen.getByText('26km')).toBeTruthy();
+    expect(screen.getByText('PLAN NOTE')).toBeTruthy();
+    expect(screen.getByText('Keep floats honest.')).toBeTruthy();
+    expect(screen.queryByText('TARGET PACE')).toBeNull();
+    expect(screen.queryByText('Plan note saved')).toBeNull();
 
     rerender(
       <ResolveSessionSheet
@@ -225,6 +244,71 @@ describe('ResolveSessionSheet', () => {
     expect(screen.getByText('35min')).toBeTruthy();
     expect(screen.getByText('TARGET EFFORT')).toBeTruthy();
     expect(screen.getByText('very easy')).toBeTruthy();
+  });
+
+  it('adds profile pace references to structured rows', async () => {
+    const trainingPaceProfile = deriveTrainingPaceProfile({
+      raceDistance: 'Marathon',
+      targetTime: 'sub-3:15',
+    });
+
+    render(
+      <ResolveSessionSheet
+        open
+        trainingPaceProfile={trainingPaceProfile}
+        session={intervalSession({
+          type: 'LONG',
+          distance: 15,
+          plannedVolume: { unit: 'km', value: 15 },
+          runStructure: {
+            items: [
+              {
+                kind: 'RUN',
+                volume: { unit: 'km', value: 8 },
+                intensityTarget: {
+                  source: 'manual',
+                  mode: 'effort',
+                  profileKey: 'easy',
+                  effortCue: 'conversational',
+                },
+              },
+              {
+                kind: 'RUN',
+                volume: { unit: 'km', value: 4 },
+                intensityTarget: {
+                  source: 'manual',
+                  mode: 'effort',
+                  profileKey: 'steady',
+                  effortCue: 'steady',
+                },
+              },
+              {
+                kind: 'RUN',
+                volume: { unit: 'km', value: 3 },
+                intensityTarget: {
+                  source: 'manual',
+                  mode: 'effort',
+                  profileKey: 'marathon',
+                  effortCue: 'race pace',
+                },
+              },
+            ],
+          },
+        })}
+        status="missed"
+        possibleMatches={[]}
+        onDismiss={vi.fn()}
+        onLogSession={vi.fn()}
+        onMarkSkipped={vi.fn()}
+        onEditSkipped={vi.fn()}
+        onAttachMatch={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText('RUN STRUCTURE')).toBeTruthy();
+    expect(screen.getByText(byExactTextContent('8km easy · 5:33-5:55/km'))).toBeTruthy();
+    expect(screen.getByText(byExactTextContent('4km steady · 4:59-5:13/km'))).toBeTruthy();
+    expect(screen.getByText(byExactTextContent('3km marathon pace · 4:37/km'))).toBeTruthy();
   });
 
   it('does not show fallback quick-interval rows for structured-only intervals', async () => {
@@ -267,8 +351,10 @@ describe('ResolveSessionSheet', () => {
     );
 
     expect(await screen.findByText('RUN STRUCTURE')).toBeTruthy();
-    expect(screen.getByText('4 x 1.5min on/off, 4 x 30s on/off')).toBeTruthy();
+    expect(screen.getByText(byExactTextContent('4 x 1.5min on/off'))).toBeTruthy();
+    expect(screen.getByText(byExactTextContent('4 x 30s on/off'))).toBeTruthy();
     expect(screen.queryByText('REPETITIONS')).toBeNull();
+    expect(screen.queryByText('REP TARGET PACE')).toBeNull();
     expect(screen.queryByText('6×800m')).toBeNull();
   });
 

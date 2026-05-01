@@ -34,6 +34,12 @@ export function normalizeSessionDurations(
     normalizedSession.runStructure = normalizedRunStructure;
   }
 
+  normalizedSession.format = normalizedSession.runStructure ? 'structured' : 'simple';
+  if (session.type === 'RECOVERY' || session.type === 'REST') {
+    normalizedSession.format = 'simple';
+    delete normalizedSession.runStructure;
+  }
+
   if (sessionSupportsWarmupCooldown(session.type)) {
     normalizedSession.warmup = normalizeSessionDuration(warmup);
     normalizedSession.cooldown = normalizeSessionDuration(cooldown);

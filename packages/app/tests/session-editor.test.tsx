@@ -254,12 +254,13 @@ describe('SessionEditor plan note and structure entry', () => {
 
     expect(onSave).toHaveBeenCalledWith(6, expect.objectContaining({
       type: 'LONG',
+      format: 'simple',
       planNote: 'Keep this relaxed even if the weather is good.',
     }));
     expect(onSave.mock.calls[0][1]).not.toHaveProperty('runStructure');
   });
 
-  it('preserves existing run structure when saving from the simple editor', () => {
+  it('saves as a simple run without preserving stale structure when rendered in simple mode', () => {
     const onSave = vi.fn();
     const runStructure = {
       items: [
@@ -310,21 +311,91 @@ describe('SessionEditor plan note and structure entry', () => {
 
     expect(onSave).toHaveBeenCalledWith(6, expect.objectContaining({
       type: 'LONG',
-      plannedVolume: { unit: 'km', value: 26 },
+      format: 'simple',
+      distance: 26,
       planNote: 'Keep floats honest, then cool down.',
-      runStructure,
     }));
+    expect(onSave.mock.calls[0][1]).not.toHaveProperty('runStructure');
+    expect(onSave.mock.calls[0][1]).not.toHaveProperty('plannedVolume');
   });
 
-  it('shows a quiet run-structure entry point from the simple editor', () => {
+  it('saves simple distance changes without carrying structured fields', () => {
+    const onSave = vi.fn();
+    const runStructure = {
+      items: [
+        {
+          kind: 'RUN' as const,
+          volume: { unit: 'km' as const, value: 13 },
+          intensityTarget: {
+            source: 'manual' as const,
+            mode: 'effort' as const,
+            profileKey: 'easy' as const,
+            effortCue: 'conversational' as const,
+          },
+        },
+        {
+          kind: 'REPEAT' as const,
+          repeats: 2,
+          segments: [
+            {
+              kind: 'RECOVERY' as const,
+              volume: { unit: 'km' as const, value: 0.4 },
+            },
+            {
+              kind: 'RUN' as const,
+              volume: { unit: 'km' as const, value: 1 },
+            },
+          ],
+        },
+      ],
+    };
+
+    render(
+      <SessionEditor
+        dayIndex={6}
+        existing={{
+          type: 'LONG',
+          distance: 15.8,
+          plannedVolume: { unit: 'km', value: 15.8 },
+          pace: '5:10',
+          runStructure,
+        }}
+        onSave={onSave}
+        onClose={vi.fn()}
+        presentation="screen"
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Distance'));
+    fireEvent.click(screen.getByText('15.8 km'));
+    const customInput = screen.getByTestId('editable-chip-custom-input');
+    fireEvent.change(customInput, {
+      target: { value: '22' },
+    });
+    fireEvent.blur(customInput);
+    fireEvent.click(screen.getByText('Update session'));
+
+    expect(onSave).toHaveBeenCalledWith(6, expect.objectContaining({
+      type: 'LONG',
+      format: 'simple',
+      distance: 22,
+      pace: '5:10',
+    }));
+    const saved = onSave.mock.calls[0][1] as Partial<PlannedSession>;
+    expect(saved.runStructure).toBeUndefined();
+    expect(saved.plannedVolume).toBeUndefined();
+  });
+
+  it('shows the structured format switcher from the simple editor', () => {
     renderSessionEditor({
       type: 'EASY',
       distance: 8,
       pace: '5:20',
     });
 
-    expect(screen.getByText('Run structure')).toBeTruthy();
-    expect(screen.getByText('Add run structure')).toBeTruthy();
+    expect(screen.getByText('Format')).toBeTruthy();
+    expect(screen.getByText('Simple')).toBeTruthy();
+    expect(screen.getByText('Structured')).toBeTruthy();
   });
 });
 

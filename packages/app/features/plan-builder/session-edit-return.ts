@@ -1,9 +1,9 @@
-import type { PlannedSession } from '@steady/types';
+import type { SessionEditorResult } from './session-editing';
 
 export interface SessionEditReturnPayload {
   weekIndex: number;
   dayIndex: number;
-  updated: Partial<PlannedSession> | null;
+  updated: SessionEditorResult;
   nonce: string;
 }
 

@@ -19,7 +19,10 @@ import {
 import { DAYS, sessionLabel } from '../../lib/plan-helpers';
 import type { DistanceUnits } from '../../lib/units';
 
-export type SessionEditorResult = Partial<PlannedSession> | null;
+export type SessionEditorResult = (Partial<PlannedSession> & {
+  clearPlannedVolume?: boolean;
+  clearRunStructure?: boolean;
+}) | null;
 
 const PROFILE_KEYS_BY_SESSION_TYPE: Partial<Record<SessionType, TrainingPaceProfileKey[]>> = {
   EASY: ['recovery', 'easy', 'steady'],
@@ -45,6 +48,7 @@ interface EditedSessionFallback {
 
 interface PlannedSessionEditFingerprint {
   type: PlannedSession['type'] | 'REST';
+  format?: PlannedSession['format'];
   distance?: number;
   pace?: string;
   intensityTarget?: {
@@ -306,7 +310,7 @@ export function resolveProfileLinkedSessionTarget(
 
 export function normalizeSessionEditorResult(
   updated: SessionEditorResult,
-): Partial<PlannedSession> | null {
+): SessionEditorResult {
   if (!updated || updated.type === 'REST') {
     return null;
   }
@@ -335,22 +339,45 @@ export function materializeEditedSession(
     return null;
   }
 
+  const {
+    clearPlannedVolume,
+    clearRunStructure,
+    ...normalizedSession
+  } = normalized;
   const typeChanged = Boolean(
     existing?.type
-    && normalized.type
-    && normalized.type !== existing.type,
+    && normalizedSession.type
+    && normalizedSession.type !== existing.type,
   );
   const existingBase = typeChanged
     ? preserveSessionStatusFields(existing)
     : (existing ?? {});
-
-  return stripUndefinedSessionFields(normalizeSessionIntensityTarget({
+  const merged = {
     ...existingBase,
-    ...normalized,
+    ...normalizedSession,
     id: existing?.id ?? fallback.id,
     date: existing?.date ?? fallback.date,
-    type: normalized.type ?? existing?.type ?? fallback.type,
-  } as PlannedSession));
+    type: normalizedSession.type ?? existing?.type ?? fallback.type,
+  } as PlannedSession;
+
+  if (merged.format === 'simple') {
+    delete merged.runStructure;
+    if (merged.type !== 'RECOVERY' && normalizedSession.plannedVolume === undefined) {
+      delete merged.plannedVolume;
+    }
+  }
+
+  if (clearRunStructure) {
+    delete merged.runStructure;
+  }
+
+  if (clearPlannedVolume) {
+    delete merged.plannedVolume;
+  }
+
+  return stripUndefinedSessionFields(normalizeSessionIntensityTarget({
+    ...merged,
+  }));
 }
 
 function intensityTargetFingerprint(
@@ -388,6 +415,7 @@ function plannedSessionEditFingerprint(
   const normalized = normalizeSessionIntensityTarget(session);
   const fingerprint: PlannedSessionEditFingerprint = {
     type: normalized.type,
+    format: normalized.runStructure ? 'structured' : (normalized.format ?? 'simple'),
     intensityTarget: intensityTargetFingerprint(normalized.intensityTarget),
   };
 

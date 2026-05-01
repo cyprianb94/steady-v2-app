@@ -26,10 +26,13 @@ import {
   DEFAULT_TEMPLATE_RUN_COUNT,
   hasStarterTemplateEdits,
   toTemplateSessions,
-  type TemplateDay,
   type TemplateStarterSelection,
 } from '../../../features/plan-builder/template-starter';
-import { parseTrainingPaceProfileRouteParam } from '../../../features/plan-builder/session-editing';
+import {
+  materializeEditedSession,
+  parseTrainingPaceProfileRouteParam,
+  type SessionEditorResult,
+} from '../../../features/plan-builder/session-editing';
 import { useDirectWeekReschedule } from '../../../features/plan-builder/use-direct-week-reschedule';
 import { DAYS } from '../../../lib/plan-helpers';
 import { formatDistance } from '../../../lib/units';
@@ -50,20 +53,14 @@ type PendingStarterPreviewReset =
 
 function materializeTemplateSession(
   dayIndex: number,
-  updated: TemplateDay,
+  updated: SessionEditorResult,
   existing: PlannedSession | null,
 ): PlannedSession | null {
-  if (!updated) {
-    return null;
-  }
-
-  return {
-    ...existing,
-    ...updated,
+  return materializeEditedSession(existing, updated, {
     id: existing?.id ?? `template-${dayIndex}`,
     date: existing?.date ?? 'template',
-    type: updated.type ?? existing?.type ?? 'EASY',
-  } as PlannedSession;
+    type: existing?.type ?? 'EASY',
+  });
 }
 
 function createEditableStarterTemplate(
@@ -211,7 +208,7 @@ export default function StepTemplate() {
     applyStarterSelection(selection);
   }
 
-  function handleSave(dayIndex: number, session: TemplateDay) {
+  function handleSave(dayIndex: number, session: SessionEditorResult) {
     const nextSessions = [...templateSessions];
     nextSessions[dayIndex] = materializeTemplateSession(
       dayIndex,

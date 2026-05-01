@@ -11,15 +11,14 @@ import {
 } from 'react-native';
 import {
   normalizePaceRange,
-  normalizeRunStructure,
   normalizeSessionDuration,
   sessionSupportsWarmupCooldown,
-  summariseRunStructure,
   type IntensityTarget,
   type PaceRange,
   type IntervalRecovery,
   type PlannedSession,
   type RecoveryDuration,
+  type SessionFormat,
   type SessionDurationUnit,
   type SessionType,
   type TrainingPaceProfile,
@@ -57,7 +56,7 @@ interface SessionEditorProps {
   trainingPaceProfile?: TrainingPaceProfile | null;
   onSave: (dayIndex: number, session: Partial<PlannedSession> | null) => void;
   onClose: () => void;
-  onEditRunStructure?: (dayIndex: number, session: Partial<PlannedSession>) => void;
+  onChangeFormat?: (format: SessionFormat, session: Partial<PlannedSession>) => void;
   presentation?: 'sheet' | 'screen';
 }
 
@@ -304,7 +303,7 @@ export function SessionEditor({
   trainingPaceProfile = null,
   onSave,
   onClose,
-  onEditRunStructure,
+  onChangeFormat,
   presentation = 'sheet',
 }: SessionEditorProps) {
   const { units } = usePreferences();
@@ -323,7 +322,7 @@ export function SessionEditor({
   const initialManualRangeSelected = isManualRangeTarget(initialIntensityTarget);
   const [type, setType] = useState<SessionType>(init);
   const [distance, setDistance] = useState(
-    existing?.distance ?? (existing?.plannedVolume?.unit === 'km' ? existing.plannedVolume.value : 8),
+    existing?.distance || (existing?.plannedVolume?.unit === 'km' ? existing.plannedVolume.value : 8),
   );
   const [plannedMinutes, setPlannedMinutes] = useState(
     existing?.plannedVolume?.unit === 'min'
@@ -364,6 +363,7 @@ export function SessionEditor({
   const isRecovery = type === 'RECOVERY';
   const isRest = type === 'REST';
   const supportsWarmupCooldown = sessionSupportsWarmupCooldown(type);
+  const canUseStructuredFormat = !isRest && !isRecovery;
   const canEditPace = !isRest && !isRecovery;
   const typeMeta = SESSION_TYPE[type];
   const distanceAccentColor = isRecovery ? C.metricTime : C.metricDistance;
@@ -412,19 +412,13 @@ export function SessionEditor({
       caption: parts.label ?? band.defaultEffortCue,
     };
   });
-  const structureSummary = summariseRunStructure(existing as PlannedSession | null);
-  const existingStructure = normalizeRunStructure(existing?.runStructure);
-  const preserveExistingStructure = Boolean(
-    existingStructure && existing?.type === type && !isRecovery && !isRest,
-  );
-
   const build = (): Partial<PlannedSession> | null => {
     if (isRest) {
-      return { type: 'REST' };
+      return { type: 'REST', format: 'simple' };
     }
 
     const targetForSave = intensityTarget ?? manualPaceIntensityTarget(pace);
-    const session: Partial<PlannedSession> = { type };
+    const session: Partial<PlannedSession> = { type, format: 'simple' };
     if (!isRecovery) {
       session.pace = pace;
     }
@@ -433,11 +427,6 @@ export function SessionEditor({
     }
     const trimmedPlanNote = planNote.trim();
     session.planNote = trimmedPlanNote.length > 0 ? trimmedPlanNote : undefined;
-    if (preserveExistingStructure && existingStructure) {
-      session.runStructure = existingStructure;
-      session.plannedVolume = existing?.plannedVolume;
-    }
-
     if (isRecovery) {
       session.plannedVolume = { unit: 'min', value: plannedMinutes };
       return session;
@@ -647,8 +636,8 @@ export function SessionEditor({
     setCustomField((current) => (current === field ? null : current));
   }
 
-  function handleEditRunStructure() {
-    onEditRunStructure?.(dayIndex, build() ?? { type });
+  function switchToStructured() {
+    onChangeFormat?.('structured', build() ?? { type, format: 'simple' });
   }
 
   function handleCustomNumberChange(
@@ -864,6 +853,24 @@ export function SessionEditor({
             onSelect={(nextType) => changeType(nextType as SessionType)}
           />
         </View>
+
+        {canUseStructuredFormat ? (
+          <View style={styles.section}>
+            <SectionLabel>Format</SectionLabel>
+            <ChipRow
+              chips={[
+                { key: 'simple', label: 'Simple', color: typeMeta.color },
+                { key: 'structured', label: 'Structured', color: typeMeta.color },
+              ]}
+              selected="simple"
+              onSelect={(nextFormat) => {
+                if (nextFormat === 'structured') {
+                  switchToStructured();
+                }
+              }}
+            />
+          </View>
+        ) : null}
 
         <View style={styles.stack}>
               {isInterval ? (
@@ -1381,40 +1388,6 @@ export function SessionEditor({
           />
         </View>
 
-        {!isRest && !isRecovery ? (
-          <View style={styles.detailSection}>
-            <View style={styles.structureHeader}>
-              <View style={styles.structureTitleBlock}>
-                <Text style={styles.detailLabel}>Run structure</Text>
-                {structureSummary ? (
-                  <Text style={styles.structureSummary}>{structureSummary}</Text>
-                ) : (
-                  <Text style={styles.structureCaption}>
-                    Add repeats, strides, progressions, or race-pace blocks.
-                  </Text>
-                )}
-              </View>
-              <Pressable
-                accessibilityRole="button"
-                onPress={handleEditRunStructure}
-                style={({ pressed }) => [
-                  styles.structureAction,
-                  { borderColor: typeMeta.color },
-                  pressed && styles.structureActionPressed,
-                ]}
-              >
-                <Text style={[styles.structureActionText, { color: typeMeta.color }]}>
-                  {structureSummary ? 'Edit run structure' : 'Add run structure'}
-                </Text>
-              </Pressable>
-            </View>
-            {structureSummary ? (
-              <Text style={styles.structureFootnote}>
-                This session has a detailed structure. Edit the structure to change the workout.
-              </Text>
-            ) : null}
-          </View>
-        ) : null}
       </ScrollView>
 
       {customField ? null : (
