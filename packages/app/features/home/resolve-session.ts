@@ -1,11 +1,5 @@
-import {
-  expectedDistance,
-  type Activity,
-  type PlannedSession,
-  type PlanWeek,
-  type SkippedSessionReason,
-} from '@steady/types';
-import { activityLocalDate } from '../../lib/plan-helpers';
+import type { Activity, PlannedSession, PlanWeek, SkippedSessionReason } from '@steady/types';
+import { candidateActivitiesForSession } from '../run/session-activity-candidates';
 import type { ActivityDayStatus } from '../run/activity-resolution';
 
 export function canOpenResolveSessionSheet(
@@ -42,23 +36,7 @@ export function possibleActivityMatchesForSession(
   session: PlannedSession,
   activities: readonly Activity[],
 ): Activity[] {
-  const plannedDistance = session.distance ?? expectedDistance(session);
-
-  return activities
-    .filter((activity) => (
-      activity.source !== 'manual'
-      && !activity.matchedSessionId
-      && activityLocalDate(activity.startTime) === session.date
-    ))
-    .sort((left, right) => {
-      const leftDistanceDelta = Math.abs(left.distance - plannedDistance);
-      const rightDistanceDelta = Math.abs(right.distance - plannedDistance);
-      if (leftDistanceDelta !== rightDistanceDelta) {
-        return leftDistanceDelta - rightDistanceDelta;
-      }
-
-      return right.startTime.localeCompare(left.startTime);
-    });
+  return candidateActivitiesForSession(session, activities);
 }
 
 export function markSessionSkippedInWeeks({

@@ -32,6 +32,7 @@ export interface TargetAwareSplitRow {
   kind: TargetAwareSplitKind;
   label: string;
   distanceKm: number | null;
+  averageComparisonEligible: boolean;
   paceSeconds: number;
   paceLabel: string;
   heartRate: number | null;
@@ -79,6 +80,8 @@ const DISTANCE_TOLERANCE_KM = 0.05;
 const DISTANCE_TOLERANCE_RATIO = 0.08;
 const PACE_TARGET_TOLERANCE_SECONDS = 2;
 const AVERAGE_RAIL_MAX_WIDTH_PERCENT = 46;
+const KM_PER_MILE = 1.609344;
+const AVERAGE_COMPARISON_MIN_SPLIT_UNIT_FRACTION = 0.1;
 
 function parseLabelDistanceKm(label: string | undefined): number | null {
   if (!label) {
@@ -105,6 +108,16 @@ function splitDistanceKm(split: ActivitySplit): number | null {
   }
 
   return parseLabelDistanceKm(split.label);
+}
+
+function minimumAverageComparableDistanceKm(units: DistanceUnits): number {
+  return units === 'imperial'
+    ? KM_PER_MILE * AVERAGE_COMPARISON_MIN_SPLIT_UNIT_FRACTION
+    : AVERAGE_COMPARISON_MIN_SPLIT_UNIT_FRACTION;
+}
+
+function isAverageComparisonEligible(distanceKm: number | null, units: DistanceUnits): boolean {
+  return distanceKm != null && distanceKm >= minimumAverageComparableDistanceKm(units);
 }
 
 function intervalRepDistanceKm(session: PlannedSession): number {
@@ -486,6 +499,7 @@ export function buildTargetAwareSplitsModel({
           ? `Rep ${classification.repIndex}`
           : formatSplitLabel(split, units, { mode: labelMode }),
         distanceKm,
+        averageComparisonEligible: isAverageComparisonEligible(distanceKm, units),
         paceSeconds: split.pace,
         paceLabel: formatPace(split.pace, units),
         heartRate: typeof split.hr === 'number' ? split.hr : null,

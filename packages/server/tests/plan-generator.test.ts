@@ -176,6 +176,16 @@ describe('generatePlan', () => {
         runStructure: {
           items: [
             {
+              kind: 'WARMUP',
+              volume: { unit: 'km', value: 5 },
+              intensityTarget: {
+                source: 'manual',
+                mode: 'effort',
+                profileKey: 'easy',
+                effortCue: 'conversational',
+              },
+            },
+            {
               kind: 'REPEAT',
               repeats: 3,
               segments: [
@@ -191,6 +201,16 @@ describe('generatePlan', () => {
                 },
                 { kind: 'FLOAT', volume: { unit: 'km', value: 1 } },
               ],
+            },
+            {
+              kind: 'RUN',
+              volume: { unit: 'km', value: 9 },
+              intensityTarget: {
+                source: 'manual',
+                mode: 'effort',
+                profileKey: 'easy',
+                effortCue: 'conversational',
+              },
             },
           ],
         },
@@ -216,8 +236,16 @@ describe('generatePlan', () => {
       runStructure: {
         items: [
           {
+            kind: 'WARMUP',
+            volume: { unit: 'km', value: 5 },
+          },
+          {
             kind: 'REPEAT',
             repeats: 3,
+          },
+          {
+            kind: 'RUN',
+            volume: { unit: 'km', value: 9 },
           },
         ],
       },

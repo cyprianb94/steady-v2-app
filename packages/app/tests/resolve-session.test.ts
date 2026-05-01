@@ -59,18 +59,19 @@ describe('home resolve-session helpers', () => {
     ).toBe(true);
   });
 
-  it('finds same-date unmatched activities and orders closest distance first', () => {
-    const session = intervalSession();
+  it('finds nearby unmatched activities and orders closest distance first', () => {
+    const session = intervalSession({ type: 'EASY', distance: 8 });
 
     const matches = possibleActivityMatchesForSession(session, [
-      activity({ id: 'far', distance: 9.8, startTime: '2026-04-23T19:00:00.000Z' }),
+      activity({ id: 'same-date-far', distance: 9.8, startTime: '2026-04-23T19:00:00.000Z' }),
       activity({ id: 'linked', matchedSessionId: 'other-session' }),
-      activity({ id: 'wrong-date', startTime: '2026-04-22T18:42:00.000Z' }),
+      activity({ id: 'outside-window', startTime: '2026-04-21T18:42:00.000Z' }),
       activity({ id: 'manual', source: 'manual' }),
-      activity({ id: 'close', distance: 12.4, startTime: '2026-04-23T07:18:00.000Z' }),
+      activity({ id: 'previous-day-close', distance: 8.01, startTime: '2026-04-22T18:42:00.000Z' }),
+      activity({ id: 'same-date-close', distance: 8.2, startTime: '2026-04-23T07:18:00.000Z' }),
     ]);
 
-    expect(matches.map((match) => match.id)).toEqual(['close', 'far']);
+    expect(matches.map((match) => match.id)).toEqual(['previous-day-close', 'same-date-close', 'same-date-far']);
   });
 
   it('marks a session skipped without mutating the original weeks', () => {

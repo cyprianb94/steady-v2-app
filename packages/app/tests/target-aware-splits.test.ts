@@ -80,6 +80,40 @@ describe('buildTargetAwareSplitsModel', () => {
     expect(model.rows.every((row) => row.targetStatus === null && row.comparisonLabel === null)).toBe(true);
   });
 
+  it('marks tiny partial splits as ineligible for average comparison', () => {
+    const metricModel = buildTargetAwareSplitsModel({
+      session: { id: 'easy-1', type: 'EASY', date: '2026-04-29', distance: 3 },
+      splits: [
+        split(1, 1, 350),
+        split(2, 0.1, 365),
+        split(3, 0.09, 680),
+      ],
+      units: 'metric',
+    });
+
+    expect(metricModel.rows.map((row) => row.averageComparisonEligible)).toEqual([
+      true,
+      true,
+      false,
+    ]);
+
+    const imperialModel = buildTargetAwareSplitsModel({
+      session: { id: 'easy-2', type: 'EASY', date: '2026-04-29', distance: 3 },
+      splits: [
+        split(1, 1, 350),
+        split(2, 0.16, 365),
+        split(3, 0.17, 680),
+      ],
+      units: 'imperial',
+    });
+
+    expect(imperialModel.rows.map((row) => row.averageComparisonEligible)).toEqual([
+      true,
+      false,
+      true,
+    ]);
+  });
+
   it('classifies interval work reps separately from warmup, recoveries, and cooldown', () => {
     const model = buildTargetAwareSplitsModel({
       session: intervalSession,

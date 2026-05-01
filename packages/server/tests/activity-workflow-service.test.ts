@@ -118,4 +118,42 @@ describe('activity workflow service', () => {
       actualActivityId: undefined,
     });
   });
+
+  it('can replace an existing match when saving run detail from an explicit session correction', async () => {
+    const previousActivity = await activityRepo.save(makeActivity('user-1', {
+      id: 'previous-activity',
+      matchedSessionId: 'w1d0',
+      distance: 9.1,
+    }));
+    const replacementActivity = await activityRepo.save(makeActivity('user-1', {
+      id: 'replacement-activity',
+      matchedSessionId: undefined,
+      distance: 8.01,
+    }));
+    await planRepo.save(makePlan(previousActivity.id));
+
+    const result = await workflow.saveRunDetail('user-1', {
+      activityId: replacementActivity.id,
+      subjectiveInput: {
+        legs: 'normal',
+        breathing: 'easy',
+        overall: 'done',
+      },
+      niggles: [],
+      matchedSessionId: 'w1d0',
+      replaceExistingMatch: true,
+    });
+
+    expect(result.activity).toMatchObject({
+      id: replacementActivity.id,
+      matchedSessionId: 'w1d0',
+    });
+    expect((await activityRepo.getById(previousActivity.id))?.matchedSessionId).toBeUndefined();
+
+    const plan = await planRepo.getActive('user-1');
+    expect(plan?.weeks[0].sessions[0]).toMatchObject({
+      id: 'w1d0',
+      actualActivityId: replacementActivity.id,
+    });
+  });
 });

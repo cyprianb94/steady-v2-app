@@ -24,6 +24,7 @@ export interface StravaActivitySplit {
   split: number;
   distance: number;
   elapsed_time: number;
+  moving_time?: number;
   average_speed?: number;
   average_heartrate?: number;
   elevation_difference?: number;
@@ -116,6 +117,7 @@ function mapDetailedActivity(detail: Record<string, unknown>, lapsOverride?: Str
           split: typeof split.split === 'number' ? split.split : 0,
           distance: typeof split.distance === 'number' ? split.distance : 0,
           elapsed_time: typeof split.elapsed_time === 'number' ? split.elapsed_time : 0,
+          moving_time: typeof split.moving_time === 'number' ? split.moving_time : undefined,
           average_speed: typeof split.average_speed === 'number' ? split.average_speed : undefined,
           average_heartrate:
             typeof split.average_heartrate === 'number' ? split.average_heartrate : undefined,

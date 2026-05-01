@@ -575,6 +575,50 @@ describe('SyncRunDetailScreen', () => {
     expect(screen.getByText('8s fast')).toBeTruthy();
   });
 
+  it('excludes tiny partial splits from the average comparison rail scale', async () => {
+    const today = todayIsoLocal();
+    const sessions = [null, null, null, null, null, null, null] as any[];
+    const index = dayIndexForIsoDate(today);
+    sessions[index] = {
+      id: 'today-session',
+      type: 'EASY',
+      date: today,
+      distance: 3,
+    };
+    mockPlanState.currentWeek = {
+      weekNumber: 1,
+      phase: 'BASE',
+      plannedKm: 3,
+      sessions,
+    };
+    mockActivityGet.mockResolvedValue({
+      id: 'activity-1',
+      source: 'strava',
+      startTime: `${today}T07:15:00.000Z`,
+      distance: 3.01,
+      duration: 1066,
+      avgPace: 353,
+      avgHR: 144,
+      splits: [
+        { km: 1, distance: 1, pace: 358, hr: 142 },
+        { km: 2, distance: 1, pace: 345, hr: 143 },
+        { km: 3, distance: 1, pace: 360, hr: 145 },
+        { km: 4, distance: 0.01, pace: 680, hr: 146 },
+      ],
+      matchedSessionId: null,
+    });
+
+    render(<SyncRunDetailScreen />);
+
+    expect(await screen.findByText('VS AVERAGE')).toBeTruthy();
+    expect(screen.getByText('+0.01')).toBeTruthy();
+    expect(screen.getByText('partial')).toBeTruthy();
+    expect(screen.queryByTestId('split-average-rail-3')).toBeNull();
+
+    const firstSegmentWidth = screen.getByTestId('split-average-segment-0').style.width;
+    expect(Number.parseFloat(firstSegmentWidth)).toBeCloseTo(28.75);
+  });
+
   it('shows a tempo quality summary for the inferred tempo block only', async () => {
     const today = todayIsoLocal();
     const sessions = [null, null, null, null, null, null, null] as any[];

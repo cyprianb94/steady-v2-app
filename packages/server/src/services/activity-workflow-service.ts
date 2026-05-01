@@ -27,6 +27,7 @@ export interface SaveRunDetailInput {
   shoeId?: string | null;
   fuelEvents?: RunFuelEvent[];
   matchedSessionId?: string | null;
+  replaceExistingMatch?: boolean;
 }
 
 export interface ActivityWorkflowService {
@@ -81,6 +82,32 @@ function applyPlanMatchOrThrow(
     throw new TRPCError({ code: 'CONFLICT', message: conflictMessage });
   }
   return assignment.plan;
+}
+
+function clearSessionActualActivity(plan: TrainingPlan, sessionId: string): TrainingPlan {
+  return {
+    ...plan,
+    weeks: plan.weeks.map((week) => ({
+      ...week,
+      sessions: week.sessions.map((session) => (
+        session?.id === sessionId
+          ? { ...session, actualActivityId: undefined }
+          : session
+      )),
+    })),
+  };
+}
+
+function findSessionById(plan: TrainingPlan, sessionId: string): { actualActivityId?: string } | null {
+  for (const week of plan.weeks) {
+    for (const session of week.sessions) {
+      if (session?.id === sessionId) {
+        return session;
+      }
+    }
+  }
+
+  return null;
 }
 
 async function validateShoeOwnership(
@@ -242,15 +269,50 @@ export function createActivityWorkflowService(deps: ActivityWorkflowServiceDeps)
       }
 
       const previousWeeks = activePlan ? structuredClone(activePlan.weeks) : null;
+      let replacedActivity: Activity | null = null;
       const nextPlan = activePlan
-        ? applyPlanMatchOrThrow(
-            activePlan,
-            input.activityId,
-            input.matchedSessionId ?? null,
-            `Could not find matched session ${input.matchedSessionId} in the active plan`,
-            'Target session is already linked to another activity',
-          )
+        ? (() => {
+            try {
+              return applyPlanMatchOrThrow(
+                activePlan,
+                input.activityId,
+                input.matchedSessionId ?? null,
+                `Could not find matched session ${input.matchedSessionId} in the active plan`,
+                'Target session is already linked to another activity',
+              );
+            } catch (error) {
+              if (
+                !(error instanceof TRPCError)
+                || error.code !== 'CONFLICT'
+                || !input.replaceExistingMatch
+                || !input.matchedSessionId
+              ) {
+                throw error;
+              }
+
+              const sessionToReplace = findSessionById(activePlan, input.matchedSessionId);
+              const previousActivityId = sessionToReplace?.actualActivityId;
+              if (!previousActivityId || previousActivityId === input.activityId) {
+                throw error;
+              }
+
+              return applyPlanMatchOrThrow(
+                clearSessionActualActivity(activePlan, input.matchedSessionId),
+                input.activityId,
+                input.matchedSessionId,
+                `Could not find matched session ${input.matchedSessionId} in the active plan`,
+                'Target session is already linked to another activity',
+              );
+            }
+          })()
         : null;
+
+      if (input.replaceExistingMatch && activePlan && input.matchedSessionId) {
+        const replacedActivityId = findSessionById(activePlan, input.matchedSessionId)?.actualActivityId;
+        if (replacedActivityId && replacedActivityId !== input.activityId) {
+          replacedActivity = await deps.activityRepo.getById(replacedActivityId);
+        }
+      }
 
       try {
         const notes = input.notes?.trim() ? input.notes.trim() : null;
@@ -294,6 +356,9 @@ export function createActivityWorkflowService(deps: ActivityWorkflowServiceDeps)
           if (!matchedActivity) {
             throw new TRPCError({ code: 'NOT_FOUND', message: 'Activity not found during match update' });
           }
+          if (replacedActivity) {
+            await deps.activityRepo.updateMatchedSession(replacedActivity.id, null);
+          }
         }
 
         const savedActivity = await deps.activityRepo.getById(input.activityId);
@@ -316,6 +381,9 @@ export function createActivityWorkflowService(deps: ActivityWorkflowServiceDeps)
 
         if (activePlan && previousWeeks) {
           rollbackTasks.push(deps.planRepo.updateWeeks(activePlan.id, previousWeeks));
+        }
+        if (replacedActivity) {
+          rollbackTasks.push(deps.activityRepo.save(replacedActivity));
         }
 
         await Promise.allSettled(rollbackTasks);

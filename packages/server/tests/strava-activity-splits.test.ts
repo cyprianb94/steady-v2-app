@@ -77,4 +77,20 @@ describe('mapStravaActivitySplits', () => {
     ]);
     expect(splits[0]?.label).toBeUndefined();
   });
+
+  it('uses moving time for split pace when the watch was paused mid-split', () => {
+    const splits = mapStravaActivitySplits(activity({
+      splits_metric: [
+        { split: 1, distance: 1000, elapsed_time: 430, moving_time: 357, average_heartrate: 147 },
+        { split: 2, distance: 1000, elapsed_time: 333, moving_time: 333, average_heartrate: 152 },
+        { split: 3, distance: 1000, elapsed_time: 624, moving_time: 383, average_heartrate: 152 },
+      ],
+    }));
+
+    expect(splits).toEqual([
+      expect.objectContaining({ km: 1, distance: 1, pace: 357, hr: 147 }),
+      expect.objectContaining({ km: 2, distance: 1, pace: 333, hr: 152 }),
+      expect.objectContaining({ km: 3, distance: 1, pace: 383, hr: 152 }),
+    ]);
+  });
 });

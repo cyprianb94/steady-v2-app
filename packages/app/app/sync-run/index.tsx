@@ -13,6 +13,7 @@ import { activityLocalDate, addDaysIso, findSessionForDateOrWeekday, startOfWeek
 import { buildCurrentDisplayWeek } from '../../features/run/display-week';
 import { usePreferences } from '../../providers/preferences-context';
 import { formatDistance, formatPace, formatSessionTitle } from '../../lib/units';
+import { candidateActivitiesForSession } from '../../features/run/session-activity-candidates';
 
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -21,13 +22,15 @@ function formatDuration(seconds: number): string {
   return `${mins}m`;
 }
 
-function formatActivityTime(startTime: string, today: string): string {
+function formatActivityTime(startTime: string): string {
   const value = new Date(startTime);
-  const datePart = activityLocalDate(startTime);
   const time = value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-  if (datePart === today) return time;
   const label = value.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' });
   return `${label}, ${time}`;
+}
+
+function formatAverageHeartRate(avgHR: number): string {
+  return `${Math.ceil(avgHR)} bpm avg`;
 }
 
 function activityTitle(activity: Activity): string {
@@ -79,14 +82,7 @@ function pickCandidates(activities: Activity[], today: string, weekStart: string
 }
 
 function pickCandidatesForSession(activities: Activity[], session: PlannedSession): Activity[] {
-  return activities
-    .filter((activity) => (
-      activity.source === 'strava'
-      && (!activity.matchedSessionId || activity.matchedSessionId === session.id)
-      && activityLocalDate(activity.startTime) === session.date
-    ))
-    .sort((left, right) => right.startTime.localeCompare(left.startTime))
-    .slice(0, 3);
+  return candidateActivitiesForSession(session, activities, { allowMatchedToSession: true }).slice(0, 3);
 }
 
 export default function SyncRunPickerScreen() {
@@ -255,7 +251,7 @@ export default function SyncRunPickerScreen() {
               <View style={styles.runBody}>
                 <View style={styles.runTitleRow}>
                   <Text style={styles.runTitle}>{activityTitle(activity)}</Text>
-                  <Text style={styles.runTime}>{formatActivityTime(activity.startTime, today)}</Text>
+                  <Text style={styles.runTime}>{formatActivityTime(activity.startTime)}</Text>
                 </View>
                 <Text style={styles.runMetrics}>
                   {formatDistance(activity.distance, units, { spaced: true })} · {formatDuration(activity.duration)} · {formatPace(activity.avgPace, units, { withUnit: true })}
@@ -264,7 +260,7 @@ export default function SyncRunPickerScreen() {
                   <Text style={[styles.runTag, (matchesRequestedSession || matchesToday) ? styles.runTagMatch : styles.runTagNoMatch]}>
                     {matchesRequestedSession ? 'MATCHES SESSION' : matchesToday ? 'MATCHES TODAY' : 'NO PLAN MATCH YET'}
                   </Text>
-                  {activity.avgHR ? <Text style={styles.runSubText}>{activity.avgHR} bpm avg</Text> : null}
+                  {activity.avgHR ? <Text style={styles.runSubText}>{formatAverageHeartRate(activity.avgHR)}</Text> : null}
                 </View>
               </View>
             </Pressable>

@@ -76,6 +76,7 @@ const SaveRunDetailSchema = z.object({
   shoeId: z.string().min(1).nullable().optional(),
   fuelEvents: z.array(FuelEventSchema).max(50).optional(),
   matchedSessionId: z.string().nullable().optional(),
+  replaceExistingMatch: z.boolean().optional(),
 });
 
 export function createActivityRouter(activityWorkflow: ActivityWorkflowService) {

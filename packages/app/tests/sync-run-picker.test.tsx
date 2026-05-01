@@ -84,6 +84,12 @@ describe('SyncRunPickerScreen', () => {
   it('keeps the None of these CTA when candidate runs exist', async () => {
     const now = new Date();
     const today = isoDateLocal(now);
+    const startTime = `${today}T07:15:00.000Z`;
+    const expectedDate = new Date(startTime).toLocaleDateString([], {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
 
     mockActivityList.mockResolvedValue([
       {
@@ -91,11 +97,11 @@ describe('SyncRunPickerScreen', () => {
         userId: 'runner-1',
         source: 'strava',
         externalId: 'strava-1',
-        startTime: `${today}T07:15:00.000Z`,
+        startTime,
         distance: 8.2,
         duration: 2650,
         avgPace: 323,
-        avgHR: 148,
+        avgHR: 148.2,
         splits: [],
         matchedSessionId: null,
       },
@@ -106,6 +112,9 @@ describe('SyncRunPickerScreen', () => {
     expect(await screen.findByText('None of these')).toBeTruthy();
 
     expect(screen.queryByText('Back')).toBeNull();
+    expect(screen.getByText((text) => text.includes(expectedDate))).toBeTruthy();
+    expect(screen.getByText('149 bpm avg')).toBeTruthy();
+    expect(screen.queryByText('148.2 bpm avg')).toBeNull();
   });
 
   it('keeps an auto-matched same-day run visible when older unmatched runs exist', async () => {

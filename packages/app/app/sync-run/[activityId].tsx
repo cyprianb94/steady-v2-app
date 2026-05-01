@@ -317,7 +317,6 @@ export default function SyncRunDetailScreen() {
         || !isActivityDateCompatibleWithSession(activity, matchedSession)
       ),
   );
-  const splitPaces = activity?.splits.map((split) => split.pace) ?? [];
   const qualitySummary = activity && selectedSession
     ? buildStructuredQualitySummary(selectedSession, activity)
     : null;
@@ -545,7 +544,15 @@ export default function SyncRunDetailScreen() {
     setSaveError(null);
     setPlanRefreshError(null);
 
-    if (selectedSession && !isSessionSelectable(selectedSession, activity.id)) {
+    const replacingRequestedSessionMatch = Boolean(
+      selectedSession
+      && requestedSession
+      && selectedSession.id === requestedSession.id
+      && selectedSession.actualActivityId
+      && selectedSession.actualActivityId !== activity.id,
+    );
+
+    if (selectedSession && !isSessionSelectable(selectedSession, activity.id) && !replacingRequestedSessionMatch) {
       setSaveError('That session is already linked to another run. Pick a different session or save this as a bonus run.');
       Alert.alert('Choose a different session', 'That planned session is already linked to another run.');
       return;
@@ -561,6 +568,7 @@ export default function SyncRunDetailScreen() {
         notes: notes.trim() || undefined,
         shoeId: selectedShoeId,
         matchedSessionId: selectedSessionId,
+        replaceExistingMatch: replacingRequestedSessionMatch,
       });
 
       setActivity({ ...result.activity, niggles: result.niggles });
@@ -627,10 +635,14 @@ export default function SyncRunDetailScreen() {
   const matchedChipActionText = hasPendingMatchChange ? 'Save to apply' : 'Change';
   const matchedChipStyle = selectedSession ? styles.matchChipConnected : styles.matchChipUnmatched;
   const matchedChipTextStyle = selectedSession ? styles.matchChipTextConnected : styles.matchChipTextUnmatched;
-  const maxAveragePaceDelta = splitPaces.reduce(
-    (maxDelta, pace) => Math.max(maxDelta, Math.abs(Math.round(pace - activity.avgPace))),
+  const maxAveragePaceDelta = splitModel?.rows.reduce(
+    (maxDelta, row) => (
+      row.averageComparisonEligible
+        ? Math.max(maxDelta, Math.abs(Math.round(row.paceSeconds - activity.avgPace)))
+        : maxDelta
+    ),
     0,
-  );
+  ) ?? 0;
   const selectedTargetDisplay = selectedSession
     ? formatIntensityTargetDisplay(selectedSession, units, {
         withUnit: true,
@@ -814,7 +826,7 @@ export default function SyncRunDetailScreen() {
                     <Text style={[styles.splitComparisonText, targetStatusStyle(row.targetStatus)]}>
                       {row.comparisonLabel ?? '—'}
                     </Text>
-                  ) : (
+                  ) : row.averageComparisonEligible ? (
                     <Pressable
                       testID={`split-average-rail-${index}`}
                       accessibilityRole="button"
@@ -843,6 +855,8 @@ export default function SyncRunDetailScreen() {
                         />
                       </View>
                     </Pressable>
+                  ) : (
+                    <Text style={styles.splitComparisonText}>partial</Text>
                   )}
                   <Text style={styles.splitHr}>{row.heartRateLabel}</Text>
                 </View>

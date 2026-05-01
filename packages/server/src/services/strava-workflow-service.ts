@@ -64,6 +64,8 @@ interface SyncStravaActivitiesDeps {
   timezone?: string;
 }
 
+const SUBSEQUENT_SYNC_OVERLAP_MS = 7 * 24 * 60 * 60 * 1000;
+
 function requireConnectDeps(deps: StravaWorkflowServiceDeps): {
   integrationTokenRepo: IntegrationTokenRepo;
   stravaClient: StravaClient;
@@ -146,6 +148,21 @@ function getInitialSyncAfter(plan: TrainingPlan | null, now: Date): string {
   }
 
   return new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000)).toISOString();
+}
+
+function getSyncAfter(tokenLastSyncedAt: string | undefined, plan: TrainingPlan | null, now: Date): string {
+  const initialAfter = getInitialSyncAfter(plan, now);
+  if (!tokenLastSyncedAt) {
+    return initialAfter;
+  }
+
+  const lastSyncedAt = new Date(tokenLastSyncedAt);
+  if (Number.isNaN(lastSyncedAt.getTime())) {
+    return initialAfter;
+  }
+
+  const overlappedAfter = new Date(lastSyncedAt.getTime() - SUBSEQUENT_SYNC_OVERLAP_MS).toISOString();
+  return overlappedAfter > initialAfter ? overlappedAfter : initialAfter;
 }
 
 function mapActivity(userId: string, activity: StravaActivity, existing?: Activity): Activity {
@@ -273,7 +290,7 @@ async function syncStravaActivities(
     strict: true,
   });
 
-  const after = token?.lastSyncedAt ?? getInitialSyncAfter(plan, nowDate);
+  const after = getSyncAfter(token?.lastSyncedAt, plan, nowDate);
   const fetchedActivities = await deps.stravaClient.getActivities(accessToken, after);
 
   let currentPlan = plan;

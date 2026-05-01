@@ -48,7 +48,8 @@ function formatLapLabel(lap: NonNullable<StravaActivity['laps']>[number], distan
 
 function mapMetricSplit(split: NonNullable<StravaActivity['splits_metric']>[number]): ActivitySplit {
   const distanceKm = split.distance > 0 ? split.distance / 1000 : 0;
-  const derivedPace = derivePaceSeconds(split.distance, split.elapsed_time, split.average_speed);
+  const splitTime = split.moving_time && split.moving_time > 0 ? split.moving_time : split.elapsed_time;
+  const derivedPace = derivePaceSeconds(split.distance, splitTime, split.average_speed);
 
   return {
     km: split.split,
@@ -61,8 +62,8 @@ function mapMetricSplit(split: NonNullable<StravaActivity['splits_metric']>[numb
 
 function mapLap(lap: NonNullable<StravaActivity['laps']>[number]): ActivitySplit {
   const distanceKm = lap.distance > 0 ? lap.distance / 1000 : 0;
-  const elapsedTime = lap.elapsed_time > 0 ? lap.elapsed_time : lap.moving_time ?? 0;
-  const derivedPace = derivePaceSeconds(lap.distance, elapsedTime, lap.average_speed);
+  const splitTime = lap.moving_time && lap.moving_time > 0 ? lap.moving_time : lap.elapsed_time;
+  const derivedPace = derivePaceSeconds(lap.distance, splitTime, lap.average_speed);
 
   return {
     km: lap.lap_index + 1,

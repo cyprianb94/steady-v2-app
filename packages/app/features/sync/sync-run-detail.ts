@@ -7,6 +7,7 @@ import {
   type Shoe,
 } from '@steady/types';
 import { activityLocalDate } from '../../lib/plan-helpers';
+import { isActivityWithinSessionWindow } from '../run/session-activity-candidates';
 
 export type EditableNiggle = Pick<Niggle, 'bodyPart' | 'bodyPartOtherText' | 'severity' | 'when' | 'side'>;
 export type ShoeWearState = 'ok' | 'warn' | 'critical';
@@ -65,8 +66,7 @@ export function resolveDefaultMatchSessionId({
   if (
     preferredSession
     && sessionOptions.some((session) => session.id === preferredSession.id)
-    && isSessionSelectable(preferredSession, activity.id)
-    && isActivityDateCompatibleWithSession(activity, preferredSession)
+    && isActivityWithinSessionWindow(activity, preferredSession)
   ) {
     return preferredSession.id;
   }
@@ -108,9 +108,45 @@ export function shoeWearState(shoe: Shoe): ShoeWearState {
   return 'ok';
 }
 
+const STALE_SPLIT_ACTIVE_TIME_TOLERANCE_SECONDS = 60;
+
+function splitDistanceKm(split: Activity['splits'][number]): number | null {
+  if (typeof split.distance === 'number' && Number.isFinite(split.distance) && split.distance > 0) {
+    return split.distance;
+  }
+
+  return null;
+}
+
+function splitDerivedTimeDriftSeconds(activity: Activity): number {
+  if (!Number.isFinite(activity.duration) || activity.duration <= 0 || activity.splits.length === 0) {
+    return 0;
+  }
+
+  let totalSplitSeconds = 0;
+  for (const split of activity.splits) {
+    const distanceKm = splitDistanceKm(split);
+    if (distanceKm == null || !Number.isFinite(split.pace) || split.pace <= 0) {
+      return 0;
+    }
+
+    totalSplitSeconds += distanceKm * split.pace;
+  }
+
+  return totalSplitSeconds - activity.duration;
+}
+
 export function shouldRefreshKilometreSplits(activity: Activity, session: PlannedSession | null): boolean {
-  if (activity.source !== 'strava' || !session || (session.type !== 'EASY' && session.type !== 'LONG')) {
+  if (activity.source !== 'strava' || !session) {
     return false;
+  }
+
+  if (session.type !== 'EASY' && session.type !== 'LONG') {
+    return false;
+  }
+
+  if (splitDerivedTimeDriftSeconds(activity) > STALE_SPLIT_ACTIVE_TIME_TOLERANCE_SECONDS) {
+    return true;
   }
 
   if (activity.distance <= 1.5 || activity.splits.length !== 1) {
