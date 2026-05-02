@@ -27,6 +27,8 @@ Characteristics:
 - Describes WHAT, not HOW
 - One logical assertion per test
 
+Steady-specific preference: put canonical structured-session and volume behavior in `packages/types/tests` when it is package-level math (`sessionKm`, `weekKmBreakdown`, exact vs estimated distance). Use app tests for the app feature boundary, such as `structured-session-editor-engine`, not for re-proving every React control detail.
+
 ## Bad Tests
 
 **Implementation-detail tests**: Coupled to internal structure.

@@ -4,7 +4,9 @@ Use this file when a feature touches an area that historically attracted debt.
 
 ## Current hotspot files
 
-- `packages/app/app/(tabs)/block.tsx` — `1516` lines. Highest-risk controller screen. Avoid adding more orchestration here; direct-reschedule state now belongs in `packages/app/features/plan-builder/use-direct-week-reschedule.ts`.
+- `packages/app/app/(tabs)/block.tsx` — `1757` lines. Highest-risk controller screen. Avoid adding more orchestration here; direct-reschedule state now belongs in `packages/app/features/plan-builder/use-direct-week-reschedule.ts`.
+- `packages/app/components/plan-builder/RunStructureEditor.tsx` — `1772` lines. Large presentation surface for structured session editing. Structured template/materialization/volume-sync rules now belong in `packages/app/features/plan-builder/structured-session-editor-engine.ts`; keep this component focused on rendering, transient form state, and dispatching engine actions.
+- `packages/app/components/plan-builder/SessionEditor.tsx` — `1801` lines. Large simple-session editor. Keep simple field rendering and transient UI state here; shared target/profile and materialization behavior should stay in `packages/app/features/plan-builder/session-editing.ts` or the structured editor engine.
 - `packages/app/app/sync-run/[activityId].tsx` — `1080` lines. Manual run resolution still mixes fetch, staged form state, and save orchestration even after the modal extraction. Keep pushing picker UIs and pure selection rules into sync feature modules/components.
 - `packages/app/app/(tabs)/settings.tsx` — `721` lines. Settings, auth, Strava actions, and recovery actions are easy to sprawl here.
 - `packages/app/app/onboarding/plan-builder/step-goal.tsx` — `562` lines. Plan-builder rules should land in shared plan-builder modules or shared domain helpers, not in the screen.
@@ -52,6 +54,7 @@ Keep recovery rules shared. Do not re-encode them separately in `Home` and `Sett
 
 Start by looking in:
 
+- `packages/app/features/plan-builder/structured-session-editor-engine.ts` for structured session template selection, simple-to-structured conversion, structured save materialization, parent volume sync, and structured-to-simple conversion
 - `packages/app/features/plan-builder/*` for Step 2 starter-mode rules, shared client-side reorder state, staged reschedule drafts, onboarding template orchestration, and other interaction controllers that should stay out of hotspot screens
 - `packages/app/components/plan-builder/*`
 - `packages/types/src/lib/*` for plan-generation or plan-shaping logic

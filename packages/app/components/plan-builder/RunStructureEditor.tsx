@@ -14,19 +14,16 @@ import {
   defaultIntensityTargetForSessionType,
   normalizeIntensityTarget,
   normalizePace,
-  normalizeRunStructure,
   structuredSessionVolume,
   summariseRunStructure,
   type IntensityTarget,
   type PlannedSession,
-  type RunStructure,
   type RunStructureItem,
   type RunStructureSegment,
   type RunStructureSegmentKind,
   type RunStructureVolume,
   type RunStructureVolumeUnit,
   type SessionFormat,
-  type SessionDurationSpec,
   type SessionType,
   type TrainingPaceProfile,
   type TrainingPaceProfileKey,
@@ -38,6 +35,19 @@ import {
   useDirectListReorder,
   type DirectListReorderDragState,
 } from '../../features/plan-builder/use-direct-list-reorder';
+import {
+  applyStructuredSessionTemplate,
+  buildStructuredSessionSave,
+  cloneRunStructureItems,
+  convertStructuredSessionDraftToSimple,
+  createStructuredSessionDraft,
+  getStructuredSessionTemplatesForType,
+  materializeStructuredSessionDraft,
+  runStructureRepeat as repeat,
+  runStructureSegment as segment,
+  structuredSessionMismatchWarning,
+  type StructuredSessionTemplateKey,
+} from '../../features/plan-builder/structured-session-editor-engine';
 import {
   getSessionEditorProfileBands,
   intensityTargetForTrainingPaceProfileKey,
@@ -64,22 +74,7 @@ interface RunStructureEditorProps {
 }
 
 type TemplateKey =
-  | 'custom'
-  | 'fast-finish'
-  | 'progression'
-  | 'race-pace-blocks'
-  | 'cruise-intervals'
-  | 'short-reps'
-  | 'strides'
-  | 'fartlek-ladder';
-
-interface StructureTemplate {
-  key: TemplateKey;
-  label: string;
-  caption: string;
-  roles: Exclude<SessionType, 'RECOVERY' | 'REST'>[];
-  build: (session: Partial<PlannedSession>) => Partial<PlannedSession>;
-}
+  StructuredSessionTemplateKey;
 
 const VOLUME_UNITS: RunStructureVolumeUnit[] = ['km', 'min', 'sec'];
 const SEGMENT_KINDS: RunStructureSegmentKind[] = [
@@ -104,337 +99,6 @@ const STRUCTURED_SESSION_TYPES: Exclude<SessionType, 'RECOVERY' | 'REST'>[] = [
   'LONG',
 ];
 const FULL_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
-
-function target(profileKey: IntensityTarget['profileKey'], effortCue: IntensityTarget['effortCue']): IntensityTarget {
-  return {
-    source: 'manual',
-    mode: 'effort',
-    profileKey,
-    effortCue,
-  };
-}
-
-const EASY_TARGET = target('easy', 'conversational');
-const STEADY_TARGET = target('steady', 'steady');
-const MARATHON_TARGET = target('marathon', 'race pace');
-const THRESHOLD_TARGET = target('threshold', 'controlled hard');
-const INTERVAL_TARGET = target('interval', 'hard repeatable');
-
-function plannedVolumeFor(session: Partial<PlannedSession>): SessionDurationSpec | undefined {
-  if (session.plannedVolume?.unit === 'km' || session.plannedVolume?.unit === 'min') {
-    return session.plannedVolume;
-  }
-  if (session.distance != null && session.distance > 0) {
-    return { unit: 'km', value: session.distance };
-  }
-  return undefined;
-}
-
-function topLevelKm(session: Partial<PlannedSession>, fallback: number): number {
-  if (session.plannedVolume?.unit === 'km') return session.plannedVolume.value;
-  if (session.distance != null && session.distance > 0) return session.distance;
-  return fallback;
-}
-
-function topLevelMinutes(session: Partial<PlannedSession>, fallback: number): number {
-  if (session.plannedVolume?.unit === 'min') return session.plannedVolume.value;
-  return fallback;
-}
-
-function progressionPart(value: number): number {
-  return Math.max(1, Math.round(value));
-}
-
-function splitProgression(total: number, parts: 2 | 3): number[] {
-  if (parts === 2) {
-    const finish = progressionPart(total * 0.3);
-    return [Math.max(1, total - finish), finish];
-  }
-
-  const easy = progressionPart(total * 0.5);
-  const finish = progressionPart(total * 0.2);
-  return [easy, Math.max(1, total - easy - finish), finish];
-}
-
-function segment(
-  kind: RunStructureSegmentKind,
-  volume: RunStructureVolume,
-  intensityTarget?: IntensityTarget,
-  extras: Partial<RunStructureSegment> = {},
-): RunStructureSegment {
-  return {
-    kind,
-    volume,
-    ...(intensityTarget ? { intensityTarget } : null),
-    ...extras,
-  };
-}
-
-function repeat(repeats: number, segments: RunStructureSegment[]): RunStructureItem {
-  return {
-    kind: 'REPEAT',
-    repeats,
-    segments,
-  };
-}
-
-function simpleIntervalStructure(session: Partial<PlannedSession>): RunStructureItem[] {
-  const repVolume: RunStructureVolume = session.repDuration
-    ? { unit: session.repDuration.unit, value: session.repDuration.value }
-    : { unit: 'km', value: (session.repDist ?? 800) / 1000 };
-  const recoveryVolume: RunStructureVolume = typeof session.recovery === 'object' && session.recovery
-    ? { unit: session.recovery.unit, value: session.recovery.value }
-    : { unit: 'min', value: 1.5 };
-
-  return [
-    repeat(session.reps ?? 6, [
-      segment('RUN', repVolume, session.intensityTarget ?? INTERVAL_TARGET),
-      segment('RECOVERY', recoveryVolume, EASY_TARGET),
-    ]),
-  ];
-}
-
-function customStructure(session: Partial<PlannedSession>): Partial<PlannedSession> {
-  const existing = normalizeRunStructure(session.runStructure);
-  if (existing) {
-    return {
-      ...session,
-      format: 'structured',
-      runStructure: existing,
-    };
-  }
-
-  const type = session.type ?? 'EASY';
-  if (type === 'INTERVAL') {
-    return {
-      ...session,
-      format: 'structured',
-      runStructure: { items: simpleIntervalStructure(session) },
-    };
-  }
-
-  const planned = plannedVolumeFor(session);
-  const volume: RunStructureVolume = planned
-    ? { unit: planned.unit, value: planned.value }
-    : { unit: 'km', value: 8 };
-
-  return {
-    ...session,
-    format: 'structured',
-    plannedVolume: planned ?? session.plannedVolume,
-    runStructure: {
-      items: [
-        segment('RUN', volume, session.intensityTarget ?? defaultIntensityTargetForSessionType(type)),
-      ],
-    },
-  };
-}
-
-const TEMPLATES: StructureTemplate[] = [
-  {
-    key: 'fast-finish',
-    label: 'Fast finish',
-    caption: 'Easy running, then a controlled finish.',
-    roles: ['EASY', 'TEMPO', 'LONG'],
-    build: (session) => {
-      const totalKm = topLevelKm(session, session.type === 'LONG' ? 18 : 10);
-      const finishKm = Math.min(5, Math.max(2, Math.round(totalKm * 0.25)));
-      return {
-        ...session,
-        plannedVolume: { unit: 'km', value: totalKm },
-        distance: totalKm,
-        runStructure: {
-          items: [
-            segment('RUN', { unit: 'km', value: Math.max(1, totalKm - finishKm) }, EASY_TARGET),
-            segment('RUN', { unit: 'km', value: finishKm }, MARATHON_TARGET),
-          ],
-        },
-      };
-    },
-  },
-  {
-    key: 'progression',
-    label: 'Progression',
-    caption: 'One continuous run split into clear effort steps.',
-    roles: ['EASY', 'TEMPO', 'LONG'],
-    build: (session) => {
-      const planned = plannedVolumeFor(session) ?? { unit: 'min', value: topLevelMinutes(session, 60) };
-      const unit = planned.unit;
-      const total = planned.value;
-      const isEasy = session.type === 'EASY';
-      const values = splitProgression(total, isEasy ? 2 : 3);
-      const finishTarget = session.type === 'TEMPO' ? THRESHOLD_TARGET : MARATHON_TARGET;
-
-      return {
-        ...session,
-        plannedVolume: { unit, value: total },
-        distance: unit === 'km' ? total : undefined,
-        runStructure: {
-          items: isEasy
-            ? [
-                segment('RUN', { unit, value: values[0] }, EASY_TARGET),
-                segment('RUN', { unit, value: values[1] }, STEADY_TARGET),
-              ]
-            : [
-                segment('RUN', { unit, value: values[0] }, EASY_TARGET),
-                segment('RUN', { unit, value: values[1] }, STEADY_TARGET),
-                segment('RUN', { unit, value: values[2] }, finishTarget),
-              ],
-        },
-      };
-    },
-  },
-  {
-    key: 'race-pace-blocks',
-    label: 'Race-pace blocks',
-    caption: 'Marathon-pace work with float recoveries.',
-    roles: ['LONG'],
-    build: (session) => {
-      const totalKm = topLevelKm(session, 26);
-      const warmupKm = Math.min(5, Math.max(1, Math.round(totalKm * 0.2)));
-      const repeatedKm = 12;
-      const finishKm = Math.max(1, totalKm - warmupKm - repeatedKm);
-      return {
-        ...session,
-        plannedVolume: { unit: 'km', value: totalKm },
-        distance: totalKm,
-        runStructure: {
-          items: [
-            segment('WARMUP', { unit: 'km', value: warmupKm }, EASY_TARGET),
-            repeat(3, [
-              segment('RUN', { unit: 'km', value: 3 }, MARATHON_TARGET),
-              segment('FLOAT', { unit: 'km', value: 1 }, EASY_TARGET),
-            ]),
-            segment('RUN', { unit: 'km', value: finishKm }, EASY_TARGET),
-          ],
-        },
-      };
-    },
-  },
-  {
-    key: 'cruise-intervals',
-    label: 'Cruise intervals',
-    caption: 'Threshold blocks with jog recoveries.',
-    roles: ['TEMPO', 'INTERVAL'],
-    build: (session) => ({
-      ...session,
-      runStructure: {
-        items: [
-          repeat(3, [
-            segment('RUN', { unit: 'min', value: 10 }, THRESHOLD_TARGET),
-            segment('RECOVERY', { unit: 'min', value: 2 }, EASY_TARGET),
-          ]),
-        ],
-      },
-    }),
-  },
-  {
-    key: 'short-reps',
-    label: 'Short reps',
-    caption: 'Short controlled repetitions with easy recoveries.',
-    roles: ['INTERVAL'],
-    build: (session) => ({
-      ...session,
-      runStructure: {
-        items: [
-          repeat(10, [
-            segment('RUN', { unit: 'sec', value: 30 }, INTERVAL_TARGET),
-            segment('RECOVERY', { unit: 'sec', value: 60 }, EASY_TARGET),
-          ]),
-        ],
-      },
-    }),
-  },
-  {
-    key: 'strides',
-    label: 'Strides',
-    caption: 'Keep the parent run easy; add short relaxed strides.',
-    roles: ['EASY'],
-    build: (session) => {
-      const totalKm = topLevelKm(session, 8);
-      return {
-        ...session,
-        plannedVolume: { unit: 'km', value: totalKm },
-        distance: totalKm,
-        runStructure: {
-          items: [
-            segment('RUN', { unit: 'km', value: totalKm }, EASY_TARGET),
-            repeat(6, [
-              segment('STRIDE', { unit: 'sec', value: 20 }, INTERVAL_TARGET),
-            ]),
-          ],
-        },
-      };
-    },
-  },
-  {
-    key: 'fartlek-ladder',
-    label: 'Fartlek ladder',
-    caption: 'Multiple repeat groups with different durations.',
-    roles: ['INTERVAL'],
-    build: (session) => ({
-      ...session,
-      runStructure: {
-        items: [
-          repeat(4, [
-            segment('RUN', { unit: 'sec', value: 90 }, INTERVAL_TARGET),
-            segment('RECOVERY', { unit: 'sec', value: 90 }, EASY_TARGET),
-          ]),
-          repeat(4, [
-            segment('RUN', { unit: 'min', value: 1 }, INTERVAL_TARGET),
-            segment('RECOVERY', { unit: 'min', value: 1 }, EASY_TARGET),
-          ]),
-          repeat(4, [
-            segment('RUN', { unit: 'sec', value: 30 }, INTERVAL_TARGET),
-            segment('RECOVERY', { unit: 'sec', value: 30 }, EASY_TARGET),
-          ]),
-        ],
-      },
-    }),
-  },
-  {
-    key: 'custom',
-    label: 'Custom',
-    caption: 'Start from the current session and adjust parts.',
-    roles: ['EASY', 'INTERVAL', 'TEMPO', 'LONG'],
-    build: customStructure,
-  },
-];
-
-function cloneItems(items: RunStructureItem[]): RunStructureItem[] {
-  return items.map((item) => (
-    item.kind === 'REPEAT'
-      ? {
-          ...item,
-          segments: item.segments.map((child) => ({
-            ...child,
-            volume: { ...child.volume },
-            intensityTarget: child.intensityTarget ? { ...child.intensityTarget } : undefined,
-            progression: child.progression
-              ? {
-                  from: child.progression.from ? { ...child.progression.from } : undefined,
-                  to: child.progression.to ? { ...child.progression.to } : undefined,
-                }
-              : undefined,
-          })),
-        }
-      : {
-          ...item,
-          volume: { ...item.volume },
-          intensityTarget: item.intensityTarget ? { ...item.intensityTarget } : undefined,
-          progression: item.progression
-            ? {
-                from: item.progression.from ? { ...item.progression.from } : undefined,
-                to: item.progression.to ? { ...item.progression.to } : undefined,
-              }
-            : undefined,
-        }
-  ));
-}
-
-function templateForCurrentSession(session: Partial<PlannedSession>): TemplateKey {
-  return normalizeRunStructure(session.runStructure) ? 'custom' : 'custom';
-}
 
 function formatVolume(volume: RunStructureVolume): string {
   if (volume.unit === 'sec') return `${volume.value}s`;
@@ -520,48 +184,6 @@ function targetForProfileKey(
       mode: 'effort',
       profileKey,
     };
-}
-
-function hydrateProfileTarget(
-  targetValue: IntensityTarget | null | undefined,
-  profile: TrainingPaceProfile | null | undefined,
-): IntensityTarget | undefined {
-  const target = normalizeIntensityTarget(targetValue);
-  if (!profile || !target?.profileKey || target.pace || target.paceRange) {
-    return target;
-  }
-
-  return targetForProfileKey(profile, target.profileKey);
-}
-
-function hydrateProfileTargetsInSegment(
-  segmentValue: RunStructureSegment,
-  profile: TrainingPaceProfile | null | undefined,
-): RunStructureSegment {
-  return {
-    ...segmentValue,
-    intensityTarget: hydrateProfileTarget(segmentValue.intensityTarget, profile),
-    progression: segmentValue.progression
-      ? {
-          from: hydrateProfileTarget(segmentValue.progression.from, profile),
-          to: hydrateProfileTarget(segmentValue.progression.to, profile),
-        }
-      : undefined,
-  };
-}
-
-function hydrateProfileTargetsInItems(
-  items: RunStructureItem[],
-  profile: TrainingPaceProfile | null | undefined,
-): RunStructureItem[] {
-  return items.map((item) => (
-    item.kind === 'REPEAT'
-      ? {
-          ...item,
-          segments: item.segments.map((child) => hydrateProfileTargetsInSegment(child, profile)),
-        }
-      : hydrateProfileTargetsInSegment(item, profile)
-  ));
 }
 
 function segmentPaceOptions(
@@ -776,124 +398,6 @@ function typeHeaderLabel(type: SessionType): string {
   }
 }
 
-function mismatchWarning(session: PlannedSession): string | null {
-  const normalized = normalizeRunStructure(session.runStructure);
-  if (!normalized) return null;
-
-  const volume = structuredSessionVolume(session);
-  const planned = plannedVolumeFor(session);
-  const structureKm = structuredKm(volume);
-  if (planned?.unit === 'km' && structureKm > 0) {
-    const delta = Math.abs(planned.value - structureKm);
-    return delta > 0.2
-      ? `Structure adds up to ${structureKm}km. Saving will update this session from ${planned.value}km.`
-      : null;
-  }
-
-  if (planned?.unit === 'min' && volume.structuredSeconds > 0) {
-    const structuredMinutes = Math.round(volume.structuredSeconds / 60);
-    const delta = Math.abs(planned.value - structuredMinutes);
-    return delta > 2
-      ? `Structure totals ${structuredMinutes}min inside a ${planned.value}min session. Save is still allowed.`
-      : null;
-  }
-
-  return null;
-}
-
-function syncParentVolumeToStructure(
-  session: Partial<PlannedSession>,
-  runStructure: RunStructure,
-): Partial<PlannedSession> {
-  const materialized = materializeSession(session, runStructure.items, session.planNote ?? '');
-  const volume = structuredSessionVolume({
-    ...materialized,
-    runStructure,
-  });
-  const structureKm = structuredKm(volume);
-  const next: Partial<PlannedSession> = { ...session, format: 'structured' };
-
-  if (structureKm > 0) {
-    next.plannedVolume = { unit: 'km', value: structureKm };
-    if (next.type !== 'INTERVAL') {
-      next.distance = structureKm;
-    } else {
-      delete next.distance;
-    }
-    return next;
-  }
-
-  if (volume.structuredSeconds > 0) {
-    next.plannedVolume = {
-      unit: 'min',
-      value: Math.round((volume.structuredSeconds / 60) * 10) / 10,
-    };
-    delete next.distance;
-  }
-
-  return next;
-}
-
-function simpleSessionFromStructure(
-  session: Partial<PlannedSession>,
-  items: RunStructureItem[],
-  planNote: string,
-): Partial<PlannedSession> {
-  const type = session.type ?? 'EASY';
-  const materialized = materializeSession(session, items, planNote);
-  const volume = structuredSessionVolume(materialized);
-  const structureKm = structuredKm(volume);
-  const fallbackKm = session.plannedVolume?.unit === 'km'
-    ? session.plannedVolume.value
-    : session.distance;
-  const simple: Partial<PlannedSession> = {
-    ...session,
-    type,
-    format: 'simple',
-    planNote: planNote.trim() || undefined,
-    runStructure: undefined,
-    plannedVolume: undefined,
-  };
-
-  if (type === 'INTERVAL') {
-    return simple;
-  }
-
-  delete simple.reps;
-  delete simple.repDist;
-  delete simple.repDuration;
-  delete simple.recovery;
-  delete simple.warmup;
-  delete simple.cooldown;
-
-  const distance = structureKm > 0 ? structureKm : fallbackKm;
-  if (distance != null && distance > 0) {
-    simple.distance = distance;
-  }
-
-  return simple;
-}
-
-function materializeSession(
-  session: Partial<PlannedSession>,
-  items: RunStructureItem[],
-  planNote: string,
-): PlannedSession {
-  const normalized = normalizeRunStructure({ items });
-  const type = session.type ?? 'EASY';
-
-  return {
-    ...session,
-    id: session.id ?? 'run-structure-draft',
-    date: session.date ?? 'draft',
-    type,
-    format: 'structured',
-    intensityTarget: session.intensityTarget ?? defaultIntensityTargetForSessionType(type),
-    planNote: planNote.trim() || undefined,
-    runStructure: normalized ?? { items },
-  } as PlannedSession;
-}
-
 interface StructureDragHandleProps {
   testID: string;
   index: number;
@@ -1103,12 +607,11 @@ export function RunStructureEditor({
   onChangeFormat,
 }: RunStructureEditorProps) {
   const { units } = usePreferences();
-  const initial = useMemo(() => customStructure(session), [session]);
-  const normalized = useMemo(() => normalizeRunStructure(initial.runStructure), [initial.runStructure]);
-  const initialItems = useMemo(() => cloneItems(normalized?.items ?? []), [normalized]);
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateKey>(() => templateForCurrentSession(session));
-  const [draftSession, setDraftSession] = useState<Partial<PlannedSession>>(initial);
-  const [planNote, setPlanNote] = useState(initial.planNote ?? '');
+  const initial = useMemo(() => createStructuredSessionDraft(session), [session]);
+  const initialItems = useMemo(() => cloneRunStructureItems(initial.items), [initial]);
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateKey>(() => initial.selectedTemplate);
+  const [draftSession, setDraftSession] = useState<Partial<PlannedSession>>(initial.session);
+  const [planNote, setPlanNote] = useState(initial.session.planNote ?? '');
   const [error, setError] = useState<string | null>(null);
   const [expandedSegmentKey, setExpandedSegmentKey] = useState<string | null>(null);
   const [customVolumeKey, setCustomVolumeKey] = useState<string | null>(null);
@@ -1131,34 +634,41 @@ export function RunStructureEditor({
   const type = draftSession.type ?? session.type ?? 'EASY';
   const typeMeta = SESSION_TYPE[type];
   const availableTemplates = useMemo(
-    () => TEMPLATES.filter((template) => template.roles.includes(type as Exclude<SessionType, 'RECOVERY' | 'REST'>)),
+    () => getStructuredSessionTemplatesForType(type),
     [type],
   );
-  const materialized = materializeSession(draftSession, items, planNote);
+  const materialized = materializeStructuredSessionDraft({
+    session: draftSession,
+    items,
+    planNote,
+  });
   const summary = summariseRunStructure(materialized);
-  const warning = mismatchWarning(materialized);
+  const warning = structuredSessionMismatchWarning(materialized);
   const total = totalMetric(materialized);
   const quality = qualityVolume(items);
   const repeated = repeatsMetric(items);
-  const simplePreview = simpleSessionFromStructure(draftSession, items, planNote);
+  const simplePreview = convertStructuredSessionDraftToSimple({
+    session: draftSession,
+    items,
+    planNote,
+  });
   const simplePreviewDistance = simplePreview?.distance != null && simplePreview.distance > 0
     ? `${simplePreview.distance}km`
     : null;
 
-  function applyTemplate(template: StructureTemplate) {
-    const next = template.build({
-      ...draftSession,
-      type,
-      planNote,
+  function applyTemplate(template: { key: TemplateKey }) {
+    const next = applyStructuredSessionTemplate({
+      templateKey: template.key,
+      session: {
+        ...draftSession,
+        type,
+        planNote,
+      },
+      trainingPaceProfile,
     });
-    const nextStructure = normalizeRunStructure(next.runStructure);
-    const nextItems = hydrateProfileTargetsInItems(nextStructure?.items ?? [], trainingPaceProfile);
-    setSelectedTemplate(template.key);
-    setDraftSession({
-      ...next,
-      runStructure: nextStructure ? { items: nextItems } : next.runStructure,
-    });
-    structureOrder.replaceItems(cloneItems(nextItems));
+    setSelectedTemplate(next.selectedTemplate);
+    setDraftSession(next.session);
+    structureOrder.replaceItems(next.items);
     setError(null);
     setExpandedSegmentKey(null);
     setCustomVolumeKey(null);
@@ -1269,19 +779,18 @@ export function RunStructureEditor({
   }
 
   function save() {
-    const normalizedStructure = normalizeRunStructure({ items });
-    if (!normalizedStructure) {
+    const next = buildStructuredSessionSave({
+      session: {
+        ...draftSession,
+        type,
+      },
+      items,
+      planNote,
+    });
+    if (!next) {
       setError('Add at least one valid segment before saving.');
       return;
     }
-
-    const next = syncParentVolumeToStructure({
-      ...draftSession,
-      type,
-      format: 'structured',
-      planNote: planNote.trim() || undefined,
-      runStructure: normalizedStructure,
-    }, normalizedStructure);
 
     onSave(dayIndex, next);
   }

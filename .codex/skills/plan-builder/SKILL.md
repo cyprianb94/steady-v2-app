@@ -129,6 +129,8 @@ sessionKm(d) = {
 
 All non-rest fields use notebook-row expandable controls. Do not reintroduce separate above-row interval controls, standalone rep-distance strips, or scroll drums inside the current session editor.
 
+Structured session rules are not owned by the React component. Use `packages/app/features/plan-builder/structured-session-editor-engine.ts` for simple-to-structured conversion, structure templates, profile-target hydration, structured save materialization, parent volume sync, and structured-to-simple conversion. Keep `RunStructureEditor.tsx` as a rendering/transient-form layer.
+
 ### Shared top section
 
 **Session type** — `ChipRow` with five session chips: `EASY`, `INTERVAL`, `TEMPO`, `LONG`, `REST`. Active chip uses the session type colour. Changing type applies `TYPE_DEFAULTS`, carries useful pace/distance where appropriate, closes expanded rows, and clears custom editing.
