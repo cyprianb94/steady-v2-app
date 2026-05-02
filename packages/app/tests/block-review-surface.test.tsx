@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import {
   buildBlockReviewModel,
+  sessionKm,
   type PhaseName,
   type PlannedSession,
   type PlanWeek,
@@ -43,11 +44,38 @@ function session(type: SessionType, dayIndex: number): PlannedSession {
 
 function week(weekNumber: number, phase: PhaseName, plannedKm: number): PlanWeek {
   const pattern: (SessionType | null)[] = ['EASY', 'INTERVAL', 'EASY', 'TEMPO', null, 'EASY', 'LONG'];
+  const sessions = pattern.map((type, dayIndex) => (type ? session(type, dayIndex) : null));
+  const adjustableSessions = sessions.filter((plannedSession) => (
+    plannedSession?.type === 'LONG' || plannedSession?.type === 'EASY' || plannedSession?.type === 'TEMPO'
+  ));
+  const adjustableKm = adjustableSessions.reduce((sum, plannedSession) => sum + (plannedSession?.distance ?? 0), 0);
+  const fixedKm = sessions.reduce((sum, plannedSession) => sum + sessionKm(plannedSession), 0) - adjustableKm;
+  const targetAdjustableKm = Math.max(0.1, plannedKm - fixedKm);
+  const factor = adjustableKm > 0 ? targetAdjustableKm / adjustableKm : 1;
+  let assignedKm = 0;
+
+  adjustableSessions.forEach((plannedSession, index) => {
+    if (!plannedSession) return;
+
+    const isLast = index === adjustableSessions.length - 1;
+    const nextDistance = isLast
+      ? targetAdjustableKm - assignedKm
+      : (plannedSession.distance ?? 8) * factor;
+    plannedSession.distance = Number(Math.max(0.1, nextDistance).toFixed(1));
+    assignedKm += plannedSession.distance;
+  });
+
+  const drift = Number((plannedKm - sessions.reduce((sum, plannedSession) => sum + sessionKm(plannedSession), 0)).toFixed(1));
+  const lastAdjustable = adjustableSessions[adjustableSessions.length - 1];
+  if (lastAdjustable) {
+    lastAdjustable.distance = Number(Math.max(0.1, (lastAdjustable.distance ?? 0) + drift).toFixed(1));
+  }
+
   return {
     weekNumber,
     phase,
     plannedKm,
-    sessions: pattern.map((type, dayIndex) => (type ? session(type, dayIndex) : null)),
+    sessions,
   };
 }
 
@@ -188,6 +216,58 @@ describe('BlockReviewSurface', () => {
 
     expect(screen.queryByTestId('block-review-volume-current-guide')).toBeNull();
     expect(screen.queryByText('Current')).toBeNull();
+  });
+
+  it('marks block week totals that include estimated distance', () => {
+    const recovery: PlannedSession = {
+      id: 'recovery',
+      type: 'RECOVERY',
+      date: '2026-05-02',
+      plannedVolume: { unit: 'min', value: 35 },
+      intensityTarget: {
+        source: 'manual',
+        mode: 'both',
+        profileKey: 'recovery',
+        effortCue: 'very easy',
+        paceRange: { min: '6:14', max: '6:45' },
+      },
+    };
+    const model = buildBlockReviewModel({
+      weeks: [{
+        weekNumber: 1,
+        phase: 'BASE',
+        plannedKm: 0,
+        sessions: [null, null, null, null, null, recovery, null],
+      }],
+      phases: { BASE: 1, BUILD: 0, RECOVERY: 0, PEAK: 0, TAPER: 0 },
+      currentWeekIndex: 0,
+    });
+    const { rerender } = render(
+      <BlockReviewSurface
+        model={model}
+        activeTab="structure"
+        onTabChange={vi.fn()}
+        formatDistance={(km) => `${km}km`}
+      />,
+    );
+
+    expect(screen.getAllByText('~5.4km').length).toBeGreaterThan(0);
+
+    fireEvent.mouseDown(screen.getByTestId('block-review-volume-scrub-surface'), {
+      clientX: 0,
+      clientY: 72,
+    });
+    expect(screen.getByText('~5.4km total')).toBeTruthy();
+
+    rerender(
+      <BlockReviewSurface
+        model={model}
+        activeTab="weeks"
+        onTabChange={vi.fn()}
+        formatDistance={(km) => `${km}km`}
+      />,
+    );
+    expect(screen.getByText('~5.4km')).toBeTruthy();
   });
 
   it('renders phase summary edits and week review views without owning navigation', () => {

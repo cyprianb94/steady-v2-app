@@ -222,6 +222,54 @@ describe('SyncRunDetailScreen', () => {
     expect(screen.queryByText('This run is no longer available')).toBeNull();
   });
 
+  it('keeps the previous run hidden while a different run is loading', async () => {
+    const params = { activityId: 'activity-1' };
+    mockUseLocalSearchParams.mockImplementation(() => params);
+    mockActivityGet.mockResolvedValueOnce({
+      id: 'activity-1',
+      source: 'strava',
+      name: 'Morning loop',
+      startTime: '2026-04-14T07:15:00.000Z',
+      distance: 8.2,
+      duration: 2650,
+      avgPace: 323,
+      avgHR: 148,
+      splits: [],
+      matchedSessionId: null,
+    });
+    let resolveSecondRun: (value: unknown) => void = () => {};
+    const secondRunPromise = new Promise((resolve) => {
+      resolveSecondRun = resolve;
+    });
+    mockActivityGet.mockImplementationOnce(() => secondRunPromise);
+
+    const { rerender } = render(<SyncRunDetailScreen />);
+
+    expect(await screen.findByText('Morning loop')).toBeTruthy();
+
+    params.activityId = 'activity-2';
+    rerender(<SyncRunDetailScreen />);
+
+    expect(screen.queryByText('Morning loop')).toBeNull();
+    expect(screen.getByTestId('run-detail-loading')).toBeTruthy();
+
+    resolveSecondRun({
+      id: 'activity-2',
+      source: 'strava',
+      name: 'Evening recovery',
+      startTime: '2026-04-14T18:15:00.000Z',
+      distance: 5.1,
+      duration: 1780,
+      avgPace: 349,
+      avgHR: 139,
+      splits: [],
+      matchedSessionId: null,
+    });
+
+    expect(await screen.findByText('Evening recovery')).toBeTruthy();
+    expect(screen.queryByText('Morning loop')).toBeNull();
+  });
+
   it('surfaces a stale match warning instead of silently keeping a dead selection', async () => {
     mockActivityGet.mockResolvedValue({
       id: 'activity-1',

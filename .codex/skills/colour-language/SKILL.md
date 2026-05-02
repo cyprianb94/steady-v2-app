@@ -93,9 +93,28 @@ Metric colours do not mean good or bad. A bad pace is still pace teal. A high he
 7. Avoid showing every metric colour in a support section. Support cards should usually have one accent at most.
 8. If two paired metrics are visually confusable, push them into different hue families. Distance must stay cobalt, not teal-adjacent.
 
+## Home Today Card Mapping
+
+The Today card has an approved receipt-style colour treatment.
+
+Planned Today card:
+- Session colour may tint the card border, the wireframe-strength top wash, the type tag, and the `I finished this run` CTA.
+- The planned-card wash is CSS-equivalent `{sessionColor}0E` at the top over page parchment, fading to `C.surface` by 65%. In React Native, pre-blend the top stop against `C.cream` and fade that opaque colour to `C.surface`; do not interpolate translucent session colour into opaque `C.surface`, which makes the middle of the card too blue/grey.
+- This session-coloured CTA is a narrow carve-out because the action is bound to the visible session. Other primary CTAs stay clay.
+- Target labels stay muted. Pace targets may use pace teal; effort cues may use effort plum. Avoid colouring the session title itself.
+- Tempo/interval detail-line values follow metric colour wherever they appear: recovery/warm/cool durations use time brass, recovery/warm/cool distances use distance cobalt, and surrounding labels remain neutral. Do not repeat tempo total distance in the detail line.
+- Do not put the target inside a nested card or side-rail frame.
+
+Completed Today card:
+- The card returns to flat parchment: `C.surface` with `C.border`. Do not keep a session-coloured or status-coloured outer border.
+- The hero result uses warm ink/ink2, not metric colours, so the finished run reads as a settled receipt.
+- Status is small: forest for `LOGGED`, amber for `NEEDS REVIEW`, muted for `MATCHING...`.
+- Variance/coaching/loading copy uses one note slot with a status dot. Never stack multiple note blocks or turn the whole card amber/red.
+- Feel uses effort plum only for the saved feel value. Missing feel is muted italic `Add feel`.
+
 ## Run Detail Pilot
 
-Run detail is the testing ground for this language. Do not roll the system across the app until this pilot has been implemented and reviewed.
+Run detail is the testing ground for broad metric-colour use. Do not roll dense metric colouring across the app until this pilot has been implemented and reviewed; the Home Today card carve-out above is intentionally narrower.
 
 Reference artifact:
 - `wireframes/run-detail-colour-language/index.html`

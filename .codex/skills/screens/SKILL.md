@@ -113,7 +113,7 @@ Launch
 **7-day session list**
 - Vertical compact list (day-row pattern)
 - Each day row: day name + date (left), type dot + session name (centre), status + km (right)
-- Today card: highlighted with amber background and shadow
+- Today card: receipt-style hero above the week list. Planned runs show session title, inline target, and `I finished this run`; completed runs show actual distance/pace as the hero, optional one-line note, and `FEEL · {value}` / `Review run →` footer
 - Status indicator: custom run-status icon from `RunStatusIcon`: completed (forest ring/check), varied/off-target (forest partial ring/check with amber accent), unfinished/missed (clay icon)
 - For completed sessions: key metric in Space Mono — e.g. "10.2km"
 - Rest days: muted, no metrics

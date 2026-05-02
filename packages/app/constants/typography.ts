@@ -9,6 +9,7 @@ export const FONTS = {
   sans: Platform.select({ ios: 'DMSans', default: 'DMSans' }),
   sansMedium: Platform.select({ ios: 'DMSans-Medium', default: 'DMSans-Medium' }),
   sansSemiBold: Platform.select({ ios: 'DMSans-SemiBold', default: 'DMSans-SemiBold' }),
+  sansBold: Platform.select({ ios: 'DMSans-Bold', default: 'DMSans-Bold' }),
 } as const;
 
 // Type scale presets

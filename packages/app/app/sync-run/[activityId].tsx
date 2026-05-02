@@ -594,15 +594,18 @@ export default function SyncRunDetailScreen() {
     router.replace('/(tabs)/home');
   }
 
-  if (loading) {
+  const showingPreviousActivity = Boolean(activityId && activity && activity.id !== activityId);
+  const waitingForCurrentDraft = Boolean(activity && draftSeedActivityId !== activity.id);
+
+  if (loading || showingPreviousActivity || waitingForCurrentDraft) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={C.forest} />
+        <ActivityIndicator testID="run-detail-loading" size="large" color={C.forest} />
       </View>
     );
   }
 
-  if (!activity) {
+  if (!activityId || !activity) {
     return (
       <View style={styles.center}>
         <Text style={styles.emptyTitle}>This run is no longer available</Text>

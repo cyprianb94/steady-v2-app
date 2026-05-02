@@ -222,19 +222,49 @@ function simpleSessionExactKm(session: PlannedSession): number {
   return total;
 }
 
-function topLevelVolume(session: PlannedSession): Pick<StructuredSessionVolume, 'exactKm' | 'plannedMinutes'> {
+function estimateSecondsAsKm(seconds: number, paceSeconds: number | null): number {
+  return paceSeconds && seconds > 0 ? seconds / paceSeconds : 0;
+}
+
+function topLevelVolume(
+  session: PlannedSession,
+): Pick<StructuredSessionVolume, 'exactKm' | 'estimatedKm' | 'plannedMinutes'> {
   const planned = normalizePlannedVolume(session.plannedVolume);
   if (planned?.unit === 'km') {
-    return { exactKm: planned.value, plannedMinutes: 0 };
+    return { exactKm: planned.value, estimatedKm: 0, plannedMinutes: 0 };
   }
   if (planned?.unit === 'min') {
-    return { exactKm: 0, plannedMinutes: planned.value };
+    return {
+      exactKm: 0,
+      estimatedKm: estimateSecondsAsKm(
+        planned.value * 60,
+        representativeSessionPaceSeconds(session),
+      ),
+      plannedMinutes: planned.value,
+    };
   }
 
   return {
     exactKm: simpleSessionExactKm(session),
+    estimatedKm: simpleSessionEstimatedKm(session),
     plannedMinutes: 0,
   };
+}
+
+function simpleSessionEstimatedKm(session: PlannedSession): number {
+  if (session.type !== 'INTERVAL') {
+    return 0;
+  }
+
+  if (session.repDuration?.unit !== 'min') {
+    return 0;
+  }
+
+  const reps = session.reps ?? 1;
+  return reps * estimateSecondsAsKm(
+    session.repDuration.value * 60,
+    representativeSessionPaceSeconds(session),
+  );
 }
 
 function volumeSeconds(volume: RunStructureVolume): number {
@@ -306,6 +336,7 @@ export function structuredSessionVolume(session: PlannedSession | null): Structu
     return {
       ...totals,
       exactKm: roundKm(topLevel.exactKm),
+      estimatedKm: roundKm(topLevel.estimatedKm),
       plannedMinutes: roundSeconds(totals.plannedMinutes),
     };
   }

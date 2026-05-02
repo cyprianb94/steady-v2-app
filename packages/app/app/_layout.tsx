@@ -19,6 +19,7 @@ export default function RootLayout() {
     DMSans: require('../assets/fonts/DMSans-Regular.ttf'),
     'DMSans-Medium': require('../assets/fonts/DMSans-Medium.ttf'),
     'DMSans-SemiBold': require('../assets/fonts/DMSans-SemiBold.ttf'),
+    'DMSans-Bold': require('../assets/fonts/DMSans-Bold.ttf'),
   });
 
   return (

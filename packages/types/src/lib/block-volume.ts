@@ -1,10 +1,14 @@
 import type { Activity } from '../activity';
 import type { PlanWeek } from '../plan';
+import { weekKmBreakdown } from './session-km';
 
 export type BlockVolumeTone = 'past' | 'current' | 'future';
 
 export interface WeekVolumeSummary {
   plannedKm: number;
+  plannedExactKm: number;
+  plannedEstimatedKm: number;
+  hasEstimatedPlannedKm: boolean;
   actualKm: number | null;
   showActual: boolean;
   barKm: number;
@@ -29,11 +33,15 @@ export function getWeekVolumeSummary(
   activitiesById: Map<string, Activity>,
   tone: BlockVolumeTone,
 ): WeekVolumeSummary {
-  const plannedKm = week.plannedKm;
+  const plannedVolume = weekKmBreakdown(week);
+  const plannedKm = plannedVolume.totalKm;
 
   if (tone === 'future') {
     return {
       plannedKm,
+      plannedExactKm: plannedVolume.exactKm,
+      plannedEstimatedKm: plannedVolume.estimatedKm,
+      hasEstimatedPlannedKm: plannedVolume.hasEstimatedKm,
       actualKm: null,
       showActual: false,
       barKm: plannedKm,
@@ -50,6 +58,9 @@ export function getWeekVolumeSummary(
   if (actualDistances.length === 0) {
     return {
       plannedKm,
+      plannedExactKm: plannedVolume.exactKm,
+      plannedEstimatedKm: plannedVolume.estimatedKm,
+      hasEstimatedPlannedKm: plannedVolume.hasEstimatedKm,
       actualKm: null,
       showActual: false,
       barKm: plannedKm,
@@ -59,6 +70,9 @@ export function getWeekVolumeSummary(
   const actualKm = Number(actualDistances.reduce((sum, distance) => sum + distance, 0).toFixed(1));
   return {
     plannedKm,
+    plannedExactKm: plannedVolume.exactKm,
+    plannedEstimatedKm: plannedVolume.estimatedKm,
+    hasEstimatedPlannedKm: plannedVolume.hasEstimatedKm,
     actualKm,
     showActual: true,
     barKm: actualKm,

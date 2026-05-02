@@ -130,10 +130,30 @@ function formatMetricValue(value: number, metric: WeeklyVolumeMetric, units: 'me
     : formatDurationMetricValue(value);
 }
 
+function formatPlannedMetricValue(
+  value: number,
+  metric: WeeklyVolumeMetric,
+  units: 'metric' | 'imperial',
+  isEstimated: boolean,
+): string {
+  const label = formatMetricValue(value, metric, units);
+  return metric === 'distance' && isEstimated ? `~${label}` : label;
+}
+
 function formatMetricAccessible(value: number, metric: WeeklyVolumeMetric, units: 'metric' | 'imperial'): string {
   return metric === 'distance'
     ? formatDistance(value, units, { spaced: true })
     : formatDurationAccessible(value);
+}
+
+function formatPlannedMetricAccessible(
+  value: number,
+  metric: WeeklyVolumeMetric,
+  units: 'metric' | 'imperial',
+  isEstimated: boolean,
+): string {
+  const label = formatMetricAccessible(value, metric, units);
+  return metric === 'distance' && isEstimated ? `about ${label}` : label;
 }
 
 function niceCeil(rawValue: number, options: { allowFraction?: boolean } = {}): number {
@@ -354,6 +374,7 @@ function WeeklyVolumeTooltip({
 }) {
   const values = getWeeklyVolumeDayMetric(day, metric);
   const title = `${DAY_NAMES[day.dayIndex]} ${TYPE_LABELS[day.plannedType]}`;
+  const plannedIsEstimated = metric === 'distance' && day.plannedEstimatedDistanceKm > 0;
 
   return (
     <View
@@ -362,7 +383,7 @@ function WeeklyVolumeTooltip({
     >
       <Text style={styles.tooltipTitle}>{title}</Text>
       <Text style={styles.tooltipLine}>
-        planned {formatMetricValue(values.planned, metric, units)}
+        planned {formatPlannedMetricValue(values.planned, metric, units, plannedIsEstimated)}
       </Text>
       {metric === 'distance' && day.plannedEstimatedDistanceKm > 0 ? (
         <Text style={styles.tooltipLine}>
@@ -397,6 +418,7 @@ function WeeklyVolumeBucket({
   onPress: () => void;
 }) {
   const values = getWeeklyVolumeDayMetric(day, metric);
+  const plannedIsEstimated = metric === 'distance' && day.plannedEstimatedDistanceKm > 0;
   const plannedColour = TYPE_COLOURS[day.plannedType];
   const actualColour = TYPE_COLOURS[day.actualType ?? day.plannedType];
   const plannedHeight = values.planned > 0
@@ -422,7 +444,7 @@ function WeeklyVolumeBucket({
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      accessibilityLabel={`${DAY_NAMES[day.dayIndex]} weekly volume, planned ${formatMetricAccessible(values.planned, metric, units)}, done ${formatMetricAccessible(values.actual, metric, units)}`}
+      accessibilityLabel={`${DAY_NAMES[day.dayIndex]} weekly volume, planned ${formatPlannedMetricAccessible(values.planned, metric, units, plannedIsEstimated)}, done ${formatMetricAccessible(values.actual, metric, units)}`}
       onPress={onPress}
       style={styles.bucketButton}
       testID={`weekly-volume-bucket-${day.dayIndex}`}
@@ -695,6 +717,7 @@ function WeeklyVolumeCollapsedContent({
   status,
   isHolding,
   activeColor,
+  plannedIsEstimated,
   chevronTestID,
   showTrack = true,
   showStatus = true,
@@ -705,6 +728,7 @@ function WeeklyVolumeCollapsedContent({
   status: string;
   isHolding: boolean;
   activeColor: string;
+  plannedIsEstimated: boolean;
   chevronTestID?: string;
   showTrack?: boolean;
   showStatus?: boolean;
@@ -722,7 +746,7 @@ function WeeklyVolumeCollapsedContent({
             {formatMetricValue(values.actual, metric, units)}
           </Text>
           <Text style={styles.planned}>
-            / {formatMetricValue(values.planned, metric, units)}
+            / {formatPlannedMetricValue(values.planned, metric, units, plannedIsEstimated)}
           </Text>
         </View>
       </View>
@@ -759,6 +783,7 @@ export function WeeklyVolumeCard({
   const activeMetric = isHolding ? oppositeMetric(weeklyVolumeMetric) : weeklyVolumeMetric;
   const activeMetricColor = metricAccent(activeMetric);
   const collapsedValues = summaryMetricValues(summary, activeMetric);
+  const collapsedPlannedIsEstimated = activeMetric === 'distance' && summary.plannedEstimatedDistanceKm > 0;
   const status = weeklyStatus(summary, activeMetric);
   const transitionTrackProgress = collapsedValues.planned > 0
     ? Math.max(0, Math.min(1, collapsedValues.actual / collapsedValues.planned))
@@ -856,7 +881,7 @@ export function WeeklyVolumeCard({
     collapsedValues.actual,
     activeMetric,
     units,
-  )} of ${formatMetricAccessible(collapsedValues.planned, activeMetric, units)}, ${status}. ${
+  )} of ${formatPlannedMetricAccessible(collapsedValues.planned, activeMetric, units, collapsedPlannedIsEstimated)}, ${status}. ${
     expanded ? `Expanded. Touch the chart to inspect days. Hold the header or axis to show ${metricAccessibleLabel(oppositeMetric(weeklyVolumeMetric))}.` : `Double tap to inspect week shape. Hold to show ${metricAccessibleLabel(oppositeMetric(weeklyVolumeMetric))}.`
   }`;
 
@@ -976,7 +1001,12 @@ export function WeeklyVolumeCard({
                       {formatMetricValue(collapsedValues.actual, activeMetric, units)}
                     </Text>
                     <Text style={styles.planned}>
-                      / {formatMetricValue(collapsedValues.planned, activeMetric, units)}
+                      / {formatPlannedMetricValue(
+                        collapsedValues.planned,
+                        activeMetric,
+                        units,
+                        collapsedPlannedIsEstimated,
+                      )}
                     </Text>
                   </View>
                 </View>
@@ -1014,6 +1044,7 @@ export function WeeklyVolumeCard({
               status={status}
               isHolding={false}
               activeColor={activeMetricColor}
+              plannedIsEstimated={collapsedPlannedIsEstimated}
               showTrack={false}
               showStatus={false}
             />
@@ -1075,6 +1106,7 @@ export function WeeklyVolumeCard({
               status={status}
               isHolding={isHolding}
               activeColor={activeMetricColor}
+              plannedIsEstimated={collapsedPlannedIsEstimated}
               chevronTestID="weekly-volume-chevron"
               showStatus={false}
             />

@@ -116,6 +116,19 @@ function defaultFormatDistance(km: number): string {
   return `${Math.round(km)}km`;
 }
 
+function formatEstimatedDistance(
+  km: number,
+  hasEstimate: boolean,
+  formatDistance: FormatDistance,
+): string {
+  const label = formatDistance(km);
+  return hasEstimate ? `~${label}` : label;
+}
+
+function formatWeekDistance(week: BlockReviewWeekModel, formatDistance: FormatDistance): string {
+  return formatEstimatedDistance(week.plannedKm, week.hasEstimatedDistance, formatDistance);
+}
+
 function clampNumber(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -599,6 +612,9 @@ export function BlockVolumeChart({
   const selectedPoint = selectedWeekIndex == null ? null : chartModel.points[selectedWeekIndex] ?? null;
   const selectedWeek = selectedWeekIndex == null ? null : model.weeks[selectedWeekIndex] ?? null;
   const currentWeek = model.weeks.find((week) => week.isCurrentWeek) ?? null;
+  const startWeek = model.weeks[0] ?? null;
+  const peakWeek = model.weeks.find((week) => week.isPeakWeek) ?? null;
+  const raceWeek = model.weeks[model.weeks.length - 1] ?? null;
   const currentPoint = currentWeek ? chartModel.points[currentWeek.weekIndex] ?? null : null;
   const shouldShowCurrentGuide = Boolean(currentPoint && currentWeek && currentWeek.weekIndex > 0);
   const selectedX = scrubX ?? selectedPoint?.x ?? 0;
@@ -893,16 +909,27 @@ export function BlockVolumeChart({
               <Text style={styles.chartTooltipLine}>
                 {formatReviewWeekDateRange(selectedWeek, model.totalWeeks, raceDate)}
               </Text>
-              <Text style={styles.chartTooltipValue}>{formatDistance(selectedWeek.plannedKm)} total</Text>
+              <Text style={styles.chartTooltipValue}>
+                {formatWeekDistance(selectedWeek, formatDistance)} total
+              </Text>
             </View>
           </View>
         ) : null}
       </View>
 
       <View style={styles.statsGrid}>
-        <VolumeStat label="Start" value={formatDistance(model.volume.stats.startKm)} />
-        <VolumeStat label="Peak" value={formatDistance(model.volume.stats.peakKm)} />
-        <VolumeStat label="Race" value={formatDistance(model.volume.stats.raceKm)} />
+        <VolumeStat
+          label="Start"
+          value={startWeek ? formatWeekDistance(startWeek, formatDistance) : formatDistance(model.volume.stats.startKm)}
+        />
+        <VolumeStat
+          label="Peak"
+          value={peakWeek ? formatWeekDistance(peakWeek, formatDistance) : formatDistance(model.volume.stats.peakKm)}
+        />
+        <VolumeStat
+          label="Race"
+          value={raceWeek ? formatWeekDistance(raceWeek, formatDistance) : formatDistance(model.volume.stats.raceKm)}
+        />
       </View>
 
       {showPhaseStrip ? <BlockReviewPhaseStrip model={model} /> : null}
@@ -1210,7 +1237,12 @@ function BlockReviewWeeks({
         isExpanded: expandedWeekIndex === week.weekIndex,
       }))}
       expandedWeekIndex={expandedWeekIndex}
-      formatVolume={(km) => formatDistance(km)}
+      formatVolume={(km, week) => {
+        const reviewWeek = model.weeks[week.weekIndex];
+        return reviewWeek
+          ? formatWeekDistance(reviewWeek, formatDistance)
+          : formatDistance(km);
+      }}
       onToggleWeek={(weekIndex) => {
         const week = model.weeks[weekIndex];
         if (week) {

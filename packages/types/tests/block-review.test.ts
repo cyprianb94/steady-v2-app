@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildBlockReviewModel,
+  sessionKm,
   type PhaseName,
   type PlannedSession,
   type PlanWeek,
@@ -38,11 +39,38 @@ function week(
   plannedKm: number,
   pattern: (SessionType | null)[] = ['EASY', 'INTERVAL', 'EASY', 'TEMPO', null, 'EASY', 'LONG'],
 ): PlanWeek {
+  const sessions = pattern.map((type, dayIndex) => (type ? session(type, dayIndex) : null));
+  const adjustableSessions = sessions.filter((plannedSession) => (
+    plannedSession?.type === 'LONG' || plannedSession?.type === 'EASY' || plannedSession?.type === 'TEMPO'
+  ));
+  const adjustableKm = adjustableSessions.reduce((sum, plannedSession) => sum + (plannedSession?.distance ?? 0), 0);
+  const fixedKm = sessions.reduce((sum, plannedSession) => sum + sessionKm(plannedSession), 0) - adjustableKm;
+  const targetAdjustableKm = Math.max(0.1, plannedKm - fixedKm);
+  const factor = adjustableKm > 0 ? targetAdjustableKm / adjustableKm : 1;
+  let assignedKm = 0;
+
+  adjustableSessions.forEach((plannedSession, index) => {
+    if (!plannedSession) return;
+
+    const isLast = index === adjustableSessions.length - 1;
+    const nextDistance = isLast
+      ? targetAdjustableKm - assignedKm
+      : (plannedSession.distance ?? 8) * factor;
+    plannedSession.distance = Number(Math.max(0.1, nextDistance).toFixed(1));
+    assignedKm += plannedSession.distance;
+  });
+
+  const drift = Number((plannedKm - sessions.reduce((sum, plannedSession) => sum + sessionKm(plannedSession), 0)).toFixed(1));
+  const lastAdjustable = adjustableSessions[adjustableSessions.length - 1];
+  if (lastAdjustable) {
+    lastAdjustable.distance = Number(Math.max(0.1, (lastAdjustable.distance ?? 0) + drift).toFixed(1));
+  }
+
   return {
     weekNumber,
     phase,
     plannedKm,
-    sessions: pattern.map((type, dayIndex) => (type ? session(type, dayIndex) : null)),
+    sessions,
   };
 }
 

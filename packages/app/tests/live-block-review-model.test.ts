@@ -108,13 +108,13 @@ describe('deriveLiveBlockReviewModel', () => {
       weekNumber: 2,
       phase: 'BUILD',
       isCurrentWeek: true,
-      plannedKm: 46,
+      plannedKm: 50.4,
     });
     expect(model.volume.stats).toMatchObject({
-      startKm: 40,
-      peakKm: 54,
-      peakWeekNumber: 4,
-      raceKm: 30,
+      startKm: 52,
+      peakKm: 56,
+      peakWeekNumber: 3,
+      raceKm: 56,
     });
   });
 

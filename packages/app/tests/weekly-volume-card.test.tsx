@@ -461,6 +461,8 @@ describe('WeeklyVolumeCard', () => {
 
   it('marks estimated planned distance in the distance tooltip', () => {
     const summary = makeSummary();
+    summary.plannedExactDistanceKm = 52;
+    summary.plannedEstimatedDistanceKm = 12;
     summary.days[6] = {
       ...summary.days[6],
       plannedDistanceKm: 12,
@@ -470,10 +472,12 @@ describe('WeeklyVolumeCard', () => {
 
     render(<WeeklyVolumeCard summary={summary} />);
 
+    expect(screen.getByText('/ ~64km')).toBeTruthy();
+
     fireEvent.click(screen.getByTestId('weekly-volume-collapsed'));
     fireEvent.click(screen.getByTestId('weekly-volume-bucket-6'));
 
-    expect(screen.getByText('planned 12km')).toBeTruthy();
+    expect(screen.getByText('planned ~12km')).toBeTruthy();
     expect(screen.getByText('includes 12km estimated')).toBeTruthy();
   });
 

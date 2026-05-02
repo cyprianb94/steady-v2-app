@@ -1,7 +1,20 @@
 import type { IntervalRecovery, PlannedSession, RecoveryDuration, SessionDurationSpec } from '../session';
 import { RECOVERY_KM, RECOVERY_KM_PER_MIN, sessionDurationKm, sessionSupportsWarmupCooldown } from '../session';
 import { representativeSessionPaceSeconds } from './intensity-targets';
-import { totalStructuredSessionKm } from './structured-session';
+import { structuredSessionVolume, totalStructuredSessionKm } from './structured-session';
+
+export interface SessionKmBreakdown {
+  exactKm: number;
+  estimatedKm: number;
+  totalKm: number;
+  hasEstimatedKm: boolean;
+}
+
+export interface WeekKmBreakdown extends SessionKmBreakdown {}
+
+function roundKm(value: number): number {
+  return Math.round(value * 10) / 10;
+}
 
 function durationKm(value: SessionDurationSpec | null | undefined, paceSeconds: number | null): number {
   if (!value || value.value <= 0) return 0;
@@ -43,9 +56,7 @@ export function sessionKm(session: PlannedSession | null): number {
   const recoveryJogKm = recoveryKm(session.recovery) * (session.reps ?? 1);
 
   if (session.type === 'INTERVAL' && session.reps && (session.repDist || session.repDuration)) {
-    return Math.round(
-      (session.reps * intervalRepKm(session) + recoveryJogKm + warmup + cooldown) * 10
-    ) / 10;
+    return roundKm(session.reps * intervalRepKm(session) + recoveryJogKm + warmup + cooldown);
   }
 
   if (session.distance) {
@@ -53,6 +64,32 @@ export function sessionKm(session: PlannedSession | null): number {
   }
 
   return 8; // fallback for malformed sessions
+}
+
+export function sessionKmBreakdown(session: PlannedSession | null): SessionKmBreakdown {
+  if (!session || session.type === 'REST') {
+    return { exactKm: 0, estimatedKm: 0, totalKm: 0, hasEstimatedKm: false };
+  }
+
+  const volume = structuredSessionVolume(session);
+  const knownTotalKm = roundKm(volume.exactKm + volume.estimatedKm);
+
+  if (knownTotalKm > 0 || session.plannedVolume || session.runStructure) {
+    return {
+      exactKm: volume.exactKm,
+      estimatedKm: volume.estimatedKm,
+      totalKm: knownTotalKm,
+      hasEstimatedKm: volume.estimatedKm > 0,
+    };
+  }
+
+  const fallbackKm = sessionKm(session);
+  return {
+    exactKm: fallbackKm,
+    estimatedKm: 0,
+    totalKm: fallbackKm,
+    hasEstimatedKm: false,
+  };
 }
 
 /**
@@ -81,10 +118,31 @@ import type { PlanWeek } from '../plan';
  * Accepts either a PlanWeek or a raw sessions array.
  */
 export function weekKm(weekOrSessions: PlanWeek | (PlannedSession | null)[]): number {
+  return weekKmBreakdown(weekOrSessions).totalKm;
+}
+
+export function weekKmBreakdown(weekOrSessions: PlanWeek | (PlannedSession | null)[]): WeekKmBreakdown {
   const sessions = Array.isArray(weekOrSessions)
     ? weekOrSessions
     : weekOrSessions.sessions;
-  return Math.round(
-    sessions.reduce((sum, s) => sum + sessionKm(s), 0) * 10,
-  ) / 10;
+  const totals = sessions.reduce(
+    (sum, session) => {
+      const breakdown = sessionKmBreakdown(session);
+      return {
+        exactKm: sum.exactKm + breakdown.exactKm,
+        estimatedKm: sum.estimatedKm + breakdown.estimatedKm,
+        totalKm: sum.totalKm + breakdown.totalKm,
+      };
+    },
+    { exactKm: 0, estimatedKm: 0, totalKm: 0 },
+  );
+
+  const exactKm = roundKm(totals.exactKm);
+  const estimatedKm = roundKm(totals.estimatedKm);
+  return {
+    exactKm,
+    estimatedKm,
+    totalKm: roundKm(totals.totalKm),
+    hasEstimatedKm: estimatedKm > 0,
+  };
 }

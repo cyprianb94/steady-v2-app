@@ -226,7 +226,30 @@ All cards use:
 - `border: 1.5px solid {C.border}` (default) or session type colour at 35% opacity (when contextual)
 - `background: C.surface` (default) or session type bg colour (when contextual)
 - No drop shadows on standard cards — elevation is communicated through border and background alone
-- Exception: today's session gets `boxShadow: '0 2px 10px rgba(196,82,42,0.20)'`
+- Exception: the Home Today card has its own receipt pattern below
+
+### Home Today card
+
+The Home Today card is a daily check-in receipt, not a status panel or form.
+
+Planned state:
+- Outer card: `borderRadius: 14px`, `padding: 14px 16px 16px`, `border: 1px solid {sessionColor}38`, `background: C.surface`.
+- Add the wireframe-strength top wash: CSS-equivalent `{sessionColor}0E` at the top over page parchment, fading to `C.surface` by 65%. In React Native, pre-blend the top stop against `C.cream` and then fade that opaque colour to `C.surface`; do not interpolate a translucent session colour into opaque `C.surface`, because that creates a heavy blue/grey mid-band.
+- Type tag uses session foreground/background tokens; `TODAY` is DM Sans Bold muted text, not an amber chip.
+- Title is the session name in real Playfair Bold/26, warm ink. Do not colour the title by session type.
+- Target sits inline under a single top divider. The target label is DM Sans Bold muted uppercase. Do not use a nested target card, side rail, or framed target box.
+- Tempo/interval detail lines use a dashed divider under the target row. Value tokens use metric colour and bold mono wherever they appear: recovery/warm/cool durations use metric time, and recovery/warm/cool distances use metric distance. Labels remain neutral. Do not repeat total distance in the tempo detail line because it is already in the session title.
+- Primary CTA label is DM Sans Bold `I finished this run`, full-width pill, filled with that session's colour. This is a Today-card-only carve-out; other primary actions remain clay.
+- CTA microcopy sits centred below: `Looks for a recent Strava activity.`
+
+Completed state:
+- Outer card: flat `C.surface`, `border: 1px solid C.border`, no gradient and no glow.
+- Status is a small mark in the eyebrow row: forest `LOGGED`, amber `NEEDS REVIEW`, or muted `MATCHING...`. Do not scale the status treatment into a full card border.
+- Hero is the actual result: large Space Mono distance or quality pace, muted `at`, then secondary pace/time. Use warm ink/ink2 for the hero, not metric rainbow colours.
+- The sub-line is `{session title} · {date}` in muted DM Sans.
+- Optional coaching, variance, or loading copy uses one note slot only: a 6px dot plus one short headline and optional supporting clause. Never stack multiple amber note blocks.
+- Footer is one row: `FEEL · {value}` on the left and `Review run →` on the right. Missing feel reads `Add feel` in muted italic. Do not render inline feel chips inside the Today card.
+- Rep maps, split tables, and per-segment planned-vs-actual rows belong in Run detail, not the Today card.
 
 ### Bottom sheets
 

@@ -71,6 +71,7 @@ import {
   isInjuryWeek,
   propagateSwap,
   propagateChange,
+  weekKmBreakdown,
   type BlockPhaseSegment,
   type CrossTrainingEntry,
   type Injury,
@@ -248,6 +249,15 @@ function formatShortDate(date: string | null): string {
     month: 'short',
     day: 'numeric',
   });
+}
+
+function formatPlannedDistance(
+  km: number,
+  hasEstimate: boolean,
+  units: 'metric' | 'imperial',
+): string {
+  const label = formatDistance(km, units);
+  return hasEstimate ? `~${label}` : label;
 }
 
 function getStatusIconStatus(
@@ -632,7 +642,7 @@ export default function BlockTab() {
     ? 'INJURY'
     : plan.weeks[safeCurrentWeekIndex]?.phase ?? 'BUILD';
   const isHistoricalCurrentInjury = currentPhase === 'INJURY' && historicalInjury?.status === 'resolved';
-  const maxKm = Math.max(...plan.weeks.map(weekKm), 1);
+  const maxKm = Math.max(...plan.weeks.map((week) => weekKmBreakdown(week).totalKm), 1);
   const pendingEditWeekNumber = pendingEdit
     ? plan.weeks[pendingEdit.weekIndex]?.weekNumber ?? null
     : null;
@@ -929,26 +939,26 @@ export default function BlockTab() {
             ? {
                 ...week,
                 sessions: reschedule.sessions,
-                plannedKm: Math.round(weekKm(reschedule.sessions)),
+                plannedKm: weekKm(reschedule.sessions),
               }
             : week;
         const datedDisplayWeek = buildDisplayWeek(baseDisplayWeek, getWeekStartDate(week));
         const resolvedDisplaySessions = datedDisplayWeek.sessions.map((session) => (
           resolveProfileLinkedSessionTarget(session, plan.trainingPaceProfile, { today })
         ));
-        const hasResolvedDisplayTargets = resolvedDisplaySessions.some(
-          (session, index) => session !== datedDisplayWeek.sessions[index],
-        );
-        const displayWeek = hasResolvedDisplayTargets
-          ? {
-              ...datedDisplayWeek,
-              sessions: resolvedDisplaySessions,
-              plannedKm: Math.round(weekKm(resolvedDisplaySessions) * 10) / 10,
-            }
-          : datedDisplayWeek;
+        const displayWeek = {
+          ...datedDisplayWeek,
+          sessions: resolvedDisplaySessions,
+          plannedKm: weekKm(resolvedDisplaySessions),
+        };
         const weekEntries = injuryWeek ? getWeekEntries(recoveryData.entries, week) : [];
         const volumeTone = getBlockVolumeTone(i, safeCurrentWeekIndex);
         const volumeSummary = getResolvedWeekVolumeSummary(displayWeek, volumeTone, activityResolution);
+        const plannedVolumeLabel = formatPlannedDistance(
+          volumeSummary.plannedKm,
+          volumeSummary.hasEstimatedPlannedKm,
+          units,
+        );
         const blockDayDetails = buildResolvedBlockWeekDayDetails(displayWeek, activityResolution);
         const weekGuide = getBlockWeekGuide({
           injuryWeek,
@@ -1036,11 +1046,11 @@ export default function BlockTab() {
                     <Text numberOfLines={1} style={styles.weekKmComposite}>
                       <Text style={styles.weekKmActual}>{formatDistance(volumeSummary.actualKm, units)}</Text>
                       <Text style={styles.weekKmDivider}> / </Text>
-                      <Text style={styles.weekKmPlanned}>{formatDistance(volumeSummary.plannedKm, units)}</Text>
+                      <Text style={styles.weekKmPlanned}>{plannedVolumeLabel}</Text>
                     </Text>
                   ) : (
                     <Text style={[styles.weekKm, isCurrent && { color: C.clay }]}>
-                      {formatDistance(volumeSummary.plannedKm, units)}
+                      {plannedVolumeLabel}
                     </Text>
                   )}
                 </View>

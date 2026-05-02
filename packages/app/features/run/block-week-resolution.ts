@@ -6,6 +6,7 @@ import {
   type PlannedSession,
   type SwapLogEntry,
   type WeekVolumeSummary,
+  weekKmBreakdown,
 } from '@steady/types';
 import type { ActivityResolution } from './activity-resolution';
 
@@ -46,11 +47,15 @@ export function getResolvedWeekVolumeSummary(
   tone: BlockVolumeTone,
   resolution: Pick<ActivityResolution, 'weekActualKm'>,
 ): WeekVolumeSummary {
-  const plannedKm = week.plannedKm;
+  const plannedVolume = weekKmBreakdown(week);
+  const plannedKm = plannedVolume.totalKm;
 
   if (tone === 'future') {
     return {
       plannedKm,
+      plannedExactKm: plannedVolume.exactKm,
+      plannedEstimatedKm: plannedVolume.estimatedKm,
+      hasEstimatedPlannedKm: plannedVolume.hasEstimatedKm,
       actualKm: null,
       showActual: false,
       barKm: plannedKm,
@@ -61,6 +66,9 @@ export function getResolvedWeekVolumeSummary(
   if (actualKm <= 0) {
     return {
       plannedKm,
+      plannedExactKm: plannedVolume.exactKm,
+      plannedEstimatedKm: plannedVolume.estimatedKm,
+      hasEstimatedPlannedKm: plannedVolume.hasEstimatedKm,
       actualKm: null,
       showActual: false,
       barKm: plannedKm,
@@ -69,6 +77,9 @@ export function getResolvedWeekVolumeSummary(
 
   return {
     plannedKm,
+    plannedExactKm: plannedVolume.exactKm,
+    plannedEstimatedKm: plannedVolume.estimatedKm,
+    hasEstimatedPlannedKm: plannedVolume.hasEstimatedKm,
     actualKm,
     showActual: true,
     barKm: actualKm,

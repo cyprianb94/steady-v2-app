@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Animated, Easing, View, Text, Pressable, StyleSheet } from 'react-native';
 import {
@@ -11,9 +11,6 @@ import {
   type PvaHeadline,
   type StructuredQualitySummary,
   type SubjectiveInput,
-  type SubjectiveBreathing,
-  type SubjectiveLegs,
-  type SubjectiveOverall,
   type TrainingPaceProfile,
 } from '@steady/types';
 import { SESSION_TYPE } from '../../constants/session-types';
@@ -53,8 +50,6 @@ interface TodayHeroCardProps {
   onPress?: () => void;
   onLogRun?: () => void;
   onReviewRun?: () => void;
-  onSaveSubjectiveInput?: (input: SubjectiveInput) => void | Promise<void>;
-  onDismissSubjectiveInput?: () => void | Promise<void>;
   trainingPaceProfile?: TrainingPaceProfile | null;
 }
 
@@ -70,11 +65,13 @@ const COMPLETED_HEADLINES: Record<PvaHeadline, string> = {
   'over-pace': 'Went out hot',
   'hr-high': 'Heart rate high',
 };
-const SESSION_CARD_GRADIENT_LOCATIONS = [0, 0.34, 0.68, 1] as const;
-const SESSION_CARD_GRADIENT_START = { x: 0, y: 0.5 } as const;
-const SESSION_CARD_GRADIENT_END = { x: 1, y: 0.5 } as const;
+const SESSION_CARD_WASH_ALPHA = 0x0E / 0xFF;
+const SESSION_CARD_GRADIENT_LOCATIONS = [0, 0.65, 1] as const;
+const SESSION_CARD_GRADIENT_START = { x: 0, y: 0 } as const;
+const SESSION_CARD_GRADIENT_END = { x: 0, y: 1 } as const;
 
 type MetricKind = 'distance' | 'pace' | 'time' | 'effort' | 'neutral';
+type CompletedNoteTone = 'varied' | 'loading' | 'neutral';
 
 interface PlannedTargetDisplay {
   label: string;
@@ -85,10 +82,22 @@ interface PlannedTargetDisplay {
   structureLines?: StructuredRunDisplayLine[];
 }
 
-interface CompletedEvidenceRow {
-  label: string;
-  value: string | null;
+interface DetailLinePart {
+  text: string;
   kind: MetricKind;
+}
+
+interface CompletedHeroDisplay {
+  primary: string;
+  secondary: string;
+  label: string;
+  loading?: boolean;
+}
+
+interface CompletedNoteDisplay {
+  tone: CompletedNoteTone;
+  headline: string;
+  supporting?: string;
 }
 
 function formatSessionDate(date: string): string {
@@ -152,10 +161,34 @@ function StructureSummaryText({ lines }: { lines: StructuredRunDisplayLine[] }) 
   );
 }
 
+function parseHexColor(color: string): { r: number; g: number; b: number } {
+  const normalized = color.replace('#', '');
+  return {
+    r: Number.parseInt(normalized.slice(0, 2), 16),
+    g: Number.parseInt(normalized.slice(2, 4), 16),
+    b: Number.parseInt(normalized.slice(4, 6), 16),
+  };
+}
+
+function blendHexColor(foreground: string, background: string, alpha: number): string {
+  const fg = parseHexColor(foreground);
+  const bg = parseHexColor(background);
+  const toHex = (value: number) => value.toString(16).padStart(2, '0').toUpperCase();
+  const blend = (channel: keyof typeof fg) => Math.round(
+    fg[channel] * alpha + bg[channel] * (1 - alpha),
+  );
+
+  return `#${toHex(blend('r'))}${toHex(blend('g'))}${toHex(blend('b'))}`;
+}
+
 function sessionCardGradientColors(sessionType: PlannedSession['type']) {
   const meta = SESSION_TYPE[sessionType];
 
-  return [`${meta.color}0C`, `${meta.color}07`, `${meta.color}02`, `${meta.color}00`] as const;
+  return [
+    blendHexColor(meta.color, C.cream, SESSION_CARD_WASH_ALPHA),
+    C.surface,
+    C.surface,
+  ] as const;
 }
 
 function SessionCardAtmosphere({ sessionType }: { sessionType: PlannedSession['type'] }) {
@@ -170,6 +203,18 @@ function SessionCardAtmosphere({ sessionType }: { sessionType: PlannedSession['t
       testID="hero-card-atmosphere"
     />
   );
+}
+
+function statusDotColor(tone: CompletedNoteTone): string {
+  switch (tone) {
+    case 'varied':
+      return C.amber;
+    case 'loading':
+      return C.muted;
+    case 'neutral':
+    default:
+      return C.forest;
+  }
 }
 
 function sentenceCaseFact(fact: string): string {
@@ -246,22 +291,6 @@ function qualitySummaryNeedsReview(summary: StructuredQualitySummary | null): bo
   return summary.averagePaceSecondsPerKm < fastest || summary.averagePaceSecondsPerKm > slowest;
 }
 
-function completedHeadline(
-  summary: ReturnType<typeof buildCompletedSummary>,
-  qualitySummary: StructuredQualitySummary | null,
-  needsReview: boolean,
-): string {
-  if (qualitySummary?.status === 'available') {
-    if (qualitySummary.sessionType === 'TEMPO') {
-      return needsReview ? 'Tempo needs review' : 'Tempo on target';
-    }
-
-    return needsReview ? 'Rep work needs review' : 'Rep work on target';
-  }
-
-  return summary.headline;
-}
-
 function qualityEvidenceSentence(
   summary: StructuredQualitySummary | null,
   units: ReturnType<typeof usePreferences>['units'],
@@ -292,105 +321,151 @@ function completedSummaryFact(subcopy: string): string {
   return facts.length ? facts.join(' · ') : subcopy;
 }
 
-function buildCompletedEvidenceRows({
+function formatFeel(input: SubjectiveInput | undefined): { value: string; muted: boolean } {
+  if (!input) {
+    return { value: 'Add feel', muted: true };
+  }
+
+  return {
+    value: input.overall
+      .split('-')
+      .map((part, index) => (index === 0 ? titleCase(part) : part))
+      .join(' '),
+    muted: false,
+  };
+}
+
+function plannedFallbackPrimary(
+  session: PlannedSession,
+  units: ReturnType<typeof usePreferences>['units'],
+): string {
+  if (session.type === 'INTERVAL') {
+    return `${session.reps ?? 6}×${formatIntervalRepLength(session)}`;
+  }
+
+  if (session.distance != null) {
+    return formatDistance(session.distance, units);
+  }
+
+  return formatSessionTitle(session, units);
+}
+
+function buildCompletedHero({
   session,
   activity,
-  units,
   qualitySummary,
-  canAddFeel,
+  units,
 }: {
   session: PlannedSession;
   activity: ActivitySummary | undefined;
-  units: ReturnType<typeof usePreferences>['units'];
   qualitySummary: StructuredQualitySummary | null;
-  canAddFeel: boolean;
-}): CompletedEvidenceRow[] {
-  if (qualitySummary?.status === 'available') {
-    if (qualitySummary.sessionType === 'INTERVAL') {
-      const reps = qualitySummary.intervalReps;
-      return [
-        {
-          label: reps?.inTargetRange != null ? 'Reps in range' : 'Reps found',
-          value: reps ? `${reps.inTargetRange ?? reps.found} / ${reps.planned}` : null,
-          kind: 'neutral',
-        },
-        {
-          label: 'Quality pace',
-          value: formatPace(qualitySummary.averagePaceSecondsPerKm, units, {
-            withUnit: true,
-            compactUnit: true,
-          }),
-          kind: 'pace',
-        },
-      ];
-    }
-
-    return [
-      {
-        label: 'Quality pace',
-        value: formatPace(qualitySummary.averagePaceSecondsPerKm, units, {
-          withUnit: true,
-          compactUnit: true,
-        }),
-        kind: 'pace',
-      },
-      {
-        label: 'Tempo time',
-        value: formatDuration(Math.round(
-          qualitySummary.averagePaceSecondsPerKm * qualitySummary.qualityDistanceKm,
-        )),
-        kind: 'time',
-      },
-    ];
-  }
+  units: ReturnType<typeof usePreferences>['units'];
+}): CompletedHeroDisplay {
+  const label = `${formatSessionTitle(session, units)} · ${formatSessionDate(session.date)}`;
 
   if (!activity) {
     const target = formatIntensityTargetDisplay(session, units, {
       fallbackToLegacyPace: true,
       withUnit: true,
     });
-    return [
-      {
-        label: 'Planned',
-        value: formatSessionLabel(session, units),
-        kind: 'neutral',
-      },
-      {
-        label: 'Target',
-        value: target,
-        kind: target?.includes(':') ? 'pace' : 'effort',
-      },
-    ];
+
+    return {
+      primary: plannedFallbackPrimary(session, units),
+      secondary: target ?? formatSessionLabel(session, units),
+      label,
+      loading: true,
+    };
   }
 
-  const rows: CompletedEvidenceRow[] = [
-    {
-      label: 'Distance',
-      value: `${formatDistance(activity.distance, units)} / ${formatDistance(session.distance ?? 0, units)}`,
-      kind: 'distance',
-    },
-    {
-      label: 'Pace',
-      value: formatPace(activity.avgPace, units, { withUnit: true, compactUnit: true }),
-      kind: 'pace',
-    },
-  ];
+  if (qualitySummary?.status === 'available') {
+    const qualityPace = formatPace(qualitySummary.averagePaceSecondsPerKm, units, {
+      withUnit: true,
+      compactUnit: true,
+    });
 
-  if (activity.subjectiveInput) {
-    rows.push({
-      label: 'Feel',
-      value: titleCase(activity.subjectiveInput.overall),
-      kind: 'effort',
-    });
-  } else if (canAddFeel) {
-    rows.push({
-      label: 'Feel',
-      value: 'add feel',
-      kind: 'effort',
-    });
+    return {
+      primary: qualityPace,
+      secondary: qualitySummary.sessionType === 'TEMPO'
+        ? formatDuration(Math.round(
+            qualitySummary.averagePaceSecondsPerKm * qualitySummary.qualityDistanceKm,
+          ))
+        : 'avg rep',
+      label,
+    };
   }
 
-  return rows;
+  return {
+    primary: formatDistance(activity.distance, units),
+    secondary: formatPace(activity.avgPace, units, { withUnit: true, compactUnit: true }),
+    label,
+  };
+}
+
+function buildCompletedNote({
+  session,
+  activity,
+  completedSummary,
+  qualitySummary,
+  needsReview,
+  units,
+}: {
+  session: PlannedSession;
+  activity: ActivitySummary | undefined;
+  completedSummary: ReturnType<typeof buildCompletedSummary>;
+  qualitySummary: StructuredQualitySummary | null;
+  needsReview: boolean;
+  units: ReturnType<typeof usePreferences>['units'];
+}): CompletedNoteDisplay | null {
+  if (!activity) {
+    return {
+      tone: 'loading',
+      headline: 'Pulling splits from Strava...',
+    };
+  }
+
+  if (qualitySummary?.status === 'available') {
+    if (!needsReview) {
+      return null;
+    }
+
+    if (qualitySummary.sessionType === 'INTERVAL') {
+      const reps = qualitySummary.intervalReps;
+      return {
+        tone: 'varied',
+        headline: reps?.inTargetRange != null
+          ? `${reps.inTargetRange} of ${reps.planned} reps on target.`
+          : `${reps?.found ?? 0} of ${reps?.planned ?? 0} reps found.`,
+        supporting: `Rep average ${formatPace(qualitySummary.averagePaceSecondsPerKm, units, {
+          withUnit: true,
+          compactUnit: true,
+        })}.`,
+      };
+    }
+
+    return {
+      tone: 'varied',
+      headline: 'Tempo pace outside target.',
+      supporting: qualityEvidenceSentence(qualitySummary, units, needsReview) ?? undefined,
+    };
+  }
+
+  if (completedSummary.headline === 'On target') {
+    if (session.runStructure) {
+      return {
+        tone: 'neutral',
+        headline: 'Structured run logged.',
+        supporting: 'Open run detail for segment splits.',
+      };
+    }
+
+    return null;
+  }
+
+  return {
+    tone: 'varied',
+    headline: `${completedSummary.headline}.`,
+    supporting: completedSummaryFact(completedSummary.subcopy),
+  };
 }
 
 function buildPlannedTargetDisplay(
@@ -445,32 +520,41 @@ function buildPlannedTargetDisplay(
   };
 }
 
-function formatShortDuration(
+function formatShortDurationParts(
   duration: ReturnType<typeof normalizeSessionDuration>,
   units: ReturnType<typeof usePreferences>['units'],
   label: 'warm' | 'cool',
-): string | null {
+): DetailLinePart[] | null {
   if (!duration) {
     return null;
   }
 
   if (duration.unit === 'min') {
-    return `${duration.value} min ${label}`;
+    return [
+      { text: `${duration.value} min`, kind: 'time' },
+      { text: ` ${label}`, kind: 'neutral' },
+    ];
   }
 
-  return `${formatDistance(duration.value, units)} ${label}`;
+  return [
+    { text: formatDistance(duration.value, units), kind: 'distance' },
+    { text: ` ${label}`, kind: 'neutral' },
+  ];
 }
 
-function formatRecoveryDetail(
+function formatRecoveryDetailParts(
   recovery: PlannedSession['recovery'],
   units: ReturnType<typeof usePreferences>['units'],
-): string | null {
+): DetailLinePart[] | null {
   if (!recovery) {
     return null;
   }
 
   if (typeof recovery === 'string') {
-    return `${recovery} recoveries`;
+    return [
+      { text: recovery, kind: 'time' },
+      { text: ' recoveries', kind: 'neutral' },
+    ];
   }
 
   const normalized = normalizeSessionDuration(recovery);
@@ -479,61 +563,232 @@ function formatRecoveryDetail(
   }
 
   if (normalized.unit === 'min') {
-    return `${normalized.value} min recoveries`;
+    return [
+      { text: `${normalized.value} min`, kind: 'time' },
+      { text: ' recoveries', kind: 'neutral' },
+    ];
   }
 
-  return `${formatDistance(normalized.value, units)} recoveries`;
+  return [
+    { text: formatDistance(normalized.value, units), kind: 'distance' },
+    { text: ' recoveries', kind: 'neutral' },
+  ];
+}
+
+function joinDetailSegments(segments: Array<DetailLinePart[] | null>): DetailLinePart[] | null {
+  const present = segments.filter((segment): segment is DetailLinePart[] => Boolean(segment));
+  if (!present.length) {
+    return null;
+  }
+
+  return present.flatMap((segment, index) => (
+    index === 0
+      ? segment
+      : [{ text: ' · ', kind: 'neutral' as const }, ...segment]
+  ));
 }
 
 function buildPlannedDetailLine(
   session: PlannedSession,
   units: ReturnType<typeof usePreferences>['units'],
-): string | null {
+): DetailLinePart[] | null {
   const structureSummary = summariseRunStructure(session);
   if (structureSummary) {
     return null;
-  }
-
-  if (session.planNote) {
-    return 'Plan note saved';
   }
 
   const warmup = normalizeSessionDuration(session.warmup);
   const cooldown = normalizeSessionDuration(session.cooldown);
 
   if (session.type === 'TEMPO') {
-    const parts = [
-      typeof session.distance === 'number' ? `${formatDistance(session.distance, units)} total` : null,
-      formatShortDuration(warmup, units, 'warm'),
-      formatShortDuration(cooldown, units, 'cool'),
-    ].filter((part): part is string => Boolean(part));
-    return parts.length ? parts.join(' · ') : null;
+    return joinDetailSegments([
+      formatShortDurationParts(warmup, units, 'warm'),
+      formatShortDurationParts(cooldown, units, 'cool'),
+    ]);
   }
 
   if (session.type === 'INTERVAL') {
-    const parts = [
-      formatRecoveryDetail(session.recovery, units),
-      formatShortDuration(warmup, units, 'warm'),
-      formatShortDuration(cooldown, units, 'cool'),
-    ].filter((part): part is string => Boolean(part));
-    return parts.length ? parts.join(' · ') : null;
+    return joinDetailSegments([
+      formatRecoveryDetailParts(session.recovery, units),
+      formatShortDurationParts(warmup, units, 'warm'),
+      formatShortDurationParts(cooldown, units, 'cool'),
+    ]);
   }
 
   return null;
 }
 
-function CompletedEvidenceList({ rows }: { rows: CompletedEvidenceRow[] }) {
+function TypeTag({
+  type,
+  today = false,
+  status,
+}: {
+  type: PlannedSession['type'];
+  today?: boolean;
+  status?: 'logged' | 'needs-review' | 'matching';
+}) {
+  const meta = SESSION_TYPE[type];
   return (
-    <View style={styles.evidenceList}>
-      {rows.map((row) => (
-        <View key={row.label} style={styles.evidenceRow}>
-          <Text style={styles.evidenceLabel}>{row.label}</Text>
-          <Text style={[styles.evidenceValue, metricValueStyle(row.kind)]}>
-            {row.value}
-          </Text>
+    <View style={styles.typeTagRow}>
+      <Text
+        style={[
+          styles.typeTag,
+          { color: meta.color, backgroundColor: meta.bg },
+        ]}
+        testID={status ? 'hero-completed-session-chip' : 'hero-type-chip'}
+      >
+        {type}
+      </Text>
+      {today ? <Text style={styles.todayBadge}>TODAY</Text> : null}
+      {status === 'logged' ? (
+        <View style={styles.statusTag} testID="hero-completed-status-chip">
+          <View style={styles.loggedMark}>
+            <Text style={styles.loggedMarkText}>✓</Text>
+          </View>
+          <Text style={[styles.statusTagText, styles.loggedStatusText]}>LOGGED</Text>
         </View>
-      ))}
+      ) : null}
+      {status === 'needs-review' ? (
+        <View style={styles.statusTag} testID="hero-completed-status-chip">
+          <View style={styles.reviewMark}>
+            <Text style={styles.reviewMarkText}>!</Text>
+          </View>
+          <Text style={[styles.statusTagText, styles.reviewStatusText]}>NEEDS REVIEW</Text>
+        </View>
+      ) : null}
+      {status === 'matching' ? (
+        <View style={styles.statusTag} testID="hero-completed-status-chip">
+          <View style={styles.matchingDot} />
+          <Text style={[styles.statusTagText, styles.matchingStatusText]}>MATCHING...</Text>
+        </View>
+      ) : null}
     </View>
+  );
+}
+
+function PlannedTarget({ target }: { target: PlannedTargetDisplay }) {
+  if (target.structureLines) {
+    return (
+      <View style={styles.plannedStructure} testID="hero-structure-summary">
+        <Text style={styles.plannedTargetLabel}>{target.label}</Text>
+        <StructureSummaryText lines={target.structureLines} />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.plannedTargetLine}>
+      <Text style={styles.plannedTargetLabel}>{target.label}</Text>
+      {target.primary ? (
+        <Text style={[styles.plannedTargetValue, metricValueStyle(target.primaryKind)]}>
+          {target.primary}
+        </Text>
+      ) : null}
+      {target.secondary ? (
+        <>
+          <Text style={styles.plannedTargetSeparator}>·</Text>
+          <Text style={[styles.plannedTargetValue, metricValueStyle(target.secondaryKind)]}>
+            {target.secondary}
+          </Text>
+        </>
+      ) : null}
+    </View>
+  );
+}
+
+function DetailLine({ parts }: { parts: DetailLinePart[] }) {
+  return (
+    <Text style={styles.detailLine}>
+      {parts.map((part, index) => (
+        <Text
+          key={`${part.text}-${index}`}
+          style={part.kind === 'neutral'
+            ? undefined
+            : [styles.detailMetricToken, metricValueStyle(part.kind)]}
+        >
+          {part.text}
+        </Text>
+      ))}
+    </Text>
+  );
+}
+
+function CompletedHero({ hero }: { hero: CompletedHeroDisplay }) {
+  return (
+    <>
+      <View style={[styles.completedHeroRow, hero.loading && styles.completedHeroLoading]}>
+        <Text style={styles.completedHeroPrimary}>
+          {hero.primary}
+        </Text>
+        <Text style={styles.completedHeroJoiner}>at</Text>
+        <Text style={styles.completedHeroSecondary}>
+          {hero.secondary}
+        </Text>
+      </View>
+      <Text style={styles.completedHeroLabel}>{hero.label}</Text>
+    </>
+  );
+}
+
+function CompletedNote({ note }: { note: CompletedNoteDisplay }) {
+  return (
+    <View style={styles.completedNote} testID="hero-completed-note">
+      <View
+        style={[
+          styles.completedNoteDot,
+          { backgroundColor: statusDotColor(note.tone) },
+          note.tone === 'loading' && styles.completedNoteDotLoading,
+        ]}
+      />
+      <Text style={styles.completedNoteText}>
+        <Text style={styles.completedNoteHeadline}>{note.headline}</Text>
+        {note.supporting ? <Text style={styles.completedNoteSupporting}> {note.supporting}</Text> : null}
+      </Text>
+    </View>
+  );
+}
+
+function CompletedFooter({
+  feel,
+  onReviewRun,
+  accent,
+}: {
+  feel: { value: string; muted: boolean };
+  onReviewRun?: () => void;
+  accent?: string;
+}) {
+  const content = (
+    <>
+      <View style={styles.footerFeelGroup}>
+        <Text style={styles.footerFeelLabel}>FEEL</Text>
+        <Text style={styles.footerSeparator}>·</Text>
+        <Text style={[styles.footerFeelValue, feel.muted && styles.footerFeelValueMuted]}>
+          {feel.value}
+        </Text>
+      </View>
+      <View style={styles.footerReviewGroup}>
+        <Text style={[styles.footerReviewText, accent ? { color: accent } : null]}>Review run</Text>
+        <Text style={[styles.footerReviewArrow, accent ? { color: accent } : null]}>→</Text>
+      </View>
+    </>
+  );
+
+  if (!onReviewRun) {
+    return <View style={styles.completedFooter}>{content}</View>;
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={(event) => {
+        event.stopPropagation?.();
+        onReviewRun();
+      }}
+      style={styles.completedFooter}
+      testID="hero-review-run"
+    >
+      {content}
+    </Pressable>
   );
 }
 
@@ -543,8 +798,6 @@ export function TodayHeroCard({
   onPress,
   onLogRun,
   onReviewRun,
-  onSaveSubjectiveInput,
-  onDismissSubjectiveInput,
   trainingPaceProfile,
 }: TodayHeroCardProps) {
   const { units } = usePreferences();
@@ -597,128 +850,48 @@ export function TodayHeroCard({
   );
 
   if (!session || session.type === 'REST') {
-    const restMeta = SESSION_TYPE.REST;
     return (
       <View
-        style={[styles.card, styles.plannedCard, { backgroundColor: C.surface, borderColor: restMeta.color }]}
+        style={[styles.card, styles.restCard]}
         testID="hero-card"
       >
-        <SessionCardAtmosphere sessionType="REST" />
-        <View style={styles.topRow}>
-          <Text
-            style={[
-              styles.typeLabel,
-              styles.typeLabelChip,
-              { color: C.surface, backgroundColor: restMeta.color, borderColor: restMeta.color },
-            ]}
-          >
-            REST
-          </Text>
-          <Text style={styles.todayBadge}>TODAY</Text>
-        </View>
+        <TypeTag type="REST" today />
         <Text style={styles.restTitle}>Rest day</Text>
-        <Text style={styles.restSubtitle}>No planned run today.</Text>
+        <Text style={styles.restSubtitle}>No planned run today. Keep it light - walk, stretch, eat well.</Text>
       </View>
     );
   }
 
   const meta = SESSION_TYPE[session.type];
-  const savedSubjectiveInput = activity?.subjectiveInput;
   const completedSummary = buildCompletedSummary(session, activity);
   const qualitySummary = buildQualitySummary(session, activity);
   const needsReview = qualitySummaryNeedsReview(qualitySummary);
-  const statusLabel = needsReview ? 'NEEDS REVIEW' : 'COMPLETED';
-  const qualityEvidence = qualityEvidenceSentence(qualitySummary, units, needsReview);
   const plannedTarget = buildPlannedTargetDisplay(session, units, trainingPaceProfile);
   const plannedDetailLine = buildPlannedDetailLine(session, units);
-  const showSubjectivePrompt =
-    !!session.actualActivityId &&
-    !savedSubjectiveInput &&
-    Boolean(onSaveSubjectiveInput || onDismissSubjectiveInput);
-  const completedRows = buildCompletedEvidenceRows({
+  const completedHero = buildCompletedHero({ session, activity, qualitySummary, units });
+  const completedNote = buildCompletedNote({
     session,
     activity,
-    units,
+    completedSummary,
     qualitySummary,
-    canAddFeel: showSubjectivePrompt,
+    needsReview,
+    units,
   });
-  const completedHasNestedActions = showSubjectivePrompt || Boolean(onReviewRun);
+  const completedStatus = !activity ? 'matching' : needsReview ? 'needs-review' : 'logged';
+  const completedHasNestedActions = Boolean(onReviewRun);
+  const completedFooterAccent = completedNote?.tone === 'varied' ? C.amber : undefined;
 
   if (completed) {
     const content = (
       <>
-        <View style={styles.completedTopRow}>
-          <View
-            style={[
-              styles.completedTypeChip,
-              { borderColor: meta.color, backgroundColor: meta.color },
-            ]}
-            testID="hero-completed-session-chip"
-          >
-            <Text style={[styles.completedTypeChipText, { color: C.surface }]}>{session.type}</Text>
-          </View>
-          <View
-            style={[styles.completedBadge, needsReview && styles.reviewBadge]}
-            testID="hero-completed-status-chip"
-          >
-            <Text style={[styles.completedBadgeText, needsReview && styles.reviewBadgeText]}>
-              {statusLabel}
-            </Text>
-          </View>
-        </View>
-
-        <Text style={styles.completedHeadline}>
-          {completedHeadline(completedSummary, qualitySummary, needsReview)}
-        </Text>
-        <Text style={styles.completedSubcopy}>
-          {qualityEvidence ? (
-            <Text>{qualityEvidence}</Text>
-          ) : activity ? (
-            <>
-              <Text style={[styles.completedSubcopyMetric, styles.metricDistanceValue]}>{formatDistance(activity.distance, units)}</Text>
-              <Text> at </Text>
-              <Text style={[styles.completedSubcopyMetric, styles.metricPaceValue]}>{formatPace(activity.avgPace, units, { withUnit: true, compactUnit: true })}</Text>
-              <Text>{` · ${completedSummaryFact(completedSummary.subcopy)}`}</Text>
-            </>
-          ) : (
-            <>
-              <Text style={styles.completedSubcopyMetric}>{formatSessionLabel(session, units)}</Text>
-              <Text>{` · ${completedSummary.subcopy}`}</Text>
-            </>
-          )}
-        </Text>
-
-        <CompletedEvidenceList rows={completedRows} />
-
-        {showSubjectivePrompt ? (
-          <SubjectiveInputPrompt
-            onSave={onSaveSubjectiveInput}
-            onDismiss={onDismissSubjectiveInput}
-          />
-        ) : null}
-        {onReviewRun ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={(event) => {
-              event.stopPropagation?.();
-              onReviewRun();
-            }}
-            style={styles.reviewLink}
-            testID="hero-review-run"
-          >
-            <View>
-              <Text style={styles.reviewLinkText}>
-                {qualitySummary ? 'Review quality work' : 'Review run'}
-              </Text>
-              <Text style={styles.reviewLinkHint}>
-                {qualitySummary
-                  ? 'Warm-up and cool-down stay context.'
-                  : 'Open run detail and edit notes or feel.'}
-              </Text>
-            </View>
-            <Text style={styles.reviewLinkArrow}>›</Text>
-          </Pressable>
-        ) : null}
+        <TypeTag type={session.type} status={completedStatus} />
+        <CompletedHero hero={completedHero} />
+        {completedNote ? <CompletedNote note={completedNote} /> : null}
+        <CompletedFooter
+          feel={formatFeel(activity?.subjectiveInput)}
+          onReviewRun={onReviewRun}
+          accent={completedFooterAccent}
+        />
       </>
     );
 
@@ -730,7 +903,6 @@ export function TodayHeroCard({
           style={({ pressed }) => [
             styles.card,
             styles.completedCard,
-            { backgroundColor: C.surface, borderColor: meta.color },
             pressed && styles.cardPressed,
           ]}
           testID="hero-completed"
@@ -743,7 +915,7 @@ export function TodayHeroCard({
     }
 
     return (
-      <View style={[styles.card, styles.completedCard, { backgroundColor: C.surface, borderColor: meta.color }]} testID="hero-completed">
+      <View style={[styles.card, styles.completedCard]} testID="hero-completed">
         <Animated.View style={completedRevealStyle}>
           {content}
         </Animated.View>
@@ -753,48 +925,14 @@ export function TodayHeroCard({
 
   const plannedContent = (
     <>
-      <View style={styles.topRow}>
-        <Text
-          style={[
-            styles.typeLabel,
-            styles.typeLabelChip,
-            { color: C.surface, backgroundColor: meta.color, borderColor: meta.color },
-          ]}
-          testID="hero-type-chip"
-        >
-          {session.type}
-        </Text>
-        <Text style={styles.todayBadge}>TODAY</Text>
-      </View>
+      <TypeTag type={session.type} today />
 
-      <Text style={[styles.mainTitle, { color: meta.color }]}>{formatSessionTitle(session, units)}</Text>
+      <Text style={styles.mainTitle}>{formatSessionTitle(session, units)}</Text>
       <Text style={styles.dateText}>{formatSessionDate(session.date)}</Text>
 
-      <View
-        style={[
-          styles.targetFrame,
-          styles.targetFrameWithRail,
-          { borderLeftColor: meta.color },
-        ]}
-        testID="hero-target-frame"
-      >
-        <Text style={styles.targetLabel}>{plannedTarget.label}</Text>
-        {plannedTarget.structureLines ? (
-          <StructureSummaryText lines={plannedTarget.structureLines} />
-        ) : null}
-        {plannedTarget.primary ? (
-          <Text style={[styles.targetPrimary, metricValueStyle(plannedTarget.primaryKind)]} numberOfLines={1}>
-            {plannedTarget.primary}
-          </Text>
-        ) : null}
-        {plannedTarget.secondary ? (
-          <Text style={[styles.targetSecondary, metricValueStyle(plannedTarget.secondaryKind)]} numberOfLines={1}>
-            {plannedTarget.secondary}
-          </Text>
-        ) : null}
-      </View>
+      <PlannedTarget target={plannedTarget} />
 
-      {plannedDetailLine ? <Text style={styles.detailLine}>{plannedDetailLine}</Text> : null}
+      {plannedDetailLine ? <DetailLine parts={plannedDetailLine} /> : null}
       {onLogRun ? (
         <>
           <Pressable
@@ -803,23 +941,16 @@ export function TodayHeroCard({
               event.stopPropagation?.();
               onLogRun();
             }}
-            style={styles.finishedRunButton}
+            style={[styles.finishedRunButton, { backgroundColor: meta.color }]}
           >
-            <Text style={styles.finishedRunButtonText}>✓ I finished this run</Text>
+            <Text style={styles.finishedRunButtonText}>I finished this run</Text>
           </Pressable>
-          <Text style={styles.finishedRunHint}>Looks for a recent Strava activity.</Text>
         </>
-      ) : null}
-      {showSubjectivePrompt ? (
-        <SubjectiveInputPrompt
-          onSave={onSaveSubjectiveInput}
-          onDismiss={onDismissSubjectiveInput}
-        />
       ) : null}
     </>
   );
 
-  const plannedHasNestedActions = Boolean(onLogRun) || showSubjectivePrompt;
+  const plannedHasNestedActions = Boolean(onLogRun);
 
   if (onPress) {
     return (
@@ -829,7 +960,7 @@ export function TodayHeroCard({
         style={({ pressed }) => [
           styles.card,
           styles.plannedCard,
-          { backgroundColor: C.surface, borderColor: meta.color },
+          { borderColor: `${meta.color}38`, shadowColor: meta.color },
           pressed && styles.cardPressed,
         ]}
         testID="hero-card"
@@ -845,7 +976,7 @@ export function TodayHeroCard({
       style={[
         styles.card,
         styles.plannedCard,
-        { backgroundColor: C.surface, borderColor: meta.color },
+        { borderColor: `${meta.color}38`, shadowColor: meta.color },
       ]}
       testID="hero-card"
     >
@@ -855,353 +986,181 @@ export function TodayHeroCard({
   );
 }
 
-interface Option<T extends string> {
-  label: string;
-  value: T;
-}
-
-const LEG_OPTIONS: Option<SubjectiveLegs>[] = [
-  { label: 'Fresh', value: 'fresh' },
-  { label: 'Normal', value: 'normal' },
-  { label: 'Heavy', value: 'heavy' },
-  { label: 'Dead', value: 'dead' },
-];
-
-const BREATHING_OPTIONS: Option<SubjectiveBreathing>[] = [
-  { label: 'Easy', value: 'easy' },
-  { label: 'Controlled', value: 'controlled' },
-  { label: 'Labored', value: 'labored' },
-];
-
-const OVERALL_OPTIONS: Option<SubjectiveOverall>[] = [
-  { label: 'Could go again', value: 'could-go-again' },
-  { label: 'Done', value: 'done' },
-  { label: 'Shattered', value: 'shattered' },
-];
-
-function OptionRow<T extends string>({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  label: string;
-  options: Option<T>[];
-  value: T;
-  onChange: (value: T) => void;
-}) {
-  return (
-    <View style={styles.optionRow}>
-      <Text style={styles.optionLabel}>{label}</Text>
-      <View style={styles.optionButtons}>
-        {options.map((option) => {
-          const selected = option.value === value;
-          return (
-            <Pressable
-              key={option.value}
-              onPress={() => onChange(option.value)}
-              style={[styles.optionButton, selected && styles.optionButtonSelected]}
-            >
-              <Text style={[styles.optionButtonText, selected && styles.optionButtonTextSelected]}>
-                {option.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    </View>
-  );
-}
-
-function SubjectiveInputPrompt({
-  onSave,
-  onDismiss,
-}: {
-  onSave?: (input: SubjectiveInput) => void | Promise<void>;
-  onDismiss?: () => void | Promise<void>;
-}) {
-  const [legs, setLegs] = useState<SubjectiveLegs>('normal');
-  const [breathing, setBreathing] = useState<SubjectiveBreathing>('controlled');
-  const [overall, setOverall] = useState<SubjectiveOverall>('done');
-
-  return (
-    <View style={styles.subjectivePrompt} testID="subjective-input-prompt">
-      <View style={styles.promptHeader}>
-        <View>
-          <Text style={styles.promptTitle}>How did that feel?</Text>
-          <Text style={styles.promptSubtitle}>Three quick taps for your coach.</Text>
-        </View>
-        {onDismiss ? (
-          <Pressable onPress={onDismiss} style={styles.dismissButton}>
-            <Text style={styles.dismissText}>Skip</Text>
-          </Pressable>
-        ) : null}
-      </View>
-
-      <OptionRow label="Legs" options={LEG_OPTIONS} value={legs} onChange={setLegs} />
-      <OptionRow
-        label="Breathing"
-        options={BREATHING_OPTIONS}
-        value={breathing}
-        onChange={setBreathing}
-      />
-      <OptionRow label="Overall" options={OVERALL_OPTIONS} value={overall} onChange={setOverall} />
-
-      <Pressable
-        onPress={() => onSave?.({ legs, breathing, overall })}
-        style={styles.saveFeelButton}
-      >
-        <Text style={styles.saveFeelText}>Save feel</Text>
-      </Pressable>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 16,
-    padding: 20,
-    minHeight: 180,
-    justifyContent: 'center',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    overflow: 'hidden',
+  },
+  plannedCard: {
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 1,
+  },
+  completedCard: {
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.border,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  restCard: {
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.border,
+    minHeight: 116,
     overflow: 'hidden',
   },
   sessionAtmosphere: {
     ...StyleSheet.absoluteFillObject,
   },
-  completedCard: {
-    justifyContent: 'flex-start',
-    borderWidth: 1.5,
-    borderColor: 'rgba(28,21,16,0.08)',
-  },
-  plannedCard: {
-    borderWidth: 1.5,
-  },
   cardPressed: {
     opacity: 0.84,
   },
-  topRow: {
+  typeTagRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  typeLabel: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 13,
-    letterSpacing: 0.5,
+  typeTag: {
+    fontFamily: FONTS.sansBold,
+    fontSize: 10,
+    letterSpacing: 1.4,
     textTransform: 'uppercase',
-  },
-  typeLabelChip: {
-    borderWidth: 1.5,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    borderRadius: 20,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
     overflow: 'hidden',
   },
   todayBadge: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 10,
-    color: C.amber,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  completedTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    marginBottom: 16,
-  },
-  completedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: C.forestBg,
-    borderWidth: 1,
-    borderColor: 'rgba(42,92,69,0.18)',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  completedBadgeTick: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 11,
-    color: C.forest,
-  },
-  completedBadgeText: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 10,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: C.forest,
-  },
-  reviewBadge: {
-    backgroundColor: C.amberBg,
-    borderColor: `${C.amber}35`,
-  },
-  reviewBadgeText: {
-    color: C.amber,
-  },
-  completedTypeChip: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  completedTypeChipText: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 10,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  mainStat: {
-    fontFamily: FONTS.serifBold,
-    fontSize: 26,
-    marginBottom: 12,
-  },
-  completedHeadline: {
-    fontFamily: FONTS.serifBold,
-    fontSize: 28,
-    marginBottom: 8,
-  },
-  completedSubcopy: {
-    fontFamily: FONTS.sans,
-    fontSize: 13,
-    lineHeight: 20,
-    color: C.ink2,
-    marginBottom: 16,
-  },
-  completedSubcopyMetric: {
-    fontFamily: FONTS.monoBold,
-    color: C.ink,
-  },
-  evidenceList: {
-    borderTopWidth: 1,
-    borderTopColor: C.border,
-    marginBottom: 14,
-  },
-  evidenceRow: {
-    minHeight: 34,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 14,
-  },
-  evidenceLabel: {
-    fontFamily: FONTS.sans,
-    fontSize: 13,
-    color: C.ink2,
-  },
-  evidenceValue: {
-    flexShrink: 1,
-    textAlign: 'right',
-    fontSize: 13,
-  },
-  completedMetricRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 14,
-  },
-  completedMetricCard: {
-    flex: 1,
-    minWidth: 0,
-    backgroundColor: 'rgba(255,255,255,0.52)',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(28,21,16,0.08)',
-  },
-  completedMetricValue: {
-    fontFamily: FONTS.monoBold,
-    fontSize: 17,
-    color: C.ink,
-    marginBottom: 3,
-  },
-  completedMetricLabel: {
-    fontFamily: FONTS.sansSemiBold,
+    fontFamily: FONTS.sansBold,
     fontSize: 10,
     color: C.muted,
-    letterSpacing: 0.8,
+    letterSpacing: 1.6,
     textTransform: 'uppercase',
+  },
+  statusTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  loggedMark: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: C.forest,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loggedMarkText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 9,
+    lineHeight: 11,
+    color: C.surface,
+  },
+  reviewMark: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: C.amber,
+    backgroundColor: C.amberBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reviewMarkText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 9,
+    lineHeight: 11,
+    color: C.amber,
+  },
+  matchingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: C.muted,
+    opacity: 0.6,
+  },
+  statusTagText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 10,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+  },
+  loggedStatusText: {
+    color: C.forest,
+  },
+  reviewStatusText: {
+    color: C.amber,
+  },
+  matchingStatusText: {
+    color: C.muted,
   },
   mainTitle: {
     fontFamily: FONTS.serifBold,
-    fontSize: 30,
-    marginBottom: 8,
+    fontSize: 26,
+    lineHeight: 30,
+    color: C.ink,
+    marginTop: 10,
+    marginBottom: 2,
   },
   dateText: {
     fontFamily: FONTS.sans,
-    fontSize: 14,
+    fontSize: 12,
     color: C.muted,
-    marginBottom: 16,
+    marginBottom: 14,
   },
-  targetFrame: {
-    borderWidth: 1,
-    borderColor: C.border,
-    borderRadius: 14,
-    backgroundColor: C.surface,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 12,
+  plannedTargetLine: {
+    borderTopWidth: 1,
+    borderTopColor: C.border,
+    paddingTop: 10,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+    gap: 10,
   },
-  targetFrameWithRail: {
-    borderLeftWidth: 4,
-    paddingLeft: 12,
+  plannedStructure: {
+    borderTopWidth: 1,
+    borderTopColor: C.border,
+    paddingTop: 10,
   },
-  targetLabel: {
+  plannedTargetLabel: {
+    fontFamily: FONTS.sansBold,
+    fontSize: 10,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: C.muted,
+  },
+  plannedTargetValue: {
+    fontSize: 13,
+  },
+  plannedTargetSeparator: {
     fontFamily: FONTS.sans,
-    fontSize: 11,
-    color: C.muted,
-    marginBottom: 4,
-  },
-  targetPrimary: {
-    fontSize: 22,
-    marginBottom: 3,
-  },
-  targetSecondary: {
-    fontSize: 14,
+    fontSize: 13,
+    color: C.border,
+    marginHorizontal: -3,
   },
   structureSummaryLines: {
-    gap: 4,
+    gap: 0,
+    marginTop: 8,
   },
   structureSummaryLine: {
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
     fontFamily: FONTS.sansSemiBold,
-    fontSize: 18,
-    lineHeight: 24,
+    fontSize: 13,
+    lineHeight: 20,
     color: C.ink,
+    paddingVertical: 8,
   },
   structureMetricToken: {
-    fontSize: 18,
-    lineHeight: 24,
-  },
-  metricGrid: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 12,
-  },
-  metricCard: {
-    flex: 1,
-    minWidth: 0,
-    backgroundColor: 'rgba(255,255,255,0.4)',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  metricValue: {
-    fontFamily: FONTS.monoBold,
-    fontSize: 20,
-    color: C.ink,
-    marginBottom: 2,
-  },
-  metricValueMono: {
-    fontFamily: FONTS.monoBold,
-  },
-  metricValueText: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 16,
+    fontSize: 13,
+    lineHeight: 20,
   },
   metricDistanceValue: {
     fontFamily: FONTS.monoBold,
@@ -1220,188 +1179,163 @@ const styles = StyleSheet.create({
     color: C.metricEffort,
   },
   metricNeutralValue: {
-    fontFamily: FONTS.sansSemiBold,
+    fontFamily: FONTS.monoBold,
     color: C.ink,
   },
-  metricLabel: {
-    fontFamily: FONTS.sans,
-    fontSize: 11,
-    color: C.muted,
-    textTransform: 'lowercase',
-  },
-  extras: {
-    flexDirection: 'row',
-    gap: 12,
-  },
   detailLine: {
+    borderTopWidth: 1,
+    borderTopColor: C.border,
+    borderStyle: 'dashed',
+    marginTop: 8,
+    paddingTop: 8,
     fontFamily: FONTS.sans,
     fontSize: 12,
-    lineHeight: 17,
-    color: C.muted,
+    lineHeight: 18,
+    color: C.ink2,
+  },
+  detailMetricToken: {
+    fontSize: 12,
+    lineHeight: 18,
   },
   finishedRunButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 50,
-    marginTop: 16,
+    minHeight: 46,
+    marginTop: 14,
     borderRadius: 999,
-    backgroundColor: C.clay,
+    paddingHorizontal: 18,
   },
   finishedRunButtonText: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 15,
+    fontFamily: FONTS.sansBold,
+    fontSize: 14,
     color: C.surface,
   },
-  finishedRunHint: {
-    marginTop: 8,
-    textAlign: 'center',
-    fontFamily: FONTS.sans,
-    fontSize: 11,
-    color: C.muted,
+  completedHeroRow: {
+    marginTop: 10,
+    marginBottom: 2,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  extraText: {
+  completedHeroLoading: {
+    opacity: 0.55,
+  },
+  completedHeroPrimary: {
+    fontSize: 28,
+    letterSpacing: 0,
+    color: C.ink,
+  },
+  completedHeroJoiner: {
     fontFamily: FONTS.sans,
     fontSize: 13,
+    color: C.muted,
+  },
+  completedHeroSecondary: {
+    fontSize: 17,
     color: C.ink2,
   },
-  savedFeelGroup: {
-    marginTop: 2,
-  },
-  savedFeelChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  savedFeelChip: {
-    borderWidth: 1,
-    borderColor: 'rgba(28,21,16,0.12)',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: 'rgba(255,255,255,0.45)',
-  },
-  savedFeelChipText: {
-    fontFamily: FONTS.sansSemiBold,
+  completedHeroLabel: {
+    fontFamily: FONTS.sans,
     fontSize: 12,
+    color: C.muted,
+  },
+  completedNote: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: C.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  completedNoteDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  completedNoteDotLoading: {
+    opacity: 0.6,
+  },
+  completedNoteText: {
+    flex: 1,
+    fontFamily: FONTS.sans,
+    fontSize: 13,
+    lineHeight: 18,
+    color: C.ink,
+  },
+  completedNoteHeadline: {
+    fontFamily: FONTS.sansSemiBold,
+    color: C.ink,
+  },
+  completedNoteSupporting: {
+    fontFamily: FONTS.sans,
     color: C.ink2,
   },
-  reviewLink: {
+  completedFooter: {
     marginTop: 14,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(42,92,69,0.18)',
+    borderTopColor: C.border,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
-  },
-  reviewLinkText: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 14,
-    color: C.forest,
-  },
-  reviewLinkHint: {
-    fontFamily: FONTS.sans,
-    fontSize: 12,
-    color: C.ink2,
-    marginTop: 3,
-  },
-  reviewLinkArrow: {
-    fontFamily: FONTS.serifBold,
-    fontSize: 18,
-    color: C.forest,
-    marginTop: -1,
-  },
-  subjectivePrompt: {
-    marginTop: 16,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(28,21,16,0.14)',
+    flexWrap: 'wrap',
     gap: 10,
   },
-  promptHeader: {
+  footerFeelGroup: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  promptTitle: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 14,
-    color: C.ink,
-  },
-  promptSubtitle: {
-    fontFamily: FONTS.sans,
-    fontSize: 12,
-    color: C.ink2,
-    marginTop: 2,
-  },
-  dismissButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  dismissText: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 12,
-    color: C.muted,
-  },
-  optionRow: {
-    gap: 5,
-  },
-  optionLabel: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 11,
-    color: C.ink2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  optionButtons: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'baseline',
     gap: 6,
   },
-  optionButton: {
-    borderWidth: 1,
-    borderColor: 'rgba(28,21,16,0.18)',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: 'rgba(255,255,255,0.45)',
+  footerFeelLabel: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 10,
+    letterSpacing: 1.4,
+    color: C.muted,
+    textTransform: 'uppercase',
   },
-  optionButtonSelected: {
-    backgroundColor: C.ink,
-    borderColor: C.ink,
+  footerSeparator: {
+    fontFamily: FONTS.sans,
+    fontSize: 13,
+    color: C.muted,
   },
-  optionButtonText: {
+  footerFeelValue: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 13,
+    color: C.metricEffort,
+  },
+  footerFeelValueMuted: {
+    color: C.muted,
+    fontStyle: 'italic',
+  },
+  footerReviewGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  footerReviewText: {
     fontFamily: FONTS.sansSemiBold,
     fontSize: 12,
     color: C.ink2,
   },
-  optionButtonTextSelected: {
-    color: C.surface,
-  },
-  saveFeelButton: {
-    alignSelf: 'flex-start',
-    marginTop: 2,
-    backgroundColor: C.clay,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  saveFeelText: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 12,
-    color: C.surface,
+  footerReviewArrow: {
+    fontFamily: FONTS.sans,
+    fontSize: 16,
+    color: C.muted,
   },
   restTitle: {
     fontFamily: FONTS.serifBold,
-    fontSize: 24,
+    fontSize: 26,
+    lineHeight: 30,
     color: C.ink,
-    marginBottom: 6,
+    marginTop: 10,
+    marginBottom: 4,
   },
   restSubtitle: {
     fontFamily: FONTS.sans,
-    fontSize: 14,
-    color: C.muted,
+    fontSize: 13,
+    color: C.ink2,
     lineHeight: 20,
   },
 });

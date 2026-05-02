@@ -164,6 +164,38 @@ describe('buildWeeklyVolumeSummary', () => {
     });
   });
 
+  it('estimates planned distance for simple time-based runs with a pace target', () => {
+    const summary = buildWeeklyVolumeSummary({
+      today: '2026-04-06',
+      weekStartDate: '2026-04-06',
+      sessions: [
+        session({
+          id: 'recovery',
+          type: 'RECOVERY',
+          distance: undefined,
+          plannedVolume: { unit: 'min', value: 35 },
+          intensityTarget: {
+            source: 'manual',
+            mode: 'both',
+            profileKey: 'recovery',
+            effortCue: 'very easy',
+            paceRange: { min: '6:14', max: '6:45' },
+          },
+        }),
+      ],
+    });
+
+    expect(summary.plannedDistanceKm).toBe(5.4);
+    expect(summary.plannedExactDistanceKm).toBe(0);
+    expect(summary.plannedEstimatedDistanceKm).toBe(5.4);
+    expect(summary.days[0]).toMatchObject({
+      plannedDistanceKm: 5.4,
+      plannedExactDistanceKm: 0,
+      plannedEstimatedDistanceKm: 5.4,
+      plannedSeconds: 2100,
+    });
+  });
+
   it('marks missed, planned, and upcoming days without actual activity', () => {
     const summary = buildWeeklyVolumeSummary({
       today: '2026-04-09',

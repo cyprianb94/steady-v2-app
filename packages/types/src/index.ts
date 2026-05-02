@@ -100,7 +100,8 @@ export type {
 export type { User, WeeklyVolumeMetric } from './user';
 
 // Shared pure functions (used by both server and app)
-export { sessionKm, expectedDistance, weekKm } from './lib/session-km';
+export { expectedDistance, sessionKm, sessionKmBreakdown, weekKm, weekKmBreakdown } from './lib/session-km';
+export type { SessionKmBreakdown, WeekKmBreakdown } from './lib/session-km';
 export {
   buildWeeklyVolumeSummary,
   getWeeklyVolumeDayMetric,

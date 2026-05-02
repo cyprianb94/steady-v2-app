@@ -99,6 +99,39 @@ describe('TodayHeroCard', () => {
     expect(screen.queryByText('Target')).toBeNull();
   });
 
+  it('does not show saved-plan placeholders on planned cards and keeps receipt labels bold', () => {
+    render(
+      <TodayHeroCard
+        session={{
+          id: 'long-note',
+          type: 'LONG',
+          date: '2026-05-02',
+          distance: 15,
+          pace: '5:33',
+          planNote: 'Keep this relaxed.',
+          intensityTarget: {
+            source: 'manual',
+            mode: 'both',
+            paceRange: { min: '5:33', max: '5:55' },
+            effortCue: 'conversational',
+          },
+        }}
+      />,
+    );
+
+    expect(screen.queryByText('Plan note saved')).toBeNull();
+    expect(screen.queryByText('Keep this relaxed.')).toBeNull();
+    expect(screen.getByText('15km Long Run').getAttribute('style')).toContain(
+      'font-family: PlayfairDisplay-Bold',
+    );
+
+    const typeChip = screen.getByTestId('hero-type-chip');
+    expect(typeChip.textContent).toBe('LONG');
+    expect(typeChip.getAttribute('style')).toContain('font-family: DMSans-Bold');
+    expect(screen.getByText('TODAY').getAttribute('style')).toContain('font-family: DMSans-Bold');
+    expect(screen.getByText('Target').getAttribute('style')).toContain('font-family: DMSans-Bold');
+  });
+
   it('breaks longer structured session summaries into readable lines', () => {
     render(
       <TodayHeroCard
@@ -332,8 +365,11 @@ describe('TodayHeroCard', () => {
     expect(screen.getByText('INTERVAL')).toBeTruthy();
     expect(screen.getByText('6×800m Intervals')).toBeTruthy();
     expect(screen.getByText('3:50/km')).toBeTruthy();
-    expect(screen.getByText(/1.5km warm/)).toBeTruthy();
-    expect(screen.getByText(/1km cool/)).toBeTruthy();
+    expect(screen.getByText(byExactTextContent('90s recoveries · 1.5km warm · 1km cool'))).toBeTruthy();
+    expect(screen.getByText('90s').getAttribute('style')).toContain('color: rgb(157, 113, 31)');
+    expect(screen.getByText('90s').getAttribute('style')).toContain('font-family: SpaceMono-Bold');
+    expect(screen.getByText('1.5km').getAttribute('style')).toContain('color: rgb(61, 85, 164)');
+    expect(screen.getByText('1km').getAttribute('style')).toContain('font-family: SpaceMono-Bold');
   });
 
   it('renders the planned interval rep target and recovery detail line', () => {
@@ -353,7 +389,7 @@ describe('TodayHeroCard', () => {
             paceRange: { min: '3:47', max: '4:10' },
             effortCue: 'hard repeatable',
           },
-          recovery: '90s',
+          recovery: { unit: 'min', value: 1.5 },
           warmup: { unit: 'km', value: 1.5 },
           cooldown: { unit: 'km', value: 1 },
         }}
@@ -363,7 +399,9 @@ describe('TodayHeroCard', () => {
     expect(screen.getByText('Rep target')).toBeTruthy();
     expect(screen.getByText('3:47-4:10/km')).toBeTruthy();
     expect(screen.getByText('hard repeatable')).toBeTruthy();
-    expect(screen.getByText('90s recoveries · 1.5km warm · 1km cool')).toBeTruthy();
+    expect(screen.getByText(byExactTextContent('1.5 min recoveries · 1.5km warm · 1km cool'))).toBeTruthy();
+    expect(screen.getByText('1.5 min').getAttribute('style')).toContain('color: rgb(157, 113, 31)');
+    expect(screen.getByText('1.5 min').getAttribute('style')).toContain('font-family: SpaceMono-Bold');
   });
 
   it('shows a positive rest acknowledgment for a rest day', () => {
@@ -388,7 +426,7 @@ describe('TodayHeroCard', () => {
     expect(screen.getByText('REST')).toBeTruthy();
     expect(screen.getByText('TODAY')).toBeTruthy();
     expect(screen.getByText('Rest day')).toBeTruthy();
-    expect(screen.getByText('No planned run today.')).toBeTruthy();
+    expect(screen.getByText(/No planned run today/)).toBeTruthy();
     expect(screen.queryByText('I finished this run')).toBeNull();
   });
 
@@ -409,8 +447,11 @@ describe('TodayHeroCard', () => {
 
     expect(screen.getByText('TEMPO')).toBeTruthy();
     expect(screen.getByText('10km Tempo')).toBeTruthy();
-    expect(screen.getByText(/2km warm/)).toBeTruthy();
-    expect(screen.getByText(/1.5km cool/)).toBeTruthy();
+    expect(screen.getByText(byExactTextContent('2km warm · 1.5km cool'))).toBeTruthy();
+    expect(screen.getByText('2km').getAttribute('style')).toContain('color: rgb(61, 85, 164)');
+    expect(screen.getByText('2km').getAttribute('style')).toContain('font-family: SpaceMono-Bold');
+    expect(screen.getByText('1.5km').getAttribute('style')).toContain('color: rgb(61, 85, 164)');
+    expect(screen.getByText('1.5km').getAttribute('style')).toContain('font-family: SpaceMono-Bold');
   });
 
   it('renders the planned tempo target and warm/cool detail line', () => {
@@ -438,7 +479,8 @@ describe('TodayHeroCard', () => {
     expect(screen.getByText('Tempo target')).toBeTruthy();
     expect(screen.getByText('4:21-4:35/km')).toBeTruthy();
     expect(screen.getByText('controlled hard')).toBeTruthy();
-    expect(screen.getByText('10km total · 2km warm · 1.5km cool')).toBeTruthy();
+    expect(screen.queryByText(/10km total/)).toBeNull();
+    expect(screen.getByText(byExactTextContent('2km warm · 1.5km cool'))).toBeTruthy();
   });
 
   it('shows minute-based warmup and cooldown labels', () => {
@@ -456,8 +498,11 @@ describe('TodayHeroCard', () => {
       />,
     );
 
-    expect(screen.getByText(/15 min warm/)).toBeTruthy();
-    expect(screen.getByText(/10 min cool/)).toBeTruthy();
+    expect(screen.getByText(byExactTextContent('15 min warm · 10 min cool'))).toBeTruthy();
+    expect(screen.getByText('15 min').getAttribute('style')).toContain('color: rgb(157, 113, 31)');
+    expect(screen.getByText('15 min').getAttribute('style')).toContain('font-family: SpaceMono-Bold');
+    expect(screen.getByText('10 min').getAttribute('style')).toContain('color: rgb(157, 113, 31)');
+    expect(screen.getByText('10 min').getAttribute('style')).toContain('font-family: SpaceMono-Bold');
   });
 
   it('renders the planned tempo hero with a today badge, session title, and formatted date', () => {
@@ -496,12 +541,15 @@ describe('TodayHeroCard', () => {
       />,
     );
 
-    fireEvent.click(screen.getByText('✓ I finished this run'));
+    const cta = screen.getByText('I finished this run');
+    expect(cta.getAttribute('style')).toContain('font-family: DMSans-Bold');
+
+    fireEvent.click(cta);
     expect(onLogRun).toHaveBeenCalledTimes(1);
-    expect(screen.getByText('Looks for a recent Strava activity.')).toBeTruthy();
+    expect(screen.queryByText('Looks for a recent Strava activity.')).toBeNull();
   });
 
-  it('uses a framed neutral target treatment and removes planned heart rate from the today card', () => {
+  it('uses an inline target treatment and removes planned heart rate from the today card', () => {
     render(
       <TodayHeroCard
         session={{
@@ -519,37 +567,35 @@ describe('TodayHeroCard', () => {
     expect(screen.getByText('Tempo target')).toBeTruthy();
     expect(screen.queryByText('Zone 4')).toBeNull();
     expect(screen.queryByText('heart rate')).toBeNull();
-
-    const targetFrame = screen.getByTestId('hero-target-frame');
-    expect(targetFrame.getAttribute('style')).toContain('border-width: 1px 1px 1px 4px');
-    expect(targetFrame.getAttribute('style')).toContain('rgb(212, 136, 42)');
+    expect(screen.queryByTestId('hero-target-frame')).toBeNull();
 
     const heroCard = screen.getByTestId('hero-card');
-    expect(heroCard.getAttribute('style')).toContain('border-width: 1.5px');
+    expect(heroCard.getAttribute('style')).toContain('border-width: 1px');
     expect(heroCard.getAttribute('style')).toContain('background-color: rgb(253, 250, 245)');
 
     const typeChip = screen.getByTestId('hero-type-chip');
-    expect(typeChip.getAttribute('style')).toContain('background-color: rgb(212, 136, 42)');
+    expect(typeChip.getAttribute('style')).toContain('background-color: rgb(253, 246, 235)');
+    expect(typeChip.getAttribute('style')).toContain('color: rgb(212, 136, 42)');
   });
 
   it.each([
     [
       'EASY',
-      `${C.forest}0C|${C.forest}07|${C.forest}02|${C.forest}00`,
+      '#E9E7DD|#FDFAF5|#FDFAF5',
     ],
     [
       'INTERVAL',
-      `${C.clay}0C|${C.clay}07|${C.clay}02|${C.clay}00`,
+      '#F1E6DC|#FDFAF5|#FDFAF5',
     ],
     [
       'TEMPO',
-      `${C.amber}0C|${C.amber}07|${C.amber}02|${C.amber}00`,
+      '#F2E9DC|#FDFAF5|#FDFAF5',
     ],
     [
       'LONG',
-      `${C.navy}0C|${C.navy}07|${C.navy}02|${C.navy}00`,
+      '#E8E5DF|#FDFAF5|#FDFAF5',
     ],
-  ] as const)('uses the %s session atmosphere on planned cards', (
+  ] as const)('matches the %s wireframe-strength planned-card wash', (
     type,
     expectedGradient,
   ) => {
@@ -575,10 +621,10 @@ describe('TodayHeroCard', () => {
       expectedGradient,
     );
     expect(screen.getByTestId('hero-card-atmosphere').getAttribute('data-locations')).toBe(
-      '0|0.34|0.68|1',
+      '0|0.65|1',
     );
-    expect(screen.getByTestId('hero-card-atmosphere').getAttribute('data-start')).toBe('0|0.5');
-    expect(screen.getByTestId('hero-card-atmosphere').getAttribute('data-end')).toBe('1|0.5');
+    expect(screen.getByTestId('hero-card-atmosphere').getAttribute('data-start')).toBe('0|0');
+    expect(screen.getByTestId('hero-card-atmosphere').getAttribute('data-end')).toBe('0|1');
   });
 
   it('shows completed state with actual distance and pace when activity exists', () => {
@@ -609,7 +655,7 @@ describe('TodayHeroCard', () => {
     expect(screen.getAllByText(/5:18/).length).toBeGreaterThan(0);
   });
 
-  it('renders logged easy runs with session chip, completed status, and a slim evidence list', () => {
+  it('renders logged easy runs as a receipt hero with feel and review footer', () => {
     render(
       <TodayHeroCard
         session={{
@@ -635,13 +681,13 @@ describe('TodayHeroCard', () => {
     );
 
     expect(screen.getByTestId('hero-completed-session-chip').textContent).toBe('EASY');
-    expect(screen.getByTestId('hero-completed-status-chip').textContent).toBe('COMPLETED');
-    expect(screen.getByText('Distance')).toBeTruthy();
-    expect(screen.getByText('8.1km / 8km')).toBeTruthy();
-    expect(screen.getByText('Pace')).toBeTruthy();
+    expect(screen.getByTestId('hero-completed-status-chip').textContent).toContain('LOGGED');
+    expect(screen.getByText('8.1km')).toBeTruthy();
     expect(screen.getAllByText('5:48/km').length).toBeGreaterThan(0);
-    expect(screen.getByText('Feel')).toBeTruthy();
+    expect(screen.getByText('8km Easy Run · Thursday, Apr 9')).toBeTruthy();
+    expect(screen.getByText('FEEL')).toBeTruthy();
     expect(screen.getByText('Done')).toBeTruthy();
+    expect(screen.getByText('Review run')).toBeTruthy();
     expect(screen.queryByText(/bpm/i)).toBeNull();
   });
 
@@ -684,11 +730,10 @@ describe('TodayHeroCard', () => {
     );
 
     expect(screen.getByTestId('hero-completed-session-chip').textContent).toBe('TEMPO');
-    expect(screen.getByTestId('hero-completed-status-chip').textContent).toBe('NEEDS REVIEW');
-    expect(screen.getByText('Quality pace')).toBeTruthy();
+    expect(screen.getByTestId('hero-completed-status-chip').textContent).toContain('NEEDS REVIEW');
     expect(screen.getAllByText('4:40/km').length).toBeGreaterThan(0);
-    expect(screen.getByText('Tempo time')).toBeTruthy();
-    expect(screen.getByText('Review quality work')).toBeTruthy();
+    expect(screen.getByText('Tempo pace outside target.')).toBeTruthy();
+    expect(screen.getByText('Review run')).toBeTruthy();
   });
 
   it('shows completed state when session has actualActivityId even before activity details load', () => {
@@ -706,10 +751,10 @@ describe('TodayHeroCard', () => {
     );
 
     expect(screen.getByTestId('hero-completed')).toBeTruthy();
-    expect(screen.getByTestId('hero-completed-status-chip').textContent).toBe('COMPLETED');
-    expect(screen.getByText('Run saved')).toBeTruthy();
-    expect(screen.getByText('Planned')).toBeTruthy();
-    expect(screen.getAllByText(/8km easy · 5:20/).length).toBeGreaterThan(0);
+    expect(screen.getByTestId('hero-completed-status-chip').textContent).toContain('MATCHING');
+    expect(screen.getByText('Pulling splits from Strava...')).toBeTruthy();
+    expect(screen.getByText('8km')).toBeTruthy();
+    expect(screen.getAllByText(/5:20\/km/).length).toBeGreaterThan(0);
   });
 
   it('shows completed state from resolved activity data even before actualActivityId lands in the plan', () => {
@@ -732,7 +777,7 @@ describe('TodayHeroCard', () => {
     );
 
     expect(screen.getByTestId('hero-completed')).toBeTruthy();
-    expect(screen.getByTestId('hero-completed-status-chip').textContent).toBe('COMPLETED');
+    expect(screen.getByTestId('hero-completed-status-chip').textContent).toContain('LOGGED');
     expect(screen.getAllByText(/8\.1/).length).toBeGreaterThan(0);
   });
 
@@ -757,7 +802,7 @@ describe('TodayHeroCard', () => {
       />,
     );
 
-    expect(screen.getByText('Longer than planned')).toBeTruthy();
+    expect(screen.getByText('Longer than planned.')).toBeTruthy();
     expect(screen.queryByText('Bonus effort')).toBeNull();
   });
 
@@ -789,8 +834,10 @@ describe('TodayHeroCard', () => {
       />,
     );
 
-    expect(screen.getByText('On target')).toBeTruthy();
-    expect(screen.getByText(/Pace inside target range/)).toBeTruthy();
+    expect(screen.getByTestId('hero-completed-status-chip').textContent).toContain('LOGGED');
+    expect(screen.getByText('10km')).toBeTruthy();
+    expect(screen.getByText('4:05/km')).toBeTruthy();
+    expect(screen.queryByTestId('hero-completed-note')).toBeNull();
   });
 
   it('does not call an easy effort-led run off target just because GPS pace was slower', () => {
@@ -821,9 +868,10 @@ describe('TodayHeroCard', () => {
       />,
     );
 
-    expect(screen.getByText('On target')).toBeTruthy();
+    expect(screen.getByTestId('hero-completed-status-chip').textContent).toContain('LOGGED');
     expect(screen.queryByText('Eased off')).toBeNull();
     expect(screen.queryByText('Went out hot')).toBeNull();
+    expect(screen.queryByTestId('hero-completed-note')).toBeNull();
   });
 
   it('opens the card action when the planned hero is tapped', () => {
@@ -871,7 +919,7 @@ describe('TodayHeroCard', () => {
       />,
     );
 
-    expect(screen.getByText('Feel')).toBeTruthy();
+    expect(screen.getByText('FEEL')).toBeTruthy();
     expect(screen.getByText('Done')).toBeTruthy();
     expect(screen.queryByText('Legs: Heavy')).toBeNull();
     expect(screen.queryByText('Breathing: Controlled')).toBeNull();

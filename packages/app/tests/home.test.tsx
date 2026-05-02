@@ -1203,7 +1203,7 @@ describe('HomeScreen', () => {
     render(<HomeScreen />);
 
     await waitFor(() => {
-      expect(screen.getByText('Feel')).toBeTruthy();
+      expect(screen.getByText('FEEL')).toBeTruthy();
     });
     expect(screen.getByText('Done')).toBeTruthy();
     expect(screen.queryByText('Legs: Heavy')).toBeNull();
@@ -1259,7 +1259,7 @@ describe('HomeScreen', () => {
     });
     expect(screen.queryByText('I just finished this run')).toBeNull();
     expect(screen.getByTestId('hero-review-run')).toBeTruthy();
-    expect(screen.getByText('Longer than planned')).toBeTruthy();
+    expect(screen.getByText('Longer than planned.')).toBeTruthy();
     expect(screen.queryByText('Bonus effort')).toBeNull();
   });
 

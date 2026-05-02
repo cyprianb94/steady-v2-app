@@ -40,7 +40,7 @@ describe('getWeekVolumeSummary', () => {
     sessions: [
       makeSession({ distance: 8, actualActivityId: 'act-1' }),
       makeSession({ distance: 10, actualActivityId: 'act-2' }),
-      makeSession({ distance: 6 }),
+      makeSession({ distance: 22 }),
       null,
       null,
       null,

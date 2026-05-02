@@ -1,5 +1,6 @@
 import type { PhaseConfig, PhaseName, PlanWeek } from '../plan';
 import type { PlannedSession, SessionType } from '../session';
+import { weekKmBreakdown } from './session-km';
 
 export const BLOCK_REVIEW_PHASE_ORDER: PhaseName[] = ['BASE', 'BUILD', 'RECOVERY', 'PEAK', 'TAPER'];
 
@@ -19,6 +20,9 @@ export interface BlockReviewWeekModel {
   weekNumber: number;
   phase: PhaseName;
   plannedKm: number;
+  plannedExactKm: number;
+  plannedEstimatedKm: number;
+  hasEstimatedDistance: boolean;
   volumeRatio: number;
   sessions: readonly (PlannedSession | null)[];
   sessionTypes: SessionType[];
@@ -135,10 +139,6 @@ function formatOverloadLabel(progressionPct: number, progressionEveryWeeks: numb
   return progressionEveryWeeks === 1
     ? `+${progressionPct}% every week`
     : `+${progressionPct}% every ${progressionEveryWeeks} weeks`;
-}
-
-function safePlannedKm(week: PlanWeek): number {
-  return Number.isFinite(week.plannedKm) && week.plannedKm > 0 ? roundKm(week.plannedKm) : 0;
 }
 
 function getSessionTypes(week: PlanWeek): SessionType[] {
@@ -346,16 +346,18 @@ function buildKeyWeeks(weeks: BlockReviewWeekModel[]): BlockReviewWeekModel[] {
 
 export function buildBlockReviewModel(input: BuildBlockReviewModelInput): BlockReviewModel {
   const sourceWeeks = [...input.weeks].sort((a, b) => a.weekNumber - b.weekNumber);
+  const weekVolumes = sourceWeeks.map((week) => weekKmBreakdown(week));
   const totalWeeks = sourceWeeks.length;
-  const maxKm = Math.max(...sourceWeeks.map(safePlannedKm), 0);
-  const peakIndex = sourceWeeks.findIndex((week) => safePlannedKm(week) === maxKm);
+  const maxKm = Math.max(...weekVolumes.map((volume) => volume.totalKm), 0);
+  const peakIndex = weekVolumes.findIndex((volume) => volume.totalKm === maxKm);
   const currentWeekIndex =
     input.currentWeekIndex != null && input.currentWeekIndex >= 0 && input.currentWeekIndex < totalWeeks
       ? input.currentWeekIndex
       : null;
 
   const weeks = sourceWeeks.map((week, weekIndex) => {
-    const plannedKm = safePlannedKm(week);
+    const weekVolume = weekVolumes[weekIndex] ?? weekKmBreakdown(week);
+    const plannedKm = weekVolume.totalKm;
     const flags = {
       isStartWeek: weekIndex === 0,
       isPeakWeek: weekIndex === peakIndex,
@@ -368,6 +370,9 @@ export function buildBlockReviewModel(input: BuildBlockReviewModelInput): BlockR
       weekNumber: week.weekNumber,
       phase: week.phase,
       plannedKm,
+      plannedExactKm: weekVolume.exactKm,
+      plannedEstimatedKm: weekVolume.estimatedKm,
+      hasEstimatedDistance: weekVolume.hasEstimatedKm,
       volumeRatio: maxKm > 0 ? plannedKm / maxKm : 0,
       sessions: week.sessions,
       sessionTypes: getSessionTypes(week),

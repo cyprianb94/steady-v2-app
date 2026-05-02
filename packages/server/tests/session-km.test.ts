@@ -114,6 +114,23 @@ describe('sessionKm', () => {
     expect(sessionKm(s)).toBe(8);
   });
 
+  it('estimates km for a time-based recovery run with a pace target', () => {
+    const s = session({
+      type: 'RECOVERY',
+      plannedVolume: { unit: 'min', value: 35 },
+      intensityTarget: {
+        source: 'manual',
+        mode: 'both',
+        profileKey: 'recovery',
+        effortCue: 'very easy',
+        paceRange: { min: '6:14', max: '6:45' },
+      },
+    });
+
+    expect(sessionKm(s)).toBe(5.4);
+    expect(expectedDistance(s)).toBe(5.4);
+  });
+
   it('handles INTERVAL without recovery field (no jog km added)', () => {
     const s = session({
       type: 'INTERVAL',
