@@ -11,6 +11,9 @@ Use this skill whenever the app needs the settled "Review your block" experience
 
 Code:
 - `packages/app/components/block-review/BlockReviewSurface.tsx`
+- `packages/app/features/block-review/review-volume-chart-model.ts`
+- `packages/app/features/block-review/block-reschedule-controller.ts`
+- `packages/app/features/block-review/live-block-review-model.ts`
 - `packages/types/src/lib/block-review.ts`
 - `packages/app/components/block/BlockWeekList.tsx`
 - `packages/app/components/block/AnimatedWeekExpansion.tsx`
@@ -19,6 +22,9 @@ Code:
 
 Core APIs:
 - Build data with `buildBlockReviewModel({ weeks, phases, progressionPct, progressionEveryWeeks, currentWeekIndex })`.
+- Adapt live plans with `deriveLiveBlockReviewModel`; do not rederive BlockReviewModel fields in live screens.
+- Build chart geometry with `buildReviewVolumeChartModel`; keep SVG/path/tick math out of `BlockReviewSurface`.
+- Apply live Block reschedule drafts with `applyBlockRescheduleDraft`; it wraps `propagateSwap` plus resolved completed-session preservation.
 - Render the review with `BlockReviewSurface`.
 - Use `BlockWeekList` for the Weeks tab; it owns the Block-style week row visuals, expanded day rows, drag affordances, and collapse animation.
 - Use `PropagateModal` after session edits or day-order changes that need scope selection.
@@ -30,6 +36,7 @@ Hard rules:
 - Do not show the old helper label `Edit sessions - any change will ask where to apply`.
 - Do not add divider lines between expanded day rows.
 - Do not silently apply drag rearranges; open `PropagateModal` so the user chooses scope.
+- Do not read `PlanWeek.plannedKm` as the Block review source of truth. Use `weekKmBreakdown` through the shared model so structured and estimated sessions stay correct.
 
 ## Screen Shell
 
@@ -101,7 +108,7 @@ Chart constants:
 - Scrub hit band: `CHART_TOP - 16` through `CHART_BOTTOM + 30`
 
 Line rendering:
-- Build `pathD` through `buildReviewVolumeChartModel`.
+- Build `pathD` through `buildReviewVolumeChartModel` in `packages/app/features/block-review/review-volume-chart-model.ts`.
 - Draw one continuous `react-native-svg` `Path` with cubic `C` commands.
 - Use `strokeLinecap="round"` and `strokeLinejoin="round"`.
 - Use an SVG `LinearGradient` with sharp phase stops for phase colour changes.
@@ -252,7 +259,8 @@ Reschedule scope:
 - In Plan Builder, `onMoveSession` stages a pending rearrange.
 - Show `PropagateModal` with title `Where should this reschedule apply?`, body explaining local vs matching plan scope, and apply label `Apply reschedule`.
 - Scope labels: `Just this week`, `This week + following weeks`, `{Phase} weeks only`.
-- On apply, commit with `propagateSwap(plan, weekIndex, from, to, scope, sourceWeek.phase)`.
+- In Plan Builder, commit with `propagateSwap(plan, weekIndex, from, to, scope, sourceWeek.phase)`.
+- In live Block, commit with `applyBlockRescheduleDraft` so completed or matched rows are preserved even before `actualActivityId` has refreshed.
 - On close/cancel, bump `rescheduleResetKey` so the local drag draft resets.
 
 ## Model Contract
@@ -274,15 +282,18 @@ Use `formatDistance` from preferences when rendering. Use race date to infer wee
 ## Verification
 
 Required focused tests when changing this surface:
-- `npm run test -w packages/app -- block-review-surface.test.tsx block-week-list.test.tsx step-plan.test.tsx`
+- `npm run test -w packages/app -- review-volume-chart-model.test.ts block-reschedule-controller.test.ts live-block-review-model.test.ts block-review-surface.test.tsx block-week-list.test.tsx step-plan.test.tsx`
+- `npm run test -w packages/types -- block-review.test.ts`
 - `npm run typecheck`
 - `git diff --check`
 
 Test expectations:
 - Structure tab renders chart, stats, phase strip, progression, phase summary.
 - Chart uses one SVG path, not segmented views.
+- Chart model tests cover fixed-width points, tick values, gradient stops, empty models, and single-week models without relying on fragile UI assertions.
 - Scrubbing shows tooltip, haptics fire on selected-week changes, and parent scroll locks.
 - Tabs remain controlled and touch-friendly.
 - Weeks tab renders `BlockWeekList`, expands/collapses with animation, and no helper/divider rows.
 - Day rows open the shared full-screen session editor.
 - Dragging run or rest rows locks scroll, stages a reschedule, opens `PropagateModal`, and applies via `propagateSwap`.
+- Live Block reschedule tests cover this-week, remaining, phase-only, and completed/matched-session preservation.

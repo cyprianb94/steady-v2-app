@@ -4,9 +4,12 @@ Use this file when a feature touches an area that historically attracted debt.
 
 ## Current hotspot files
 
-- `packages/app/app/(tabs)/block.tsx` — `1757` lines. Highest-risk controller screen. Avoid adding more orchestration here; direct-reschedule state now belongs in `packages/app/features/plan-builder/use-direct-week-reschedule.ts`.
+- `packages/app/app/(tabs)/block.tsx` — `1748` lines. Highest-risk controller screen. Avoid adding more orchestration here; direct-reschedule state belongs in `packages/app/features/plan-builder/use-direct-week-reschedule.ts`, and live Block reschedule application belongs in `packages/app/features/block-review/block-reschedule-controller.ts`.
+- `packages/app/components/block-review/BlockReviewSurface.tsx` — `1714` lines. Large review presentation surface. Keep chart geometry in `packages/app/features/block-review/review-volume-chart-model.ts`; keep this component focused on responder state and rendering.
+- `packages/app/components/block/BlockWeekList.tsx` — `722` lines. Shared review-week list and drag presentation. Keep day-order draft logic in `use-direct-week-reschedule.ts`; do not fork week-row behavior into onboarding and live Block copies.
 - `packages/app/components/plan-builder/RunStructureEditor.tsx` — `1772` lines. Large presentation surface for structured session editing. Structured template/materialization/volume-sync rules now belong in `packages/app/features/plan-builder/structured-session-editor-engine.ts`; keep this component focused on rendering, transient form state, and dispatching engine actions.
 - `packages/app/components/plan-builder/SessionEditor.tsx` — `1801` lines. Large simple-session editor. Keep simple field rendering and transient UI state here; shared target/profile and materialization behavior should stay in `packages/app/features/plan-builder/session-editing.ts` or the structured editor engine.
+- `packages/types/src/lib/block-review.ts` — `433` lines. Shared block-review source of truth. Planned volume must come from `weekKmBreakdown`, including exact/estimated semantics, not persisted `PlanWeek.plannedKm`.
 - `packages/app/app/sync-run/[activityId].tsx` — `1080` lines. Manual run resolution still mixes fetch, staged form state, and save orchestration even after the modal extraction. Keep pushing picker UIs and pure selection rules into sync feature modules/components.
 - `packages/app/app/(tabs)/settings.tsx` — `721` lines. Settings, auth, Strava actions, and recovery actions are easy to sprawl here.
 - `packages/app/app/onboarding/plan-builder/step-goal.tsx` — `562` lines. Plan-builder rules should land in shared plan-builder modules or shared domain helpers, not in the screen.
@@ -61,6 +64,20 @@ Start by looking in:
 - `packages/app/features/*` if shared client-side onboarding orchestration emerges across steps
 
 Do not let onboarding screens become the only place where plan rules live.
+
+### Block review and live Block work
+
+Start by looking in:
+
+- `packages/types/src/lib/block-review.ts` for shared review model derivation, plannedKm/source-of-truth semantics, phase grouping, and volume stats
+- `packages/app/features/block-review/live-block-review-model.ts` for adapting a persisted live plan to the shared model
+- `packages/app/features/block-review/review-volume-chart-model.ts` for chart geometry, ticks, paths, markers, scrub selection, and gradient stops
+- `packages/app/features/block-review/block-reschedule-controller.ts` for applying live Block reschedule drafts with completed/matched session preservation
+- `packages/app/features/run/block-week-resolution.ts` for actual/completed overlays and resolved locked-week behavior
+- `packages/app/features/plan-builder/use-direct-week-reschedule.ts` for drag draft state
+- `packages/app/components/block-review/*` and `packages/app/components/block/*` for rendering
+
+Do not add chart math, plannedKm derivation, or reschedule propagation directly to `block.tsx` or `BlockReviewSurface.tsx`.
 
 ### Activity and sync work
 

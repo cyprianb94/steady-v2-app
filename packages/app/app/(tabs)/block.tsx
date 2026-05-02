@@ -37,6 +37,7 @@ import {
 } from '../../features/plan-builder/session-editing';
 import { consumeSessionEditReturn } from '../../features/plan-builder/session-edit-return';
 import { useDirectWeekReschedule } from '../../features/plan-builder/use-direct-week-reschedule';
+import { applyBlockRescheduleDraft } from '../../features/block-review/block-reschedule-controller';
 import { deriveLiveBlockReviewModel } from '../../features/block-review/live-block-review-model';
 import { formatSessionRowText } from '../../lib/session-row-text';
 import { useAuth } from '../../lib/auth';
@@ -49,7 +50,6 @@ import { formatDistance } from '../../lib/units';
 import {
   buildResolvedBlockWeekDayDetails,
   getResolvedWeekVolumeSummary,
-  preserveResolvedLockedWeeks,
   restoreResolvedSwapDraft,
 } from '../../features/run/block-week-resolution';
 import {
@@ -69,7 +69,6 @@ import {
   getInjuryWeekRange,
   getWeekVolumeRatio,
   isInjuryWeek,
-  propagateSwap,
   propagateChange,
   weekKmBreakdown,
   type BlockPhaseSegment,
@@ -717,22 +716,14 @@ export default function BlockTab() {
 
   async function applyPendingRearrange(scope: PropagateScope) {
     if (!plan || rescheduleWeekIndex == null || reschedule.swapLog.length === 0) return;
-    const sourceWeek = plan.weeks[rescheduleWeekIndex];
-    if (!sourceWeek) return;
 
-    const nextWeeks = reschedule.swapLog.reduce((weeks, swap) => {
-      const propagated = propagateSwap(
-        weeks,
-        rescheduleWeekIndex,
-        swap.from,
-        swap.to,
-        scope,
-        sourceWeek.phase,
-      );
-
-      return preserveResolvedLockedWeeks(weeks, propagated, swap, activityResolution);
-    }, plan.weeks);
-
+    const nextWeeks = applyBlockRescheduleDraft({
+      weeks: plan.weeks,
+      weekIndex: rescheduleWeekIndex,
+      swapLog: reschedule.swapLog,
+      scope,
+      resolution: activityResolution,
+    });
 
     try {
       setIsSavingRearrange(true);

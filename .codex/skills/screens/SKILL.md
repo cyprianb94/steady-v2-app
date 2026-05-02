@@ -193,6 +193,12 @@ Launch
 - Injury weeks show cross-training instead of running sessions
 - Tapping a week expands inline (same UX as Step 3 of plan builder)
 
+**Implementation boundaries**
+- Keep `packages/app/app/(tabs)/block.tsx` as a screen shell for auth/loading, scroll, and rendering composition.
+- Derive shared review data via `packages/app/features/block-review/live-block-review-model.ts` and `packages/types/src/lib/block-review.ts`.
+- Keep chart geometry in `packages/app/features/block-review/review-volume-chart-model.ts`.
+- Keep live reschedule application in `packages/app/features/block-review/block-reschedule-controller.ts`; completed or matched sessions must remain locked through `block-week-resolution`.
+
 ---
 
 ## Screen: Steady AI Conversation

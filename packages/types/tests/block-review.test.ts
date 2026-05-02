@@ -145,6 +145,55 @@ describe('buildBlockReviewModel', () => {
     expect(model.volume.points[2].y).toBeLessThan(model.volume.points[0].y);
   });
 
+  it('derives review volume from session structure instead of persisted plannedKm', () => {
+    const model = buildBlockReviewModel({
+      weeks: [
+        {
+          weekNumber: 1,
+          phase: 'BASE',
+          plannedKm: 999,
+          sessions: [
+            {
+              id: 'easy',
+              type: 'EASY',
+              date: '2026-05-01',
+              distance: 8,
+            },
+            {
+              id: 'recovery',
+              type: 'RECOVERY',
+              date: '2026-05-02',
+              plannedVolume: { unit: 'min', value: 30 },
+              intensityTarget: { source: 'manual', mode: 'pace', pace: '5:00' },
+            },
+            null,
+            null,
+            null,
+            null,
+            null,
+          ],
+        },
+        week(2, 'BUILD', 20),
+        week(3, 'TAPER', 12),
+      ],
+    });
+
+    expect(model.weeks[0]).toMatchObject({
+      plannedKm: 14,
+      plannedExactKm: 8,
+      plannedEstimatedKm: 6,
+      hasEstimatedDistance: true,
+      detail: '14km · Base',
+    });
+    expect(model.volume.stats).toMatchObject({
+      startKm: 14,
+      peakKm: 20,
+      peakWeekNumber: 2,
+      raceKm: 12,
+    });
+    expect(model.volume.points[0].plannedKm).toBe(14);
+  });
+
   it('keeps configured zero-week phases in the structure label', () => {
     const model = buildBlockReviewModel({
       weeks: [

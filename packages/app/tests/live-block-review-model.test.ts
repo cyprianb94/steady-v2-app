@@ -118,6 +118,63 @@ describe('deriveLiveBlockReviewModel', () => {
     });
   });
 
+  it('uses session-derived volume instead of stale persisted plannedKm', () => {
+    const model = deriveLiveBlockReviewModel({
+      plan: makePlan({
+        weeks: [
+          makeWeek(1, 'BASE', '2026-04-06', 999, [
+            { distance: 8 },
+            {
+              type: 'RECOVERY',
+              plannedVolume: { unit: 'min', value: 30 },
+              intensityTarget: { source: 'manual', mode: 'pace', pace: '5:00' },
+            },
+            null,
+            null,
+            null,
+            null,
+            null,
+          ]),
+          makeWeek(2, 'BUILD', '2026-04-13', 500, [
+            { distance: 20 },
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+          ]),
+          makeWeek(3, 'TAPER', '2026-04-20', 300, [
+            { distance: 12 },
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+          ]),
+        ],
+        phases: { BASE: 1, BUILD: 1, RECOVERY: 0, PEAK: 0, TAPER: 1 },
+      }),
+      currentWeekIndex: 0,
+    });
+
+    expect(model.weeks[0]).toMatchObject({
+      weekNumber: 1,
+      plannedKm: 14,
+      plannedExactKm: 8,
+      plannedEstimatedKm: 6,
+      hasEstimatedDistance: true,
+      detail: '14km · Base',
+    });
+    expect(model.volume.stats).toMatchObject({
+      startKm: 14,
+      peakKm: 20,
+      peakWeekNumber: 2,
+      raceKm: 12,
+    });
+  });
+
   it('clamps the current week marker into the available week range', () => {
     const model = deriveLiveBlockReviewModel({
       plan: makePlan(),

@@ -29,6 +29,8 @@ Characteristics:
 
 Steady-specific preference: put canonical structured-session and volume behavior in `packages/types/tests` when it is package-level math (`sessionKm`, `weekKmBreakdown`, exact vs estimated distance). Use app tests for the app feature boundary, such as `structured-session-editor-engine`, not for re-proving every React control detail.
 
+For Block review, test source-of-truth volume semantics in `packages/types/tests/block-review.test.ts`, especially stale persisted `PlanWeek.plannedKm` versus session-derived exact/estimated km. Test app-only boundaries in focused files such as `review-volume-chart-model.test.ts`, `block-reschedule-controller.test.ts`, and `live-block-review-model.test.ts`; keep React tests for meaningful rendered behavior and interaction only.
+
 ## Bad Tests
 
 **Implementation-detail tests**: Coupled to internal structure.

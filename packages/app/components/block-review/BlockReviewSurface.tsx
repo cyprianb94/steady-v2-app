@@ -26,6 +26,28 @@ import { PHASE_COLOR } from '../../constants/phase-meta';
 import { FONTS } from '../../constants/typography';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { triggerSelectionChangeHaptic } from '../../lib/haptics';
+import {
+  CHART_BOTTOM,
+  CHART_CURRENT_GUIDE_DOT_SIZE,
+  CHART_CURRENT_GUIDE_DOT_SPACING,
+  CHART_CURRENT_GUIDE_EDGE_INSET,
+  CHART_CURRENT_GUIDE_POINT_GAP,
+  CHART_HEIGHT,
+  CHART_LINE_WIDTH,
+  CHART_PHASE_MARKER_SIZE,
+  CHART_SCRUB_BOTTOM,
+  CHART_SCRUB_TOP,
+  CHART_SELECTED_MARKER_SIZE,
+  CHART_TOOLTIP_WIDTH,
+  CHART_TOP,
+  CHART_WIDTH_FALLBACK,
+  CHART_X_AXIS_LABEL_WIDTH,
+  CHART_Y_AXIS_WIDTH,
+  buildReviewVolumeChartModel,
+  clampNumber,
+  formatAxisTickLabel,
+  weekIndexFromX,
+} from '../../features/block-review/review-volume-chart-model';
 import { BlockWeekList } from '../block/BlockWeekList';
 
 const TAB_ITEMS: { key: BlockReviewTab; label: string }[] = [
@@ -33,23 +55,6 @@ const TAB_ITEMS: { key: BlockReviewTab; label: string }[] = [
   { key: 'weeks', label: 'Weeks' },
 ];
 
-const CHART_HEIGHT = 150;
-const CHART_WIDTH_FALLBACK = 300;
-const CHART_Y_AXIS_WIDTH = 24;
-const CHART_TOP = 22;
-const CHART_BOTTOM = 122;
-const CHART_LINE_WIDTH = 2.8;
-const CHART_CURVE_SMOOTHING = 0.18;
-const CHART_PHASE_MARKER_SIZE = 8;
-const CHART_SELECTED_MARKER_SIZE = 12;
-const CHART_X_AXIS_LABEL_WIDTH = 40;
-const CHART_TOOLTIP_WIDTH = 132;
-const CHART_CURRENT_GUIDE_POINT_GAP = 9;
-const CHART_CURRENT_GUIDE_EDGE_INSET = 7;
-const CHART_CURRENT_GUIDE_DOT_SIZE = 2;
-const CHART_CURRENT_GUIDE_DOT_SPACING = 4;
-const CHART_SCRUB_TOP = CHART_TOP - 16;
-const CHART_SCRUB_BOTTOM = CHART_BOTTOM + 30;
 const TAB_PRESS_EXPANSION = typeof document !== 'undefined'
   ? {}
   : {
@@ -129,10 +134,6 @@ function formatWeekDistance(week: BlockReviewWeekModel, formatDistance: FormatDi
   return formatEstimatedDistance(week.plannedKm, week.hasEstimatedDistance, formatDistance);
 }
 
-function clampNumber(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
-
 function sanitizeWholeNumber(value: string, maxLength = 2): string {
   return value.replace(/\D/g, '').slice(0, maxLength);
 }
@@ -166,194 +167,6 @@ function phaseStripLabel(phase: PhaseName, weekCount: number, totalWeeks: number
   return phase.length > maxFullLabelChars ? COMPACT_PHASE_LABEL[phase] : phase;
 }
 
-interface ChartPoint {
-  weekIndex: number;
-  weekNumber: number;
-  phase: PhaseName;
-  km: number;
-  x: number;
-  y: number;
-}
-
-interface ChartTick {
-  value: number;
-  y: number;
-}
-
-interface ChartPhaseMarker {
-  weekIndex: number;
-  weekNumber: number;
-  phase: PhaseName;
-  x: number;
-  y: number;
-}
-
-interface ChartGradientStop {
-  key: string;
-  offset: string;
-  color: string;
-}
-
-interface ReviewVolumeChartModel {
-  points: ChartPoint[];
-  pathD: string;
-  gradientStops: ChartGradientStop[];
-  phaseMarkers: ChartPhaseMarker[];
-  ticks: ChartTick[];
-  axisMax: number;
-}
-
-function niceCeil(rawValue: number): number {
-  const value = Math.max(rawValue, 1);
-  const magnitude = 10 ** Math.floor(Math.log10(value));
-  const normalized = value / magnitude;
-  const steps = [1, 1.5, 2, 3, 5, 10];
-  const step = steps.find((candidate) => normalized <= candidate) ?? 10;
-
-  return step * magnitude;
-}
-
-function axisTicks(axisMax: number): number[] {
-  const step = niceCeil(axisMax / 3);
-  const ticks: number[] = [];
-
-  for (let tick = axisMax; tick > 0; tick -= step) {
-    ticks.push(Math.max(0, tick));
-  }
-
-  return [...ticks, 0];
-}
-
-function formatSvgNumber(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(2);
-}
-
-function formatAxisTickLabel(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
-}
-
-function buildContinuousPath(points: ChartPoint[]): string {
-  if (points.length === 0) {
-    return '';
-  }
-
-  if (points.length === 1) {
-    return `M ${formatSvgNumber(points[0].x)} ${formatSvgNumber(points[0].y)}`;
-  }
-
-  const commands = [`M ${formatSvgNumber(points[0].x)} ${formatSvgNumber(points[0].y)}`];
-
-  for (let index = 0; index < points.length - 1; index += 1) {
-    const previous = points[index - 1] ?? points[index];
-    const point = points[index];
-    const next = points[index + 1];
-    const afterNext = points[index + 2] ?? next;
-    const control1 = {
-      x: point.x + ((next.x - previous.x) * CHART_CURVE_SMOOTHING),
-      y: point.y + ((next.y - previous.y) * CHART_CURVE_SMOOTHING),
-    };
-    const control2 = {
-      x: next.x - ((afterNext.x - point.x) * CHART_CURVE_SMOOTHING),
-      y: next.y - ((afterNext.y - point.y) * CHART_CURVE_SMOOTHING),
-    };
-
-    commands.push([
-      'C',
-      formatSvgNumber(control1.x),
-      formatSvgNumber(control1.y),
-      formatSvgNumber(control2.x),
-      formatSvgNumber(control2.y),
-      formatSvgNumber(next.x),
-      formatSvgNumber(next.y),
-    ].join(' '));
-  }
-
-  return commands.join(' ');
-}
-
-function gradientOffset(x: number, chartWidth: number): string {
-  return `${(clampNumber(x / Math.max(chartWidth, 1), 0, 1) * 100).toFixed(2)}%`;
-}
-
-function buildGradientStops(
-  model: BlockReviewModel,
-  points: ChartPoint[],
-  chartWidth: number,
-): ChartGradientStop[] {
-  if (points.length === 0) {
-    return [];
-  }
-
-  return model.phaseSegments.flatMap((segment, index) => {
-    const startPoint = points.find((point) => point.weekNumber === segment.startWeekNumber) ?? points[0];
-    const nextSegment = model.phaseSegments[index + 1];
-    const endPoint = nextSegment
-      ? points.find((point) => point.weekNumber === nextSegment.startWeekNumber) ?? points[points.length - 1]
-      : points[points.length - 1];
-    const color = PHASE_COLOR[segment.phase];
-
-    return [
-      {
-        key: `${segment.phase}-${segment.startWeekNumber}-start`,
-        offset: gradientOffset(startPoint.x, chartWidth),
-        color,
-      },
-      {
-        key: `${segment.phase}-${segment.startWeekNumber}-end`,
-        offset: gradientOffset(endPoint.x, chartWidth),
-        color,
-      },
-    ];
-  });
-}
-
-export function buildReviewVolumeChartModel(
-  model: BlockReviewModel,
-  chartWidth = CHART_WIDTH_FALLBACK,
-): ReviewVolumeChartModel {
-  const width = Math.max(chartWidth, 1);
-  const weeks = model.weeks;
-
-  if (weeks.length === 0) {
-    return { points: [], pathD: '', gradientStops: [], phaseMarkers: [], ticks: [], axisMax: 1 };
-  }
-
-  const axisMax = niceCeil(model.volume.stats.maxKm * 1.12);
-  const ySpan = CHART_BOTTOM - CHART_TOP;
-  const denominator = Math.max(weeks.length - 1, 1);
-  const points = weeks.map<ChartPoint>((week, weekIndex) => ({
-    weekIndex,
-    weekNumber: week.weekNumber,
-    phase: week.phase,
-    km: week.plannedKm,
-    x: (width * weekIndex) / denominator,
-    y: CHART_BOTTOM - (clampNumber(week.plannedKm / axisMax, 0, 1) * ySpan),
-  }));
-
-  const phaseMarkers = model.phaseSegments
-    .map((segment) => points.find((point) => point.weekNumber === segment.startWeekNumber))
-    .filter((point): point is ChartPoint => Boolean(point))
-    .map((point) => ({
-      weekIndex: point.weekIndex,
-      weekNumber: point.weekNumber,
-      phase: point.phase,
-      x: point.x,
-      y: point.y,
-    }));
-
-  return {
-    points,
-    pathD: buildContinuousPath(points),
-    gradientStops: buildGradientStops(model, points, width),
-    phaseMarkers,
-    ticks: axisTicks(axisMax).map((value) => ({
-      value,
-      y: CHART_BOTTOM - (clampNumber(value / axisMax, 0, 1) * ySpan),
-    })),
-    axisMax,
-  };
-}
-
 function eventLocation(event: GestureResponderEvent, axis: 'X' | 'Y'): number {
   const native = event.nativeEvent as GestureResponderEvent['nativeEvent'] & {
     clientX?: number;
@@ -366,15 +179,6 @@ function eventLocation(event: GestureResponderEvent, axis: 'X' | 'Y'): number {
   const client = axis === 'X' ? native.clientX : native.clientY;
 
   return location ?? offset ?? client ?? 0;
-}
-
-function weekIndexFromX(x: number, chartWidth: number, totalWeeks: number): number {
-  if (totalWeeks <= 1) {
-    return 0;
-  }
-
-  const ratio = clampNumber(x, 0, chartWidth) / Math.max(chartWidth, 1);
-  return clampNumber(Math.round(ratio * (totalWeeks - 1)), 0, totalWeeks - 1);
 }
 
 function currentGuideDotIndexes(height: number): number[] {
