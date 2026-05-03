@@ -6,21 +6,15 @@ import {
   buildStructuredQualitySummary,
   expectedDistance,
   formatNiggleSummary,
-  shoeLifetimeKm,
-  type Activity,
   type PlannedSession,
-  type RunFuelEvent,
   type Shoe,
   type SubjectiveBreathing,
-  type SubjectiveInput,
   type SubjectiveLegs,
   type SubjectiveOverall,
 } from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
-import { trpc } from '../../lib/trpc';
 import { usePlan } from '../../hooks/usePlan';
-import { findSessionForDateOrWeekday, todayIsoLocal } from '../../lib/plan-helpers';
 import { usePreferences } from '../../providers/preferences-context';
 import {
   formatDistance,
@@ -28,18 +22,8 @@ import {
   formatPace,
   formatSessionTitle,
 } from '../../lib/units';
-import {
-  type EditableNiggle,
-  isActivityDateCompatibleWithSession,
-  isRunnableSession,
-  isSessionSelectable,
-  listMatchableSessions,
-  resolveDefaultMatchSessionId,
-  shoeWearState,
-  shouldRefreshKilometreSplits,
-  toEditableNiggles,
-} from '../../features/sync/sync-run-detail';
-import { buildCurrentDisplayWeek } from '../../features/run/display-week';
+import { shoeWearState } from '../../features/sync/sync-run-detail';
+import { useRunDetailController } from '../../features/sync/use-run-detail-controller';
 import { MatchPickerModal } from '../../components/sync-run/MatchPickerModal';
 import { NigglePickerModal } from '../../components/sync-run/NigglePickerModal';
 import { ShoePickerModal } from '../../components/sync-run/ShoePickerModal';
@@ -52,8 +36,6 @@ import {
   type AveragePaceComparisonDirection,
   type TargetAwareSplitTargetStatus,
 } from '../../features/run/target-aware-splits';
-import { GEL_BRANDS } from '../../features/fuelling/gel-catalogue';
-import { suggestedBrands as buildSuggestedFuelBrands, uniqueRecentFuelGels } from '../../features/fuelling/fuel-events';
 
 function formatDuration(seconds: number): string {
   const hrs = Math.floor(seconds / 3600);
@@ -141,8 +123,6 @@ const OVERALL_OPTIONS: { value: SubjectiveOverall; label: string }[] = [
   { value: 'shattered', label: 'Shattered' },
 ];
 
-const RUN_DETAIL_LOAD_TIMEOUT_MS = 8000;
-
 function feelSemanticStyles(value: string | null) {
   if (!value) {
     return {};
@@ -166,43 +146,6 @@ function feelSemanticStyles(value: string | null) {
     chip: styles.feelChipSelectedRecoverable,
     text: styles.feelChipTextSelectedRecoverable,
   };
-}
-
-function saveRunFailureCopy(error: unknown): { inline: string; alertTitle: string; alertBody: string } {
-  const message = error instanceof Error ? error.message : '';
-
-  if (message.includes('fuel_events') || message.toLowerCase().includes('fuel events')) {
-    return {
-      inline: 'Fuelling storage is not ready yet. Apply the latest database migration, then retry. Your notes and selections are still here.',
-      alertTitle: 'Could not save fuelling',
-      alertBody: 'The database is missing the fuelling column. Apply the latest migration, then retry.',
-    };
-  }
-
-  return {
-    inline: 'Could not save this run yet. Your notes and selections are still here so you can retry.',
-    alertTitle: 'Could not save run',
-    alertBody: 'Please try again in a moment.',
-  };
-}
-
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
-    }, timeoutMs);
-
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (error) => {
-        clearTimeout(timer);
-        reject(error);
-      },
-    );
-  });
 }
 
 function FeelRow<T extends string>({
@@ -253,70 +196,60 @@ export default function SyncRunDetailScreen() {
   );
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
-  const splitRefreshAttemptedIds = useRef(new Set<string>());
   const { units } = usePreferences();
   const { currentWeek, refresh: refreshPlan } = usePlan();
-  const [activity, setActivity] = useState<Activity | null>(null);
-  const [fuelHistoryActivities, setFuelHistoryActivities] = useState<Activity[]>([]);
-  const [shoes, setShoes] = useState<Shoe[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [fuelSliderActive, setFuelSliderActive] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [planRefreshError, setPlanRefreshError] = useState<string | null>(null);
   const [showMatchPicker, setShowMatchPicker] = useState(false);
   const [showShoePicker, setShowShoePicker] = useState(false);
   const [showNigglePicker, setShowNigglePicker] = useState(false);
-  const [draftSeedActivityId, setDraftSeedActivityId] = useState<string | null>(null);
-  const today = todayIsoLocal();
-  const displayWeek = useMemo(
-    () => (currentWeek ? buildCurrentDisplayWeek(currentWeek, today) : null),
-    [currentWeek, today],
-  );
-  const todaySession = findSessionForDateOrWeekday(displayWeek?.sessions ?? [], today);
-  const sessionOptions = useMemo(
-    () => listMatchableSessions(displayWeek?.sessions ?? [], today),
-    [displayWeek?.sessions, today],
-  );
-  const requestedSession = useMemo(
-    () => sessionOptions.find((session) => session.id === requestedSessionId) ?? null,
-    [requestedSessionId, sessionOptions],
-  );
-
-  const [legs, setLegs] = useState<SubjectiveLegs | null>(null);
-  const [breathing, setBreathing] = useState<SubjectiveBreathing | null>(null);
-  const [overall, setOverall] = useState<SubjectiveOverall | null>(null);
-  const [notes, setNotes] = useState('');
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
-  const [selectedShoeId, setSelectedShoeId] = useState<string | null>(null);
-  const [niggles, setNiggles] = useState<EditableNiggle[]>([]);
-  const [fuelEvents, setFuelEvents] = useState<RunFuelEvent[]>([]);
   const [selectedAverageSplitId, setSelectedAverageSplitId] = useState<string | null>(null);
-  const recommendedSessionId = useMemo(
-    () => resolveDefaultMatchSessionId({
-      activity,
-      preferredSession: requestedSession,
-      today,
-      todaySession: isRunnableSession(todaySession) ? todaySession : null,
-      sessionOptions,
-    }),
-    [activity, requestedSession, sessionOptions, today, todaySession],
-  );
-  const selectedSession = sessionOptions.find((session) => session.id === selectedSessionId) ?? null;
-  const selectedShoe = shoes.find((shoe) => shoe.id === selectedShoeId) ?? null;
-  const selectedShoeLifetimeKm = selectedShoe ? shoeLifetimeKm(selectedShoe) : 0;
-  const matchedSession = activity?.matchedSessionId
-    ? sessionOptions.find((session) => session.id === activity.matchedSessionId) ?? null
-    : null;
-  const hasStaleMatchedSession = Boolean(
-    activity?.matchedSessionId
-      && (
-        !matchedSession
-        || !isSessionSelectable(matchedSession, activity.id)
-        || !isActivityDateCompatibleWithSession(activity, matchedSession)
-      ),
-  );
+  const {
+    activity,
+    shoes,
+    loading,
+    saving,
+    fuelSliderActive,
+    setFuelSliderActive,
+    loadError,
+    saveError,
+    planRefreshError,
+    todaySession,
+    sessionOptions,
+    recommendedSessionId,
+    selectedSession,
+    selectedSessionId,
+    setSelectedSessionId,
+    selectedShoe,
+    selectedShoeId,
+    setSelectedShoeId,
+    selectedShoeLifetimeKm,
+    hasStaleMatchedSession,
+    legs,
+    setLegs,
+    breathing,
+    setBreathing,
+    overall,
+    setOverall,
+    notes,
+    setNotes,
+    niggles,
+    setNiggles,
+    fuelEvents,
+    setFuelEvents,
+    recentFuelGels,
+    suggestedFuelBrands,
+    feelComplete,
+    canSave,
+    reloadDetail,
+    saveRunDetail,
+    waitingForCurrentDraft,
+  } = useRunDetailController({
+    activityId,
+    requestedSessionId,
+    currentWeek,
+    refreshPlan,
+    onSaved: () => router.replace('/(tabs)/home'),
+    showAlert: (title, body) => Alert.alert(title, body),
+  });
   const qualitySummary = activity && selectedSession
     ? buildStructuredQualitySummary(selectedSession, activity)
     : null;
@@ -328,274 +261,11 @@ export default function SyncRunDetailScreen() {
         units,
       })
     : null;
-  const feelComplete = legs !== null && breathing !== null && overall !== null;
-  const subjectiveInput: SubjectiveInput | undefined = feelComplete
-    ? { legs: legs!, breathing: breathing!, overall: overall! }
-    : undefined;
-  const canSave = feelComplete && !saving;
-  const fuelHistory = useMemo(
-    () => activity
-      ? [
-          { ...activity, fuelEvents },
-          ...fuelHistoryActivities.filter((historyActivity) => historyActivity.id !== activity.id),
-        ]
-      : fuelHistoryActivities,
-    [activity, fuelEvents, fuelHistoryActivities],
-  );
-  const recentFuelGels = useMemo(
-    () => uniqueRecentFuelGels(fuelHistory),
-    [fuelHistory],
-  );
-  const suggestedFuelBrands = useMemo(
-    () => buildSuggestedFuelBrands(recentFuelGels, GEL_BRANDS),
-    [recentFuelGels],
-  );
-
   useEffect(() => {
-    setDraftSeedActivityId(null);
     setSelectedAverageSplitId(null);
   }, [activityId]);
 
-  useEffect(() => {
-    if (!activityId) {
-      setActivity(null);
-      setShoes([]);
-      setLoadError('We could not find that run. Go back and open it again.');
-      setLoading(false);
-      return;
-    }
-
-    const resolvedActivityId = activityId;
-    let cancelled = false;
-
-    async function loadDetail() {
-      try {
-        setLoading(true);
-        setLoadError(null);
-        setShoes([]);
-        setFuelHistoryActivities([]);
-        const nextActivity = await withTimeout(
-          trpc.activity.get.query({ activityId: resolvedActivityId }),
-          RUN_DETAIL_LOAD_TIMEOUT_MS,
-          'sync-run detail activity fetch',
-        );
-        if (cancelled) {
-          return;
-        }
-        setActivity(nextActivity);
-        void withTimeout(
-          trpc.shoe.list.query(),
-          RUN_DETAIL_LOAD_TIMEOUT_MS,
-          'sync-run detail shoe fetch',
-        )
-          .then((nextShoes) => {
-            if (!cancelled) {
-              setShoes(nextShoes);
-            }
-          })
-          .catch((error) => {
-            console.warn('Failed to load shoes for sync-run detail:', error);
-            if (!cancelled) {
-              setShoes([]);
-            }
-          });
-        void withTimeout(
-          trpc.activity.list.query(),
-          RUN_DETAIL_LOAD_TIMEOUT_MS,
-          'sync-run detail activity history fetch',
-        )
-          .then((activities) => {
-            if (!cancelled) {
-              setFuelHistoryActivities(activities);
-            }
-          })
-          .catch((error) => {
-            console.warn('Failed to load activity history for run fuelling:', error);
-            if (!cancelled) {
-              setFuelHistoryActivities(nextActivity ? [nextActivity] : []);
-            }
-          });
-      } catch (error) {
-        console.warn('Failed to load sync-run detail activity:', error);
-        if (!cancelled) {
-          setActivity(null);
-          setFuelHistoryActivities([]);
-          setLoadError('We could not refresh this run. Try again or go back to the picker.');
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    loadDetail().catch((error) => {
-      console.warn('Failed to initialize sync-run detail:', error);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activityId]);
-
-  useEffect(() => {
-    if (!activity || draftSeedActivityId === activity.id) {
-      return;
-    }
-
-    setSelectedSessionId(recommendedSessionId);
-    setSelectedShoeId(activity.shoeId ?? null);
-    setNiggles(toEditableNiggles(activity.niggles));
-    setFuelEvents(activity.fuelEvents ?? []);
-    setNotes(activity.notes ?? '');
-    setLegs(activity.subjectiveInput?.legs ?? null);
-    setBreathing(activity.subjectiveInput?.breathing ?? null);
-    setOverall(activity.subjectiveInput?.overall ?? null);
-    setDraftSeedActivityId(activity.id);
-  }, [activity, draftSeedActivityId, recommendedSessionId]);
-
-  useEffect(() => {
-    if (!activity || !shouldRefreshKilometreSplits(activity, selectedSession)) {
-      return;
-    }
-
-    if (splitRefreshAttemptedIds.current.has(activity.id)) {
-      return;
-    }
-
-    splitRefreshAttemptedIds.current.add(activity.id);
-    let cancelled = false;
-
-    void withTimeout(
-      trpc.strava.refreshActivity.mutate({ activityId: activity.id }),
-      RUN_DETAIL_LOAD_TIMEOUT_MS,
-      'sync-run detail split refresh',
-    )
-      .then((refreshedActivity) => {
-        if (!cancelled) {
-          setActivity((current) => (current?.id === activity.id ? refreshedActivity : current));
-        }
-      })
-      .catch((error) => {
-        console.warn('Failed to refresh kilometre splits for run detail:', error);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activity, selectedSession]);
-
-  async function reloadDetail() {
-    if (!activityId) {
-      setActivity(null);
-      setShoes([]);
-      setLoadError('We could not find that run. Go back and open it again.');
-      setLoading(false);
-      return;
-    }
-
-    const resolvedActivityId = activityId;
-    try {
-      setLoading(true);
-      setLoadError(null);
-      const nextActivity = await withTimeout(
-        trpc.activity.get.query({ activityId: resolvedActivityId }),
-        RUN_DETAIL_LOAD_TIMEOUT_MS,
-        'sync-run detail activity fetch',
-      );
-      setActivity(nextActivity);
-      void withTimeout(
-        trpc.shoe.list.query(),
-        RUN_DETAIL_LOAD_TIMEOUT_MS,
-        'sync-run detail shoe fetch',
-      )
-        .then((nextShoes) => {
-          setShoes(nextShoes);
-        })
-        .catch((error) => {
-          console.warn('Failed to reload shoes for sync-run detail:', error);
-          setShoes([]);
-        });
-      void withTimeout(
-        trpc.activity.list.query(),
-        RUN_DETAIL_LOAD_TIMEOUT_MS,
-        'sync-run detail activity history fetch',
-      )
-        .then((activities) => {
-          setFuelHistoryActivities(activities);
-        })
-        .catch((error) => {
-          console.warn('Failed to reload activity history for run fuelling:', error);
-          setFuelHistoryActivities(nextActivity ? [nextActivity] : []);
-        });
-    } catch (error) {
-      console.warn('Failed to load sync-run detail activity:', error);
-      setActivity(null);
-      setFuelHistoryActivities([]);
-      setLoadError('We could not refresh this run. Try again or go back to the picker.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleSave() {
-    if (!activity || !subjectiveInput) return;
-
-    setSaveError(null);
-    setPlanRefreshError(null);
-
-    const replacingRequestedSessionMatch = Boolean(
-      selectedSession
-      && requestedSession
-      && selectedSession.id === requestedSession.id
-      && selectedSession.actualActivityId
-      && selectedSession.actualActivityId !== activity.id,
-    );
-
-    if (selectedSession && !isSessionSelectable(selectedSession, activity.id) && !replacingRequestedSessionMatch) {
-      setSaveError('That session is already linked to another run. Pick a different session or save this as a bonus run.');
-      Alert.alert('Choose a different session', 'That planned session is already linked to another run.');
-      return;
-    }
-
-    try {
-      setSaving(true);
-      const result = await trpc.activity.saveRunDetail.mutate({
-        activityId: activity.id,
-        subjectiveInput,
-        niggles,
-        fuelEvents,
-        notes: notes.trim() || undefined,
-        shoeId: selectedShoeId,
-        matchedSessionId: selectedSessionId,
-        replaceExistingMatch: replacingRequestedSessionMatch,
-      });
-
-      setActivity({ ...result.activity, niggles: result.niggles });
-    } catch (error) {
-      console.warn('Failed to save synced run:', error);
-      const failureCopy = saveRunFailureCopy(error);
-      setSaveError(failureCopy.inline);
-      Alert.alert(failureCopy.alertTitle, failureCopy.alertBody);
-      setSaving(false);
-      return;
-    }
-
-    try {
-      await refreshPlan();
-    } catch (error) {
-      console.warn('Saved run but failed to refresh the plan:', error);
-      setPlanRefreshError('Run saved. We will refresh the plan when you return home.');
-      Alert.alert('Run saved', 'We could not refresh the plan yet, but your run was saved.');
-    } finally {
-      setSaving(false);
-    }
-
-    router.replace('/(tabs)/home');
-  }
-
   const showingPreviousActivity = Boolean(activityId && activity && activity.id !== activityId);
-  const waitingForCurrentDraft = Boolean(activity && draftSeedActivityId !== activity.id);
 
   if (loading || showingPreviousActivity || waitingForCurrentDraft) {
     return (
@@ -668,7 +338,7 @@ export default function SyncRunDetailScreen() {
         <Text style={styles.navTitle}>Run detail</Text>
         <Pressable
           style={[styles.saveActionButton, !canSave && styles.saveActionButtonDisabled]}
-          onPress={() => { void handleSave(); }}
+          onPress={() => { void saveRunDetail(); }}
           disabled={!canSave}
         >
           <Text style={[styles.saveAction, !canSave && styles.saveActionDisabled]}>Save</Text>
@@ -966,7 +636,7 @@ export default function SyncRunDetailScreen() {
         </View>
 
         <Pressable
-          onPress={() => { void handleSave(); }}
+          onPress={() => { void saveRunDetail(); }}
           style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
           disabled={!canSave}
         >

@@ -1,0 +1,1417 @@
+diff --git a/.codex/skills/screens/SKILL.md b/.codex/skills/screens/SKILL.md
+index 5e0bf11..9cae76c 100644
+--- a/.codex/skills/screens/SKILL.md
++++ b/.codex/skills/screens/SKILL.md
+@@ -201,6 +201,12 @@ Launch
+ 
+ ---
+ 
++## Screen: Sync Run Detail
++
++Keep `packages/app/app/sync-run/[activityId].tsx` as a rendering shell for the route, nav, modals, and run-detail presentation. Load/reload, draft seeding, save lifecycle, stale Strava split refresh, fuelling history suggestions, and plan refresh after save belong in `packages/app/features/sync/use-run-detail-controller.ts`. Pure matching and split predicates belong in `packages/app/features/sync/sync-run-detail.ts`.
++
++---
++
+ ## Screen: Steady AI Conversation
+ 
+ **Purpose:** The AI conversation. Proactive — Steady AI always has an opening message. A paid feature.
+diff --git a/.codex/skills/steady-feature-guardrails/references/hotspots.md b/.codex/skills/steady-feature-guardrails/references/hotspots.md
+index b064725..ecda998 100644
+--- a/.codex/skills/steady-feature-guardrails/references/hotspots.md
++++ b/.codex/skills/steady-feature-guardrails/references/hotspots.md
+@@ -10,16 +10,16 @@ Use this file when a feature touches an area that historically attracted debt.
+ - `packages/app/components/plan-builder/RunStructureEditor.tsx` — `1772` lines. Large presentation surface for structured session editing. Structured template/materialization/volume-sync rules now belong in `packages/app/features/plan-builder/structured-session-editor-engine.ts`; keep this component focused on rendering, transient form state, and dispatching engine actions.
+ - `packages/app/components/plan-builder/SessionEditor.tsx` — `1801` lines. Large simple-session editor. Keep simple field rendering and transient UI state here; shared target/profile and materialization behavior should stay in `packages/app/features/plan-builder/session-editing.ts` or the structured editor engine.
+ - `packages/types/src/lib/block-review.ts` — `433` lines. Shared block-review source of truth. Planned volume must come from `weekKmBreakdown`, including exact/estimated semantics, not persisted `PlanWeek.plannedKm`.
+-- `packages/app/app/sync-run/[activityId].tsx` — `1080` lines. Manual run resolution still mixes fetch, staged form state, and save orchestration even after the modal extraction. Keep pushing picker UIs and pure selection rules into sync feature modules/components.
++- `packages/app/app/sync-run/[activityId].tsx` — `1308` lines. Large run-detail rendering shell. Keep load/reload, draft seeding, save orchestration, stale split refresh, and plan-refresh handling in `packages/app/features/sync/use-run-detail-controller.ts`; keep pure matching/split predicates in `packages/app/features/sync/sync-run-detail.ts`.
+ - `packages/app/app/(tabs)/settings.tsx` — `721` lines. Settings, auth, Strava actions, and recovery actions are easy to sprawl here.
+ - `packages/app/app/onboarding/plan-builder/step-goal.tsx` — `562` lines. Plan-builder rules should land in shared plan-builder modules or shared domain helpers, not in the screen.
+ - `packages/app/app/onboarding/plan-builder/step-plan.tsx` — `622` lines. Keep generated-plan editing rules out of the onboarding screen shell.
+ - `packages/app/app/onboarding/plan-builder/step-template.tsx` — `949` lines. Template-week logic should prefer shared plan-builder modules over screen-local logic.
+ - `packages/app/app/(tabs)/home.tsx` — `609` lines. Home should stay a composition surface, not a new business-logic sink; skipped-session plan writes should go through `packages/app/lib/plan-api.ts` and the server plan workflow.
+-- `packages/server/src/services/strava-workflow-service.ts` — `525` lines. High-impact workflow boundary. Keep new behavior cohesive and avoid leaking orchestration back into routers or screens.
++- `packages/server/src/services/strava-workflow-service.ts` — `546` lines. High-impact workflow boundary. Keep new behavior cohesive and avoid leaking orchestration back into routers or screens.
+ - `packages/server/src/trpc/plan.ts` — `289` lines. Thin plan router: keep it to auth, Zod validation, workflow delegation, and transport error mapping.
+ - `packages/server/src/services/plan-workflow-service.ts` — `315` lines. Source of truth for active-plan load/save/week/profile/injury orchestration. Keep app-side Supabase writes and router-side workflow logic from reappearing.
+-- `packages/server/src/services/activity-workflow-service.ts` — `274` lines. Shared activity save/list workflow now carries niggle enrichment plus match/shoe persistence. Keep UI-specific shaping out of this service.
++- `packages/server/src/services/activity-workflow-service.ts` — `395` lines. Shared activity save/list workflow carries niggle enrichment plus match/shoe/fuelling persistence and rollback. Keep UI-specific shaping out of this service.
+ 
+ ## Preferred landing zones
+ 
+@@ -95,6 +95,7 @@ Do not add chart math, plannedKm derivation, or reschedule propagation directly
+ 
+ Start by looking in:
+ 
++- `packages/app/features/sync/use-run-detail-controller.ts` for sync-run detail load/reload, draft seeding, save lifecycle, plan refresh after save, stale split refresh, and fuelling history suggestions
+ - `packages/app/features/run/*`
+ - `packages/app/features/sync/*`
+ - `packages/app/components/sync-run/*`
+diff --git a/.codex/skills/tests/SKILL.md b/.codex/skills/tests/SKILL.md
+index 4d5dfa8..0c35638 100644
+--- a/.codex/skills/tests/SKILL.md
++++ b/.codex/skills/tests/SKILL.md
+@@ -33,6 +33,8 @@ For Block review, test source-of-truth volume semantics in `packages/types/tests
+ 
+ For plan persistence, put orchestration coverage on `packages/server/src/services/plan-workflow-service.ts` and keep `packages/app/lib/plan-api.ts` tests transport-thin. Do not test duplicated app-side Supabase plan writes; real plan load/save/profile/week behavior should be proven through the server workflow and router boundaries.
+ 
++For sync-run detail, put load/draft/save/split-refresh behavior on `packages/app/features/sync/use-run-detail-controller.ts` tests with mocked transport boundaries. Keep `sync-run-detail.test.tsx` for rendered behavior and high-value interactions only, and rely on server activity workflow/router tests for multi-step persistence and rollback.
++
+ ## Bad Tests
+ 
+ **Implementation-detail tests**: Coupled to internal structure.
+diff --git a/packages/app/app/sync-run/[activityId].tsx b/packages/app/app/sync-run/[activityId].tsx
+index 0c92c1d..03366ae 100644
+--- a/packages/app/app/sync-run/[activityId].tsx
++++ b/packages/app/app/sync-run/[activityId].tsx
+@@ -6,21 +6,15 @@ import {
+   buildStructuredQualitySummary,
+   expectedDistance,
+   formatNiggleSummary,
+-  shoeLifetimeKm,
+-  type Activity,
+   type PlannedSession,
+-  type RunFuelEvent,
+   type Shoe,
+   type SubjectiveBreathing,
+-  type SubjectiveInput,
+   type SubjectiveLegs,
+   type SubjectiveOverall,
+ } from '@steady/types';
+ import { C } from '../../constants/colours';
+ import { FONTS } from '../../constants/typography';
+-import { trpc } from '../../lib/trpc';
+ import { usePlan } from '../../hooks/usePlan';
+-import { findSessionForDateOrWeekday, todayIsoLocal } from '../../lib/plan-helpers';
+ import { usePreferences } from '../../providers/preferences-context';
+ import {
+   formatDistance,
+@@ -28,18 +22,8 @@ import {
+   formatPace,
+   formatSessionTitle,
+ } from '../../lib/units';
+-import {
+-  type EditableNiggle,
+-  isActivityDateCompatibleWithSession,
+-  isRunnableSession,
+-  isSessionSelectable,
+-  listMatchableSessions,
+-  resolveDefaultMatchSessionId,
+-  shoeWearState,
+-  shouldRefreshKilometreSplits,
+-  toEditableNiggles,
+-} from '../../features/sync/sync-run-detail';
+-import { buildCurrentDisplayWeek } from '../../features/run/display-week';
++import { shoeWearState } from '../../features/sync/sync-run-detail';
++import { useRunDetailController } from '../../features/sync/use-run-detail-controller';
+ import { MatchPickerModal } from '../../components/sync-run/MatchPickerModal';
+ import { NigglePickerModal } from '../../components/sync-run/NigglePickerModal';
+ import { ShoePickerModal } from '../../components/sync-run/ShoePickerModal';
+@@ -52,8 +36,6 @@ import {
+   type AveragePaceComparisonDirection,
+   type TargetAwareSplitTargetStatus,
+ } from '../../features/run/target-aware-splits';
+-import { GEL_BRANDS } from '../../features/fuelling/gel-catalogue';
+-import { suggestedBrands as buildSuggestedFuelBrands, uniqueRecentFuelGels } from '../../features/fuelling/fuel-events';
+ 
+ function formatDuration(seconds: number): string {
+   const hrs = Math.floor(seconds / 3600);
+@@ -141,8 +123,6 @@ const OVERALL_OPTIONS: { value: SubjectiveOverall; label: string }[] = [
+   { value: 'shattered', label: 'Shattered' },
+ ];
+ 
+-const RUN_DETAIL_LOAD_TIMEOUT_MS = 8000;
+-
+ function feelSemanticStyles(value: string | null) {
+   if (!value) {
+     return {};
+@@ -168,43 +148,6 @@ function feelSemanticStyles(value: string | null) {
+   };
+ }
+ 
+-function saveRunFailureCopy(error: unknown): { inline: string; alertTitle: string; alertBody: string } {
+-  const message = error instanceof Error ? error.message : '';
+-
+-  if (message.includes('fuel_events') || message.toLowerCase().includes('fuel events')) {
+-    return {
+-      inline: 'Fuelling storage is not ready yet. Apply the latest database migration, then retry. Your notes and selections are still here.',
+-      alertTitle: 'Could not save fuelling',
+-      alertBody: 'The database is missing the fuelling column. Apply the latest migration, then retry.',
+-    };
+-  }
+-
+-  return {
+-    inline: 'Could not save this run yet. Your notes and selections are still here so you can retry.',
+-    alertTitle: 'Could not save run',
+-    alertBody: 'Please try again in a moment.',
+-  };
+-}
+-
+-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+-  return new Promise<T>((resolve, reject) => {
+-    const timer = setTimeout(() => {
+-      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+-    }, timeoutMs);
+-
+-    promise.then(
+-      (value) => {
+-        clearTimeout(timer);
+-        resolve(value);
+-      },
+-      (error) => {
+-        clearTimeout(timer);
+-        reject(error);
+-      },
+-    );
+-  });
+-}
+-
+ function FeelRow<T extends string>({
+   label,
+   options,
+@@ -253,70 +196,60 @@ export default function SyncRunDetailScreen() {
+   );
+   const insets = useSafeAreaInsets();
+   const scrollRef = useRef<ScrollView>(null);
+-  const splitRefreshAttemptedIds = useRef(new Set<string>());
+   const { units } = usePreferences();
+   const { currentWeek, refresh: refreshPlan } = usePlan();
+-  const [activity, setActivity] = useState<Activity | null>(null);
+-  const [fuelHistoryActivities, setFuelHistoryActivities] = useState<Activity[]>([]);
+-  const [shoes, setShoes] = useState<Shoe[]>([]);
+-  const [loading, setLoading] = useState(true);
+-  const [saving, setSaving] = useState(false);
+-  const [fuelSliderActive, setFuelSliderActive] = useState(false);
+-  const [loadError, setLoadError] = useState<string | null>(null);
+-  const [saveError, setSaveError] = useState<string | null>(null);
+-  const [planRefreshError, setPlanRefreshError] = useState<string | null>(null);
+   const [showMatchPicker, setShowMatchPicker] = useState(false);
+   const [showShoePicker, setShowShoePicker] = useState(false);
+   const [showNigglePicker, setShowNigglePicker] = useState(false);
+-  const [draftSeedActivityId, setDraftSeedActivityId] = useState<string | null>(null);
+-  const today = todayIsoLocal();
+-  const displayWeek = useMemo(
+-    () => (currentWeek ? buildCurrentDisplayWeek(currentWeek, today) : null),
+-    [currentWeek, today],
+-  );
+-  const todaySession = findSessionForDateOrWeekday(displayWeek?.sessions ?? [], today);
+-  const sessionOptions = useMemo(
+-    () => listMatchableSessions(displayWeek?.sessions ?? [], today),
+-    [displayWeek?.sessions, today],
+-  );
+-  const requestedSession = useMemo(
+-    () => sessionOptions.find((session) => session.id === requestedSessionId) ?? null,
+-    [requestedSessionId, sessionOptions],
+-  );
+-
+-  const [legs, setLegs] = useState<SubjectiveLegs | null>(null);
+-  const [breathing, setBreathing] = useState<SubjectiveBreathing | null>(null);
+-  const [overall, setOverall] = useState<SubjectiveOverall | null>(null);
+-  const [notes, setNotes] = useState('');
+-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+-  const [selectedShoeId, setSelectedShoeId] = useState<string | null>(null);
+-  const [niggles, setNiggles] = useState<EditableNiggle[]>([]);
+-  const [fuelEvents, setFuelEvents] = useState<RunFuelEvent[]>([]);
+   const [selectedAverageSplitId, setSelectedAverageSplitId] = useState<string | null>(null);
+-  const recommendedSessionId = useMemo(
+-    () => resolveDefaultMatchSessionId({
+-      activity,
+-      preferredSession: requestedSession,
+-      today,
+-      todaySession: isRunnableSession(todaySession) ? todaySession : null,
+-      sessionOptions,
+-    }),
+-    [activity, requestedSession, sessionOptions, today, todaySession],
+-  );
+-  const selectedSession = sessionOptions.find((session) => session.id === selectedSessionId) ?? null;
+-  const selectedShoe = shoes.find((shoe) => shoe.id === selectedShoeId) ?? null;
+-  const selectedShoeLifetimeKm = selectedShoe ? shoeLifetimeKm(selectedShoe) : 0;
+-  const matchedSession = activity?.matchedSessionId
+-    ? sessionOptions.find((session) => session.id === activity.matchedSessionId) ?? null
+-    : null;
+-  const hasStaleMatchedSession = Boolean(
+-    activity?.matchedSessionId
+-      && (
+-        !matchedSession
+-        || !isSessionSelectable(matchedSession, activity.id)
+-        || !isActivityDateCompatibleWithSession(activity, matchedSession)
+-      ),
+-  );
++  const {
++    activity,
++    shoes,
++    loading,
++    saving,
++    fuelSliderActive,
++    setFuelSliderActive,
++    loadError,
++    saveError,
++    planRefreshError,
++    todaySession,
++    sessionOptions,
++    recommendedSessionId,
++    selectedSession,
++    selectedSessionId,
++    setSelectedSessionId,
++    selectedShoe,
++    selectedShoeId,
++    setSelectedShoeId,
++    selectedShoeLifetimeKm,
++    hasStaleMatchedSession,
++    legs,
++    setLegs,
++    breathing,
++    setBreathing,
++    overall,
++    setOverall,
++    notes,
++    setNotes,
++    niggles,
++    setNiggles,
++    fuelEvents,
++    setFuelEvents,
++    recentFuelGels,
++    suggestedFuelBrands,
++    feelComplete,
++    canSave,
++    reloadDetail,
++    saveRunDetail,
++    waitingForCurrentDraft,
++  } = useRunDetailController({
++    activityId,
++    requestedSessionId,
++    currentWeek,
++    refreshPlan,
++    onSaved: () => router.replace('/(tabs)/home'),
++    showAlert: (title, body) => Alert.alert(title, body),
++  });
+   const qualitySummary = activity && selectedSession
+     ? buildStructuredQualitySummary(selectedSession, activity)
+     : null;
+@@ -328,274 +261,11 @@ export default function SyncRunDetailScreen() {
+         units,
+       })
+     : null;
+-  const feelComplete = legs !== null && breathing !== null && overall !== null;
+-  const subjectiveInput: SubjectiveInput | undefined = feelComplete
+-    ? { legs: legs!, breathing: breathing!, overall: overall! }
+-    : undefined;
+-  const canSave = feelComplete && !saving;
+-  const fuelHistory = useMemo(
+-    () => activity
+-      ? [
+-          { ...activity, fuelEvents },
+-          ...fuelHistoryActivities.filter((historyActivity) => historyActivity.id !== activity.id),
+-        ]
+-      : fuelHistoryActivities,
+-    [activity, fuelEvents, fuelHistoryActivities],
+-  );
+-  const recentFuelGels = useMemo(
+-    () => uniqueRecentFuelGels(fuelHistory),
+-    [fuelHistory],
+-  );
+-  const suggestedFuelBrands = useMemo(
+-    () => buildSuggestedFuelBrands(recentFuelGels, GEL_BRANDS),
+-    [recentFuelGels],
+-  );
+-
+   useEffect(() => {
+-    setDraftSeedActivityId(null);
+     setSelectedAverageSplitId(null);
+   }, [activityId]);
+ 
+-  useEffect(() => {
+-    if (!activityId) {
+-      setActivity(null);
+-      setShoes([]);
+-      setLoadError('We could not find that run. Go back and open it again.');
+-      setLoading(false);
+-      return;
+-    }
+-
+-    const resolvedActivityId = activityId;
+-    let cancelled = false;
+-
+-    async function loadDetail() {
+-      try {
+-        setLoading(true);
+-        setLoadError(null);
+-        setShoes([]);
+-        setFuelHistoryActivities([]);
+-        const nextActivity = await withTimeout(
+-          trpc.activity.get.query({ activityId: resolvedActivityId }),
+-          RUN_DETAIL_LOAD_TIMEOUT_MS,
+-          'sync-run detail activity fetch',
+-        );
+-        if (cancelled) {
+-          return;
+-        }
+-        setActivity(nextActivity);
+-        void withTimeout(
+-          trpc.shoe.list.query(),
+-          RUN_DETAIL_LOAD_TIMEOUT_MS,
+-          'sync-run detail shoe fetch',
+-        )
+-          .then((nextShoes) => {
+-            if (!cancelled) {
+-              setShoes(nextShoes);
+-            }
+-          })
+-          .catch((error) => {
+-            console.warn('Failed to load shoes for sync-run detail:', error);
+-            if (!cancelled) {
+-              setShoes([]);
+-            }
+-          });
+-        void withTimeout(
+-          trpc.activity.list.query(),
+-          RUN_DETAIL_LOAD_TIMEOUT_MS,
+-          'sync-run detail activity history fetch',
+-        )
+-          .then((activities) => {
+-            if (!cancelled) {
+-              setFuelHistoryActivities(activities);
+-            }
+-          })
+-          .catch((error) => {
+-            console.warn('Failed to load activity history for run fuelling:', error);
+-            if (!cancelled) {
+-              setFuelHistoryActivities(nextActivity ? [nextActivity] : []);
+-            }
+-          });
+-      } catch (error) {
+-        console.warn('Failed to load sync-run detail activity:', error);
+-        if (!cancelled) {
+-          setActivity(null);
+-          setFuelHistoryActivities([]);
+-          setLoadError('We could not refresh this run. Try again or go back to the picker.');
+-        }
+-      } finally {
+-        if (!cancelled) {
+-          setLoading(false);
+-        }
+-      }
+-    }
+-
+-    loadDetail().catch((error) => {
+-      console.warn('Failed to initialize sync-run detail:', error);
+-    });
+-
+-    return () => {
+-      cancelled = true;
+-    };
+-  }, [activityId]);
+-
+-  useEffect(() => {
+-    if (!activity || draftSeedActivityId === activity.id) {
+-      return;
+-    }
+-
+-    setSelectedSessionId(recommendedSessionId);
+-    setSelectedShoeId(activity.shoeId ?? null);
+-    setNiggles(toEditableNiggles(activity.niggles));
+-    setFuelEvents(activity.fuelEvents ?? []);
+-    setNotes(activity.notes ?? '');
+-    setLegs(activity.subjectiveInput?.legs ?? null);
+-    setBreathing(activity.subjectiveInput?.breathing ?? null);
+-    setOverall(activity.subjectiveInput?.overall ?? null);
+-    setDraftSeedActivityId(activity.id);
+-  }, [activity, draftSeedActivityId, recommendedSessionId]);
+-
+-  useEffect(() => {
+-    if (!activity || !shouldRefreshKilometreSplits(activity, selectedSession)) {
+-      return;
+-    }
+-
+-    if (splitRefreshAttemptedIds.current.has(activity.id)) {
+-      return;
+-    }
+-
+-    splitRefreshAttemptedIds.current.add(activity.id);
+-    let cancelled = false;
+-
+-    void withTimeout(
+-      trpc.strava.refreshActivity.mutate({ activityId: activity.id }),
+-      RUN_DETAIL_LOAD_TIMEOUT_MS,
+-      'sync-run detail split refresh',
+-    )
+-      .then((refreshedActivity) => {
+-        if (!cancelled) {
+-          setActivity((current) => (current?.id === activity.id ? refreshedActivity : current));
+-        }
+-      })
+-      .catch((error) => {
+-        console.warn('Failed to refresh kilometre splits for run detail:', error);
+-      });
+-
+-    return () => {
+-      cancelled = true;
+-    };
+-  }, [activity, selectedSession]);
+-
+-  async function reloadDetail() {
+-    if (!activityId) {
+-      setActivity(null);
+-      setShoes([]);
+-      setLoadError('We could not find that run. Go back and open it again.');
+-      setLoading(false);
+-      return;
+-    }
+-
+-    const resolvedActivityId = activityId;
+-    try {
+-      setLoading(true);
+-      setLoadError(null);
+-      const nextActivity = await withTimeout(
+-        trpc.activity.get.query({ activityId: resolvedActivityId }),
+-        RUN_DETAIL_LOAD_TIMEOUT_MS,
+-        'sync-run detail activity fetch',
+-      );
+-      setActivity(nextActivity);
+-      void withTimeout(
+-        trpc.shoe.list.query(),
+-        RUN_DETAIL_LOAD_TIMEOUT_MS,
+-        'sync-run detail shoe fetch',
+-      )
+-        .then((nextShoes) => {
+-          setShoes(nextShoes);
+-        })
+-        .catch((error) => {
+-          console.warn('Failed to reload shoes for sync-run detail:', error);
+-          setShoes([]);
+-        });
+-      void withTimeout(
+-        trpc.activity.list.query(),
+-        RUN_DETAIL_LOAD_TIMEOUT_MS,
+-        'sync-run detail activity history fetch',
+-      )
+-        .then((activities) => {
+-          setFuelHistoryActivities(activities);
+-        })
+-        .catch((error) => {
+-          console.warn('Failed to reload activity history for run fuelling:', error);
+-          setFuelHistoryActivities(nextActivity ? [nextActivity] : []);
+-        });
+-    } catch (error) {
+-      console.warn('Failed to load sync-run detail activity:', error);
+-      setActivity(null);
+-      setFuelHistoryActivities([]);
+-      setLoadError('We could not refresh this run. Try again or go back to the picker.');
+-    } finally {
+-      setLoading(false);
+-    }
+-  }
+-
+-  async function handleSave() {
+-    if (!activity || !subjectiveInput) return;
+-
+-    setSaveError(null);
+-    setPlanRefreshError(null);
+-
+-    const replacingRequestedSessionMatch = Boolean(
+-      selectedSession
+-      && requestedSession
+-      && selectedSession.id === requestedSession.id
+-      && selectedSession.actualActivityId
+-      && selectedSession.actualActivityId !== activity.id,
+-    );
+-
+-    if (selectedSession && !isSessionSelectable(selectedSession, activity.id) && !replacingRequestedSessionMatch) {
+-      setSaveError('That session is already linked to another run. Pick a different session or save this as a bonus run.');
+-      Alert.alert('Choose a different session', 'That planned session is already linked to another run.');
+-      return;
+-    }
+-
+-    try {
+-      setSaving(true);
+-      const result = await trpc.activity.saveRunDetail.mutate({
+-        activityId: activity.id,
+-        subjectiveInput,
+-        niggles,
+-        fuelEvents,
+-        notes: notes.trim() || undefined,
+-        shoeId: selectedShoeId,
+-        matchedSessionId: selectedSessionId,
+-        replaceExistingMatch: replacingRequestedSessionMatch,
+-      });
+-
+-      setActivity({ ...result.activity, niggles: result.niggles });
+-    } catch (error) {
+-      console.warn('Failed to save synced run:', error);
+-      const failureCopy = saveRunFailureCopy(error);
+-      setSaveError(failureCopy.inline);
+-      Alert.alert(failureCopy.alertTitle, failureCopy.alertBody);
+-      setSaving(false);
+-      return;
+-    }
+-
+-    try {
+-      await refreshPlan();
+-    } catch (error) {
+-      console.warn('Saved run but failed to refresh the plan:', error);
+-      setPlanRefreshError('Run saved. We will refresh the plan when you return home.');
+-      Alert.alert('Run saved', 'We could not refresh the plan yet, but your run was saved.');
+-    } finally {
+-      setSaving(false);
+-    }
+-
+-    router.replace('/(tabs)/home');
+-  }
+-
+   const showingPreviousActivity = Boolean(activityId && activity && activity.id !== activityId);
+-  const waitingForCurrentDraft = Boolean(activity && draftSeedActivityId !== activity.id);
+ 
+   if (loading || showingPreviousActivity || waitingForCurrentDraft) {
+     return (
+@@ -668,7 +338,7 @@ export default function SyncRunDetailScreen() {
+         <Text style={styles.navTitle}>Run detail</Text>
+         <Pressable
+           style={[styles.saveActionButton, !canSave && styles.saveActionButtonDisabled]}
+-          onPress={() => { void handleSave(); }}
++          onPress={() => { void saveRunDetail(); }}
+           disabled={!canSave}
+         >
+           <Text style={[styles.saveAction, !canSave && styles.saveActionDisabled]}>Save</Text>
+@@ -966,7 +636,7 @@ export default function SyncRunDetailScreen() {
+         </View>
+ 
+         <Pressable
+-          onPress={() => { void handleSave(); }}
++          onPress={() => { void saveRunDetail(); }}
+           style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
+           disabled={!canSave}
+         >
+diff --git a/packages/app/features/sync/use-run-detail-controller.ts b/packages/app/features/sync/use-run-detail-controller.ts
+new file mode 100644
+index 0000000..2bf5d3d
+--- /dev/null
++++ b/packages/app/features/sync/use-run-detail-controller.ts
+@@ -0,0 +1,459 @@
++import { useEffect, useMemo, useRef, useState } from 'react';
++import type {
++  Activity,
++  PlannedSession,
++  PlanWeek,
++  RunFuelEvent,
++  Shoe,
++  SubjectiveBreathing,
++  SubjectiveInput,
++  SubjectiveLegs,
++  SubjectiveOverall,
++} from '@steady/types';
++import { shoeLifetimeKm } from '@steady/types';
++import { trpc } from '../../lib/trpc';
++import { findSessionForDateOrWeekday, todayIsoLocal } from '../../lib/plan-helpers';
++import { buildCurrentDisplayWeek } from '../run/display-week';
++import { GEL_BRANDS } from '../fuelling/gel-catalogue';
++import { suggestedBrands as buildSuggestedFuelBrands, uniqueRecentFuelGels } from '../fuelling/fuel-events';
++import {
++  type EditableNiggle,
++  isActivityDateCompatibleWithSession,
++  isRunnableSession,
++  isSessionSelectable,
++  listMatchableSessions,
++  resolveDefaultMatchSessionId,
++  shouldRefreshKilometreSplits,
++  toEditableNiggles,
++} from './sync-run-detail';
++
++const RUN_DETAIL_LOAD_TIMEOUT_MS = 8000;
++
++export interface RunDetailSaveFailureCopy {
++  inline: string;
++  alertTitle: string;
++  alertBody: string;
++}
++
++export interface RunDetailControllerOptions {
++  activityId: string | null;
++  requestedSessionId: string | null;
++  currentWeek: PlanWeek | null;
++  refreshPlan: () => Promise<void>;
++  onSaved: () => void;
++  showAlert: (title: string, body: string) => void;
++}
++
++export function saveRunFailureCopy(error: unknown): RunDetailSaveFailureCopy {
++  const message = error instanceof Error ? error.message : '';
++
++  if (message.includes('fuel_events') || message.toLowerCase().includes('fuel events')) {
++    return {
++      inline: 'Fuelling storage is not ready yet. Apply the latest database migration, then retry. Your notes and selections are still here.',
++      alertTitle: 'Could not save fuelling',
++      alertBody: 'The database is missing the fuelling column. Apply the latest migration, then retry.',
++    };
++  }
++
++  return {
++    inline: 'Could not save this run yet. Your notes and selections are still here so you can retry.',
++    alertTitle: 'Could not save run',
++    alertBody: 'Please try again in a moment.',
++  };
++}
++
++export function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
++  return new Promise<T>((resolve, reject) => {
++    const timer = setTimeout(() => {
++      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
++    }, timeoutMs);
++
++    promise.then(
++      (value) => {
++        clearTimeout(timer);
++        resolve(value);
++      },
++      (error) => {
++        clearTimeout(timer);
++        reject(error);
++      },
++    );
++  });
++}
++
++export function useRunDetailController({
++  activityId,
++  requestedSessionId,
++  currentWeek,
++  refreshPlan,
++  onSaved,
++  showAlert,
++}: RunDetailControllerOptions) {
++  const splitRefreshAttemptedIds = useRef(new Set<string>());
++  const [activity, setActivity] = useState<Activity | null>(null);
++  const [fuelHistoryActivities, setFuelHistoryActivities] = useState<Activity[]>([]);
++  const [shoes, setShoes] = useState<Shoe[]>([]);
++  const [loading, setLoading] = useState(true);
++  const [saving, setSaving] = useState(false);
++  const [fuelSliderActive, setFuelSliderActive] = useState(false);
++  const [loadError, setLoadError] = useState<string | null>(null);
++  const [saveError, setSaveError] = useState<string | null>(null);
++  const [planRefreshError, setPlanRefreshError] = useState<string | null>(null);
++  const [draftSeedActivityId, setDraftSeedActivityId] = useState<string | null>(null);
++
++  const [legs, setLegs] = useState<SubjectiveLegs | null>(null);
++  const [breathing, setBreathing] = useState<SubjectiveBreathing | null>(null);
++  const [overall, setOverall] = useState<SubjectiveOverall | null>(null);
++  const [notes, setNotes] = useState('');
++  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
++  const [selectedShoeId, setSelectedShoeId] = useState<string | null>(null);
++  const [niggles, setNiggles] = useState<EditableNiggle[]>([]);
++  const [fuelEvents, setFuelEvents] = useState<RunFuelEvent[]>([]);
++
++  const today = todayIsoLocal();
++  const displayWeek = useMemo(
++    () => (currentWeek ? buildCurrentDisplayWeek(currentWeek, today) : null),
++    [currentWeek, today],
++  );
++  const todaySession = findSessionForDateOrWeekday(displayWeek?.sessions ?? [], today);
++  const sessionOptions = useMemo(
++    () => listMatchableSessions(displayWeek?.sessions ?? [], today),
++    [displayWeek?.sessions, today],
++  );
++  const requestedSession = useMemo(
++    () => sessionOptions.find((session) => session.id === requestedSessionId) ?? null,
++    [requestedSessionId, sessionOptions],
++  );
++  const recommendedSessionId = useMemo(
++    () => resolveDefaultMatchSessionId({
++      activity,
++      preferredSession: requestedSession,
++      today,
++      todaySession: isRunnableSession(todaySession) ? todaySession : null,
++      sessionOptions,
++    }),
++    [activity, requestedSession, sessionOptions, today, todaySession],
++  );
++  const selectedSession = sessionOptions.find((session) => session.id === selectedSessionId) ?? null;
++  const selectedShoe = shoes.find((shoe) => shoe.id === selectedShoeId) ?? null;
++  const selectedShoeLifetimeKm = selectedShoe ? shoeLifetimeKm(selectedShoe) : 0;
++  const matchedSession = activity?.matchedSessionId
++    ? sessionOptions.find((session) => session.id === activity.matchedSessionId) ?? null
++    : null;
++  const hasStaleMatchedSession = Boolean(
++    activity?.matchedSessionId
++      && (
++        !matchedSession
++        || !isSessionSelectable(matchedSession, activity.id)
++        || !isActivityDateCompatibleWithSession(activity, matchedSession)
++      ),
++  );
++  const feelComplete = legs !== null && breathing !== null && overall !== null;
++  const subjectiveInput: SubjectiveInput | undefined = feelComplete
++    ? { legs: legs!, breathing: breathing!, overall: overall! }
++    : undefined;
++  const canSave = feelComplete && !saving;
++  const fuelHistory = useMemo(
++    () => activity
++      ? [
++          { ...activity, fuelEvents },
++          ...fuelHistoryActivities.filter((historyActivity) => historyActivity.id !== activity.id),
++        ]
++      : fuelHistoryActivities,
++    [activity, fuelEvents, fuelHistoryActivities],
++  );
++  const recentFuelGels = useMemo(
++    () => uniqueRecentFuelGels(fuelHistory),
++    [fuelHistory],
++  );
++  const suggestedFuelBrands = useMemo(
++    () => buildSuggestedFuelBrands(recentFuelGels, GEL_BRANDS),
++    [recentFuelGels],
++  );
++
++  useEffect(() => {
++    setDraftSeedActivityId(null);
++  }, [activityId]);
++
++  useEffect(() => {
++    if (!activityId) {
++      setActivity(null);
++      setShoes([]);
++      setLoadError('We could not find that run. Go back and open it again.');
++      setLoading(false);
++      return;
++    }
++
++    const resolvedActivityId = activityId;
++    let cancelled = false;
++
++    async function loadDetail() {
++      try {
++        setLoading(true);
++        setLoadError(null);
++        setShoes([]);
++        setFuelHistoryActivities([]);
++        const nextActivity = await withTimeout(
++          trpc.activity.get.query({ activityId: resolvedActivityId }),
++          RUN_DETAIL_LOAD_TIMEOUT_MS,
++          'sync-run detail activity fetch',
++        );
++        if (cancelled) {
++          return;
++        }
++        setActivity(nextActivity);
++        void withTimeout(
++          trpc.shoe.list.query(),
++          RUN_DETAIL_LOAD_TIMEOUT_MS,
++          'sync-run detail shoe fetch',
++        )
++          .then((nextShoes) => {
++            if (!cancelled) {
++              setShoes(nextShoes);
++            }
++          })
++          .catch((error) => {
++            console.warn('Failed to load shoes for sync-run detail:', error);
++            if (!cancelled) {
++              setShoes([]);
++            }
++          });
++        void withTimeout(
++          trpc.activity.list.query(),
++          RUN_DETAIL_LOAD_TIMEOUT_MS,
++          'sync-run detail activity history fetch',
++        )
++          .then((activities) => {
++            if (!cancelled) {
++              setFuelHistoryActivities(activities);
++            }
++          })
++          .catch((error) => {
++            console.warn('Failed to load activity history for run fuelling:', error);
++            if (!cancelled) {
++              setFuelHistoryActivities(nextActivity ? [nextActivity] : []);
++            }
++          });
++      } catch (error) {
++        console.warn('Failed to load sync-run detail activity:', error);
++        if (!cancelled) {
++          setActivity(null);
++          setFuelHistoryActivities([]);
++          setLoadError('We could not refresh this run. Try again or go back to the picker.');
++        }
++      } finally {
++        if (!cancelled) {
++          setLoading(false);
++        }
++      }
++    }
++
++    loadDetail().catch((error) => {
++      console.warn('Failed to initialize sync-run detail:', error);
++    });
++
++    return () => {
++      cancelled = true;
++    };
++  }, [activityId]);
++
++  useEffect(() => {
++    if (!activity || draftSeedActivityId === activity.id) {
++      return;
++    }
++
++    setSelectedSessionId(recommendedSessionId);
++    setSelectedShoeId(activity.shoeId ?? null);
++    setNiggles(toEditableNiggles(activity.niggles));
++    setFuelEvents(activity.fuelEvents ?? []);
++    setNotes(activity.notes ?? '');
++    setLegs(activity.subjectiveInput?.legs ?? null);
++    setBreathing(activity.subjectiveInput?.breathing ?? null);
++    setOverall(activity.subjectiveInput?.overall ?? null);
++    setDraftSeedActivityId(activity.id);
++  }, [activity, draftSeedActivityId, recommendedSessionId]);
++
++  useEffect(() => {
++    if (!activity || !shouldRefreshKilometreSplits(activity, selectedSession)) {
++      return;
++    }
++
++    if (splitRefreshAttemptedIds.current.has(activity.id)) {
++      return;
++    }
++
++    splitRefreshAttemptedIds.current.add(activity.id);
++    let cancelled = false;
++
++    void withTimeout(
++      trpc.strava.refreshActivity.mutate({ activityId: activity.id }),
++      RUN_DETAIL_LOAD_TIMEOUT_MS,
++      'sync-run detail split refresh',
++    )
++      .then((refreshedActivity) => {
++        if (!cancelled) {
++          setActivity((current) => (current?.id === activity.id ? refreshedActivity : current));
++        }
++      })
++      .catch((error) => {
++        console.warn('Failed to refresh kilometre splits for run detail:', error);
++      });
++
++    return () => {
++      cancelled = true;
++    };
++  }, [activity, selectedSession]);
++
++  async function reloadDetail() {
++    if (!activityId) {
++      setActivity(null);
++      setShoes([]);
++      setLoadError('We could not find that run. Go back and open it again.');
++      setLoading(false);
++      return;
++    }
++
++    const resolvedActivityId = activityId;
++    try {
++      setLoading(true);
++      setLoadError(null);
++      const nextActivity = await withTimeout(
++        trpc.activity.get.query({ activityId: resolvedActivityId }),
++        RUN_DETAIL_LOAD_TIMEOUT_MS,
++        'sync-run detail activity fetch',
++      );
++      setActivity(nextActivity);
++      void withTimeout(
++        trpc.shoe.list.query(),
++        RUN_DETAIL_LOAD_TIMEOUT_MS,
++        'sync-run detail shoe fetch',
++      )
++        .then((nextShoes) => {
++          setShoes(nextShoes);
++        })
++        .catch((error) => {
++          console.warn('Failed to reload shoes for sync-run detail:', error);
++          setShoes([]);
++        });
++      void withTimeout(
++        trpc.activity.list.query(),
++        RUN_DETAIL_LOAD_TIMEOUT_MS,
++        'sync-run detail activity history fetch',
++      )
++        .then((activities) => {
++          setFuelHistoryActivities(activities);
++        })
++        .catch((error) => {
++          console.warn('Failed to reload activity history for run fuelling:', error);
++          setFuelHistoryActivities(nextActivity ? [nextActivity] : []);
++        });
++    } catch (error) {
++      console.warn('Failed to load sync-run detail activity:', error);
++      setActivity(null);
++      setFuelHistoryActivities([]);
++      setLoadError('We could not refresh this run. Try again or go back to the picker.');
++    } finally {
++      setLoading(false);
++    }
++  }
++
++  async function saveRunDetail() {
++    if (!activity || !subjectiveInput) return;
++
++    setSaveError(null);
++    setPlanRefreshError(null);
++
++    const replacingRequestedSessionMatch = Boolean(
++      selectedSession
++      && requestedSession
++      && selectedSession.id === requestedSession.id
++      && selectedSession.actualActivityId
++      && selectedSession.actualActivityId !== activity.id,
++    );
++
++    if (selectedSession && !isSessionSelectable(selectedSession, activity.id) && !replacingRequestedSessionMatch) {
++      setSaveError('That session is already linked to another run. Pick a different session or save this as a bonus run.');
++      showAlert('Choose a different session', 'That planned session is already linked to another run.');
++      return;
++    }
++
++    try {
++      setSaving(true);
++      const result = await trpc.activity.saveRunDetail.mutate({
++        activityId: activity.id,
++        subjectiveInput,
++        niggles,
++        fuelEvents,
++        notes: notes.trim() || undefined,
++        shoeId: selectedShoeId,
++        matchedSessionId: selectedSessionId,
++        replaceExistingMatch: replacingRequestedSessionMatch,
++      });
++
++      setActivity({ ...result.activity, niggles: result.niggles });
++    } catch (error) {
++      console.warn('Failed to save synced run:', error);
++      const failureCopy = saveRunFailureCopy(error);
++      setSaveError(failureCopy.inline);
++      showAlert(failureCopy.alertTitle, failureCopy.alertBody);
++      setSaving(false);
++      return;
++    }
++
++    try {
++      await refreshPlan();
++    } catch (error) {
++      console.warn('Saved run but failed to refresh the plan:', error);
++      setPlanRefreshError('Run saved. We will refresh the plan when you return home.');
++      showAlert('Run saved', 'We could not refresh the plan yet, but your run was saved.');
++    } finally {
++      setSaving(false);
++    }
++
++    onSaved();
++  }
++
++  return {
++    activity,
++    shoes,
++    loading,
++    saving,
++    fuelSliderActive,
++    setFuelSliderActive,
++    loadError,
++    saveError,
++    planRefreshError,
++    today,
++    todaySession,
++    sessionOptions,
++    requestedSession,
++    recommendedSessionId,
++    selectedSession,
++    selectedSessionId,
++    setSelectedSessionId,
++    selectedShoe,
++    selectedShoeId,
++    setSelectedShoeId,
++    selectedShoeLifetimeKm,
++    hasStaleMatchedSession,
++    legs,
++    setLegs,
++    breathing,
++    setBreathing,
++    overall,
++    setOverall,
++    notes,
++    setNotes,
++    niggles,
++    setNiggles,
++    fuelEvents,
++    setFuelEvents,
++    recentFuelGels,
++    suggestedFuelBrands,
++    feelComplete,
++    canSave,
++    reloadDetail,
++    saveRunDetail,
++    waitingForCurrentDraft: Boolean(activity && draftSeedActivityId !== activity.id),
++  };
++}
+diff --git a/packages/app/tests/home.test.tsx b/packages/app/tests/home.test.tsx
+index e67e607..c23900c 100644
+--- a/packages/app/tests/home.test.tsx
++++ b/packages/app/tests/home.test.tsx
+@@ -1203,9 +1203,9 @@ describe('HomeScreen', () => {
+     render(<HomeScreen />);
+ 
+     await waitFor(() => {
+-      expect(screen.getByText('FEEL')).toBeTruthy();
++      expect(screen.getByText('Done')).toBeTruthy();
+     });
+-    expect(screen.getByText('Done')).toBeTruthy();
++    expect(screen.getByText('FEEL')).toBeTruthy();
+     expect(screen.queryByText('Legs: Heavy')).toBeNull();
+     expect(screen.queryByText('Breathing: Controlled')).toBeNull();
+     expect(screen.queryByTestId('subjective-input-prompt')).toBeNull();
+diff --git a/packages/app/tests/use-run-detail-controller.test.tsx b/packages/app/tests/use-run-detail-controller.test.tsx
+new file mode 100644
+index 0000000..0e85df6
+--- /dev/null
++++ b/packages/app/tests/use-run-detail-controller.test.tsx
+@@ -0,0 +1,347 @@
++import { act, renderHook, waitFor } from '@testing-library/react';
++import { beforeEach, describe, expect, it, vi } from 'vitest';
++import type { Activity, PlanWeek, RunFuelEvent, Shoe } from '@steady/types';
++import { dayIndexForIsoDate, todayIsoLocal } from '../lib/plan-helpers';
++import type { RunDetailControllerOptions } from '../features/sync/use-run-detail-controller';
++
++const mockActivityGet = vi.hoisted(() => vi.fn());
++const mockActivityList = vi.hoisted(() => vi.fn());
++const mockShoeList = vi.hoisted(() => vi.fn());
++const mockSaveRunDetail = vi.hoisted(() => vi.fn());
++const mockRefreshActivity = vi.hoisted(() => vi.fn());
++
++vi.mock('../lib/trpc', () => ({
++  trpc: {
++    activity: {
++      get: {
++        query: mockActivityGet,
++      },
++      list: {
++        query: mockActivityList,
++      },
++      saveRunDetail: {
++        mutate: mockSaveRunDetail,
++      },
++    },
++    shoe: {
++      list: {
++        query: mockShoeList,
++      },
++    },
++    strava: {
++      refreshActivity: {
++        mutate: mockRefreshActivity,
++      },
++    },
++  },
++}));
++
++function makeActivity(overrides: Partial<Activity> = {}): Activity {
++  const today = todayIsoLocal();
++  return {
++    id: 'activity-1',
++    userId: 'user-1',
++    source: 'strava',
++    externalId: 'ext-activity-1',
++    startTime: `${today}T07:15:00.000Z`,
++    distance: 8.2,
++    duration: 2650,
++    avgPace: 323,
++    avgHR: 148,
++    splits: [],
++    ...overrides,
++  };
++}
++
++function makeShoe(overrides: Partial<Shoe> = {}): Shoe {
++  return {
++    id: 'shoe-1',
++    userId: 'user-1',
++    brand: 'Nike',
++    model: 'Pegasus 40',
++    retired: false,
++    totalKm: 312,
++    createdAt: '2026-04-01T00:00:00.000Z',
++    updatedAt: '2026-04-01T00:00:00.000Z',
++    ...overrides,
++  };
++}
++
++function makeFuelEvent(overrides: Partial<RunFuelEvent> = {}): RunFuelEvent {
++  return {
++    id: 'fuel-1',
++    minute: 30,
++    gel: {
++      id: 'gel-1',
++      brand: 'Precision Fuel & Hydration',
++      name: 'PF 30 Gel',
++      flavour: 'Original',
++      caloriesKcal: 120,
++      carbsG: 30,
++      caffeineMg: null,
++      sodiumMg: null,
++      potassiumMg: null,
++      magnesiumMg: null,
++      imageUrl: null,
++    },
++    ...overrides,
++  };
++}
++
++function makeCurrentWeek(sessionOverrides: Partial<NonNullable<PlanWeek['sessions'][number]>> = {}): PlanWeek {
++  const today = todayIsoLocal();
++  const sessions = [null, null, null, null, null, null, null] as PlanWeek['sessions'];
++  sessions[dayIndexForIsoDate(today)] = {
++    id: 'today-session',
++    type: 'EASY',
++    date: today,
++    distance: 8,
++    pace: '5:10',
++    ...sessionOverrides,
++  };
++
++  return {
++    weekNumber: 1,
++    phase: 'BASE',
++    plannedKm: 8,
++    sessions,
++  };
++}
++
++async function renderController({
++  activityId = 'activity-1',
++  requestedSessionId = null,
++  currentWeek = makeCurrentWeek(),
++  refreshPlan = vi.fn().mockResolvedValue(undefined),
++  onSaved = vi.fn(),
++  showAlert = vi.fn(),
++}: Partial<RunDetailControllerOptions> = {}) {
++  const { useRunDetailController } = await import('../features/sync/use-run-detail-controller');
++  const rendered = renderHook(() => useRunDetailController({
++    activityId,
++    requestedSessionId,
++    currentWeek,
++    refreshPlan,
++    onSaved,
++    showAlert,
++  }));
++
++  return { ...rendered, refreshPlan, onSaved, showAlert };
++}
++
++describe('useRunDetailController', () => {
++  beforeEach(() => {
++    vi.resetModules();
++    mockActivityGet.mockReset();
++    mockActivityList.mockReset();
++    mockShoeList.mockReset();
++    mockSaveRunDetail.mockReset();
++    mockRefreshActivity.mockReset();
++    mockShoeList.mockResolvedValue([]);
++    mockActivityList.mockResolvedValue([]);
++    mockRefreshActivity.mockResolvedValue(makeActivity());
++    vi.spyOn(console, 'warn').mockImplementation(() => {});
++  });
++
++  it('loads an activity and seeds the draft from existing run-detail fields', async () => {
++    const fuelEvent = makeFuelEvent();
++    mockActivityGet.mockResolvedValue(makeActivity({
++      matchedSessionId: 'today-session',
++      shoeId: 'shoe-1',
++      subjectiveInput: {
++        legs: 'heavy',
++        breathing: 'controlled',
++        overall: 'done',
++      },
++      notes: 'Felt better late',
++      niggles: [
++        {
++          id: 'niggle-1',
++          userId: 'user-1',
++          activityId: 'activity-1',
++          bodyPart: 'calf',
++          severity: 'mild',
++          when: ['during'],
++          side: null,
++          createdAt: '2026-04-15T08:00:00.000Z',
++        },
++      ],
++      fuelEvents: [fuelEvent],
++    }));
++    mockShoeList.mockResolvedValue([makeShoe()]);
++
++    const { result } = await renderController();
++
++    await waitFor(() => expect(result.current.loading).toBe(false));
++
++    expect(result.current.activity?.id).toBe('activity-1');
++    expect(result.current.selectedSessionId).toBe('today-session');
++    expect(result.current.selectedShoeId).toBe('shoe-1');
++    expect(result.current.selectedShoe?.model).toBe('Pegasus 40');
++    expect(result.current.legs).toBe('heavy');
++    expect(result.current.breathing).toBe('controlled');
++    expect(result.current.overall).toBe('done');
++    expect(result.current.notes).toBe('Felt better late');
++    expect(result.current.niggles).toEqual([
++      { bodyPart: 'calf', bodyPartOtherText: undefined, severity: 'mild', when: ['during'], side: null },
++    ]);
++    expect(result.current.fuelEvents).toEqual([fuelEvent]);
++  });
++
++  it('saves the staged run detail, refreshes the plan, then calls the saved callback', async () => {
++    const refreshPlan = vi.fn().mockResolvedValue(undefined);
++    const onSaved = vi.fn();
++    const fuelEvent = makeFuelEvent({
++      gel: {
++        ...makeFuelEvent().gel,
++        brand: 'Maurten',
++        name: 'Gel 100',
++        carbsG: 25,
++      },
++    });
++    mockActivityGet.mockResolvedValue(makeActivity());
++    mockSaveRunDetail.mockResolvedValue({
++      activity: makeActivity({
++        subjectiveInput: {
++          legs: 'fresh',
++          breathing: 'easy',
++          overall: 'could-go-again',
++        },
++      }),
++      niggles: [],
++    });
++
++    const { result } = await renderController({ refreshPlan, onSaved });
++
++    await waitFor(() => expect(result.current.loading).toBe(false));
++
++    await act(async () => {
++      result.current.setLegs('fresh');
++      result.current.setBreathing('easy');
++      result.current.setOverall('could-go-again');
++      result.current.setNotes('  Strong finish  ');
++      result.current.setSelectedShoeId('shoe-1');
++      result.current.setNiggles([
++        { bodyPart: 'hamstring', severity: 'mild', when: ['during'], side: 'left' },
++      ]);
++      result.current.setFuelEvents([fuelEvent]);
++    });
++
++    await act(async () => {
++      await result.current.saveRunDetail();
++    });
++
++    expect(mockSaveRunDetail).toHaveBeenCalledWith({
++      activityId: 'activity-1',
++      subjectiveInput: {
++        legs: 'fresh',
++        breathing: 'easy',
++        overall: 'could-go-again',
++      },
++      niggles: [
++        { bodyPart: 'hamstring', severity: 'mild', when: ['during'], side: 'left' },
++      ],
++      fuelEvents: [fuelEvent],
++      notes: 'Strong finish',
++      shoeId: 'shoe-1',
++      matchedSessionId: 'today-session',
++      replaceExistingMatch: false,
++    });
++    expect(refreshPlan).toHaveBeenCalledTimes(1);
++    expect(onSaved).toHaveBeenCalledTimes(1);
++    expect(mockSaveRunDetail.mock.invocationCallOrder[0]).toBeLessThan(refreshPlan.mock.invocationCallOrder[0]);
++    expect(refreshPlan.mock.invocationCallOrder[0]).toBeLessThan(onSaved.mock.invocationCallOrder[0]);
++  });
++
++  it('keeps the draft and reports a fuelling-specific save failure', async () => {
++    const refreshPlan = vi.fn().mockResolvedValue(undefined);
++    const onSaved = vi.fn();
++    const showAlert = vi.fn();
++    mockActivityGet.mockResolvedValue(makeActivity());
++    mockSaveRunDetail.mockRejectedValue(new Error('column activities.fuel_events does not exist'));
++
++    const { result } = await renderController({ refreshPlan, onSaved, showAlert });
++
++    await waitFor(() => expect(result.current.loading).toBe(false));
++    await act(async () => {
++      result.current.setLegs('fresh');
++      result.current.setBreathing('easy');
++      result.current.setOverall('could-go-again');
++      result.current.setNotes('Still here');
++    });
++
++    await act(async () => {
++      await result.current.saveRunDetail();
++    });
++
++    expect(result.current.saveError).toContain('Fuelling storage is not ready yet');
++    expect(result.current.notes).toBe('Still here');
++    expect(result.current.saving).toBe(false);
++    expect(refreshPlan).not.toHaveBeenCalled();
++    expect(onSaved).not.toHaveBeenCalled();
++    expect(showAlert).toHaveBeenCalledWith(
++      'Could not save fuelling',
++      'The database is missing the fuelling column. Apply the latest migration, then retry.',
++    );
++  });
++
++  it('saves an explicit requested-session replacement with replacement intent', async () => {
++    mockActivityGet.mockResolvedValue(makeActivity());
++    mockSaveRunDetail.mockResolvedValue({
++      activity: makeActivity({ matchedSessionId: 'today-session' }),
++      niggles: [],
++    });
++
++    const { result } = await renderController({
++      requestedSessionId: 'today-session',
++      currentWeek: makeCurrentWeek({ actualActivityId: 'other-activity' }),
++    });
++
++    await waitFor(() => expect(result.current.loading).toBe(false));
++    await waitFor(() => expect(result.current.selectedSessionId).toBe('today-session'));
++
++    await act(async () => {
++      result.current.setLegs('fresh');
++      result.current.setBreathing('easy');
++      result.current.setOverall('could-go-again');
++    });
++
++    await act(async () => {
++      await result.current.saveRunDetail();
++    });
++
++    expect(mockSaveRunDetail).toHaveBeenCalledWith(expect.objectContaining({
++      matchedSessionId: 'today-session',
++      replaceExistingMatch: true,
++    }));
++  });
++
++  it('refreshes stale Strava splits once for the loaded activity', async () => {
++    mockActivityGet.mockResolvedValue(makeActivity({
++      distance: 3.2,
++      duration: 1120,
++      avgPace: 350,
++      splits: [
++        { km: 1, distance: 3.2, pace: 350, hr: 144, label: '3.2 km' },
++      ],
++    }));
++    mockRefreshActivity.mockResolvedValue(makeActivity({
++      distance: 3.2,
++      duration: 1120,
++      avgPace: 350,
++      splits: [
++        { km: 1, distance: 1, pace: 345, hr: 140 },
++        { km: 2, distance: 1, pace: 352, hr: 145 },
++      ],
++    }));
++
++    const { result, rerender } = await renderController();
++
++    await waitFor(() => expect(mockRefreshActivity).toHaveBeenCalledWith({ activityId: 'activity-1' }));
++    await waitFor(() => expect(result.current.activity?.splits).toHaveLength(2));
++
++    rerender();
++
++    expect(mockRefreshActivity).toHaveBeenCalledTimes(1);
++  });
++});

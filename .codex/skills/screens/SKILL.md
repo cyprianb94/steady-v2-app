@@ -201,6 +201,12 @@ Launch
 
 ---
 
+## Screen: Sync Run Detail
+
+Keep `packages/app/app/sync-run/[activityId].tsx` as a rendering shell for the route, nav, modals, and run-detail presentation. Load/reload, draft seeding, save lifecycle, stale Strava split refresh, fuelling history suggestions, and plan refresh after save belong in `packages/app/features/sync/use-run-detail-controller.ts`. Pure matching and split predicates belong in `packages/app/features/sync/sync-run-detail.ts`.
+
+---
+
 ## Screen: Steady AI Conversation
 
 **Purpose:** The AI conversation. Proactive — Steady AI always has an opening message. A paid feature.

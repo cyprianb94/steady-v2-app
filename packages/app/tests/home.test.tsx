@@ -1203,9 +1203,9 @@ describe('HomeScreen', () => {
     render(<HomeScreen />);
 
     await waitFor(() => {
-      expect(screen.getByText('FEEL')).toBeTruthy();
+      expect(screen.getByText('Done')).toBeTruthy();
     });
-    expect(screen.getByText('Done')).toBeTruthy();
+    expect(screen.getByText('FEEL')).toBeTruthy();
     expect(screen.queryByText('Legs: Heavy')).toBeNull();
     expect(screen.queryByText('Breathing: Controlled')).toBeNull();
     expect(screen.queryByTestId('subjective-input-prompt')).toBeNull();

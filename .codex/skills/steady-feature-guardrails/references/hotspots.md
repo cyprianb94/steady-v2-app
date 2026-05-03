@@ -10,16 +10,16 @@ Use this file when a feature touches an area that historically attracted debt.
 - `packages/app/components/plan-builder/RunStructureEditor.tsx` — `1772` lines. Large presentation surface for structured session editing. Structured template/materialization/volume-sync rules now belong in `packages/app/features/plan-builder/structured-session-editor-engine.ts`; keep this component focused on rendering, transient form state, and dispatching engine actions.
 - `packages/app/components/plan-builder/SessionEditor.tsx` — `1801` lines. Large simple-session editor. Keep simple field rendering and transient UI state here; shared target/profile and materialization behavior should stay in `packages/app/features/plan-builder/session-editing.ts` or the structured editor engine.
 - `packages/types/src/lib/block-review.ts` — `433` lines. Shared block-review source of truth. Planned volume must come from `weekKmBreakdown`, including exact/estimated semantics, not persisted `PlanWeek.plannedKm`.
-- `packages/app/app/sync-run/[activityId].tsx` — `1080` lines. Manual run resolution still mixes fetch, staged form state, and save orchestration even after the modal extraction. Keep pushing picker UIs and pure selection rules into sync feature modules/components.
+- `packages/app/app/sync-run/[activityId].tsx` — `1308` lines. Large run-detail rendering shell. Keep load/reload, draft seeding, save orchestration, stale split refresh, and plan-refresh handling in `packages/app/features/sync/use-run-detail-controller.ts`; keep pure matching/split predicates in `packages/app/features/sync/sync-run-detail.ts`.
 - `packages/app/app/(tabs)/settings.tsx` — `721` lines. Settings, auth, Strava actions, and recovery actions are easy to sprawl here.
 - `packages/app/app/onboarding/plan-builder/step-goal.tsx` — `562` lines. Plan-builder rules should land in shared plan-builder modules or shared domain helpers, not in the screen.
 - `packages/app/app/onboarding/plan-builder/step-plan.tsx` — `622` lines. Keep generated-plan editing rules out of the onboarding screen shell.
 - `packages/app/app/onboarding/plan-builder/step-template.tsx` — `949` lines. Template-week logic should prefer shared plan-builder modules over screen-local logic.
 - `packages/app/app/(tabs)/home.tsx` — `609` lines. Home should stay a composition surface, not a new business-logic sink; skipped-session plan writes should go through `packages/app/lib/plan-api.ts` and the server plan workflow.
-- `packages/server/src/services/strava-workflow-service.ts` — `525` lines. High-impact workflow boundary. Keep new behavior cohesive and avoid leaking orchestration back into routers or screens.
+- `packages/server/src/services/strava-workflow-service.ts` — `546` lines. High-impact workflow boundary. Keep new behavior cohesive and avoid leaking orchestration back into routers or screens.
 - `packages/server/src/trpc/plan.ts` — `289` lines. Thin plan router: keep it to auth, Zod validation, workflow delegation, and transport error mapping.
 - `packages/server/src/services/plan-workflow-service.ts` — `315` lines. Source of truth for active-plan load/save/week/profile/injury orchestration. Keep app-side Supabase writes and router-side workflow logic from reappearing.
-- `packages/server/src/services/activity-workflow-service.ts` — `274` lines. Shared activity save/list workflow now carries niggle enrichment plus match/shoe persistence. Keep UI-specific shaping out of this service.
+- `packages/server/src/services/activity-workflow-service.ts` — `395` lines. Shared activity save/list workflow carries niggle enrichment plus match/shoe/fuelling persistence and rollback. Keep UI-specific shaping out of this service.
 
 ## Preferred landing zones
 
@@ -95,6 +95,7 @@ Do not add chart math, plannedKm derivation, or reschedule propagation directly 
 
 Start by looking in:
 
+- `packages/app/features/sync/use-run-detail-controller.ts` for sync-run detail load/reload, draft seeding, save lifecycle, plan refresh after save, stale split refresh, and fuelling history suggestions
 - `packages/app/features/run/*`
 - `packages/app/features/sync/*`
 - `packages/app/components/sync-run/*`
