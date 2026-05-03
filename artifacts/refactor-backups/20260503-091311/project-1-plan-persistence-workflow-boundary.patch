@@ -1,0 +1,2267 @@
+diff --git a/.codex/skills/steady-feature-guardrails/references/hotspots.md b/.codex/skills/steady-feature-guardrails/references/hotspots.md
+index 43dc240..b064725 100644
+--- a/.codex/skills/steady-feature-guardrails/references/hotspots.md
++++ b/.codex/skills/steady-feature-guardrails/references/hotspots.md
+@@ -15,9 +15,10 @@ Use this file when a feature touches an area that historically attracted debt.
+ - `packages/app/app/onboarding/plan-builder/step-goal.tsx` — `562` lines. Plan-builder rules should land in shared plan-builder modules or shared domain helpers, not in the screen.
+ - `packages/app/app/onboarding/plan-builder/step-plan.tsx` — `622` lines. Keep generated-plan editing rules out of the onboarding screen shell.
+ - `packages/app/app/onboarding/plan-builder/step-template.tsx` — `949` lines. Template-week logic should prefer shared plan-builder modules over screen-local logic.
+-- `packages/app/app/(tabs)/home.tsx` — `418` lines. Home should stay a composition surface, not a new business-logic sink.
++- `packages/app/app/(tabs)/home.tsx` — `609` lines. Home should stay a composition surface, not a new business-logic sink; skipped-session plan writes should go through `packages/app/lib/plan-api.ts` and the server plan workflow.
+ - `packages/server/src/services/strava-workflow-service.ts` — `525` lines. High-impact workflow boundary. Keep new behavior cohesive and avoid leaking orchestration back into routers or screens.
+-- `packages/server/src/trpc/plan.ts` — `283` lines. Plan validation and annotation logic are starting to concentrate here. Keep workflow logic out of the router.
++- `packages/server/src/trpc/plan.ts` — `289` lines. Thin plan router: keep it to auth, Zod validation, workflow delegation, and transport error mapping.
++- `packages/server/src/services/plan-workflow-service.ts` — `315` lines. Source of truth for active-plan load/save/week/profile/injury orchestration. Keep app-side Supabase writes and router-side workflow logic from reappearing.
+ - `packages/server/src/services/activity-workflow-service.ts` — `274` lines. Shared activity save/list workflow now carries niggle enrichment plus match/shoe persistence. Keep UI-specific shaping out of this service.
+ 
+ ## Preferred landing zones
+@@ -65,6 +66,17 @@ Start by looking in:
+ 
+ Do not let onboarding screens become the only place where plan rules live.
+ 
++### Plan persistence work
++
++Start by looking in:
++
++- `packages/app/lib/plan-api.ts` for the thin app transport/demo wrapper. Real app plan calls should go through tRPC in dev and release; do not reintroduce direct app-side Supabase plan writes.
++- `packages/server/src/services/plan-workflow-service.ts` for active-plan loading, saving, week replacement, training pace profile propagation, injury plan state, orphaned activity-link repair, and Home annotation ownership.
++- `packages/server/src/trpc/plan.ts` for input schemas and delegation only.
++- `packages/server/src/repos/plan-repo*` for persistence mapping only.
++
++Keep annotation behavior server-owned outside screenshot demo mode, and keep `updateWeeks` as a migration bridge rather than a preferred new screen API.
++
+ ### Block review and live Block work
+ 
+ Start by looking in:
+diff --git a/.codex/skills/tests/SKILL.md b/.codex/skills/tests/SKILL.md
+index 5a7276e..4d5dfa8 100644
+--- a/.codex/skills/tests/SKILL.md
++++ b/.codex/skills/tests/SKILL.md
+@@ -31,6 +31,8 @@ Steady-specific preference: put canonical structured-session and volume behavior
+ 
+ For Block review, test source-of-truth volume semantics in `packages/types/tests/block-review.test.ts`, especially stale persisted `PlanWeek.plannedKm` versus session-derived exact/estimated km. Test app-only boundaries in focused files such as `review-volume-chart-model.test.ts`, `block-reschedule-controller.test.ts`, and `live-block-review-model.test.ts`; keep React tests for meaningful rendered behavior and interaction only.
+ 
++For plan persistence, put orchestration coverage on `packages/server/src/services/plan-workflow-service.ts` and keep `packages/app/lib/plan-api.ts` tests transport-thin. Do not test duplicated app-side Supabase plan writes; real plan load/save/profile/week behavior should be proven through the server workflow and router boundaries.
++
+ ## Bad Tests
+ 
+ **Implementation-detail tests**: Coupled to internal structure.
+diff --git a/packages/app/app/(tabs)/home.tsx b/packages/app/app/(tabs)/home.tsx
+index ebee9b7..05b956b 100644
+--- a/packages/app/app/(tabs)/home.tsx
++++ b/packages/app/app/(tabs)/home.tsx
+@@ -21,6 +21,7 @@ import { C } from '../../constants/colours';
+ import { FONTS } from '../../constants/typography';
+ import { useAuth } from '../../lib/auth';
+ import { trpc } from '../../lib/trpc';
++import { updatePlanWeeks } from '../../lib/plan-api';
+ import { usePlan } from '../../hooks/usePlan';
+ import { useStravaSync } from '../../hooks/useStravaSync';
+ import { useTodayIso } from '../../hooks/useTodayIso';
+@@ -269,14 +270,12 @@ export default function HomeScreen() {
+ 
+     try {
+       setResolveSessionBusy(true);
+-      await trpc.plan.updateWeeks.mutate({
+-        weeks: markSessionSkippedInWeeks({
+-          weeks: plan.weeks,
+-          sessionId: sessionToSkip.id,
+-          reason,
+-          markedAt: new Date().toISOString(),
+-        }),
+-      });
++      await updatePlanWeeks(markSessionSkippedInWeeks({
++        weeks: plan.weeks,
++        sessionId: sessionToSkip.id,
++        reason,
++        markedAt: new Date().toISOString(),
++      }));
+       setResolvingSession(null);
+       await refresh();
+     } catch (error) {
+@@ -294,12 +293,10 @@ export default function HomeScreen() {
+ 
+     try {
+       setResolveSessionBusy(true);
+-      await trpc.plan.updateWeeks.mutate({
+-        weeks: clearSessionSkippedInWeeks({
+-          weeks: plan.weeks,
+-          sessionId: sessionToClear.id,
+-        }),
+-      });
++      await updatePlanWeeks(clearSessionSkippedInWeeks({
++        weeks: plan.weeks,
++        sessionId: sessionToClear.id,
++      }));
+       setResolvingSession(null);
+       await refresh();
+     } catch (error) {
+diff --git a/packages/app/lib/plan-api.ts b/packages/app/lib/plan-api.ts
+index 93a1c49..fdf7082 100644
+--- a/packages/app/lib/plan-api.ts
++++ b/packages/app/lib/plan-api.ts
+@@ -1,24 +1,17 @@
+-import {
+-  normalizePlanWeekSessionDurations,
+-  normalizeSessionDurations,
+-  normalizeSessionIds,
+-  normalizeTrainingPlanSessionDurations,
+-  normalizeTrainingPaceProfile,
+-  propagateTrainingPaceProfileUpdate,
+-  type PhaseConfig,
+-  type PlannedSession,
+-  type PlanWeek,
+-  type TrainingPlan,
+-  type TrainingPaceProfile,
+-  type TrainingPlanWithAnnotation,
++import type {
++  PhaseConfig,
++  PlannedSession,
++  PlanWeek,
++  TrainingPaceProfile,
++  TrainingPlan,
++  TrainingPlanWithAnnotation,
+ } from '@steady/types';
++import { normalizeTrainingPaceProfile } from '@steady/types';
+ import { trpc } from './trpc';
+-import { getSupabaseClient } from './supabase';
+ import {
+   getScreenshotDemoPlan,
+   isScreenshotDemoMode,
+ } from '../demo/screenshot-demo';
+-import { todayIsoLocal } from './plan-helpers';
+ 
+ export interface SavePlanInput {
+   raceName: string;
+@@ -33,356 +26,11 @@ export interface SavePlanInput {
+   weeks: PlanWeek[];
+ }
+ 
+-function validateWeeks(weeks: PlanWeek[]) {
+-  for (const week of weeks) {
+-    if (!week.sessions || week.sessions.length !== 7) {
+-      throw new Error(`Week ${week.weekNumber} must have exactly 7 session slots`);
+-    }
+-  }
+-}
+-
+-function rowToPlan(row: Record<string, unknown>): TrainingPlan {
+-  return normalizeTrainingPlanSessionDurations({
+-    id: row.id as string,
+-    userId: row.user_id as string,
+-    createdAt: row.created_at as string,
+-    raceName: row.race_name as string,
+-    raceDate: row.race_date as string,
+-    raceDistance: row.race_distance as TrainingPlan['raceDistance'],
+-    targetTime: row.target_time as string,
+-    phases: row.phases as PhaseConfig,
+-    progressionPct: row.progression_pct as number,
+-    progressionEveryWeeks: (row.progression_every_weeks as number | null) ?? 2,
+-    templateWeek: row.template_week as (PlannedSession | null)[],
+-    weeks: normalizeSessionIds(row.weeks as PlanWeek[]),
+-    trainingPaceProfile: normalizeTrainingPaceProfile(row.training_pace_profile),
+-    activeInjury: (row.active_injury as TrainingPlan['activeInjury']) ?? null,
+-  });
+-}
+-
+-function withClientAnnotations(plan: TrainingPlan | null): TrainingPlanWithAnnotation | null {
+-  if (!plan) {
+-    return null;
+-  }
+-
+-  return {
+-    ...plan,
+-    todayAnnotation: null,
+-    coachAnnotation: null,
+-  };
+-}
+-
+-function validateSaveInput(input: SavePlanInput) {
+-  const phaseSum = input.phases.BASE
+-    + input.phases.BUILD
+-    + input.phases.RECOVERY
+-    + input.phases.PEAK
+-    + input.phases.TAPER;
+-
+-  if (input.weeks.length > 0 && phaseSum !== input.weeks.length) {
+-    throw new Error(`Phase sum (${phaseSum}) does not match week count (${input.weeks.length})`);
+-  }
+-
+-  validateWeeks(input.weeks);
+-}
+-
+-function normalizeTemplateWeek(templateWeek: (PlannedSession | null)[]): (PlannedSession | null)[] {
+-  return templateWeek.map(normalizeSessionDurations);
+-}
+-
+-function normalizeWeeks(weeks: PlanWeek[]): PlanWeek[] {
+-  return normalizeSessionIds(weeks.map(normalizePlanWeekSessionDurations));
+-}
+-
+-function trainingPaceProfileForSave(
+-  input: SavePlanInput,
+-  existing: Record<string, unknown> | null,
+-): TrainingPaceProfile | null {
+-  if (input.trainingPaceProfile !== undefined) {
+-    return normalizeTrainingPaceProfile(input.trainingPaceProfile);
+-  }
+-
+-  return normalizeTrainingPaceProfile(existing?.training_pace_profile);
+-}
+-
+-async function getPlanViaSupabase(): Promise<TrainingPlanWithAnnotation | null> {
+-  const supabase = getSupabaseClient();
+-  if (!supabase) {
+-    return trpc.plan.get.query();
+-  }
+-
+-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+-  if (sessionError) {
+-    throw sessionError;
+-  }
+-
+-  const userId = sessionData.session?.user.id;
+-  if (!userId) {
+-    throw new Error('Not authenticated');
+-  }
+-
+-  const { data, error } = await supabase
+-    .from('training_plans')
+-    .select('*')
+-    .eq('user_id', userId)
+-    .eq('is_active', true)
+-    .limit(1)
+-    .maybeSingle();
+-
+-  if (error) {
+-    throw new Error(`Failed to load plan: ${error.message}`);
+-  }
+-
+-  return withClientAnnotations(data ? rowToPlan(data) : null);
+-}
+-
+-async function savePlanViaSupabase(input: SavePlanInput): Promise<TrainingPlan> {
+-  validateSaveInput(input);
+-  const templateWeek = normalizeTemplateWeek(input.templateWeek);
+-  const weeks = normalizeWeeks(input.weeks);
+-
+-  const supabase = getSupabaseClient();
+-  if (!supabase) {
+-    return trpc.plan.save.mutate(input);
+-  }
+-
+-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+-  if (sessionError) {
+-    throw sessionError;
+-  }
+-
+-  const userId = sessionData.session?.user.id;
+-  if (!userId) {
+-    throw new Error('Not authenticated');
+-  }
+-
+-  const { data: existing, error: existingError } = await supabase
+-    .from('training_plans')
+-    .select('*')
+-    .eq('user_id', userId)
+-    .eq('is_active', true)
+-    .limit(1)
+-    .maybeSingle();
+-
+-  if (existingError) {
+-    throw new Error(`Failed to load existing plan: ${existingError.message}`);
+-  }
+-
+-  const row = {
+-    user_id: userId,
+-    race_name: input.raceName,
+-    race_date: input.raceDate,
+-    race_distance: input.raceDistance,
+-    target_time: input.targetTime,
+-    phases: input.phases,
+-    progression_pct: input.progressionPct,
+-    progression_every_weeks: input.progressionEveryWeeks ?? 2,
+-    template_week: templateWeek,
+-    weeks,
+-    training_pace_profile: trainingPaceProfileForSave(input, existing),
+-    active_injury: (existing?.active_injury as TrainingPlan['activeInjury']) ?? null,
+-    is_active: true,
+-  };
+-
+-  if (existing) {
+-    const { data, error } = await supabase
+-      .from('training_plans')
+-      .update(row)
+-      .eq('id', existing.id as string)
+-      .select('*')
+-      .single();
+-
+-    if (error) {
+-      throw new Error(`Failed to save plan: ${error.message}`);
+-    }
+-
+-    return rowToPlan(data);
+-  }
+-
+-  const { data, error } = await supabase
+-    .from('training_plans')
+-    .insert(row)
+-    .select('*')
+-    .single();
+-
+-  if (error) {
+-    throw new Error(`Failed to save plan: ${error.message}`);
+-  }
+-
+-  return rowToPlan(data);
+-}
+-
+-async function getTrainingPaceProfileViaSupabase(): Promise<TrainingPaceProfile | null> {
+-  const supabase = getSupabaseClient();
+-  if (!supabase) {
+-    return trpc.plan.getTrainingPaceProfile.query();
+-  }
+-
+-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+-  if (sessionError) {
+-    throw sessionError;
+-  }
+-
+-  const userId = sessionData.session?.user.id;
+-  if (!userId) {
+-    throw new Error('Not authenticated');
+-  }
+-
+-  const { data, error } = await supabase
+-    .from('training_plans')
+-    .select('training_pace_profile')
+-    .eq('user_id', userId)
+-    .eq('is_active', true)
+-    .limit(1)
+-    .maybeSingle();
+-
+-  if (error) {
+-    throw new Error(`Failed to load training pace profile: ${error.message}`);
+-  }
+-
+-  return normalizeTrainingPaceProfile(data?.training_pace_profile);
+-}
+-
+-async function completedSessionIdsViaSupabase(
+-  supabase: NonNullable<ReturnType<typeof getSupabaseClient>>,
+-  userId: string,
+-): Promise<string[]> {
+-  const { data, error } = await supabase
+-    .from('activities')
+-    .select('matched_session_id')
+-    .eq('user_id', userId);
+-
+-  if (error) {
+-    throw new Error(`Failed to load matched activities: ${error.message}`);
+-  }
+-
+-  return (Array.isArray(data) ? data : [])
+-    .map((row) => row.matched_session_id)
+-    .filter((sessionId): sessionId is string => typeof sessionId === 'string' && sessionId.length > 0);
+-}
+-
+-async function saveTrainingPaceProfileViaSupabase(
+-  trainingPaceProfile: TrainingPaceProfile | null,
+-): Promise<TrainingPaceProfile | null> {
+-  const normalizedProfile = normalizeTrainingPaceProfile(trainingPaceProfile);
+-  const supabase = getSupabaseClient();
+-  if (!supabase) {
+-    return trpc.plan.updateTrainingPaceProfile.mutate({
+-      trainingPaceProfile: normalizedProfile,
+-    });
+-  }
+-
+-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+-  if (sessionError) {
+-    throw sessionError;
+-  }
+-
+-  const userId = sessionData.session?.user.id;
+-  if (!userId) {
+-    throw new Error('Not authenticated');
+-  }
+-
+-  const { data: existing, error: existingError } = await supabase
+-    .from('training_plans')
+-    .select('*')
+-    .eq('user_id', userId)
+-    .eq('is_active', true)
+-    .limit(1)
+-    .maybeSingle();
+-
+-  if (existingError) {
+-    throw new Error(`Failed to load existing plan: ${existingError.message}`);
+-  }
+-
+-  if (!existing) {
+-    return null;
+-  }
+-
+-  const completedSessionIds = await completedSessionIdsViaSupabase(supabase, userId);
+-  const propagatedPlan = propagateTrainingPaceProfileUpdate(
+-    rowToPlan(existing),
+-    normalizedProfile,
+-    {
+-      today: todayIsoLocal(),
+-      completedSessionIds,
+-    },
+-  );
+-
+-  const { data, error } = await supabase
+-    .from('training_plans')
+-    .update({
+-      training_pace_profile: propagatedPlan.trainingPaceProfile,
+-      weeks: propagatedPlan.weeks,
+-    })
+-    .eq('id', existing.id as string)
+-    .select('*')
+-    .single();
+-
+-  if (error) {
+-    throw new Error(`Failed to save training pace profile: ${error.message}`);
+-  }
+-
+-  return normalizeTrainingPaceProfile(data.training_pace_profile);
+-}
+-
+-async function updatePlanWeeksViaSupabase(weeks: PlanWeek[]): Promise<TrainingPlan | null> {
+-  validateWeeks(weeks);
+-  const normalizedWeeks = normalizeWeeks(weeks);
+-
+-  const supabase = getSupabaseClient();
+-  if (!supabase) {
+-    return trpc.plan.updateWeeks.mutate({ weeks });
+-  }
+-
+-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+-  if (sessionError) {
+-    throw sessionError;
+-  }
+-
+-  const userId = sessionData.session?.user.id;
+-  if (!userId) {
+-    throw new Error('Not authenticated');
+-  }
+-
+-  const { data: existing, error: existingError } = await supabase
+-    .from('training_plans')
+-    .select('*')
+-    .eq('user_id', userId)
+-    .eq('is_active', true)
+-    .limit(1)
+-    .maybeSingle();
+-
+-  if (existingError) {
+-    throw new Error(`Failed to load existing plan: ${existingError.message}`);
+-  }
+-
+-  if (!existing) {
+-    return null;
+-  }
+-
+-  const { data, error } = await supabase
+-    .from('training_plans')
+-    .update({ weeks: normalizedWeeks })
+-    .eq('id', existing.id as string)
+-    .select('*')
+-    .single();
+-
+-  if (error) {
+-    throw new Error(`Failed to update plan weeks: ${error.message}`);
+-  }
+-
+-  return rowToPlan(data);
+-}
+-
+ export async function getPlan(): Promise<TrainingPlanWithAnnotation | null> {
+   if (isScreenshotDemoMode()) {
+     return getScreenshotDemoPlan();
+   }
+ 
+-  if (__DEV__) {
+-    return getPlanViaSupabase();
+-  }
+-
+   return trpc.plan.get.query();
+ }
+ 
+@@ -391,10 +39,6 @@ export async function savePlan(input: SavePlanInput): Promise<TrainingPlan> {
+     return getScreenshotDemoPlan();
+   }
+ 
+-  if (__DEV__) {
+-    return savePlanViaSupabase(input);
+-  }
+-
+   return trpc.plan.save.mutate(input);
+ }
+ 
+@@ -404,10 +48,6 @@ export async function getTrainingPaceProfile(): Promise<TrainingPaceProfile | nu
+     return normalizeTrainingPaceProfile(demoPlan.trainingPaceProfile);
+   }
+ 
+-  if (__DEV__) {
+-    return getTrainingPaceProfileViaSupabase();
+-  }
+-
+   return trpc.plan.getTrainingPaceProfile.query();
+ }
+ 
+@@ -420,10 +60,6 @@ export async function saveTrainingPaceProfile(
+     return normalizedProfile;
+   }
+ 
+-  if (__DEV__) {
+-    return saveTrainingPaceProfileViaSupabase(normalizedProfile);
+-  }
+-
+   return trpc.plan.updateTrainingPaceProfile.mutate({
+     trainingPaceProfile: normalizedProfile,
+   });
+@@ -434,9 +70,5 @@ export async function updatePlanWeeks(weeks: PlanWeek[]): Promise<TrainingPlan |
+     return getScreenshotDemoPlan();
+   }
+ 
+-  if (__DEV__) {
+-    return updatePlanWeeksViaSupabase(weeks);
+-  }
+-
+   return trpc.plan.updateWeeks.mutate({ weeks });
+ }
+diff --git a/packages/app/tests/plan-api.test.ts b/packages/app/tests/plan-api.test.ts
+index 88e2e73..5cc4d39 100644
+--- a/packages/app/tests/plan-api.test.ts
++++ b/packages/app/tests/plan-api.test.ts
+@@ -1,17 +1,14 @@
+ import { beforeEach, describe, expect, it, vi } from 'vitest';
+-import { deriveTrainingPaceProfile, trainingPaceBandToIntensityTarget } from '@steady/types';
++import { deriveTrainingPaceProfile } from '@steady/types';
+ import type { SavePlanInput } from '../lib/plan-api';
+ 
+-const mockGetSupabaseClient = vi.hoisted(() => vi.fn());
+ const mockTrpcPlanGet = vi.hoisted(() => vi.fn());
+ const mockTrpcPlanSave = vi.hoisted(() => vi.fn());
+ const mockTrpcPlanUpdateWeeks = vi.hoisted(() => vi.fn());
+ const mockTrpcPlanGetTrainingPaceProfile = vi.hoisted(() => vi.fn());
+ const mockTrpcPlanUpdateTrainingPaceProfile = vi.hoisted(() => vi.fn());
+-
+-vi.mock('../lib/supabase', () => ({
+-  getSupabaseClient: mockGetSupabaseClient,
+-}));
++const mockIsScreenshotDemoMode = vi.hoisted(() => vi.fn());
++const mockGetScreenshotDemoPlan = vi.hoisted(() => vi.fn());
+ 
+ vi.mock('../lib/trpc', () => ({
+   trpc: {
+@@ -35,29 +32,35 @@ vi.mock('../lib/trpc', () => ({
+   },
+ }));
+ 
+-function makeRow(overrides: Record<string, unknown> = {}) {
++vi.mock('../demo/screenshot-demo', () => ({
++  isScreenshotDemoMode: mockIsScreenshotDemoMode,
++  getScreenshotDemoPlan: mockGetScreenshotDemoPlan,
++}));
++
++function makePlan() {
+   return {
+     id: 'plan-1',
+-    user_id: 'user-1',
+-    created_at: '2026-04-16T10:00:00.000Z',
+-    race_name: 'Marathon 2026',
+-    race_date: '2026-10-18',
+-    race_distance: 'Marathon',
+-    target_time: 'sub-3:15',
+-    phases: { BASE: 4, BUILD: 8, RECOVERY: 2, PEAK: 1, TAPER: 1 },
+-    progression_pct: 7,
+-    template_week: [null, null, null, null, null, null, null],
++    userId: 'user-1',
++    createdAt: '2026-04-16T10:00:00.000Z',
++    raceName: 'Marathon 2026',
++    raceDate: '2026-10-18',
++    raceDistance: 'Marathon' as const,
++    targetTime: 'sub-3:15',
++    phases: { BASE: 1, BUILD: 0, RECOVERY: 0, PEAK: 0, TAPER: 0 },
++    progressionPct: 7,
++    templateWeek: [null, null, null, null, null, null, null],
+     weeks: [
+       {
+         weekNumber: 1,
+-        phase: 'BASE',
++        phase: 'BASE' as const,
+         plannedKm: 40,
+         sessions: [null, null, null, null, null, null, null],
+       },
+     ],
+-    active_injury: null,
+-    is_active: true,
+-    ...overrides,
++    trainingPaceProfile: null,
++    activeInjury: null,
++    todayAnnotation: 'Keep this one easy.',
++    coachAnnotation: null,
+   };
+ }
+ 
+@@ -92,565 +95,107 @@ function makeTrainingPaceProfile() {
+ describe('plan api', () => {
+   beforeEach(() => {
+     vi.resetModules();
+-    mockGetSupabaseClient.mockReset();
+     mockTrpcPlanGet.mockReset();
+     mockTrpcPlanSave.mockReset();
+     mockTrpcPlanUpdateWeeks.mockReset();
+     mockTrpcPlanGetTrainingPaceProfile.mockReset();
+     mockTrpcPlanUpdateTrainingPaceProfile.mockReset();
+-    Reflect.set(globalThis, '__DEV__', true);
+-  });
+-
+-  it('loads the active plan directly from Supabase in dev', async () => {
+-    const row = makeRow();
+-    const maybeSingle = vi.fn().mockResolvedValue({ data: row, error: null });
+-    const limit = vi.fn(() => ({ maybeSingle }));
+-    const eqIsActive = vi.fn(() => ({ limit }));
+-    const eqUserId = vi.fn(() => ({ eq: eqIsActive }));
+-    const select = vi.fn(() => ({ eq: eqUserId }));
+-
+-    mockGetSupabaseClient.mockReturnValue({
+-      auth: {
+-        getSession: vi.fn().mockResolvedValue({
+-          data: { session: { user: { id: 'user-1' } } },
+-          error: null,
+-        }),
+-      },
+-      from: vi.fn(() => ({ select })),
+-    });
+-
+-    const { getPlan } = await import('../lib/plan-api');
+-    const result = await getPlan();
+-
+-    expect(result).toEqual(
+-      expect.objectContaining({
+-        id: 'plan-1',
+-        userId: 'user-1',
+-        trainingPaceProfile: null,
+-        todayAnnotation: null,
+-        coachAnnotation: null,
+-      }),
+-    );
+-    expect(eqUserId).toHaveBeenCalledWith('user_id', 'user-1');
+-    expect(eqIsActive).toHaveBeenCalledWith('is_active', true);
+-    expect(mockTrpcPlanGet).not.toHaveBeenCalled();
+-  });
+-
+-  it('loads a stored training pace profile directly from Supabase in dev', async () => {
+-    const profile = makeTrainingPaceProfile();
+-    const row = makeRow({ training_pace_profile: profile });
+-    const maybeSingle = vi.fn().mockResolvedValue({ data: row, error: null });
+-    const limit = vi.fn(() => ({ maybeSingle }));
+-    const eqIsActive = vi.fn(() => ({ limit }));
+-    const eqUserId = vi.fn(() => ({ eq: eqIsActive }));
+-    const select = vi.fn(() => ({ eq: eqUserId }));
+-
+-    mockGetSupabaseClient.mockReturnValue({
+-      auth: {
+-        getSession: vi.fn().mockResolvedValue({
+-          data: { session: { user: { id: 'user-1' } } },
+-          error: null,
+-        }),
+-      },
+-      from: vi.fn(() => ({ select })),
+-    });
+-
+-    const { getPlan, getTrainingPaceProfile } = await import('../lib/plan-api');
+-
+-    await expect(getPlan()).resolves.toMatchObject({ trainingPaceProfile: profile });
+-    await expect(getTrainingPaceProfile()).resolves.toEqual(profile);
+-  });
+-
+-  it('saves a new plan directly to Supabase in dev', async () => {
+-    const insertedRow = makeRow();
+-    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+-    const limit = vi.fn(() => ({ maybeSingle }));
+-    const eqIsActive = vi.fn(() => ({ limit }));
+-    const eqUserId = vi.fn(() => ({ eq: eqIsActive }));
+-    const selectExisting = vi.fn(() => ({ eq: eqUserId }));
+-
+-    const single = vi.fn().mockResolvedValue({ data: insertedRow, error: null });
+-    const selectInserted = vi.fn(() => ({ single }));
+-    const insert = vi.fn(() => ({ select: selectInserted }));
+-
+-    mockGetSupabaseClient.mockReturnValue({
+-      auth: {
+-        getSession: vi.fn().mockResolvedValue({
+-          data: { session: { user: { id: 'user-1' } } },
+-          error: null,
+-        }),
+-      },
+-      from: vi.fn(() => ({
+-        select: selectExisting,
+-        insert,
+-      })),
+-    });
+-
+-    const { savePlan } = await import('../lib/plan-api');
+-    const result = await savePlan(makeSaveInput());
+-
+-    expect(insert).toHaveBeenCalledWith(
+-      expect.objectContaining({
+-        user_id: 'user-1',
+-        race_name: 'Marathon 2026',
+-        training_pace_profile: null,
+-        is_active: true,
+-      }),
+-    );
+-    expect(result).toEqual(
+-      expect.objectContaining({
+-        id: 'plan-1',
+-        userId: 'user-1',
+-      }),
+-    );
+-    expect(mockTrpcPlanSave).not.toHaveBeenCalled();
+-  });
+-
+-  it('serializes an edited training pace profile when saving directly to Supabase', async () => {
+-    const profile = makeTrainingPaceProfile();
+-    const insertedRow = makeRow({ training_pace_profile: profile });
+-    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+-    const limit = vi.fn(() => ({ maybeSingle }));
+-    const eqIsActive = vi.fn(() => ({ limit }));
+-    const eqUserId = vi.fn(() => ({ eq: eqIsActive }));
+-    const selectExisting = vi.fn(() => ({ eq: eqUserId }));
+-
+-    const single = vi.fn().mockResolvedValue({ data: insertedRow, error: null });
+-    const selectInserted = vi.fn(() => ({ single }));
+-    const insert = vi.fn(() => ({ select: selectInserted }));
+-
+-    mockGetSupabaseClient.mockReturnValue({
+-      auth: {
+-        getSession: vi.fn().mockResolvedValue({
+-          data: { session: { user: { id: 'user-1' } } },
+-          error: null,
+-        }),
+-      },
+-      from: vi.fn(() => ({
+-        select: selectExisting,
+-        insert,
+-      })),
+-    });
+-
+-    const { savePlan } = await import('../lib/plan-api');
+-    const result = await savePlan(makeSaveInput({ trainingPaceProfile: profile }));
+-
+-    expect(insert).toHaveBeenCalledWith(
+-      expect.objectContaining({
+-        training_pace_profile: profile,
+-      }),
+-    );
+-    expect(result.trainingPaceProfile).toEqual(profile);
+-  });
+-
+-  it('preserves an existing profile when a direct Supabase save omits profile input', async () => {
+-    const profile = makeTrainingPaceProfile();
+-    const existingRow = makeRow({ training_pace_profile: profile });
+-    const updatedRow = makeRow({ training_pace_profile: profile });
+-    const maybeSingle = vi.fn().mockResolvedValue({ data: existingRow, error: null });
+-    const limit = vi.fn(() => ({ maybeSingle }));
+-    const eqIsActive = vi.fn(() => ({ limit }));
+-    const eqUserId = vi.fn(() => ({ eq: eqIsActive }));
+-    const selectExisting = vi.fn(() => ({ eq: eqUserId }));
+-
+-    const single = vi.fn().mockResolvedValue({ data: updatedRow, error: null });
+-    const selectUpdated = vi.fn(() => ({ single }));
+-    const eqPlanId = vi.fn(() => ({ select: selectUpdated }));
+-    const update = vi.fn(() => ({ eq: eqPlanId }));
+-
+-    mockGetSupabaseClient.mockReturnValue({
+-      auth: {
+-        getSession: vi.fn().mockResolvedValue({
+-          data: { session: { user: { id: 'user-1' } } },
+-          error: null,
+-        }),
+-      },
+-      from: vi.fn(() => ({
+-        select: selectExisting,
+-        update,
+-      })),
+-    });
+-
+-    const { savePlan } = await import('../lib/plan-api');
+-    const result = await savePlan(makeSaveInput({ raceName: 'Updated marathon' }));
+-
+-    expect(update).toHaveBeenCalledWith(
+-      expect.objectContaining({
+-        race_name: 'Updated marathon',
+-        training_pace_profile: profile,
+-      }),
+-    );
+-    expect(result.trainingPaceProfile).toEqual(profile);
+-  });
+-
+-  it('normalizes structured intensity targets before direct Supabase saves', async () => {
+-    const insertedRow = makeRow();
+-    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+-    const limit = vi.fn(() => ({ maybeSingle }));
+-    const eqIsActive = vi.fn(() => ({ limit }));
+-    const eqUserId = vi.fn(() => ({ eq: eqIsActive }));
+-    const selectExisting = vi.fn(() => ({ eq: eqUserId }));
+-
+-    const single = vi.fn().mockResolvedValue({ data: insertedRow, error: null });
+-    const selectInserted = vi.fn(() => ({ single }));
+-    const insert = vi.fn(() => ({ select: selectInserted }));
+-
+-    mockGetSupabaseClient.mockReturnValue({
+-      auth: {
+-        getSession: vi.fn().mockResolvedValue({
+-          data: { session: { user: { id: 'user-1' } } },
+-          error: null,
+-        }),
+-      },
+-      from: vi.fn(() => ({
+-        select: selectExisting,
+-        insert,
+-      })),
+-    });
+-
+-    const structuredSession = {
+-      id: 'session-1',
+-      type: 'TEMPO' as const,
+-      date: '2026-04-06',
+-      distance: 10,
+-      intensityTarget: {
+-        source: 'manual' as const,
+-        mode: 'both' as const,
+-        profileKey: 'threshold' as const,
+-        paceRange: { min: '4:25', max: '4:15' },
+-        effortCue: 'controlled hard' as const,
+-      },
+-    };
+-
+-    const { savePlan } = await import('../lib/plan-api');
+-    await savePlan(makeSaveInput({
+-      templateWeek: [structuredSession, null, null, null, null, null, null],
+-      weeks: [{
+-        weekNumber: 1,
+-        phase: 'BASE',
+-        plannedKm: 10,
+-        sessions: [structuredSession, null, null, null, null, null, null],
+-      }],
+-    }));
+-
+-    expect(insert).toHaveBeenCalledWith(expect.objectContaining({
+-      template_week: [
+-        expect.objectContaining({
+-          pace: '4:20',
+-          intensityTarget: expect.objectContaining({
+-            paceRange: { min: '4:15', max: '4:25' },
+-          }),
+-        }),
+-        null,
+-        null,
+-        null,
+-        null,
+-        null,
+-        null,
+-      ],
+-      weeks: [
+-        expect.objectContaining({
+-          sessions: [
+-            expect.objectContaining({
+-              pace: '4:20',
+-              intensityTarget: expect.objectContaining({
+-                paceRange: { min: '4:15', max: '4:25' },
+-              }),
+-            }),
+-            null,
+-            null,
+-            null,
+-            null,
+-            null,
+-            null,
+-          ],
+-        }),
+-      ],
+-    }));
++    mockIsScreenshotDemoMode.mockReset();
++    mockGetScreenshotDemoPlan.mockReset();
++    mockIsScreenshotDemoMode.mockReturnValue(false);
+   });
+ 
+-  it('uses tRPC in release builds', async () => {
+-    Reflect.set(globalThis, '__DEV__', false);
+-    mockTrpcPlanSave.mockResolvedValue({ id: 'plan-remote' });
+-
+-    const { savePlan } = await import('../lib/plan-api');
+-    const result = await savePlan(makeSaveInput());
+-
+-    expect(mockTrpcPlanSave).toHaveBeenCalledWith(makeSaveInput());
+-    expect(result).toEqual({ id: 'plan-remote' });
+-  });
++  it.each([true, false])(
++    'routes real plan persistence through tRPC when __DEV__ is %s',
++    async (isDev) => {
++      Reflect.set(globalThis, '__DEV__', isDev);
++      const plan = makePlan();
++      const input = makeSaveInput();
++      const profile = makeTrainingPaceProfile();
++      mockTrpcPlanGet.mockResolvedValue(plan);
++      mockTrpcPlanSave.mockResolvedValue(plan);
++      mockTrpcPlanGetTrainingPaceProfile.mockResolvedValue(profile);
++      mockTrpcPlanUpdateTrainingPaceProfile.mockResolvedValue(profile);
++      mockTrpcPlanUpdateWeeks.mockResolvedValue(plan);
++
++      const {
++        getPlan,
++        savePlan,
++        getTrainingPaceProfile,
++        saveTrainingPaceProfile,
++        updatePlanWeeks,
++      } = await import('../lib/plan-api');
++
++      await expect(getPlan()).resolves.toEqual(plan);
++      await expect(savePlan(input)).resolves.toEqual(plan);
++      await expect(getTrainingPaceProfile()).resolves.toEqual(profile);
++      await expect(saveTrainingPaceProfile(profile)).resolves.toEqual(profile);
++      await expect(updatePlanWeeks(input.weeks)).resolves.toEqual(plan);
++
++      expect(mockTrpcPlanGet).toHaveBeenCalledWith();
++      expect(mockTrpcPlanSave).toHaveBeenCalledWith(input);
++      expect(mockTrpcPlanGetTrainingPaceProfile).toHaveBeenCalledWith();
++      expect(mockTrpcPlanUpdateTrainingPaceProfile).toHaveBeenCalledWith({
++        trainingPaceProfile: profile,
++      });
++      expect(mockTrpcPlanUpdateWeeks).toHaveBeenCalledWith({ weeks: input.weeks });
++    },
++  );
+ 
+-  it('updates the active training pace profile and propagates future linked sessions directly in Supabase in dev', async () => {
++  it('normalizes training pace profile input before saving', async () => {
+     const profile = makeTrainingPaceProfile();
+-    const updatedProfile = {
++    const reversedEasyRange = {
+       ...profile,
+       bands: {
+         ...profile.bands,
+-        threshold: {
+-          ...profile.bands.threshold,
+-          paceRange: { min: '4:18', max: '4:28' },
++        easy: {
++          ...profile.bands.easy,
++          paceRange: { min: '5:45', max: '5:15' },
+         },
+       },
+     };
+-    const thresholdTarget = trainingPaceBandToIntensityTarget(profile.bands.threshold);
+-    const existingRow = makeRow({
+-      training_pace_profile: profile,
+-      weeks: [
+-        {
+-          weekNumber: 1,
+-          phase: 'BASE',
+-          plannedKm: 30,
+-          sessions: [
+-            {
+-              id: 'w1d0',
+-              type: 'TEMPO',
+-              date: '2099-01-05',
+-              distance: 10,
+-              pace: '4:28',
+-              intensityTarget: thresholdTarget,
+-            },
+-            {
+-              id: 'w1d1',
+-              type: 'TEMPO',
+-              date: '2099-01-06',
+-              distance: 10,
+-              pace: '4:08',
+-              intensityTarget: {
+-                source: 'manual',
+-                mode: 'pace',
+-                profileKey: 'threshold',
+-                pace: '4:08',
+-              },
+-            },
+-            {
+-              id: 'w1d2',
+-              type: 'TEMPO',
+-              date: '2099-01-07',
+-              distance: 10,
+-              pace: '4:27',
+-              intensityTarget: thresholdTarget,
+-            },
+-            null, null, null, null,
+-          ],
+-        },
+-      ],
+-    });
+-    const updatedRow = makeRow({ training_pace_profile: updatedProfile });
+-    const maybeSingle = vi.fn().mockResolvedValue({ data: existingRow, error: null });
+-    const limit = vi.fn(() => ({ maybeSingle }));
+-    const eqIsActive = vi.fn(() => ({ limit }));
+-    const eqUserId = vi.fn(() => ({ eq: eqIsActive }));
+-    const selectExisting = vi.fn(() => ({ eq: eqUserId }));
+-
+-    const eqActivitiesUserId = vi.fn().mockResolvedValue({
+-      data: [{ matched_session_id: 'w1d2' }],
+-      error: null,
+-    });
+-    const selectActivities = vi.fn(() => ({ eq: eqActivitiesUserId }));
+-
+-    const single = vi.fn().mockResolvedValue({ data: updatedRow, error: null });
+-    const selectUpdated = vi.fn(() => ({ single }));
+-    const eqPlanId = vi.fn(() => ({ select: selectUpdated }));
+-    const update = vi.fn(() => ({ eq: eqPlanId }));
+-
+-    mockGetSupabaseClient.mockReturnValue({
+-      auth: {
+-        getSession: vi.fn().mockResolvedValue({
+-          data: { session: { user: { id: 'user-1' } } },
+-          error: null,
+-        }),
+-      },
+-      from: vi.fn((table: string) => (
+-        table === 'activities'
+-          ? { select: selectActivities }
+-          : {
+-              select: selectExisting,
+-              update,
+-            }
+-      )),
+-    });
++    mockTrpcPlanUpdateTrainingPaceProfile.mockImplementation(async ({ trainingPaceProfile }) => (
++      trainingPaceProfile
++    ));
+ 
+     const { saveTrainingPaceProfile } = await import('../lib/plan-api');
+-    const result = await saveTrainingPaceProfile(updatedProfile);
+-
+-    expect(update).toHaveBeenCalledWith({
+-      training_pace_profile: updatedProfile,
+-      weeks: [
+-        expect.objectContaining({
+-          sessions: [
+-            expect.objectContaining({
+-              pace: '4:23',
+-              intensityTarget: expect.objectContaining({
+-                source: 'profile',
+-                profileKey: 'threshold',
+-                paceRange: { min: '4:18', max: '4:28' },
+-              }),
+-            }),
+-            expect.objectContaining({
+-              pace: '4:08',
+-              intensityTarget: expect.objectContaining({ source: 'manual' }),
+-            }),
+-            expect.objectContaining({
+-              pace: '4:27',
+-              intensityTarget: thresholdTarget,
+-            }),
+-            null,
+-            null,
+-            null,
+-            null,
+-          ],
+-        }),
+-      ],
+-    });
+-    expect(result).toEqual(updatedProfile);
+-    expect(mockTrpcPlanUpdateTrainingPaceProfile).not.toHaveBeenCalled();
+-  });
+-
+-  it('uses tRPC for training pace profile helpers in release builds', async () => {
+-    Reflect.set(globalThis, '__DEV__', false);
+-    const profile = makeTrainingPaceProfile();
+-    mockTrpcPlanGetTrainingPaceProfile.mockResolvedValue(profile);
+-    mockTrpcPlanUpdateTrainingPaceProfile.mockResolvedValue(profile);
+-
+-    const { getTrainingPaceProfile, saveTrainingPaceProfile } = await import('../lib/plan-api');
++    const result = await saveTrainingPaceProfile(reversedEasyRange);
+ 
+-    await expect(getTrainingPaceProfile()).resolves.toEqual(profile);
+-    await expect(saveTrainingPaceProfile(profile)).resolves.toEqual(profile);
+-    expect(mockTrpcPlanGetTrainingPaceProfile).toHaveBeenCalledWith();
++    expect(result?.bands.easy.paceRange).toEqual({ min: '5:15', max: '5:45' });
+     expect(mockTrpcPlanUpdateTrainingPaceProfile).toHaveBeenCalledWith({
+-      trainingPaceProfile: profile,
+-    });
+-  });
+-
+-  it('updates active plan weeks directly in Supabase in dev', async () => {
+-    const updatedRow = makeRow({
+-      weeks: [
+-        {
+-          weekNumber: 1,
+-          phase: 'BASE',
+-          plannedKm: 48,
+-          sessions: [null, null, null, null, null, null, null],
+-        },
+-      ],
+-    });
+-    const maybeSingle = vi.fn().mockResolvedValue({ data: makeRow(), error: null });
+-    const limit = vi.fn(() => ({ maybeSingle }));
+-    const eqIsActive = vi.fn(() => ({ limit }));
+-    const eqUserId = vi.fn(() => ({ eq: eqIsActive }));
+-    const selectExisting = vi.fn(() => ({ eq: eqUserId }));
+-
+-    const single = vi.fn().mockResolvedValue({ data: updatedRow, error: null });
+-    const selectUpdated = vi.fn(() => ({ single }));
+-    const eqPlanId = vi.fn(() => ({ select: selectUpdated }));
+-    const update = vi.fn(() => ({ eq: eqPlanId }));
+-
+-    mockGetSupabaseClient.mockReturnValue({
+-      auth: {
+-        getSession: vi.fn().mockResolvedValue({
+-          data: { session: { user: { id: 'user-1' } } },
+-          error: null,
++      trainingPaceProfile: expect.objectContaining({
++        bands: expect.objectContaining({
++          easy: expect.objectContaining({
++            paceRange: { min: '5:15', max: '5:45' },
++          }),
+         }),
+-      },
+-      from: vi.fn(() => ({
+-        select: selectExisting,
+-        update,
+-      })),
+-    });
+-
+-    const { updatePlanWeeks } = await import('../lib/plan-api');
+-    const result = await updatePlanWeeks(updatedRow.weeks as SavePlanInput['weeks']);
+-
+-    expect(update).toHaveBeenCalledWith({ weeks: updatedRow.weeks });
+-    expect(result).toEqual(
+-      expect.objectContaining({
+-        id: 'plan-1',
+-        weeks: updatedRow.weeks,
+       }),
+-    );
+-    expect(mockTrpcPlanUpdateWeeks).not.toHaveBeenCalled();
+-  });
+-
+-  it('normalizes structured intensity targets before direct Supabase week updates', async () => {
+-    const inputWeeks = [
+-      {
+-        weekNumber: 1,
+-        phase: 'BASE' as const,
+-        plannedKm: 8,
+-        sessions: [
+-          {
+-            id: 'session-1',
+-            type: 'EASY' as const,
+-            date: '2026-04-06',
+-            distance: 8,
+-            intensityTarget: {
+-              source: 'manual' as const,
+-              mode: 'pace' as const,
+-              paceRange: { min: '5:45', max: '5:15' },
+-            },
+-          },
+-          null, null, null, null, null, null,
+-        ],
+-      },
+-    ];
+-    const updatedRow = makeRow({ weeks: inputWeeks });
+-    const maybeSingle = vi.fn().mockResolvedValue({ data: makeRow(), error: null });
+-    const limit = vi.fn(() => ({ maybeSingle }));
+-    const eqIsActive = vi.fn(() => ({ limit }));
+-    const eqUserId = vi.fn(() => ({ eq: eqIsActive }));
+-    const selectExisting = vi.fn(() => ({ eq: eqUserId }));
+-
+-    const single = vi.fn().mockResolvedValue({ data: updatedRow, error: null });
+-    const selectUpdated = vi.fn(() => ({ single }));
+-    const eqPlanId = vi.fn(() => ({ select: selectUpdated }));
+-    const update = vi.fn(() => ({ eq: eqPlanId }));
+-
+-    mockGetSupabaseClient.mockReturnValue({
+-      auth: {
+-        getSession: vi.fn().mockResolvedValue({
+-          data: { session: { user: { id: 'user-1' } } },
+-          error: null,
+-        }),
+-      },
+-      from: vi.fn(() => ({
+-        select: selectExisting,
+-        update,
+-      })),
+-    });
+-
+-    const { updatePlanWeeks } = await import('../lib/plan-api');
+-    await updatePlanWeeks(inputWeeks);
+-
+-    expect(update).toHaveBeenCalledWith({
+-      weeks: [
+-        expect.objectContaining({
+-          sessions: [
+-            expect.objectContaining({
+-              pace: '5:30',
+-              intensityTarget: expect.objectContaining({
+-                paceRange: { min: '5:15', max: '5:45' },
+-              }),
+-            }),
+-            null,
+-            null,
+-            null,
+-            null,
+-            null,
+-            null,
+-          ],
+-        }),
+-      ],
+     });
+   });
+ 
+-  it('uses tRPC for week updates in release builds', async () => {
+-    Reflect.set(globalThis, '__DEV__', false);
+-    const weeks = makeSaveInput().weeks;
+-    mockTrpcPlanUpdateWeeks.mockResolvedValue({ id: 'plan-remote', weeks });
+-
+-    const { updatePlanWeeks } = await import('../lib/plan-api');
+-    const result = await updatePlanWeeks(weeks);
++  it('bypasses tRPC only for screenshot demo mode', async () => {
++    const plan = makePlan();
++    mockIsScreenshotDemoMode.mockReturnValue(true);
++    mockGetScreenshotDemoPlan.mockResolvedValue(plan);
++
++    const {
++      getPlan,
++      savePlan,
++      getTrainingPaceProfile,
++      saveTrainingPaceProfile,
++      updatePlanWeeks,
++    } = await import('../lib/plan-api');
++
++    await expect(getPlan()).resolves.toEqual(plan);
++    await expect(savePlan(makeSaveInput())).resolves.toEqual(plan);
++    await expect(getTrainingPaceProfile()).resolves.toBeNull();
++    await expect(saveTrainingPaceProfile(null)).resolves.toBeNull();
++    await expect(updatePlanWeeks(makeSaveInput().weeks)).resolves.toEqual(plan);
+ 
+-    expect(mockTrpcPlanUpdateWeeks).toHaveBeenCalledWith({ weeks });
+-    expect(result).toEqual({ id: 'plan-remote', weeks });
++    expect(mockTrpcPlanGet).not.toHaveBeenCalled();
++    expect(mockTrpcPlanSave).not.toHaveBeenCalled();
++    expect(mockTrpcPlanGetTrainingPaceProfile).not.toHaveBeenCalled();
++    expect(mockTrpcPlanUpdateTrainingPaceProfile).not.toHaveBeenCalled();
++    expect(mockTrpcPlanUpdateWeeks).not.toHaveBeenCalled();
+   });
+ });
+diff --git a/packages/server/src/services/plan-workflow-service.ts b/packages/server/src/services/plan-workflow-service.ts
+new file mode 100644
+index 0000000..d7004f8
+--- /dev/null
++++ b/packages/server/src/services/plan-workflow-service.ts
+@@ -0,0 +1,315 @@
++import {
++  generatePlan,
++  getDisplayWeekIndex,
++  normalizePlanWeekSessionDurations,
++  normalizeSessionDurations,
++  normalizeSessionIds,
++  normalizeTrainingPaceProfile,
++  propagateChange,
++  propagateTrainingPaceProfileUpdate,
++} from '@steady/types';
++import type {
++  InjuryUpdate,
++  PhaseConfig,
++  PhaseName,
++  PlannedSession,
++  PlanWeek,
++  TrainingPaceProfile,
++  TrainingPlan,
++  TrainingPlanWithAnnotation,
++} from '@steady/types';
++import { generateHomeAnnotations } from '../lib/annotation-engine';
++import { currentIsoDateInTimezone } from '../lib/iso-date';
++import type { ActivityRepo } from '../repos/activity-repo';
++import type { PlanRepo } from '../repos/plan-repo';
++import type { ProfileRepo } from '../repos/profile-repo';
++import { repairOrphanedActivityLinks } from './orphaned-activity-link-repair';
++
++export interface SavePlanWorkflowInput {
++  raceName: string;
++  raceDate: string;
++  raceDistance: TrainingPlan['raceDistance'];
++  targetTime: string;
++  phases: PhaseConfig;
++  progressionPct: number;
++  progressionEveryWeeks?: number;
++  trainingPaceProfile?: TrainingPaceProfile | null;
++  templateWeek: (PlannedSession | null)[];
++  weeks: PlanWeek[];
++}
++
++export interface PropagatePlanChangeInput {
++  weekIndex: number;
++  dayIndex: number;
++  updated: PlannedSession | null;
++  scope: 'this' | 'remaining' | 'build';
++  targetPhase?: PhaseName;
++}
++
++export type PlanWorkflowErrorCode = 'BAD_REQUEST' | 'NOT_FOUND';
++
++export class PlanWorkflowError extends Error {
++  constructor(
++    public readonly code: PlanWorkflowErrorCode,
++    message: string,
++  ) {
++    super(message);
++    this.name = 'PlanWorkflowError';
++  }
++}
++
++interface PlanWorkflowDeps {
++  planRepo: PlanRepo;
++  profileRepo: ProfileRepo;
++  activityRepo: ActivityRepo;
++  todayForTimezone?: (timezone: string) => string;
++  createId?: () => string;
++  now?: () => string;
++}
++
++function addDays(date: string, days: number): string {
++  const value = new Date(`${date}T00:00:00.000Z`);
++  value.setUTCDate(value.getUTCDate() + days);
++  return value.toISOString().slice(0, 10);
++}
++
++function dayIndexForDate(date: string): number {
++  const day = new Date(`${date}T00:00:00.000Z`).getUTCDay();
++  return day === 0 ? 6 : day - 1;
++}
++
++function findSessionForDateOrWeekday(
++  sessions: (PlannedSession | null)[],
++  date: string,
++): PlannedSession | null {
++  return sessions[dayIndexForDate(date)] ?? null;
++}
++
++function withHomeAnnotations(
++  plan: TrainingPlan | null,
++  today: string,
++): TrainingPlanWithAnnotation | null {
++  if (!plan) return null;
++
++  const currentWeek = plan.weeks[getDisplayWeekIndex(plan.weeks, today)];
++
++  if (!currentWeek) {
++    return {
++      ...plan,
++      todayAnnotation: 'Your plan is ready — build consistency one week at a time.',
++      coachAnnotation: null,
++    };
++  }
++
++  const tomorrow = addDays(today, 1);
++  const todaySession = findSessionForDateOrWeekday(currentWeek.sessions, today);
++  const tomorrowSession = findSessionForDateOrWeekday(currentWeek.sessions, tomorrow);
++  const annotations = generateHomeAnnotations({
++    todaySession,
++    tomorrowSession,
++    phase: currentWeek.phase,
++    weekNumber: currentWeek.weekNumber,
++    totalWeeks: plan.weeks.length,
++    allSessions: currentWeek.sessions,
++  });
++
++  return {
++    ...plan,
++    ...annotations,
++  };
++}
++
++function validateWeeks(weeks: PlanWeek[]) {
++  for (const week of weeks) {
++    if (!week.sessions || week.sessions.length !== 7) {
++      throw new PlanWorkflowError(
++        'BAD_REQUEST',
++        `Week ${week.weekNumber} must have exactly 7 session slots`,
++      );
++    }
++  }
++}
++
++function validateSaveInput(input: SavePlanWorkflowInput) {
++  const phaseSum = input.phases.BASE
++    + input.phases.BUILD
++    + input.phases.RECOVERY
++    + input.phases.PEAK
++    + input.phases.TAPER;
++
++  if (input.weeks.length > 0 && phaseSum !== input.weeks.length) {
++    throw new PlanWorkflowError(
++      'BAD_REQUEST',
++      `Phase sum (${phaseSum}) does not match week count (${input.weeks.length})`,
++    );
++  }
++
++  validateWeeks(input.weeks);
++}
++
++function normalizeTemplateWeek(templateWeek: (PlannedSession | null)[]): (PlannedSession | null)[] {
++  return templateWeek.map(normalizeSessionDurations);
++}
++
++function normalizeWeeks(weeks: PlanWeek[]): PlanWeek[] {
++  return normalizeSessionIds(weeks.map(normalizePlanWeekSessionDurations));
++}
++
++export interface PlanWorkflowService {
++  getActivePlan(userId: string): Promise<TrainingPlanWithAnnotation | null>;
++  getTrainingPaceProfile(userId: string): Promise<TrainingPaceProfile | null>;
++  updateTrainingPaceProfile(
++    userId: string,
++    trainingPaceProfile: TrainingPaceProfile | null,
++  ): Promise<TrainingPaceProfile | null>;
++  generatePlan(input: {
++    template: (PlannedSession | null)[];
++    totalWeeks: number;
++    progressionPct: number;
++    progressionEveryWeeks?: number;
++    phases?: PhaseConfig;
++  }): { weeks: PlanWeek[] };
++  savePlan(userId: string, input: SavePlanWorkflowInput): Promise<TrainingPlan>;
++  propagatePlanChange(userId: string, input: PropagatePlanChangeInput): Promise<TrainingPlan | null>;
++  updateWeeks(userId: string, weeks: PlanWeek[]): Promise<TrainingPlan | null>;
++  markInjury(userId: string, name: string): Promise<TrainingPlan | null>;
++  updateInjury(userId: string, updates: InjuryUpdate): Promise<TrainingPlan | null>;
++  clearInjury(userId: string): Promise<TrainingPlan | null>;
++}
++
++export function createPlanWorkflowService({
++  planRepo,
++  profileRepo,
++  activityRepo,
++  todayForTimezone = currentIsoDateInTimezone,
++  createId = () => crypto.randomUUID(),
++  now = () => new Date().toISOString(),
++}: PlanWorkflowDeps): PlanWorkflowService {
++  async function getActivePlan(userId: string): Promise<TrainingPlanWithAnnotation | null> {
++    const [plan, profile] = await Promise.all([
++      repairOrphanedActivityLinks(userId, { planRepo, activityRepo }),
++      profileRepo.getById(userId),
++    ]);
++
++    // Home annotations are intentionally server-owned so every client transport sees the same copy.
++    return withHomeAnnotations(plan, todayForTimezone(profile?.timezone ?? 'UTC'));
++  }
++
++  async function getRequiredActivePlan(userId: string): Promise<TrainingPlan> {
++    const plan = await planRepo.getActive(userId);
++    if (!plan) {
++      throw new PlanWorkflowError('NOT_FOUND', 'No plan found');
++    }
++    return plan;
++  }
++
++  return {
++    getActivePlan,
++
++    async getTrainingPaceProfile(userId: string) {
++      const plan = await planRepo.getActive(userId);
++      return plan?.trainingPaceProfile ?? null;
++    },
++
++    async updateTrainingPaceProfile(userId, trainingPaceProfile) {
++      const plan = await planRepo.getActive(userId);
++      if (!plan) return null;
++
++      const normalizedProfile = normalizeTrainingPaceProfile(trainingPaceProfile);
++      const [profile, activities] = await Promise.all([
++        profileRepo.getById(userId),
++        activityRepo.getByUserId(userId),
++      ]);
++      const propagatedPlan = propagateTrainingPaceProfileUpdate(plan, normalizedProfile, {
++        today: todayForTimezone(profile?.timezone ?? 'UTC'),
++        completedSessionIds: activities
++          .map((activity) => activity.matchedSessionId)
++          .filter((sessionId): sessionId is string => Boolean(sessionId)),
++      });
++      const updated = await planRepo.updateTrainingPaceProfile(
++        plan.id,
++        propagatedPlan.trainingPaceProfile ?? null,
++        propagatedPlan.weeks,
++      );
++
++      return updated?.trainingPaceProfile ?? null;
++    },
++
++    generatePlan(input) {
++      return {
++        weeks: generatePlan(
++          input.template,
++          input.totalWeeks,
++          input.progressionPct,
++          input.phases,
++          input.progressionEveryWeeks,
++        ),
++      };
++    },
++
++    async savePlan(userId, input) {
++      validateSaveInput(input);
++
++      const existing = await planRepo.getActive(userId);
++      const plan: TrainingPlan = {
++        id: existing?.id ?? createId(),
++        userId,
++        createdAt: existing?.createdAt ?? now(),
++        raceName: input.raceName,
++        raceDate: input.raceDate,
++        raceDistance: input.raceDistance,
++        targetTime: input.targetTime,
++        phases: input.phases,
++        progressionPct: input.progressionPct,
++        progressionEveryWeeks: input.progressionEveryWeeks ?? 2,
++        templateWeek: normalizeTemplateWeek(input.templateWeek),
++        weeks: normalizeWeeks(input.weeks),
++        trainingPaceProfile: input.trainingPaceProfile === undefined
++          ? existing?.trainingPaceProfile ?? null
++          : normalizeTrainingPaceProfile(input.trainingPaceProfile),
++        activeInjury: existing?.activeInjury ?? null,
++      };
++
++      return planRepo.save(plan);
++    },
++
++    async propagatePlanChange(userId, input) {
++      const plan = await getRequiredActivePlan(userId);
++      const newWeeks = propagateChange(
++        plan.weeks,
++        input.weekIndex,
++        input.dayIndex,
++        input.updated,
++        input.scope,
++        plan.templateWeek,
++        input.targetPhase,
++      );
++
++      return planRepo.updateWeeks(plan.id, normalizeWeeks(newWeeks));
++    },
++
++    async updateWeeks(userId, weeks) {
++      validateWeeks(weeks);
++
++      const plan = await planRepo.getActive(userId);
++      if (!plan) return null;
++
++      return planRepo.updateWeeks(plan.id, normalizeWeeks(weeks));
++    },
++
++    async markInjury(userId, name) {
++      const plan = await getRequiredActivePlan(userId);
++      return planRepo.markInjury(plan.id, name);
++    },
++
++    async updateInjury(userId, updates) {
++      const plan = await getRequiredActivePlan(userId);
++      return planRepo.updateInjury(plan.id, updates);
++    },
++
++    async clearInjury(userId) {
++      const plan = await getRequiredActivePlan(userId);
++      return planRepo.clearInjury(plan.id);
++    },
++  };
++}
+diff --git a/packages/server/src/trpc/plan.ts b/packages/server/src/trpc/plan.ts
+index 578e52c..5c0707e 100644
+--- a/packages/server/src/trpc/plan.ts
++++ b/packages/server/src/trpc/plan.ts
+@@ -8,19 +8,9 @@ import {
+   RUN_STRUCTURE_SEGMENT_KINDS,
+   TRAINING_PACE_PROFILE_BAND_ORDER,
+   TRAINING_PACE_PROFILE_KEYS,
+-  generatePlan,
+-  getDisplayWeekIndex,
+-  normalizeTrainingPaceProfile,
+-  propagateChange,
+-  propagateTrainingPaceProfileUpdate,
+ } from '@steady/types';
+-import type { TrainingPlan, TrainingPlanWithAnnotation, PlanWeek, PhaseConfig, PlannedSession } from '@steady/types';
+-import type { ActivityRepo } from '../repos/activity-repo';
+-import type { PlanRepo } from '../repos/plan-repo';
+-import type { ProfileRepo } from '../repos/profile-repo';
+-import { generateHomeAnnotations } from '../lib/annotation-engine';
+-import { currentIsoDateInTimezone } from '../lib/iso-date';
+-import { repairOrphanedActivityLinks } from '../services/orphaned-activity-link-repair';
++import type { PhaseConfig, PlannedSession, PlanWeek } from '@steady/types';
++import { PlanWorkflowError, type PlanWorkflowService } from '../services/plan-workflow-service';
+ 
+ const PhaseConfigSchema = z.object({
+   BASE: z.number().min(0),
+@@ -154,71 +144,30 @@ const PlanWeekSchema = z.object({
+   })).optional(),
+ });
+ 
+-function addDays(date: string, days: number): string {
+-  const value = new Date(`${date}T00:00:00.000Z`);
+-  value.setUTCDate(value.getUTCDate() + days);
+-  return value.toISOString().slice(0, 10);
+-}
+-
+-function dayIndexForDate(date: string): number {
+-  const day = new Date(`${date}T00:00:00.000Z`).getUTCDay();
+-  return day === 0 ? 6 : day - 1;
+-}
+-
+-function findSessionForDateOrWeekday(
+-  sessions: (PlannedSession | null)[],
+-  date: string,
+-): PlannedSession | null {
+-  return sessions[dayIndexForDate(date)] ?? null;
+-}
+-
+-function withHomeAnnotations(plan: TrainingPlan | null, today: string): TrainingPlanWithAnnotation | null {
+-  if (!plan) return null;
+-
+-  const currentWeek = plan.weeks[getDisplayWeekIndex(plan.weeks, today)];
+-
+-  if (!currentWeek) {
+-    return {
+-      ...plan,
+-      todayAnnotation: 'Your plan is ready — build consistency one week at a time.',
+-      coachAnnotation: null,
+-    };
++async function runWorkflow<T>(operation: () => Promise<T>): Promise<T> {
++  try {
++    return await operation();
++  } catch (error) {
++    if (error instanceof PlanWorkflowError) {
++      throw new TRPCError({
++        code: error.code,
++        message: error.message,
++      });
++    }
++    throw error;
+   }
+-
+-  const tomorrow = addDays(today, 1);
+-  const todaySession = findSessionForDateOrWeekday(currentWeek.sessions, today);
+-  const tomorrowSession = findSessionForDateOrWeekday(currentWeek.sessions, tomorrow);
+-  const annotations = generateHomeAnnotations({
+-    todaySession,
+-    tomorrowSession,
+-    phase: currentWeek.phase,
+-    weekNumber: currentWeek.weekNumber,
+-    totalWeeks: plan.weeks.length,
+-    allSessions: currentWeek.sessions,
+-  });
+-
+-  return {
+-    ...plan,
+-    ...annotations,
+-  };
+ }
+ 
+-export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo, activityRepo: ActivityRepo) {
++export function createPlanRouter(planWorkflow: PlanWorkflowService) {
+   return router({
+     /** Get the user's active training plan. */
+     get: authedProcedure.query(async ({ ctx }) => {
+-      const [plan, profile] = await Promise.all([
+-        repairOrphanedActivityLinks(ctx.userId, { planRepo, activityRepo }),
+-        profileRepo.getById(ctx.userId),
+-      ]);
+-
+-      return withHomeAnnotations(plan, currentIsoDateInTimezone(profile?.timezone ?? 'UTC'));
++      return planWorkflow.getActivePlan(ctx.userId);
+     }),
+ 
+     /** Read the stored training pace profile for the user's active plan. */
+     getTrainingPaceProfile: authedProcedure.query(async ({ ctx }) => {
+-      const plan = await planRepo.getActive(ctx.userId);
+-      return plan?.trainingPaceProfile ?? null;
++      return planWorkflow.getTrainingPaceProfile(ctx.userId);
+     }),
+ 
+     /** Persist the training pace profile on the user's active plan. */
+@@ -229,27 +178,7 @@ export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo, a
+         }),
+       )
+       .mutation(async ({ ctx, input }) => {
+-        const plan = await planRepo.getActive(ctx.userId);
+-        if (!plan) return null;
+-
+-        const normalizedProfile = normalizeTrainingPaceProfile(input.trainingPaceProfile);
+-        const [profile, activities] = await Promise.all([
+-          profileRepo.getById(ctx.userId),
+-          activityRepo.getByUserId(ctx.userId),
+-        ]);
+-        const propagatedPlan = propagateTrainingPaceProfileUpdate(plan, normalizedProfile, {
+-          today: currentIsoDateInTimezone(profile?.timezone ?? 'UTC'),
+-          completedSessionIds: activities
+-            .map((activity) => activity.matchedSessionId)
+-            .filter((sessionId): sessionId is string => Boolean(sessionId)),
+-        });
+-        const updated = await planRepo.updateTrainingPaceProfile(
+-          plan.id,
+-          propagatedPlan.trainingPaceProfile ?? null,
+-          propagatedPlan.weeks,
+-        );
+-
+-        return updated?.trainingPaceProfile ?? null;
++        return planWorkflow.updateTrainingPaceProfile(ctx.userId, input.trainingPaceProfile);
+       }),
+ 
+     /** Generate a plan server-side from a template. */
+@@ -264,14 +193,13 @@ export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo, a
+         }),
+       )
+       .mutation(({ input }) => {
+-        const weeks = generatePlan(
+-          input.template as (PlannedSession | null)[],
+-          input.totalWeeks,
+-          input.progressionPct,
+-          input.phases as PhaseConfig | undefined,
+-          input.progressionEveryWeeks,
+-        );
+-        return { weeks };
++        return planWorkflow.generatePlan({
++          template: input.template as (PlannedSession | null)[],
++          totalWeeks: input.totalWeeks,
++          progressionPct: input.progressionPct,
++          progressionEveryWeeks: input.progressionEveryWeeks,
++          phases: input.phases as PhaseConfig | undefined,
++        });
+       }),
+ 
+     /** Save or update a training plan with validation. */
+@@ -291,50 +219,18 @@ export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo, a
+         }),
+       )
+       .mutation(async ({ ctx, input }) => {
+-        const weeks = input.weeks as PlanWeek[];
+-
+-        // Validate: phases sum must equal total weeks
+-        const phases = input.phases as PhaseConfig;
+-        const phaseSum = phases.BASE + phases.BUILD + phases.RECOVERY + phases.PEAK + phases.TAPER;
+-        if (weeks.length > 0 && phaseSum !== weeks.length) {
+-          throw new TRPCError({
+-            code: 'BAD_REQUEST',
+-            message: `Phase sum (${phaseSum}) does not match week count (${weeks.length})`,
+-          });
+-        }
+-
+-        // Validate: each week must have 7 sessions
+-        for (const w of weeks) {
+-          if (!w.sessions || w.sessions.length !== 7) {
+-            throw new TRPCError({
+-              code: 'BAD_REQUEST',
+-              message: `Week ${w.weekNumber} must have exactly 7 session slots`,
+-            });
+-          }
+-        }
+-
+-        const existing = await planRepo.getActive(ctx.userId);
+-
+-        const plan: TrainingPlan = {
+-          id: existing?.id ?? crypto.randomUUID(),
+-          userId: ctx.userId,
+-          createdAt: existing?.createdAt ?? new Date().toISOString(),
++        return runWorkflow(() => planWorkflow.savePlan(ctx.userId, {
+           raceName: input.raceName,
+           raceDate: input.raceDate,
+-          raceDistance: input.raceDistance as TrainingPlan['raceDistance'],
++          raceDistance: input.raceDistance,
+           targetTime: input.targetTime,
+-          phases,
++          phases: input.phases,
+           progressionPct: input.progressionPct,
+-          progressionEveryWeeks: input.progressionEveryWeeks ?? 2,
++          progressionEveryWeeks: input.progressionEveryWeeks,
++          trainingPaceProfile: input.trainingPaceProfile,
+           templateWeek: input.templateWeek as (PlannedSession | null)[],
+-          weeks,
+-          trainingPaceProfile: input.trainingPaceProfile === undefined
+-            ? existing?.trainingPaceProfile ?? null
+-            : normalizeTrainingPaceProfile(input.trainingPaceProfile),
+-          activeInjury: existing?.activeInjury ?? null,
+-        };
+-
+-        return planRepo.save(plan);
++          weeks: input.weeks as PlanWeek[],
++        }));
+       }),
+ 
+     /** Apply a session edit and propagate across the plan. */
+@@ -349,22 +245,13 @@ export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo, a
+         }),
+       )
+       .mutation(async ({ ctx, input }) => {
+-        const plan = await planRepo.getActive(ctx.userId);
+-        if (!plan) {
+-          throw new TRPCError({ code: 'NOT_FOUND', message: 'No plan found' });
+-        }
+-
+-        const newWeeks = propagateChange(
+-          plan.weeks,
+-          input.weekIndex,
+-          input.dayIndex,
+-          input.updated as PlannedSession | null,
+-          input.scope,
+-          plan.templateWeek,
+-          input.targetPhase,
+-        );
+-
+-        return planRepo.updateWeeks(plan.id, newWeeks);
++        return runWorkflow(() => planWorkflow.propagatePlanChange(ctx.userId, {
++          weekIndex: input.weekIndex,
++          dayIndex: input.dayIndex,
++          updated: input.updated as PlannedSession | null,
++          scope: input.scope,
++          targetPhase: input.targetPhase,
++        }));
+       }),
+ 
+     /** Update a single week's sessions (used by propagateChange on client). */
+@@ -375,9 +262,7 @@ export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo, a
+         }),
+       )
+       .mutation(async ({ ctx, input }) => {
+-        const plan = await planRepo.getActive(ctx.userId);
+-        if (!plan) return null;
+-        return planRepo.updateWeeks(plan.id, input.weeks as PlanWeek[]);
++        return runWorkflow(() => planWorkflow.updateWeeks(ctx.userId, input.weeks as PlanWeek[]));
+       }),
+ 
+     markInjury: authedProcedure
+@@ -387,30 +272,18 @@ export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo, a
+         }),
+       )
+       .mutation(async ({ ctx, input }) => {
+-        const plan = await planRepo.getActive(ctx.userId);
+-        if (!plan) {
+-          throw new TRPCError({ code: 'NOT_FOUND', message: 'No plan found' });
+-        }
+-        return planRepo.markInjury(plan.id, input.name);
++        return runWorkflow(() => planWorkflow.markInjury(ctx.userId, input.name));
+       }),
+ 
+     updateInjury: authedProcedure
+       .input(InjuryUpdateSchema)
+       .mutation(async ({ ctx, input }) => {
+-        const plan = await planRepo.getActive(ctx.userId);
+-        if (!plan) {
+-          throw new TRPCError({ code: 'NOT_FOUND', message: 'No plan found' });
+-        }
+-        return planRepo.updateInjury(plan.id, input);
++        return runWorkflow(() => planWorkflow.updateInjury(ctx.userId, input));
+       }),
+ 
+     clearInjury: authedProcedure
+       .mutation(async ({ ctx }) => {
+-        const plan = await planRepo.getActive(ctx.userId);
+-        if (!plan) {
+-          throw new TRPCError({ code: 'NOT_FOUND', message: 'No plan found' });
+-        }
+-        return planRepo.clearInjury(plan.id);
++        return runWorkflow(() => planWorkflow.clearInjury(ctx.userId));
+       }),
+   });
+ }
+diff --git a/packages/server/src/trpc/router.ts b/packages/server/src/trpc/router.ts
+index 882a258..6b0b5c0 100644
+--- a/packages/server/src/trpc/router.ts
++++ b/packages/server/src/trpc/router.ts
+@@ -23,6 +23,7 @@ import { InMemoryPlanRepo } from '../repos/plan-repo.memory';
+ import { InMemoryProfileRepo } from '../repos/profile-repo.memory';
+ import { InMemoryShoeRepo } from '../repos/shoe-repo.memory';
+ import { createActivityWorkflowService } from '../services/activity-workflow-service';
++import { createPlanWorkflowService } from '../services/plan-workflow-service';
+ import { createStravaWorkflowService } from '../services/strava-workflow-service';
+ 
+ export interface RouterDeps {
+@@ -47,6 +48,11 @@ export function createAppRouter(deps: RouterDeps) {
+     niggleRepo,
+     shoeRepo,
+   });
++  const planWorkflow = createPlanWorkflowService({
++    profileRepo: deps.profileRepo,
++    planRepo: deps.planRepo,
++    activityRepo: deps.activityRepo,
++  });
+   const stravaWorkflow = createStravaWorkflowService({
+     profileRepo: deps.profileRepo,
+     planRepo: deps.planRepo,
+@@ -60,7 +66,7 @@ export function createAppRouter(deps: RouterDeps) {
+     profile: createProfileRouter(deps.profileRepo),
+     activity: createActivityRouter(activityWorkflow),
+     shoe: createShoeRouter(shoeRepo),
+-    plan: createPlanRouter(deps.planRepo, deps.profileRepo, deps.activityRepo),
++    plan: createPlanRouter(planWorkflow),
+     coach: createCoachRouter(deps),
+     crossTraining: createCrossTrainingRouter(deps.crossTrainingRepo, deps.planRepo),
+     strava: createStravaRouter(stravaWorkflow),
+diff --git a/packages/server/tests/plan-workflow-service.test.ts b/packages/server/tests/plan-workflow-service.test.ts
+new file mode 100644
+index 0000000..79bca78
+--- /dev/null
++++ b/packages/server/tests/plan-workflow-service.test.ts
+@@ -0,0 +1,358 @@
++import { beforeEach, describe, expect, it } from 'vitest';
++import { deriveTrainingPaceProfile, trainingPaceBandToIntensityTarget } from '@steady/types';
++import type { Activity, PlannedSession, TrainingPlan, User } from '@steady/types';
++import { InMemoryActivityRepo } from '../src/repos/activity-repo.memory';
++import { InMemoryPlanRepo } from '../src/repos/plan-repo.memory';
++import { InMemoryProfileRepo } from '../src/repos/profile-repo.memory';
++import {
++  createPlanWorkflowService,
++  PlanWorkflowError,
++  type PlanWorkflowService,
++} from '../src/services/plan-workflow-service';
++
++function makeUser(overrides: Partial<User> = {}): User {
++  return {
++    id: 'user-1',
++    email: 'user-1@steady.app',
++    createdAt: '2026-01-01T00:00:00Z',
++    appleHealthConnected: false,
++    subscriptionTier: 'free',
++    timezone: 'Europe/London',
++    units: 'metric',
++    weeklyVolumeMetric: 'distance',
++    ...overrides,
++  };
++}
++
++function makePlan(overrides: Partial<TrainingPlan> = {}): TrainingPlan {
++  return {
++    id: 'plan-1',
++    userId: 'user-1',
++    createdAt: '2026-01-01T00:00:00Z',
++    raceName: 'London Marathon',
++    raceDate: '2026-10-04',
++    raceDistance: 'Marathon',
++    targetTime: 'sub-3:30',
++    phases: { BASE: 1, BUILD: 0, RECOVERY: 0, PEAK: 0, TAPER: 0 },
++    progressionPct: 7,
++    progressionEveryWeeks: 2,
++    templateWeek: [null, null, null, null, null, null, null],
++    weeks: [
++      {
++        weekNumber: 1,
++        phase: 'BASE',
++        plannedKm: 8,
++        sessions: [
++          {
++            id: 'session-1',
++            type: 'EASY',
++            date: '2026-04-06',
++            distance: 8,
++            pace: '5:20',
++          },
++          null, null, null, null, null, null,
++        ],
++      },
++    ],
++    trainingPaceProfile: null,
++    activeInjury: null,
++    ...overrides,
++  };
++}
++
++function makeActivity(overrides: Partial<Activity> = {}): Activity {
++  return {
++    id: 'activity-1',
++    userId: 'user-1',
++    source: 'strava',
++    externalId: 'ext-activity-1',
++    startTime: '2099-01-08T07:00:00.000Z',
++    distance: 10,
++    duration: 3000,
++    avgPace: 300,
++    splits: [{ km: 1, pace: 300 }],
++    ...overrides,
++  };
++}
++
++describe('plan workflow service', () => {
++  let planRepo: InMemoryPlanRepo;
++  let profileRepo: InMemoryProfileRepo;
++  let activityRepo: InMemoryActivityRepo;
++  let workflow: PlanWorkflowService;
++
++  beforeEach(async () => {
++    planRepo = new InMemoryPlanRepo();
++    profileRepo = new InMemoryProfileRepo();
++    activityRepo = new InMemoryActivityRepo();
++    workflow = createPlanWorkflowService({
++      planRepo,
++      profileRepo,
++      activityRepo,
++      todayForTimezone: () => '2026-04-06',
++      createId: () => 'new-plan-id',
++      now: () => '2026-04-16T10:00:00.000Z',
++    });
++
++    await profileRepo.upsert(makeUser());
++  });
++
++  it('loads the active plan with repaired activity links and server annotations', async () => {
++    await planRepo.save(makePlan({
++      weeks: [
++        {
++          weekNumber: 1,
++          phase: 'BASE',
++          plannedKm: 8,
++          sessions: [
++            {
++              id: 'session-with-orphan',
++              type: 'EASY',
++              date: '2026-04-06',
++              distance: 8,
++              pace: '5:20',
++              actualActivityId: 'missing-activity',
++            },
++            null, null, null, null, null, null,
++          ],
++        },
++      ],
++    }));
++
++    const plan = await workflow.getActivePlan('user-1');
++
++    expect(plan?.weeks[0].sessions[0]).toMatchObject({
++      id: 'w1d0',
++      actualActivityId: undefined,
++    });
++    expect(plan?.todayAnnotation).toBe('First week — keep it controlled and let consistency set the tone.');
++    expect(plan?.coachAnnotation).toBeNull();
++
++    const persisted = await planRepo.getActive('user-1');
++    expect(persisted?.weeks[0].sessions[0]).toMatchObject({
++      id: 'w1d0',
++      actualActivityId: undefined,
++    });
++  });
++
++  it('saves through one workflow boundary while preserving active plan profile and injury state', async () => {
++    const profile = deriveTrainingPaceProfile({
++      raceDistance: 'Marathon',
++      targetTime: 'sub-3:15',
++    });
++    await planRepo.save(makePlan({
++      trainingPaceProfile: profile,
++      activeInjury: {
++        name: 'Calf strain',
++        markedDate: '2026-04-10',
++        rtrStep: 1,
++        rtrStepCompletedDates: ['2026-04-12'],
++        status: 'returning',
++      },
++    }));
++
++    const saved = await workflow.savePlan('user-1', {
++      raceName: 'Updated marathon',
++      raceDate: '2026-10-18',
++      raceDistance: 'Marathon',
++      targetTime: 'sub-3:15',
++      phases: { BASE: 1, BUILD: 0, RECOVERY: 0, PEAK: 0, TAPER: 0 },
++      progressionPct: 5,
++      templateWeek: [null, null, null, null, null, null, null],
++      weeks: [
++        {
++          weekNumber: 1,
++          phase: 'BASE',
++          plannedKm: 8,
++          sessions: [
++            {
++              id: 'temporary-id',
++              type: 'EASY',
++              date: '2026-04-06',
++              distance: 8,
++              intensityTarget: {
++                source: 'manual',
++                mode: 'pace',
++                paceRange: { min: '5:45', max: '5:15' },
++              },
++            },
++            null, null, null, null, null, null,
++          ],
++        },
++      ],
++    });
++
++    expect(saved).toMatchObject({
++      id: 'plan-1',
++      createdAt: '2026-01-01T00:00:00Z',
++      raceName: 'Updated marathon',
++      trainingPaceProfile: profile,
++      activeInjury: expect.objectContaining({ name: 'Calf strain' }),
++    });
++    expect(saved.weeks[0].sessions[0]).toMatchObject({
++      id: 'w1d0',
++      pace: '5:30',
++      intensityTarget: expect.objectContaining({
++        paceRange: { min: '5:15', max: '5:45' },
++      }),
++    });
++  });
++
++  it('rejects saves whose phase total does not match the submitted weeks', async () => {
++    await expect(workflow.savePlan('user-1', {
++      raceName: 'Bad plan',
++      raceDate: '2026-10-18',
++      raceDistance: 'Marathon',
++      targetTime: 'sub-3:15',
++      phases: { BASE: 2, BUILD: 0, RECOVERY: 0, PEAK: 0, TAPER: 0 },
++      progressionPct: 5,
++      templateWeek: [null, null, null, null, null, null, null],
++      weeks: makePlan().weeks,
++    })).rejects.toMatchObject({
++      code: 'BAD_REQUEST',
++      message: 'Phase sum (2) does not match week count (1)',
++    } satisfies Partial<PlanWorkflowError>);
++  });
++
++  it('updates active weeks with server-owned normalization', async () => {
++    await planRepo.save(makePlan());
++
++    const updated = await workflow.updateWeeks('user-1', [
++      {
++        weekNumber: 1,
++        phase: 'BASE',
++        plannedKm: 10,
++        sessions: [
++          {
++            id: 'client-id',
++            type: 'TEMPO',
++            date: '2026-04-06',
++            distance: 10,
++            pace: '4:20',
++            warmup: { unit: 'km', value: 2 },
++            cooldown: { unit: 'km', value: 1 },
++          },
++          null, null, null, null, null, null,
++        ],
++      },
++    ]);
++
++    expect(updated?.weeks[0].sessions[0]).toMatchObject({
++      id: 'w1d0',
++      warmup: { unit: 'km', value: 2 },
++      cooldown: { unit: 'km', value: 1 },
++    });
++  });
++
++  it('propagates training pace changes without rewriting matched, completed, manual, or legacy sessions', async () => {
++    const before = deriveTrainingPaceProfile({
++      raceDistance: 'Marathon',
++      targetTime: 'sub-3:15',
++    });
++    const after = {
++      ...before,
++      bands: {
++        ...before.bands,
++        threshold: {
++          ...before.bands.threshold,
++          paceRange: { min: '4:18', max: '4:28' },
++        },
++      },
++    };
++    const thresholdTarget = trainingPaceBandToIntensityTarget(before.bands.threshold);
++    const futureProfileLinked: PlannedSession = {
++      id: 'future-profile-linked',
++      type: 'TEMPO',
++      date: '2099-01-05',
++      distance: 10,
++      pace: '4:27',
++      intensityTarget: thresholdTarget,
++    };
++    const matchedProfileLinked: PlannedSession = {
++      ...futureProfileLinked,
++      id: 'matched-profile-linked',
++      date: '2099-01-06',
++    };
++    const completedProfileLinked: PlannedSession = {
++      ...futureProfileLinked,
++      id: 'completed-profile-linked',
++      date: '2099-01-07',
++      actualActivityId: 'activity-completed',
++    };
++    const manualSession: PlannedSession = {
++      ...futureProfileLinked,
++      id: 'manual-threshold',
++      date: '2099-01-08',
++      pace: '4:05',
++      intensityTarget: {
++        source: 'manual',
++        mode: 'pace',
++        profileKey: 'threshold',
++        pace: '4:05',
++      },
++    };
++    const legacySession: PlannedSession = {
++      id: 'legacy-threshold',
++      type: 'TEMPO',
++      date: '2099-01-09',
++      distance: 10,
++      pace: '4:22',
++    };
++    await activityRepo.save(makeActivity({
++      id: 'activity-matched',
++      matchedSessionId: 'w1d1',
++    }));
++    await planRepo.save(makePlan({
++      trainingPaceProfile: before,
++      weeks: [
++        {
++          weekNumber: 1,
++          phase: 'BASE',
++          plannedKm: 50,
++          sessions: [
++            futureProfileLinked,
++            matchedProfileLinked,
++            completedProfileLinked,
++            manualSession,
++            legacySession,
++            null,
++            null,
++          ],
++        },
++      ],
++    }));
++
++    await expect(workflow.updateTrainingPaceProfile('user-1', after)).resolves.toEqual(after);
++
++    const saved = await planRepo.getActive('user-1');
++    expect(saved?.weeks[0].sessions[0]).toMatchObject({
++      pace: '4:23',
++      intensityTarget: expect.objectContaining({
++        source: 'profile',
++        profileKey: 'threshold',
++        paceRange: { min: '4:18', max: '4:28' },
++      }),
++    });
++    expect(saved?.weeks[0].sessions[1]).toMatchObject({
++      pace: '4:27',
++      intensityTarget: thresholdTarget,
++    });
++    expect(saved?.weeks[0].sessions[2]).toMatchObject({
++      pace: '4:27',
++      intensityTarget: thresholdTarget,
++      actualActivityId: 'activity-completed',
++    });
++    expect(saved?.weeks[0].sessions[3]).toMatchObject({
++      pace: '4:05',
++      intensityTarget: expect.objectContaining({ source: 'manual' }),
++    });
++    expect(saved?.weeks[0].sessions[4]).toMatchObject({
++      pace: '4:22',
++      intensityTarget: {
++        source: 'manual',
++        mode: 'pace',
++        pace: '4:22',
++      },
++    });
++  });
++});

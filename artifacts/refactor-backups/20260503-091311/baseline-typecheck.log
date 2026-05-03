@@ -1,0 +1,12 @@
+
+> typecheck
+> npm run build:types && tsc --noEmit -p packages/server/tsconfig.json && tsc --noEmit -p packages/app/tsconfig.json
+
+
+> build:types
+> npm run build -w packages/types
+
+
+> @steady/types@0.0.1 build
+> tsc
+

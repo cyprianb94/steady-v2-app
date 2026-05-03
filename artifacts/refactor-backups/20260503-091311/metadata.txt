@@ -1,0 +1,6 @@
+timestamp: 20260503-091311
+initial_branch: main
+initial_head: 124d430aab32efff11ae477bc955e1358711a741
+safety_branch: codex/rollback-before-plan-run-refactor-20260503-091311
+work_branch: codex/plan-persistence-run-detail-refactor
+initial_status: clean before backup artifact creation

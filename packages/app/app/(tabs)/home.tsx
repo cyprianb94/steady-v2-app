@@ -21,6 +21,7 @@ import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { useAuth } from '../../lib/auth';
 import { trpc } from '../../lib/trpc';
+import { updatePlanWeeks } from '../../lib/plan-api';
 import { usePlan } from '../../hooks/usePlan';
 import { useStravaSync } from '../../hooks/useStravaSync';
 import { useTodayIso } from '../../hooks/useTodayIso';
@@ -269,14 +270,12 @@ export default function HomeScreen() {
 
     try {
       setResolveSessionBusy(true);
-      await trpc.plan.updateWeeks.mutate({
-        weeks: markSessionSkippedInWeeks({
-          weeks: plan.weeks,
-          sessionId: sessionToSkip.id,
-          reason,
-          markedAt: new Date().toISOString(),
-        }),
-      });
+      await updatePlanWeeks(markSessionSkippedInWeeks({
+        weeks: plan.weeks,
+        sessionId: sessionToSkip.id,
+        reason,
+        markedAt: new Date().toISOString(),
+      }));
       setResolvingSession(null);
       await refresh();
     } catch (error) {
@@ -294,12 +293,10 @@ export default function HomeScreen() {
 
     try {
       setResolveSessionBusy(true);
-      await trpc.plan.updateWeeks.mutate({
-        weeks: clearSessionSkippedInWeeks({
-          weeks: plan.weeks,
-          sessionId: sessionToClear.id,
-        }),
-      });
+      await updatePlanWeeks(clearSessionSkippedInWeeks({
+        weeks: plan.weeks,
+        sessionId: sessionToClear.id,
+      }));
       setResolvingSession(null);
       await refresh();
     } catch (error) {

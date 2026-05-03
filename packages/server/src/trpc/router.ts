@@ -23,6 +23,7 @@ import { InMemoryPlanRepo } from '../repos/plan-repo.memory';
 import { InMemoryProfileRepo } from '../repos/profile-repo.memory';
 import { InMemoryShoeRepo } from '../repos/shoe-repo.memory';
 import { createActivityWorkflowService } from '../services/activity-workflow-service';
+import { createPlanWorkflowService } from '../services/plan-workflow-service';
 import { createStravaWorkflowService } from '../services/strava-workflow-service';
 
 export interface RouterDeps {
@@ -47,6 +48,11 @@ export function createAppRouter(deps: RouterDeps) {
     niggleRepo,
     shoeRepo,
   });
+  const planWorkflow = createPlanWorkflowService({
+    profileRepo: deps.profileRepo,
+    planRepo: deps.planRepo,
+    activityRepo: deps.activityRepo,
+  });
   const stravaWorkflow = createStravaWorkflowService({
     profileRepo: deps.profileRepo,
     planRepo: deps.planRepo,
@@ -60,7 +66,7 @@ export function createAppRouter(deps: RouterDeps) {
     profile: createProfileRouter(deps.profileRepo),
     activity: createActivityRouter(activityWorkflow),
     shoe: createShoeRouter(shoeRepo),
-    plan: createPlanRouter(deps.planRepo, deps.profileRepo, deps.activityRepo),
+    plan: createPlanRouter(planWorkflow),
     coach: createCoachRouter(deps),
     crossTraining: createCrossTrainingRouter(deps.crossTrainingRepo, deps.planRepo),
     strava: createStravaRouter(stravaWorkflow),

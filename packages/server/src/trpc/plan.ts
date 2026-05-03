@@ -8,19 +8,9 @@ import {
   RUN_STRUCTURE_SEGMENT_KINDS,
   TRAINING_PACE_PROFILE_BAND_ORDER,
   TRAINING_PACE_PROFILE_KEYS,
-  generatePlan,
-  getDisplayWeekIndex,
-  normalizeTrainingPaceProfile,
-  propagateChange,
-  propagateTrainingPaceProfileUpdate,
 } from '@steady/types';
-import type { TrainingPlan, TrainingPlanWithAnnotation, PlanWeek, PhaseConfig, PlannedSession } from '@steady/types';
-import type { ActivityRepo } from '../repos/activity-repo';
-import type { PlanRepo } from '../repos/plan-repo';
-import type { ProfileRepo } from '../repos/profile-repo';
-import { generateHomeAnnotations } from '../lib/annotation-engine';
-import { currentIsoDateInTimezone } from '../lib/iso-date';
-import { repairOrphanedActivityLinks } from '../services/orphaned-activity-link-repair';
+import type { PhaseConfig, PlannedSession, PlanWeek } from '@steady/types';
+import { PlanWorkflowError, type PlanWorkflowService } from '../services/plan-workflow-service';
 
 const PhaseConfigSchema = z.object({
   BASE: z.number().min(0),
@@ -154,71 +144,30 @@ const PlanWeekSchema = z.object({
   })).optional(),
 });
 
-function addDays(date: string, days: number): string {
-  const value = new Date(`${date}T00:00:00.000Z`);
-  value.setUTCDate(value.getUTCDate() + days);
-  return value.toISOString().slice(0, 10);
-}
-
-function dayIndexForDate(date: string): number {
-  const day = new Date(`${date}T00:00:00.000Z`).getUTCDay();
-  return day === 0 ? 6 : day - 1;
-}
-
-function findSessionForDateOrWeekday(
-  sessions: (PlannedSession | null)[],
-  date: string,
-): PlannedSession | null {
-  return sessions[dayIndexForDate(date)] ?? null;
-}
-
-function withHomeAnnotations(plan: TrainingPlan | null, today: string): TrainingPlanWithAnnotation | null {
-  if (!plan) return null;
-
-  const currentWeek = plan.weeks[getDisplayWeekIndex(plan.weeks, today)];
-
-  if (!currentWeek) {
-    return {
-      ...plan,
-      todayAnnotation: 'Your plan is ready — build consistency one week at a time.',
-      coachAnnotation: null,
-    };
+async function runWorkflow<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (error instanceof PlanWorkflowError) {
+      throw new TRPCError({
+        code: error.code,
+        message: error.message,
+      });
+    }
+    throw error;
   }
-
-  const tomorrow = addDays(today, 1);
-  const todaySession = findSessionForDateOrWeekday(currentWeek.sessions, today);
-  const tomorrowSession = findSessionForDateOrWeekday(currentWeek.sessions, tomorrow);
-  const annotations = generateHomeAnnotations({
-    todaySession,
-    tomorrowSession,
-    phase: currentWeek.phase,
-    weekNumber: currentWeek.weekNumber,
-    totalWeeks: plan.weeks.length,
-    allSessions: currentWeek.sessions,
-  });
-
-  return {
-    ...plan,
-    ...annotations,
-  };
 }
 
-export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo, activityRepo: ActivityRepo) {
+export function createPlanRouter(planWorkflow: PlanWorkflowService) {
   return router({
     /** Get the user's active training plan. */
     get: authedProcedure.query(async ({ ctx }) => {
-      const [plan, profile] = await Promise.all([
-        repairOrphanedActivityLinks(ctx.userId, { planRepo, activityRepo }),
-        profileRepo.getById(ctx.userId),
-      ]);
-
-      return withHomeAnnotations(plan, currentIsoDateInTimezone(profile?.timezone ?? 'UTC'));
+      return planWorkflow.getActivePlan(ctx.userId);
     }),
 
     /** Read the stored training pace profile for the user's active plan. */
     getTrainingPaceProfile: authedProcedure.query(async ({ ctx }) => {
-      const plan = await planRepo.getActive(ctx.userId);
-      return plan?.trainingPaceProfile ?? null;
+      return planWorkflow.getTrainingPaceProfile(ctx.userId);
     }),
 
     /** Persist the training pace profile on the user's active plan. */
@@ -229,27 +178,7 @@ export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo, a
         }),
       )
       .mutation(async ({ ctx, input }) => {
-        const plan = await planRepo.getActive(ctx.userId);
-        if (!plan) return null;
-
-        const normalizedProfile = normalizeTrainingPaceProfile(input.trainingPaceProfile);
-        const [profile, activities] = await Promise.all([
-          profileRepo.getById(ctx.userId),
-          activityRepo.getByUserId(ctx.userId),
-        ]);
-        const propagatedPlan = propagateTrainingPaceProfileUpdate(plan, normalizedProfile, {
-          today: currentIsoDateInTimezone(profile?.timezone ?? 'UTC'),
-          completedSessionIds: activities
-            .map((activity) => activity.matchedSessionId)
-            .filter((sessionId): sessionId is string => Boolean(sessionId)),
-        });
-        const updated = await planRepo.updateTrainingPaceProfile(
-          plan.id,
-          propagatedPlan.trainingPaceProfile ?? null,
-          propagatedPlan.weeks,
-        );
-
-        return updated?.trainingPaceProfile ?? null;
+        return planWorkflow.updateTrainingPaceProfile(ctx.userId, input.trainingPaceProfile);
       }),
 
     /** Generate a plan server-side from a template. */
@@ -264,14 +193,13 @@ export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo, a
         }),
       )
       .mutation(({ input }) => {
-        const weeks = generatePlan(
-          input.template as (PlannedSession | null)[],
-          input.totalWeeks,
-          input.progressionPct,
-          input.phases as PhaseConfig | undefined,
-          input.progressionEveryWeeks,
-        );
-        return { weeks };
+        return planWorkflow.generatePlan({
+          template: input.template as (PlannedSession | null)[],
+          totalWeeks: input.totalWeeks,
+          progressionPct: input.progressionPct,
+          progressionEveryWeeks: input.progressionEveryWeeks,
+          phases: input.phases as PhaseConfig | undefined,
+        });
       }),
 
     /** Save or update a training plan with validation. */
@@ -291,50 +219,18 @@ export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo, a
         }),
       )
       .mutation(async ({ ctx, input }) => {
-        const weeks = input.weeks as PlanWeek[];
-
-        // Validate: phases sum must equal total weeks
-        const phases = input.phases as PhaseConfig;
-        const phaseSum = phases.BASE + phases.BUILD + phases.RECOVERY + phases.PEAK + phases.TAPER;
-        if (weeks.length > 0 && phaseSum !== weeks.length) {
-          throw new TRPCError({
-            code: 'BAD_REQUEST',
-            message: `Phase sum (${phaseSum}) does not match week count (${weeks.length})`,
-          });
-        }
-
-        // Validate: each week must have 7 sessions
-        for (const w of weeks) {
-          if (!w.sessions || w.sessions.length !== 7) {
-            throw new TRPCError({
-              code: 'BAD_REQUEST',
-              message: `Week ${w.weekNumber} must have exactly 7 session slots`,
-            });
-          }
-        }
-
-        const existing = await planRepo.getActive(ctx.userId);
-
-        const plan: TrainingPlan = {
-          id: existing?.id ?? crypto.randomUUID(),
-          userId: ctx.userId,
-          createdAt: existing?.createdAt ?? new Date().toISOString(),
+        return runWorkflow(() => planWorkflow.savePlan(ctx.userId, {
           raceName: input.raceName,
           raceDate: input.raceDate,
-          raceDistance: input.raceDistance as TrainingPlan['raceDistance'],
+          raceDistance: input.raceDistance,
           targetTime: input.targetTime,
-          phases,
+          phases: input.phases,
           progressionPct: input.progressionPct,
-          progressionEveryWeeks: input.progressionEveryWeeks ?? 2,
+          progressionEveryWeeks: input.progressionEveryWeeks,
+          trainingPaceProfile: input.trainingPaceProfile,
           templateWeek: input.templateWeek as (PlannedSession | null)[],
-          weeks,
-          trainingPaceProfile: input.trainingPaceProfile === undefined
-            ? existing?.trainingPaceProfile ?? null
-            : normalizeTrainingPaceProfile(input.trainingPaceProfile),
-          activeInjury: existing?.activeInjury ?? null,
-        };
-
-        return planRepo.save(plan);
+          weeks: input.weeks as PlanWeek[],
+        }));
       }),
 
     /** Apply a session edit and propagate across the plan. */
@@ -349,22 +245,13 @@ export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo, a
         }),
       )
       .mutation(async ({ ctx, input }) => {
-        const plan = await planRepo.getActive(ctx.userId);
-        if (!plan) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'No plan found' });
-        }
-
-        const newWeeks = propagateChange(
-          plan.weeks,
-          input.weekIndex,
-          input.dayIndex,
-          input.updated as PlannedSession | null,
-          input.scope,
-          plan.templateWeek,
-          input.targetPhase,
-        );
-
-        return planRepo.updateWeeks(plan.id, newWeeks);
+        return runWorkflow(() => planWorkflow.propagatePlanChange(ctx.userId, {
+          weekIndex: input.weekIndex,
+          dayIndex: input.dayIndex,
+          updated: input.updated as PlannedSession | null,
+          scope: input.scope,
+          targetPhase: input.targetPhase,
+        }));
       }),
 
     /** Update a single week's sessions (used by propagateChange on client). */
@@ -375,9 +262,7 @@ export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo, a
         }),
       )
       .mutation(async ({ ctx, input }) => {
-        const plan = await planRepo.getActive(ctx.userId);
-        if (!plan) return null;
-        return planRepo.updateWeeks(plan.id, input.weeks as PlanWeek[]);
+        return runWorkflow(() => planWorkflow.updateWeeks(ctx.userId, input.weeks as PlanWeek[]));
       }),
 
     markInjury: authedProcedure
@@ -387,30 +272,18 @@ export function createPlanRouter(planRepo: PlanRepo, profileRepo: ProfileRepo, a
         }),
       )
       .mutation(async ({ ctx, input }) => {
-        const plan = await planRepo.getActive(ctx.userId);
-        if (!plan) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'No plan found' });
-        }
-        return planRepo.markInjury(plan.id, input.name);
+        return runWorkflow(() => planWorkflow.markInjury(ctx.userId, input.name));
       }),
 
     updateInjury: authedProcedure
       .input(InjuryUpdateSchema)
       .mutation(async ({ ctx, input }) => {
-        const plan = await planRepo.getActive(ctx.userId);
-        if (!plan) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'No plan found' });
-        }
-        return planRepo.updateInjury(plan.id, input);
+        return runWorkflow(() => planWorkflow.updateInjury(ctx.userId, input));
       }),
 
     clearInjury: authedProcedure
       .mutation(async ({ ctx }) => {
-        const plan = await planRepo.getActive(ctx.userId);
-        if (!plan) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'No plan found' });
-        }
-        return planRepo.clearInjury(plan.id);
+        return runWorkflow(() => planWorkflow.clearInjury(ctx.userId));
       }),
   });
 }

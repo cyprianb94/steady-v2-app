@@ -15,9 +15,10 @@ Use this file when a feature touches an area that historically attracted debt.
 - `packages/app/app/onboarding/plan-builder/step-goal.tsx` — `562` lines. Plan-builder rules should land in shared plan-builder modules or shared domain helpers, not in the screen.
 - `packages/app/app/onboarding/plan-builder/step-plan.tsx` — `622` lines. Keep generated-plan editing rules out of the onboarding screen shell.
 - `packages/app/app/onboarding/plan-builder/step-template.tsx` — `949` lines. Template-week logic should prefer shared plan-builder modules over screen-local logic.
-- `packages/app/app/(tabs)/home.tsx` — `418` lines. Home should stay a composition surface, not a new business-logic sink.
+- `packages/app/app/(tabs)/home.tsx` — `609` lines. Home should stay a composition surface, not a new business-logic sink; skipped-session plan writes should go through `packages/app/lib/plan-api.ts` and the server plan workflow.
 - `packages/server/src/services/strava-workflow-service.ts` — `525` lines. High-impact workflow boundary. Keep new behavior cohesive and avoid leaking orchestration back into routers or screens.
-- `packages/server/src/trpc/plan.ts` — `283` lines. Plan validation and annotation logic are starting to concentrate here. Keep workflow logic out of the router.
+- `packages/server/src/trpc/plan.ts` — `289` lines. Thin plan router: keep it to auth, Zod validation, workflow delegation, and transport error mapping.
+- `packages/server/src/services/plan-workflow-service.ts` — `315` lines. Source of truth for active-plan load/save/week/profile/injury orchestration. Keep app-side Supabase writes and router-side workflow logic from reappearing.
 - `packages/server/src/services/activity-workflow-service.ts` — `274` lines. Shared activity save/list workflow now carries niggle enrichment plus match/shoe persistence. Keep UI-specific shaping out of this service.
 
 ## Preferred landing zones
@@ -64,6 +65,17 @@ Start by looking in:
 - `packages/app/features/*` if shared client-side onboarding orchestration emerges across steps
 
 Do not let onboarding screens become the only place where plan rules live.
+
+### Plan persistence work
+
+Start by looking in:
+
+- `packages/app/lib/plan-api.ts` for the thin app transport/demo wrapper. Real app plan calls should go through tRPC in dev and release; do not reintroduce direct app-side Supabase plan writes.
+- `packages/server/src/services/plan-workflow-service.ts` for active-plan loading, saving, week replacement, training pace profile propagation, injury plan state, orphaned activity-link repair, and Home annotation ownership.
+- `packages/server/src/trpc/plan.ts` for input schemas and delegation only.
+- `packages/server/src/repos/plan-repo*` for persistence mapping only.
+
+Keep annotation behavior server-owned outside screenshot demo mode, and keep `updateWeeks` as a migration bridge rather than a preferred new screen API.
 
 ### Block review and live Block work
 
