@@ -1,0 +1,4 @@
+timestamp=20260502-234134
+safety_branch=codex/refactor-safety-20260502-234134
+work_branch=codex/structured-session-block-refactor-20260502-234134
+backup_dir=artifacts/refactor-backups/20260502-234134

@@ -1,0 +1,1139 @@
+diff --git a/.codex/skills/review-block/SKILL.md b/.codex/skills/review-block/SKILL.md
+index 240afc1..e53da05 100644
+--- a/.codex/skills/review-block/SKILL.md
++++ b/.codex/skills/review-block/SKILL.md
+@@ -11,6 +11,9 @@ Use this skill whenever the app needs the settled "Review your block" experience
+ 
+ Code:
+ - `packages/app/components/block-review/BlockReviewSurface.tsx`
++- `packages/app/features/block-review/review-volume-chart-model.ts`
++- `packages/app/features/block-review/block-reschedule-controller.ts`
++- `packages/app/features/block-review/live-block-review-model.ts`
+ - `packages/types/src/lib/block-review.ts`
+ - `packages/app/components/block/BlockWeekList.tsx`
+ - `packages/app/components/block/AnimatedWeekExpansion.tsx`
+@@ -19,6 +22,9 @@ Code:
+ 
+ Core APIs:
+ - Build data with `buildBlockReviewModel({ weeks, phases, progressionPct, progressionEveryWeeks, currentWeekIndex })`.
++- Adapt live plans with `deriveLiveBlockReviewModel`; do not rederive BlockReviewModel fields in live screens.
++- Build chart geometry with `buildReviewVolumeChartModel`; keep SVG/path/tick math out of `BlockReviewSurface`.
++- Apply live Block reschedule drafts with `applyBlockRescheduleDraft`; it wraps `propagateSwap` plus resolved completed-session preservation.
+ - Render the review with `BlockReviewSurface`.
+ - Use `BlockWeekList` for the Weeks tab; it owns the Block-style week row visuals, expanded day rows, drag affordances, and collapse animation.
+ - Use `PropagateModal` after session edits or day-order changes that need scope selection.
+@@ -30,6 +36,7 @@ Hard rules:
+ - Do not show the old helper label `Edit sessions - any change will ask where to apply`.
+ - Do not add divider lines between expanded day rows.
+ - Do not silently apply drag rearranges; open `PropagateModal` so the user chooses scope.
++- Do not read `PlanWeek.plannedKm` as the Block review source of truth. Use `weekKmBreakdown` through the shared model so structured and estimated sessions stay correct.
+ 
+ ## Screen Shell
+ 
+@@ -101,7 +108,7 @@ Chart constants:
+ - Scrub hit band: `CHART_TOP - 16` through `CHART_BOTTOM + 30`
+ 
+ Line rendering:
+-- Build `pathD` through `buildReviewVolumeChartModel`.
++- Build `pathD` through `buildReviewVolumeChartModel` in `packages/app/features/block-review/review-volume-chart-model.ts`.
+ - Draw one continuous `react-native-svg` `Path` with cubic `C` commands.
+ - Use `strokeLinecap="round"` and `strokeLinejoin="round"`.
+ - Use an SVG `LinearGradient` with sharp phase stops for phase colour changes.
+@@ -252,7 +259,8 @@ Reschedule scope:
+ - In Plan Builder, `onMoveSession` stages a pending rearrange.
+ - Show `PropagateModal` with title `Where should this reschedule apply?`, body explaining local vs matching plan scope, and apply label `Apply reschedule`.
+ - Scope labels: `Just this week`, `This week + following weeks`, `{Phase} weeks only`.
+-- On apply, commit with `propagateSwap(plan, weekIndex, from, to, scope, sourceWeek.phase)`.
++- In Plan Builder, commit with `propagateSwap(plan, weekIndex, from, to, scope, sourceWeek.phase)`.
++- In live Block, commit with `applyBlockRescheduleDraft` so completed or matched rows are preserved even before `actualActivityId` has refreshed.
+ - On close/cancel, bump `rescheduleResetKey` so the local drag draft resets.
+ 
+ ## Model Contract
+@@ -274,15 +282,18 @@ Use `formatDistance` from preferences when rendering. Use race date to infer wee
+ ## Verification
+ 
+ Required focused tests when changing this surface:
+-- `npm run test -w packages/app -- block-review-surface.test.tsx block-week-list.test.tsx step-plan.test.tsx`
++- `npm run test -w packages/app -- review-volume-chart-model.test.ts block-reschedule-controller.test.ts live-block-review-model.test.ts block-review-surface.test.tsx block-week-list.test.tsx step-plan.test.tsx`
++- `npm run test -w packages/types -- block-review.test.ts`
+ - `npm run typecheck`
+ - `git diff --check`
+ 
+ Test expectations:
+ - Structure tab renders chart, stats, phase strip, progression, phase summary.
+ - Chart uses one SVG path, not segmented views.
++- Chart model tests cover fixed-width points, tick values, gradient stops, empty models, and single-week models without relying on fragile UI assertions.
+ - Scrubbing shows tooltip, haptics fire on selected-week changes, and parent scroll locks.
+ - Tabs remain controlled and touch-friendly.
+ - Weeks tab renders `BlockWeekList`, expands/collapses with animation, and no helper/divider rows.
+ - Day rows open the shared full-screen session editor.
+ - Dragging run or rest rows locks scroll, stages a reschedule, opens `PropagateModal`, and applies via `propagateSwap`.
++- Live Block reschedule tests cover this-week, remaining, phase-only, and completed/matched-session preservation.
+diff --git a/.codex/skills/screens/SKILL.md b/.codex/skills/screens/SKILL.md
+index 90c26e3..5e0bf11 100644
+--- a/.codex/skills/screens/SKILL.md
++++ b/.codex/skills/screens/SKILL.md
+@@ -193,6 +193,12 @@ Launch
+ - Injury weeks show cross-training instead of running sessions
+ - Tapping a week expands inline (same UX as Step 3 of plan builder)
+ 
++**Implementation boundaries**
++- Keep `packages/app/app/(tabs)/block.tsx` as a screen shell for auth/loading, scroll, and rendering composition.
++- Derive shared review data via `packages/app/features/block-review/live-block-review-model.ts` and `packages/types/src/lib/block-review.ts`.
++- Keep chart geometry in `packages/app/features/block-review/review-volume-chart-model.ts`.
++- Keep live reschedule application in `packages/app/features/block-review/block-reschedule-controller.ts`; completed or matched sessions must remain locked through `block-week-resolution`.
++
+ ---
+ 
+ ## Screen: Steady AI Conversation
+diff --git a/.codex/skills/steady-feature-guardrails/references/hotspots.md b/.codex/skills/steady-feature-guardrails/references/hotspots.md
+index bc13a62..43dc240 100644
+--- a/.codex/skills/steady-feature-guardrails/references/hotspots.md
++++ b/.codex/skills/steady-feature-guardrails/references/hotspots.md
+@@ -4,9 +4,12 @@ Use this file when a feature touches an area that historically attracted debt.
+ 
+ ## Current hotspot files
+ 
+-- `packages/app/app/(tabs)/block.tsx` — `1757` lines. Highest-risk controller screen. Avoid adding more orchestration here; direct-reschedule state now belongs in `packages/app/features/plan-builder/use-direct-week-reschedule.ts`.
++- `packages/app/app/(tabs)/block.tsx` — `1748` lines. Highest-risk controller screen. Avoid adding more orchestration here; direct-reschedule state belongs in `packages/app/features/plan-builder/use-direct-week-reschedule.ts`, and live Block reschedule application belongs in `packages/app/features/block-review/block-reschedule-controller.ts`.
++- `packages/app/components/block-review/BlockReviewSurface.tsx` — `1714` lines. Large review presentation surface. Keep chart geometry in `packages/app/features/block-review/review-volume-chart-model.ts`; keep this component focused on responder state and rendering.
++- `packages/app/components/block/BlockWeekList.tsx` — `722` lines. Shared review-week list and drag presentation. Keep day-order draft logic in `use-direct-week-reschedule.ts`; do not fork week-row behavior into onboarding and live Block copies.
+ - `packages/app/components/plan-builder/RunStructureEditor.tsx` — `1772` lines. Large presentation surface for structured session editing. Structured template/materialization/volume-sync rules now belong in `packages/app/features/plan-builder/structured-session-editor-engine.ts`; keep this component focused on rendering, transient form state, and dispatching engine actions.
+ - `packages/app/components/plan-builder/SessionEditor.tsx` — `1801` lines. Large simple-session editor. Keep simple field rendering and transient UI state here; shared target/profile and materialization behavior should stay in `packages/app/features/plan-builder/session-editing.ts` or the structured editor engine.
++- `packages/types/src/lib/block-review.ts` — `433` lines. Shared block-review source of truth. Planned volume must come from `weekKmBreakdown`, including exact/estimated semantics, not persisted `PlanWeek.plannedKm`.
+ - `packages/app/app/sync-run/[activityId].tsx` — `1080` lines. Manual run resolution still mixes fetch, staged form state, and save orchestration even after the modal extraction. Keep pushing picker UIs and pure selection rules into sync feature modules/components.
+ - `packages/app/app/(tabs)/settings.tsx` — `721` lines. Settings, auth, Strava actions, and recovery actions are easy to sprawl here.
+ - `packages/app/app/onboarding/plan-builder/step-goal.tsx` — `562` lines. Plan-builder rules should land in shared plan-builder modules or shared domain helpers, not in the screen.
+@@ -62,6 +65,20 @@ Start by looking in:
+ 
+ Do not let onboarding screens become the only place where plan rules live.
+ 
++### Block review and live Block work
++
++Start by looking in:
++
++- `packages/types/src/lib/block-review.ts` for shared review model derivation, plannedKm/source-of-truth semantics, phase grouping, and volume stats
++- `packages/app/features/block-review/live-block-review-model.ts` for adapting a persisted live plan to the shared model
++- `packages/app/features/block-review/review-volume-chart-model.ts` for chart geometry, ticks, paths, markers, scrub selection, and gradient stops
++- `packages/app/features/block-review/block-reschedule-controller.ts` for applying live Block reschedule drafts with completed/matched session preservation
++- `packages/app/features/run/block-week-resolution.ts` for actual/completed overlays and resolved locked-week behavior
++- `packages/app/features/plan-builder/use-direct-week-reschedule.ts` for drag draft state
++- `packages/app/components/block-review/*` and `packages/app/components/block/*` for rendering
++
++Do not add chart math, plannedKm derivation, or reschedule propagation directly to `block.tsx` or `BlockReviewSurface.tsx`.
++
+ ### Activity and sync work
+ 
+ Start by looking in:
+diff --git a/.codex/skills/tests/SKILL.md b/.codex/skills/tests/SKILL.md
+index ac93158..5a7276e 100644
+--- a/.codex/skills/tests/SKILL.md
++++ b/.codex/skills/tests/SKILL.md
+@@ -29,6 +29,8 @@ Characteristics:
+ 
+ Steady-specific preference: put canonical structured-session and volume behavior in `packages/types/tests` when it is package-level math (`sessionKm`, `weekKmBreakdown`, exact vs estimated distance). Use app tests for the app feature boundary, such as `structured-session-editor-engine`, not for re-proving every React control detail.
+ 
++For Block review, test source-of-truth volume semantics in `packages/types/tests/block-review.test.ts`, especially stale persisted `PlanWeek.plannedKm` versus session-derived exact/estimated km. Test app-only boundaries in focused files such as `review-volume-chart-model.test.ts`, `block-reschedule-controller.test.ts`, and `live-block-review-model.test.ts`; keep React tests for meaningful rendered behavior and interaction only.
++
+ ## Bad Tests
+ 
+ **Implementation-detail tests**: Coupled to internal structure.
+diff --git a/packages/app/app/(tabs)/block.tsx b/packages/app/app/(tabs)/block.tsx
+index ef79d9d..751db5e 100644
+--- a/packages/app/app/(tabs)/block.tsx
++++ b/packages/app/app/(tabs)/block.tsx
+@@ -37,6 +37,7 @@ import {
+ } from '../../features/plan-builder/session-editing';
+ import { consumeSessionEditReturn } from '../../features/plan-builder/session-edit-return';
+ import { useDirectWeekReschedule } from '../../features/plan-builder/use-direct-week-reschedule';
++import { applyBlockRescheduleDraft } from '../../features/block-review/block-reschedule-controller';
+ import { deriveLiveBlockReviewModel } from '../../features/block-review/live-block-review-model';
+ import { formatSessionRowText } from '../../lib/session-row-text';
+ import { useAuth } from '../../lib/auth';
+@@ -49,7 +50,6 @@ import { formatDistance } from '../../lib/units';
+ import {
+   buildResolvedBlockWeekDayDetails,
+   getResolvedWeekVolumeSummary,
+-  preserveResolvedLockedWeeks,
+   restoreResolvedSwapDraft,
+ } from '../../features/run/block-week-resolution';
+ import {
+@@ -69,7 +69,6 @@ import {
+   getInjuryWeekRange,
+   getWeekVolumeRatio,
+   isInjuryWeek,
+-  propagateSwap,
+   propagateChange,
+   weekKmBreakdown,
+   type BlockPhaseSegment,
+@@ -717,22 +716,14 @@ export default function BlockTab() {
+ 
+   async function applyPendingRearrange(scope: PropagateScope) {
+     if (!plan || rescheduleWeekIndex == null || reschedule.swapLog.length === 0) return;
+-    const sourceWeek = plan.weeks[rescheduleWeekIndex];
+-    if (!sourceWeek) return;
+-
+-    const nextWeeks = reschedule.swapLog.reduce((weeks, swap) => {
+-      const propagated = propagateSwap(
+-        weeks,
+-        rescheduleWeekIndex,
+-        swap.from,
+-        swap.to,
+-        scope,
+-        sourceWeek.phase,
+-      );
+-
+-      return preserveResolvedLockedWeeks(weeks, propagated, swap, activityResolution);
+-    }, plan.weeks);
+ 
++    const nextWeeks = applyBlockRescheduleDraft({
++      weeks: plan.weeks,
++      weekIndex: rescheduleWeekIndex,
++      swapLog: reschedule.swapLog,
++      scope,
++      resolution: activityResolution,
++    });
+ 
+     try {
+       setIsSavingRearrange(true);
+diff --git a/packages/app/components/block-review/BlockReviewSurface.tsx b/packages/app/components/block-review/BlockReviewSurface.tsx
+index fc71e81..f430dfd 100644
+--- a/packages/app/components/block-review/BlockReviewSurface.tsx
++++ b/packages/app/components/block-review/BlockReviewSurface.tsx
+@@ -26,6 +26,28 @@ import { PHASE_COLOR } from '../../constants/phase-meta';
+ import { FONTS } from '../../constants/typography';
+ import { useReducedMotion } from '../../hooks/useReducedMotion';
+ import { triggerSelectionChangeHaptic } from '../../lib/haptics';
++import {
++  CHART_BOTTOM,
++  CHART_CURRENT_GUIDE_DOT_SIZE,
++  CHART_CURRENT_GUIDE_DOT_SPACING,
++  CHART_CURRENT_GUIDE_EDGE_INSET,
++  CHART_CURRENT_GUIDE_POINT_GAP,
++  CHART_HEIGHT,
++  CHART_LINE_WIDTH,
++  CHART_PHASE_MARKER_SIZE,
++  CHART_SCRUB_BOTTOM,
++  CHART_SCRUB_TOP,
++  CHART_SELECTED_MARKER_SIZE,
++  CHART_TOOLTIP_WIDTH,
++  CHART_TOP,
++  CHART_WIDTH_FALLBACK,
++  CHART_X_AXIS_LABEL_WIDTH,
++  CHART_Y_AXIS_WIDTH,
++  buildReviewVolumeChartModel,
++  clampNumber,
++  formatAxisTickLabel,
++  weekIndexFromX,
++} from '../../features/block-review/review-volume-chart-model';
+ import { BlockWeekList } from '../block/BlockWeekList';
+ 
+ const TAB_ITEMS: { key: BlockReviewTab; label: string }[] = [
+@@ -33,23 +55,6 @@ const TAB_ITEMS: { key: BlockReviewTab; label: string }[] = [
+   { key: 'weeks', label: 'Weeks' },
+ ];
+ 
+-const CHART_HEIGHT = 150;
+-const CHART_WIDTH_FALLBACK = 300;
+-const CHART_Y_AXIS_WIDTH = 24;
+-const CHART_TOP = 22;
+-const CHART_BOTTOM = 122;
+-const CHART_LINE_WIDTH = 2.8;
+-const CHART_CURVE_SMOOTHING = 0.18;
+-const CHART_PHASE_MARKER_SIZE = 8;
+-const CHART_SELECTED_MARKER_SIZE = 12;
+-const CHART_X_AXIS_LABEL_WIDTH = 40;
+-const CHART_TOOLTIP_WIDTH = 132;
+-const CHART_CURRENT_GUIDE_POINT_GAP = 9;
+-const CHART_CURRENT_GUIDE_EDGE_INSET = 7;
+-const CHART_CURRENT_GUIDE_DOT_SIZE = 2;
+-const CHART_CURRENT_GUIDE_DOT_SPACING = 4;
+-const CHART_SCRUB_TOP = CHART_TOP - 16;
+-const CHART_SCRUB_BOTTOM = CHART_BOTTOM + 30;
+ const TAB_PRESS_EXPANSION = typeof document !== 'undefined'
+   ? {}
+   : {
+@@ -129,10 +134,6 @@ function formatWeekDistance(week: BlockReviewWeekModel, formatDistance: FormatDi
+   return formatEstimatedDistance(week.plannedKm, week.hasEstimatedDistance, formatDistance);
+ }
+ 
+-function clampNumber(value: number, min: number, max: number): number {
+-  return Math.min(max, Math.max(min, value));
+-}
+-
+ function sanitizeWholeNumber(value: string, maxLength = 2): string {
+   return value.replace(/\D/g, '').slice(0, maxLength);
+ }
+@@ -166,194 +167,6 @@ function phaseStripLabel(phase: PhaseName, weekCount: number, totalWeeks: number
+   return phase.length > maxFullLabelChars ? COMPACT_PHASE_LABEL[phase] : phase;
+ }
+ 
+-interface ChartPoint {
+-  weekIndex: number;
+-  weekNumber: number;
+-  phase: PhaseName;
+-  km: number;
+-  x: number;
+-  y: number;
+-}
+-
+-interface ChartTick {
+-  value: number;
+-  y: number;
+-}
+-
+-interface ChartPhaseMarker {
+-  weekIndex: number;
+-  weekNumber: number;
+-  phase: PhaseName;
+-  x: number;
+-  y: number;
+-}
+-
+-interface ChartGradientStop {
+-  key: string;
+-  offset: string;
+-  color: string;
+-}
+-
+-interface ReviewVolumeChartModel {
+-  points: ChartPoint[];
+-  pathD: string;
+-  gradientStops: ChartGradientStop[];
+-  phaseMarkers: ChartPhaseMarker[];
+-  ticks: ChartTick[];
+-  axisMax: number;
+-}
+-
+-function niceCeil(rawValue: number): number {
+-  const value = Math.max(rawValue, 1);
+-  const magnitude = 10 ** Math.floor(Math.log10(value));
+-  const normalized = value / magnitude;
+-  const steps = [1, 1.5, 2, 3, 5, 10];
+-  const step = steps.find((candidate) => normalized <= candidate) ?? 10;
+-
+-  return step * magnitude;
+-}
+-
+-function axisTicks(axisMax: number): number[] {
+-  const step = niceCeil(axisMax / 3);
+-  const ticks: number[] = [];
+-
+-  for (let tick = axisMax; tick > 0; tick -= step) {
+-    ticks.push(Math.max(0, tick));
+-  }
+-
+-  return [...ticks, 0];
+-}
+-
+-function formatSvgNumber(value: number): string {
+-  return Number.isInteger(value) ? String(value) : value.toFixed(2);
+-}
+-
+-function formatAxisTickLabel(value: number): string {
+-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+-}
+-
+-function buildContinuousPath(points: ChartPoint[]): string {
+-  if (points.length === 0) {
+-    return '';
+-  }
+-
+-  if (points.length === 1) {
+-    return `M ${formatSvgNumber(points[0].x)} ${formatSvgNumber(points[0].y)}`;
+-  }
+-
+-  const commands = [`M ${formatSvgNumber(points[0].x)} ${formatSvgNumber(points[0].y)}`];
+-
+-  for (let index = 0; index < points.length - 1; index += 1) {
+-    const previous = points[index - 1] ?? points[index];
+-    const point = points[index];
+-    const next = points[index + 1];
+-    const afterNext = points[index + 2] ?? next;
+-    const control1 = {
+-      x: point.x + ((next.x - previous.x) * CHART_CURVE_SMOOTHING),
+-      y: point.y + ((next.y - previous.y) * CHART_CURVE_SMOOTHING),
+-    };
+-    const control2 = {
+-      x: next.x - ((afterNext.x - point.x) * CHART_CURVE_SMOOTHING),
+-      y: next.y - ((afterNext.y - point.y) * CHART_CURVE_SMOOTHING),
+-    };
+-
+-    commands.push([
+-      'C',
+-      formatSvgNumber(control1.x),
+-      formatSvgNumber(control1.y),
+-      formatSvgNumber(control2.x),
+-      formatSvgNumber(control2.y),
+-      formatSvgNumber(next.x),
+-      formatSvgNumber(next.y),
+-    ].join(' '));
+-  }
+-
+-  return commands.join(' ');
+-}
+-
+-function gradientOffset(x: number, chartWidth: number): string {
+-  return `${(clampNumber(x / Math.max(chartWidth, 1), 0, 1) * 100).toFixed(2)}%`;
+-}
+-
+-function buildGradientStops(
+-  model: BlockReviewModel,
+-  points: ChartPoint[],
+-  chartWidth: number,
+-): ChartGradientStop[] {
+-  if (points.length === 0) {
+-    return [];
+-  }
+-
+-  return model.phaseSegments.flatMap((segment, index) => {
+-    const startPoint = points.find((point) => point.weekNumber === segment.startWeekNumber) ?? points[0];
+-    const nextSegment = model.phaseSegments[index + 1];
+-    const endPoint = nextSegment
+-      ? points.find((point) => point.weekNumber === nextSegment.startWeekNumber) ?? points[points.length - 1]
+-      : points[points.length - 1];
+-    const color = PHASE_COLOR[segment.phase];
+-
+-    return [
+-      {
+-        key: `${segment.phase}-${segment.startWeekNumber}-start`,
+-        offset: gradientOffset(startPoint.x, chartWidth),
+-        color,
+-      },
+-      {
+-        key: `${segment.phase}-${segment.startWeekNumber}-end`,
+-        offset: gradientOffset(endPoint.x, chartWidth),
+-        color,
+-      },
+-    ];
+-  });
+-}
+-
+-export function buildReviewVolumeChartModel(
+-  model: BlockReviewModel,
+-  chartWidth = CHART_WIDTH_FALLBACK,
+-): ReviewVolumeChartModel {
+-  const width = Math.max(chartWidth, 1);
+-  const weeks = model.weeks;
+-
+-  if (weeks.length === 0) {
+-    return { points: [], pathD: '', gradientStops: [], phaseMarkers: [], ticks: [], axisMax: 1 };
+-  }
+-
+-  const axisMax = niceCeil(model.volume.stats.maxKm * 1.12);
+-  const ySpan = CHART_BOTTOM - CHART_TOP;
+-  const denominator = Math.max(weeks.length - 1, 1);
+-  const points = weeks.map<ChartPoint>((week, weekIndex) => ({
+-    weekIndex,
+-    weekNumber: week.weekNumber,
+-    phase: week.phase,
+-    km: week.plannedKm,
+-    x: (width * weekIndex) / denominator,
+-    y: CHART_BOTTOM - (clampNumber(week.plannedKm / axisMax, 0, 1) * ySpan),
+-  }));
+-
+-  const phaseMarkers = model.phaseSegments
+-    .map((segment) => points.find((point) => point.weekNumber === segment.startWeekNumber))
+-    .filter((point): point is ChartPoint => Boolean(point))
+-    .map((point) => ({
+-      weekIndex: point.weekIndex,
+-      weekNumber: point.weekNumber,
+-      phase: point.phase,
+-      x: point.x,
+-      y: point.y,
+-    }));
+-
+-  return {
+-    points,
+-    pathD: buildContinuousPath(points),
+-    gradientStops: buildGradientStops(model, points, width),
+-    phaseMarkers,
+-    ticks: axisTicks(axisMax).map((value) => ({
+-      value,
+-      y: CHART_BOTTOM - (clampNumber(value / axisMax, 0, 1) * ySpan),
+-    })),
+-    axisMax,
+-  };
+-}
+-
+ function eventLocation(event: GestureResponderEvent, axis: 'X' | 'Y'): number {
+   const native = event.nativeEvent as GestureResponderEvent['nativeEvent'] & {
+     clientX?: number;
+@@ -368,15 +181,6 @@ function eventLocation(event: GestureResponderEvent, axis: 'X' | 'Y'): number {
+   return location ?? offset ?? client ?? 0;
+ }
+ 
+-function weekIndexFromX(x: number, chartWidth: number, totalWeeks: number): number {
+-  if (totalWeeks <= 1) {
+-    return 0;
+-  }
+-
+-  const ratio = clampNumber(x, 0, chartWidth) / Math.max(chartWidth, 1);
+-  return clampNumber(Math.round(ratio * (totalWeeks - 1)), 0, totalWeeks - 1);
+-}
+-
+ function currentGuideDotIndexes(height: number): number[] {
+   if (height <= 0) {
+     return [];
+diff --git a/packages/app/components/block-review/index.ts b/packages/app/components/block-review/index.ts
+index c89c15b..4e56e1b 100644
+--- a/packages/app/components/block-review/index.ts
++++ b/packages/app/components/block-review/index.ts
+@@ -5,9 +5,9 @@ export {
+   BlockReviewSurface,
+   BlockReviewTabControl,
+   BlockVolumeChart,
+-  buildReviewVolumeChartModel,
+   formatReviewWeekDateRange,
+   getBlockReviewTabMotionDuration,
+   type BlockReviewOverloadControl,
+   type BlockReviewSurfaceProps,
+ } from './BlockReviewSurface';
++export { buildReviewVolumeChartModel } from '../../features/block-review/review-volume-chart-model';
+diff --git a/packages/app/features/block-review/block-reschedule-controller.ts b/packages/app/features/block-review/block-reschedule-controller.ts
+new file mode 100644
+index 0000000..79236ae
+--- /dev/null
++++ b/packages/app/features/block-review/block-reschedule-controller.ts
+@@ -0,0 +1,49 @@
++import {
++  propagateSwap,
++  type PlanWeek,
++  type PropagateScope,
++  type SwapLogEntry,
++} from '@steady/types';
++import { preserveResolvedLockedWeeks } from '../run/block-week-resolution';
++import type { ActivityResolution } from '../run/activity-resolution';
++
++export interface ApplyBlockRescheduleDraftInput {
++  weeks: PlanWeek[];
++  weekIndex: number | null | undefined;
++  swapLog: readonly SwapLogEntry[];
++  scope: PropagateScope;
++  resolution: Pick<ActivityResolution, 'isSessionComplete'>;
++}
++
++export function applyBlockRescheduleDraft({
++  weeks,
++  weekIndex,
++  swapLog,
++  scope,
++  resolution,
++}: ApplyBlockRescheduleDraftInput): PlanWeek[] {
++  if (
++    weekIndex == null
++    || !Number.isInteger(weekIndex)
++    || weekIndex < 0
++    || weekIndex >= weeks.length
++    || swapLog.length === 0
++  ) {
++    return weeks;
++  }
++
++  const sourceWeek = weeks[weekIndex];
++
++  return swapLog.reduce<PlanWeek[]>((currentWeeks, swap) => {
++    const propagated = propagateSwap(
++      currentWeeks,
++      weekIndex,
++      swap.from,
++      swap.to,
++      scope,
++      sourceWeek.phase,
++    );
++
++    return preserveResolvedLockedWeeks(currentWeeks, propagated, swap, resolution);
++  }, weeks);
++}
+diff --git a/packages/app/features/block-review/review-volume-chart-model.ts b/packages/app/features/block-review/review-volume-chart-model.ts
+new file mode 100644
+index 0000000..39be41c
+--- /dev/null
++++ b/packages/app/features/block-review/review-volume-chart-model.ts
+@@ -0,0 +1,224 @@
++import type {
++  BlockReviewModel,
++  PhaseName,
++} from '@steady/types';
++import { PHASE_COLOR } from '../../constants/phase-meta';
++
++export const CHART_HEIGHT = 150;
++export const CHART_WIDTH_FALLBACK = 300;
++export const CHART_Y_AXIS_WIDTH = 24;
++export const CHART_TOP = 22;
++export const CHART_BOTTOM = 122;
++export const CHART_LINE_WIDTH = 2.8;
++export const CHART_CURVE_SMOOTHING = 0.18;
++export const CHART_PHASE_MARKER_SIZE = 8;
++export const CHART_SELECTED_MARKER_SIZE = 12;
++export const CHART_X_AXIS_LABEL_WIDTH = 40;
++export const CHART_TOOLTIP_WIDTH = 132;
++export const CHART_CURRENT_GUIDE_POINT_GAP = 9;
++export const CHART_CURRENT_GUIDE_EDGE_INSET = 7;
++export const CHART_CURRENT_GUIDE_DOT_SIZE = 2;
++export const CHART_CURRENT_GUIDE_DOT_SPACING = 4;
++export const CHART_SCRUB_TOP = CHART_TOP - 16;
++export const CHART_SCRUB_BOTTOM = CHART_BOTTOM + 30;
++
++export interface ReviewVolumeChartPoint {
++  weekIndex: number;
++  weekNumber: number;
++  phase: PhaseName;
++  km: number;
++  x: number;
++  y: number;
++}
++
++export interface ReviewVolumeChartTick {
++  value: number;
++  y: number;
++}
++
++export interface ReviewVolumeChartPhaseMarker {
++  weekIndex: number;
++  weekNumber: number;
++  phase: PhaseName;
++  x: number;
++  y: number;
++}
++
++export interface ReviewVolumeChartGradientStop {
++  key: string;
++  offset: string;
++  color: string;
++}
++
++export interface ReviewVolumeChartModel {
++  points: ReviewVolumeChartPoint[];
++  pathD: string;
++  gradientStops: ReviewVolumeChartGradientStop[];
++  phaseMarkers: ReviewVolumeChartPhaseMarker[];
++  ticks: ReviewVolumeChartTick[];
++  axisMax: number;
++}
++
++export function clampNumber(value: number, min: number, max: number): number {
++  return Math.min(max, Math.max(min, value));
++}
++
++function niceCeil(rawValue: number): number {
++  const value = Math.max(rawValue, 1);
++  const magnitude = 10 ** Math.floor(Math.log10(value));
++  const normalized = value / magnitude;
++  const steps = [1, 1.5, 2, 3, 5, 10];
++  const step = steps.find((candidate) => normalized <= candidate) ?? 10;
++
++  return step * magnitude;
++}
++
++function axisTicks(axisMax: number): number[] {
++  const step = niceCeil(axisMax / 3);
++  const ticks: number[] = [];
++
++  for (let tick = axisMax; tick > 0; tick -= step) {
++    ticks.push(Math.max(0, tick));
++  }
++
++  return [...ticks, 0];
++}
++
++function formatSvgNumber(value: number): string {
++  return Number.isInteger(value) ? String(value) : value.toFixed(2);
++}
++
++export function formatAxisTickLabel(value: number): string {
++  return Number.isInteger(value) ? String(value) : value.toFixed(1);
++}
++
++function buildContinuousPath(points: ReviewVolumeChartPoint[]): string {
++  if (points.length === 0) {
++    return '';
++  }
++
++  if (points.length === 1) {
++    return `M ${formatSvgNumber(points[0].x)} ${formatSvgNumber(points[0].y)}`;
++  }
++
++  const commands = [`M ${formatSvgNumber(points[0].x)} ${formatSvgNumber(points[0].y)}`];
++
++  for (let index = 0; index < points.length - 1; index += 1) {
++    const previous = points[index - 1] ?? points[index];
++    const point = points[index];
++    const next = points[index + 1];
++    const afterNext = points[index + 2] ?? next;
++    const control1 = {
++      x: point.x + ((next.x - previous.x) * CHART_CURVE_SMOOTHING),
++      y: point.y + ((next.y - previous.y) * CHART_CURVE_SMOOTHING),
++    };
++    const control2 = {
++      x: next.x - ((afterNext.x - point.x) * CHART_CURVE_SMOOTHING),
++      y: next.y - ((afterNext.y - point.y) * CHART_CURVE_SMOOTHING),
++    };
++
++    commands.push([
++      'C',
++      formatSvgNumber(control1.x),
++      formatSvgNumber(control1.y),
++      formatSvgNumber(control2.x),
++      formatSvgNumber(control2.y),
++      formatSvgNumber(next.x),
++      formatSvgNumber(next.y),
++    ].join(' '));
++  }
++
++  return commands.join(' ');
++}
++
++function gradientOffset(x: number, chartWidth: number): string {
++  return `${(clampNumber(x / Math.max(chartWidth, 1), 0, 1) * 100).toFixed(2)}%`;
++}
++
++function buildGradientStops(
++  model: BlockReviewModel,
++  points: ReviewVolumeChartPoint[],
++  chartWidth: number,
++): ReviewVolumeChartGradientStop[] {
++  if (points.length === 0) {
++    return [];
++  }
++
++  return model.phaseSegments.flatMap((segment, index) => {
++    const startPoint = points.find((point) => point.weekNumber === segment.startWeekNumber) ?? points[0];
++    const nextSegment = model.phaseSegments[index + 1];
++    const endPoint = nextSegment
++      ? points.find((point) => point.weekNumber === nextSegment.startWeekNumber) ?? points[points.length - 1]
++      : points[points.length - 1];
++    const color = PHASE_COLOR[segment.phase];
++
++    return [
++      {
++        key: `${segment.phase}-${segment.startWeekNumber}-start`,
++        offset: gradientOffset(startPoint.x, chartWidth),
++        color,
++      },
++      {
++        key: `${segment.phase}-${segment.startWeekNumber}-end`,
++        offset: gradientOffset(endPoint.x, chartWidth),
++        color,
++      },
++    ];
++  });
++}
++
++export function buildReviewVolumeChartModel(
++  model: BlockReviewModel,
++  chartWidth = CHART_WIDTH_FALLBACK,
++): ReviewVolumeChartModel {
++  const width = Math.max(chartWidth, 1);
++  const weeks = model.weeks;
++
++  if (weeks.length === 0) {
++    return { points: [], pathD: '', gradientStops: [], phaseMarkers: [], ticks: [], axisMax: 1 };
++  }
++
++  const axisMax = niceCeil(model.volume.stats.maxKm * 1.12);
++  const ySpan = CHART_BOTTOM - CHART_TOP;
++  const denominator = Math.max(weeks.length - 1, 1);
++  const points = weeks.map<ReviewVolumeChartPoint>((week, weekIndex) => ({
++    weekIndex,
++    weekNumber: week.weekNumber,
++    phase: week.phase,
++    km: week.plannedKm,
++    x: (width * weekIndex) / denominator,
++    y: CHART_BOTTOM - (clampNumber(week.plannedKm / axisMax, 0, 1) * ySpan),
++  }));
++
++  const phaseMarkers = model.phaseSegments
++    .map((segment) => points.find((point) => point.weekNumber === segment.startWeekNumber))
++    .filter((point): point is ReviewVolumeChartPoint => Boolean(point))
++    .map((point) => ({
++      weekIndex: point.weekIndex,
++      weekNumber: point.weekNumber,
++      phase: point.phase,
++      x: point.x,
++      y: point.y,
++    }));
++
++  return {
++    points,
++    pathD: buildContinuousPath(points),
++    gradientStops: buildGradientStops(model, points, width),
++    phaseMarkers,
++    ticks: axisTicks(axisMax).map((value) => ({
++      value,
++      y: CHART_BOTTOM - (clampNumber(value / axisMax, 0, 1) * ySpan),
++    })),
++    axisMax,
++  };
++}
++
++export function weekIndexFromX(x: number, chartWidth: number, totalWeeks: number): number {
++  if (totalWeeks <= 1) {
++    return 0;
++  }
++
++  const ratio = clampNumber(x, 0, chartWidth) / Math.max(chartWidth, 1);
++  return clampNumber(Math.round(ratio * (totalWeeks - 1)), 0, totalWeeks - 1);
++}
+diff --git a/packages/app/tests/block-reschedule-controller.test.ts b/packages/app/tests/block-reschedule-controller.test.ts
+new file mode 100644
+index 0000000..6cbb6df
+--- /dev/null
++++ b/packages/app/tests/block-reschedule-controller.test.ts
+@@ -0,0 +1,122 @@
++import { describe, expect, it } from 'vitest';
++import {
++  type PhaseName,
++  type PlannedSession,
++  type PlanWeek,
++} from '@steady/types';
++import { applyBlockRescheduleDraft } from '../features/block-review/block-reschedule-controller';
++
++function addDays(startDate: string, offset: number): string {
++  const value = new Date(`${startDate}T00:00:00Z`);
++  value.setUTCDate(value.getUTCDate() + offset);
++  return value.toISOString().slice(0, 10);
++}
++
++function session(id: string, date: string, distance = 8): PlannedSession {
++  return {
++    id,
++    type: 'EASY',
++    date,
++    distance,
++  };
++}
++
++function week(weekNumber: number, phase: PhaseName): PlanWeek {
++  const startDate = `2026-05-${String(weekNumber).padStart(2, '0')}`;
++  const sessions = Array.from({ length: 7 }, (_, index) => (
++    index <= 2 ? session(`w${weekNumber}-d${index}`, addDays(startDate, index), 8 + index) : null
++  ));
++
++  return {
++    weekNumber,
++    phase,
++    plannedKm: 27,
++    sessions,
++  };
++}
++
++function sessionIds(weekToRead: PlanWeek): (string | null)[] {
++  return weekToRead.sessions.map((plannedSession) => plannedSession?.id ?? null);
++}
++
++const noCompletedSessions = {
++  isSessionComplete: () => false,
++};
++
++describe('applyBlockRescheduleDraft', () => {
++  it('applies this-week and remaining scopes without leaking into earlier weeks', () => {
++    const weeks = [
++      week(1, 'BASE'),
++      week(2, 'BUILD'),
++      week(3, 'BUILD'),
++    ];
++
++    const thisWeek = applyBlockRescheduleDraft({
++      weeks,
++      weekIndex: 1,
++      swapLog: [{ from: 0, to: 2 }],
++      scope: 'this',
++      resolution: noCompletedSessions,
++    });
++
++    expect(sessionIds(thisWeek[0])).toEqual(sessionIds(weeks[0]));
++    expect(sessionIds(thisWeek[1]).slice(0, 3)).toEqual(['w2-d2', 'w2-d1', 'w2-d0']);
++    expect(sessionIds(thisWeek[2])).toEqual(sessionIds(weeks[2]));
++
++    const remaining = applyBlockRescheduleDraft({
++      weeks,
++      weekIndex: 1,
++      swapLog: [{ from: 0, to: 2 }],
++      scope: 'remaining',
++      resolution: noCompletedSessions,
++    });
++
++    expect(sessionIds(remaining[0])).toEqual(sessionIds(weeks[0]));
++    expect(sessionIds(remaining[1]).slice(0, 3)).toEqual(['w2-d2', 'w2-d1', 'w2-d0']);
++    expect(sessionIds(remaining[2]).slice(0, 3)).toEqual(['w3-d2', 'w3-d1', 'w3-d0']);
++  });
++
++  it('applies phase scope to non-contiguous phase weeks while preserving resolved locked sessions', () => {
++    const weeks = [
++      week(1, 'BUILD'),
++      week(2, 'BASE'),
++      week(3, 'BUILD'),
++      week(4, 'BUILD'),
++    ];
++    const lockedSessionId = weeks[0].sessions[0]?.id;
++
++    const nextWeeks = applyBlockRescheduleDraft({
++      weeks,
++      weekIndex: 2,
++      swapLog: [{ from: 0, to: 1 }],
++      scope: 'build',
++      resolution: {
++        isSessionComplete: (plannedSession) => plannedSession?.id === lockedSessionId,
++      },
++    });
++
++    expect(sessionIds(nextWeeks[0])).toEqual(sessionIds(weeks[0]));
++    expect(sessionIds(nextWeeks[1])).toEqual(sessionIds(weeks[1]));
++    expect(sessionIds(nextWeeks[2]).slice(0, 3)).toEqual(['w3-d1', 'w3-d0', 'w3-d2']);
++    expect(sessionIds(nextWeeks[3]).slice(0, 3)).toEqual(['w4-d1', 'w4-d0', 'w4-d2']);
++  });
++
++  it('returns the original week array when there is no valid draft to apply', () => {
++    const weeks = [week(1, 'BASE')];
++
++    expect(applyBlockRescheduleDraft({
++      weeks,
++      weekIndex: null,
++      swapLog: [{ from: 0, to: 1 }],
++      scope: 'this',
++      resolution: noCompletedSessions,
++    })).toBe(weeks);
++    expect(applyBlockRescheduleDraft({
++      weeks,
++      weekIndex: 0,
++      swapLog: [],
++      scope: 'this',
++      resolution: noCompletedSessions,
++    })).toBe(weeks);
++  });
++});
+diff --git a/packages/app/tests/live-block-review-model.test.ts b/packages/app/tests/live-block-review-model.test.ts
+index 64b50c4..091124b 100644
+--- a/packages/app/tests/live-block-review-model.test.ts
++++ b/packages/app/tests/live-block-review-model.test.ts
+@@ -118,6 +118,63 @@ describe('deriveLiveBlockReviewModel', () => {
+     });
+   });
+ 
++  it('uses session-derived volume instead of stale persisted plannedKm', () => {
++    const model = deriveLiveBlockReviewModel({
++      plan: makePlan({
++        weeks: [
++          makeWeek(1, 'BASE', '2026-04-06', 999, [
++            { distance: 8 },
++            {
++              type: 'RECOVERY',
++              plannedVolume: { unit: 'min', value: 30 },
++              intensityTarget: { source: 'manual', mode: 'pace', pace: '5:00' },
++            },
++            null,
++            null,
++            null,
++            null,
++            null,
++          ]),
++          makeWeek(2, 'BUILD', '2026-04-13', 500, [
++            { distance: 20 },
++            null,
++            null,
++            null,
++            null,
++            null,
++            null,
++          ]),
++          makeWeek(3, 'TAPER', '2026-04-20', 300, [
++            { distance: 12 },
++            null,
++            null,
++            null,
++            null,
++            null,
++            null,
++          ]),
++        ],
++        phases: { BASE: 1, BUILD: 1, RECOVERY: 0, PEAK: 0, TAPER: 1 },
++      }),
++      currentWeekIndex: 0,
++    });
++
++    expect(model.weeks[0]).toMatchObject({
++      weekNumber: 1,
++      plannedKm: 14,
++      plannedExactKm: 8,
++      plannedEstimatedKm: 6,
++      hasEstimatedDistance: true,
++      detail: '14km · Base',
++    });
++    expect(model.volume.stats).toMatchObject({
++      startKm: 14,
++      peakKm: 20,
++      peakWeekNumber: 2,
++      raceKm: 12,
++    });
++  });
++
+   it('clamps the current week marker into the available week range', () => {
+     const model = deriveLiveBlockReviewModel({
+       plan: makePlan(),
+diff --git a/packages/app/tests/review-volume-chart-model.test.ts b/packages/app/tests/review-volume-chart-model.test.ts
+new file mode 100644
+index 0000000..e8ac98c
+--- /dev/null
++++ b/packages/app/tests/review-volume-chart-model.test.ts
+@@ -0,0 +1,100 @@
++import { describe, expect, it } from 'vitest';
++import {
++  buildBlockReviewModel,
++  type PhaseName,
++  type PlannedSession,
++  type PlanWeek,
++} from '@steady/types';
++import {
++  buildReviewVolumeChartModel,
++  weekIndexFromX,
++} from '../features/block-review/review-volume-chart-model';
++
++function session(id: string, distance: number): PlannedSession {
++  return {
++    id,
++    type: 'EASY',
++    date: '2026-05-01',
++    distance,
++  };
++}
++
++function week(weekNumber: number, phase: PhaseName, plannedKm: number): PlanWeek {
++  return {
++    weekNumber,
++    phase,
++    plannedKm,
++    sessions: [session(`w${weekNumber}`, plannedKm), null, null, null, null, null, null],
++  };
++}
++
++describe('review volume chart model', () => {
++  it('builds deterministic chart geometry from the shared block review model', () => {
++    const model = buildBlockReviewModel({
++      weeks: [
++        week(1, 'BASE', 30),
++        week(2, 'BUILD', 45),
++        week(3, 'BUILD', 60),
++        week(4, 'TAPER', 42),
++      ],
++      currentWeekIndex: 1,
++    });
++
++    const chart = buildReviewVolumeChartModel(model, 300);
++
++    expect(chart.axisMax).toBe(100);
++    expect(chart.points.map((point) => ({
++      weekNumber: point.weekNumber,
++      phase: point.phase,
++      km: point.km,
++      x: point.x,
++      y: point.y,
++    }))).toEqual([
++      { weekNumber: 1, phase: 'BASE', km: 30, x: 0, y: 92 },
++      { weekNumber: 2, phase: 'BUILD', km: 45, x: 100, y: 77 },
++      { weekNumber: 3, phase: 'BUILD', km: 60, x: 200, y: 62 },
++      { weekNumber: 4, phase: 'TAPER', km: 42, x: 300, y: 80 },
++    ]);
++    expect(chart.ticks.map((tick) => tick.value)).toEqual([100, 50, 0]);
++    expect(chart.phaseMarkers.map((marker) => marker.weekNumber)).toEqual([1, 2, 4]);
++    expect(chart.gradientStops.map((stop) => [stop.key, stop.offset])).toEqual([
++      ['BASE-1-start', '0.00%'],
++      ['BASE-1-end', '33.33%'],
++      ['BUILD-2-start', '33.33%'],
++      ['BUILD-2-end', '100.00%'],
++      ['TAPER-4-start', '100.00%'],
++      ['TAPER-4-end', '100.00%'],
++    ]);
++    expect(chart.pathD).toBe('M 0 92 C 18 89.30 64 82.40 100 77 C 136 71.60 164 61.46 200 62 C 236 62.54 282 76.76 300 80');
++  });
++
++  it('handles empty and single-week models without caller special cases', () => {
++    expect(buildReviewVolumeChartModel(buildBlockReviewModel({ weeks: [] }), 300)).toMatchObject({
++      points: [],
++      pathD: '',
++      gradientStops: [],
++      phaseMarkers: [],
++      ticks: [],
++      axisMax: 1,
++    });
++
++    const single = buildReviewVolumeChartModel(
++      buildBlockReviewModel({ weeks: [week(1, 'BASE', 40)] }),
++      280,
++    );
++
++    expect(single.points).toHaveLength(1);
++    expect(single.points[0]).toMatchObject({ weekNumber: 1, x: 0, y: 42 });
++    expect(single.pathD).toBe('M 0 42');
++    expect(weekIndexFromX(-10, 280, 1)).toBe(0);
++    expect(weekIndexFromX(320, 280, 1)).toBe(0);
++  });
++
++  it('selects the nearest week from scrub position inside chart bounds', () => {
++    expect(weekIndexFromX(-20, 300, 4)).toBe(0);
++    expect(weekIndexFromX(0, 300, 4)).toBe(0);
++    expect(weekIndexFromX(149, 300, 4)).toBe(1);
++    expect(weekIndexFromX(151, 300, 4)).toBe(2);
++    expect(weekIndexFromX(400, 300, 4)).toBe(3);
++  });
++});
+diff --git a/packages/types/tests/block-review.test.ts b/packages/types/tests/block-review.test.ts
+index b2b741d..c20e74a 100644
+--- a/packages/types/tests/block-review.test.ts
++++ b/packages/types/tests/block-review.test.ts
+@@ -145,6 +145,55 @@ describe('buildBlockReviewModel', () => {
+     expect(model.volume.points[2].y).toBeLessThan(model.volume.points[0].y);
+   });
+ 
++  it('derives review volume from session structure instead of persisted plannedKm', () => {
++    const model = buildBlockReviewModel({
++      weeks: [
++        {
++          weekNumber: 1,
++          phase: 'BASE',
++          plannedKm: 999,
++          sessions: [
++            {
++              id: 'easy',
++              type: 'EASY',
++              date: '2026-05-01',
++              distance: 8,
++            },
++            {
++              id: 'recovery',
++              type: 'RECOVERY',
++              date: '2026-05-02',
++              plannedVolume: { unit: 'min', value: 30 },
++              intensityTarget: { source: 'manual', mode: 'pace', pace: '5:00' },
++            },
++            null,
++            null,
++            null,
++            null,
++            null,
++          ],
++        },
++        week(2, 'BUILD', 20),
++        week(3, 'TAPER', 12),
++      ],
++    });
++
++    expect(model.weeks[0]).toMatchObject({
++      plannedKm: 14,
++      plannedExactKm: 8,
++      plannedEstimatedKm: 6,
++      hasEstimatedDistance: true,
++      detail: '14km · Base',
++    });
++    expect(model.volume.stats).toMatchObject({
++      startKm: 14,
++      peakKm: 20,
++      peakWeekNumber: 2,
++      raceKm: 12,
++    });
++    expect(model.volume.points[0].plannedKm).toBe(14);
++  });
++
+   it('keeps configured zero-week phases in the structure label', () => {
+     const model = buildBlockReviewModel({
+       weeks: [

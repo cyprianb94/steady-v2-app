@@ -1,0 +1,10 @@
+# Project 2 Completion Note
+
+- Rollback commit: `c0f5858` (`Extract block review controllers`)
+- Patch backup: `artifacts/refactor-backups/20260502-234134/project-2-block-review-reschedule-controller.patch`
+- Changed files: `.codex/skills/review-block/SKILL.md`, `.codex/skills/screens/SKILL.md`, `.codex/skills/steady-feature-guardrails/references/hotspots.md`, `.codex/skills/tests/SKILL.md`, `packages/app/app/(tabs)/block.tsx`, `packages/app/components/block-review/BlockReviewSurface.tsx`, `packages/app/components/block-review/index.ts`, `packages/app/features/block-review/block-reschedule-controller.ts`, `packages/app/features/block-review/review-volume-chart-model.ts`, `packages/app/tests/block-reschedule-controller.test.ts`, `packages/app/tests/live-block-review-model.test.ts`, `packages/app/tests/review-volume-chart-model.test.ts`, `packages/types/tests/block-review.test.ts`
+- New/rewritten tests: app tests for chart geometry and scrub index math, app tests for live Block reschedule scope and completed-session preservation, live model test for stale persisted plannedKm, and type-level block-review source-of-truth coverage.
+- Behavior preserved: Block chart rendering still uses the same SVG path/ticks/phase markers; live Block reschedule still applies through the existing propagation rules while preserving resolved completed/matched sessions; shared Block review planned volume remains session-derived.
+- Known risks: `block.tsx` remains large and still owns expansion, pending edit, injury, scroll, and row rendering orchestration. Existing React `act(...)` warnings remain in BlockTab tests from async activity-resolution fetching.
+- Rollback instructions: `git revert c0f5858` reverts Project 2 code/tests/skill updates. This affects app and types code only; no data-shape or migration risk.
+- Manual app test for Cyprian: Open Block, scrub the volume chart, expand and collapse weeks, edit a future session, drag/reschedule sessions, apply different scopes, verify completed/past sessions remain locked, then check Home and Block agree on weekly volume.
