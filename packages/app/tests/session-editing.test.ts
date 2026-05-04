@@ -295,6 +295,93 @@ describe('session edit materialization', () => {
     expect(updated).not.toHaveProperty('plannedVolume');
     expect(updated).not.toHaveProperty('runStructure');
   });
+
+  it('clears structured-session fields when a structured run is saved as Recovery', () => {
+    const existingLong: PlannedSession = {
+      id: 'long-to-recovery',
+      type: 'LONG',
+      date: '2026-04-12',
+      distance: 18,
+      plannedVolume: { unit: 'km', value: 18 },
+      pace: '5:10',
+      runStructure: {
+        items: [
+          { kind: 'RUN', volume: { unit: 'km', value: 13 } },
+          {
+            kind: 'REPEAT',
+            repeats: 2,
+            segments: [
+              { kind: 'RECOVERY', volume: { unit: 'km', value: 0.4 } },
+              { kind: 'RUN', volume: { unit: 'km', value: 1 } },
+            ],
+          },
+        ],
+      },
+    };
+
+    const updated = materializeEditedSession(
+      existingLong,
+      {
+        type: 'RECOVERY',
+        format: 'simple',
+        plannedVolume: { unit: 'min', value: 35 },
+        intensityTarget: {
+          source: 'manual',
+          mode: 'effort',
+          profileKey: 'recovery',
+          effortCue: 'very easy',
+        },
+      },
+      { id: 'fallback', date: 'preview', type: 'LONG' },
+    );
+
+    expect(updated).toMatchObject({
+      id: 'long-to-recovery',
+      type: 'RECOVERY',
+      format: 'simple',
+      plannedVolume: { unit: 'min', value: 35 },
+    });
+    expect(updated).not.toHaveProperty('distance');
+    expect(updated).not.toHaveProperty('pace');
+    expect(updated).not.toHaveProperty('runStructure');
+  });
+
+  it('materializes a structured run saved as Rest as a simple rest state', () => {
+    const existingLong: PlannedSession = {
+      id: 'long-to-rest',
+      type: 'LONG',
+      date: '2026-04-12',
+      distance: 18,
+      plannedVolume: { unit: 'km', value: 18 },
+      pace: '5:10',
+      actualActivityId: 'activity-long',
+      subjectiveInputDismissed: true,
+      runStructure: {
+        items: [
+          { kind: 'RUN', volume: { unit: 'km', value: 18 } },
+        ],
+      },
+    };
+
+    const updated = materializeEditedSession(
+      existingLong,
+      { type: 'REST', format: 'simple', planNote: 'Full rest.' },
+      { id: 'fallback', date: 'preview', type: 'LONG' },
+    );
+
+    expect(updated).toMatchObject({
+      id: 'long-to-rest',
+      type: 'REST',
+      format: 'simple',
+      planNote: 'Full rest.',
+    });
+    expect(updated).not.toHaveProperty('distance');
+    expect(updated).not.toHaveProperty('pace');
+    expect(updated).not.toHaveProperty('plannedVolume');
+    expect(updated).not.toHaveProperty('runStructure');
+    expect(updated).not.toHaveProperty('actualActivityId');
+    expect(updated).not.toHaveProperty('subjectiveInputDismissed');
+  });
 });
 
 describe('session edit material change detection', () => {

@@ -10,9 +10,50 @@ import {
   buildStructuredSessionSave,
   convertStructuredSessionDraftToSimple,
   createStructuredSessionDraft,
+  getStructuredSessionTemplatesForType,
+  sessionTypeSupportsStructuredFormat,
 } from '../features/plan-builder/structured-session-editor-engine';
 
 describe('structured session editor engine', () => {
+  it('reports structured format support by session type', () => {
+    expect(sessionTypeSupportsStructuredFormat('EASY')).toBe(true);
+    expect(sessionTypeSupportsStructuredFormat('INTERVAL')).toBe(true);
+    expect(sessionTypeSupportsStructuredFormat('TEMPO')).toBe(true);
+    expect(sessionTypeSupportsStructuredFormat('LONG')).toBe(true);
+    expect(sessionTypeSupportsStructuredFormat('RECOVERY')).toBe(false);
+    expect(sessionTypeSupportsStructuredFormat('REST')).toBe(false);
+  });
+
+  it('offers structured templates only for run session types that support structure', () => {
+    expect(getStructuredSessionTemplatesForType('EASY').map((template) => template.key)).toEqual([
+      'fast-finish',
+      'progression',
+      'strides',
+      'custom',
+    ]);
+    expect(getStructuredSessionTemplatesForType('INTERVAL').map((template) => template.key)).toEqual([
+      'cruise-intervals',
+      'short-reps',
+      'fartlek-ladder',
+      'custom',
+    ]);
+    expect(getStructuredSessionTemplatesForType('TEMPO').map((template) => template.key)).toEqual([
+      'fast-finish',
+      'progression',
+      'cruise-intervals',
+      'custom',
+    ]);
+    expect(getStructuredSessionTemplatesForType('LONG').map((template) => template.key)).toEqual([
+      'fast-finish',
+      'progression',
+      'race-pace-blocks',
+      'custom',
+    ]);
+
+    expect(getStructuredSessionTemplatesForType('RECOVERY')).toEqual([]);
+    expect(getStructuredSessionTemplatesForType('REST')).toEqual([]);
+  });
+
   it('turns simple interval fields into an editable structured repeat', () => {
     const draft = createStructuredSessionDraft({
       type: 'INTERVAL',
@@ -130,5 +171,75 @@ describe('structured session editor engine', () => {
     });
     expect(simple).not.toHaveProperty('plannedVolume');
     expect(simple).not.toHaveProperty('runStructure');
+  });
+
+  it('saves Recovery as simple duration and clears stale structured fields', () => {
+    const simple = convertStructuredSessionDraftToSimple({
+      session: {
+        type: 'RECOVERY',
+        distance: 12,
+        pace: '5:10',
+        plannedVolume: { unit: 'min', value: 35 },
+        reps: 5,
+        warmup: { unit: 'km', value: 2 },
+        runStructure: {
+          items: [
+            { kind: 'RUN', volume: { unit: 'km', value: 10 } },
+          ],
+        },
+      },
+      items: [
+        { kind: 'RUN', volume: { unit: 'km', value: 10 } },
+      ],
+      planNote: 'Keep this very gentle.',
+    });
+
+    expect(simple).toMatchObject({
+      type: 'RECOVERY',
+      format: 'simple',
+      plannedVolume: { unit: 'min', value: 35 },
+      planNote: 'Keep this very gentle.',
+    });
+    expect(simple).not.toHaveProperty('distance');
+    expect(simple).not.toHaveProperty('pace');
+    expect(simple).not.toHaveProperty('reps');
+    expect(simple).not.toHaveProperty('warmup');
+    expect(simple).not.toHaveProperty('runStructure');
+  });
+
+  it('saves Rest as a simple rest state and clears all run metrics', () => {
+    const saved = buildStructuredSessionSave({
+      session: {
+        type: 'REST',
+        distance: 8,
+        pace: '5:20',
+        plannedVolume: { unit: 'km', value: 8 },
+        reps: 6,
+        warmup: { unit: 'km', value: 1 },
+        cooldown: { unit: 'km', value: 1 },
+        runStructure: {
+          items: [
+            { kind: 'RUN', volume: { unit: 'km', value: 8 } },
+          ],
+        },
+      },
+      items: [
+        { kind: 'RUN', volume: { unit: 'km', value: 8 } },
+      ],
+      planNote: 'Full rest.',
+    });
+
+    expect(saved).toMatchObject({
+      type: 'REST',
+      format: 'simple',
+      planNote: 'Full rest.',
+    });
+    expect(saved).not.toHaveProperty('distance');
+    expect(saved).not.toHaveProperty('pace');
+    expect(saved).not.toHaveProperty('plannedVolume');
+    expect(saved).not.toHaveProperty('runStructure');
+    expect(saved).not.toHaveProperty('reps');
+    expect(saved).not.toHaveProperty('warmup');
+    expect(saved).not.toHaveProperty('cooldown');
   });
 });

@@ -3,8 +3,11 @@ import type { PlannedSession, RunStructure } from '../src';
 import {
   deriveSessionDemand,
   deriveSessionFocus,
+  normalizeSessionDurations,
   normalizeRunStructure,
+  resolveSessionFormat,
   sessionKm,
+  sessionSupportsFormat,
   structuredSessionVolume,
   summariseRunStructure,
 } from '../src';
@@ -19,6 +22,37 @@ function session(overrides: Partial<PlannedSession>): PlannedSession {
 }
 
 describe('structured session model', () => {
+  it('keeps structured format available only for run sessions that support it', () => {
+    expect(sessionSupportsFormat('EASY', 'structured')).toBe(true);
+    expect(sessionSupportsFormat('INTERVAL', 'structured')).toBe(true);
+    expect(sessionSupportsFormat('TEMPO', 'structured')).toBe(true);
+    expect(sessionSupportsFormat('LONG', 'structured')).toBe(true);
+    expect(sessionSupportsFormat('RECOVERY', 'structured')).toBe(false);
+    expect(sessionSupportsFormat('REST', 'structured')).toBe(false);
+
+    expect(resolveSessionFormat(session({
+      type: 'LONG',
+      format: 'simple',
+      runStructure: {
+        items: [{ kind: 'RUN', volume: { unit: 'km', value: 15 } }],
+      },
+    }))).toBe('structured');
+    expect(resolveSessionFormat(session({
+      type: 'RECOVERY',
+      format: 'structured',
+      runStructure: {
+        items: [{ kind: 'RUN', volume: { unit: 'km', value: 5 } }],
+      },
+    }))).toBe('simple');
+    expect(resolveSessionFormat(session({
+      type: 'REST',
+      format: 'structured',
+      runStructure: {
+        items: [{ kind: 'RUN', volume: { unit: 'km', value: 5 } }],
+      },
+    }))).toBe('simple');
+  });
+
   it('represents marathon-pace long-run blocks without changing the parent role', () => {
     const structured = session({
       type: 'LONG',
@@ -247,6 +281,90 @@ describe('structured session model', () => {
       plannedMinutes: 35,
       structuredSeconds: 0,
     });
+  });
+
+  it.each(['RECOVERY', 'REST'] as const)('normalizes %s sessions to simple format and drops stale structure', (type) => {
+    const normalized = normalizeSessionDurations(session({
+      type,
+      format: 'structured',
+      plannedVolume: type === 'RECOVERY' ? { unit: 'min', value: 35 } : undefined,
+      runStructure: {
+        items: [
+          { kind: 'RUN', volume: { unit: 'km', value: 8 } },
+        ],
+      },
+    }));
+
+    expect(normalized).toMatchObject({
+      type,
+      format: 'simple',
+    });
+    expect(normalized).not.toHaveProperty('runStructure');
+  });
+
+  it('normalizes unsupported structured Recovery and Rest sessions to their simple save shapes', () => {
+    const recovery = normalizeSessionDurations(session({
+      type: 'RECOVERY',
+      format: 'structured',
+      distance: 6,
+      pace: '5:50',
+      plannedVolume: { unit: 'min', value: 35 },
+      intensityTarget: { source: 'manual', mode: 'effort', profileKey: 'recovery', effortCue: 'very easy' },
+      reps: 4,
+      repDist: 800,
+      warmup: { unit: 'km', value: 1 },
+      cooldown: { unit: 'km', value: 1 },
+      runStructure: {
+        items: [{ kind: 'RUN', volume: { unit: 'km', value: 6 } }],
+      },
+    }));
+    const rest = normalizeSessionDurations(session({
+      type: 'REST',
+      format: 'structured',
+      distance: 8,
+      pace: '5:20',
+      plannedVolume: { unit: 'km', value: 8 },
+      intensityTarget: { source: 'manual', mode: 'effort', profileKey: 'easy', effortCue: 'conversational' },
+      reps: 5,
+      repDist: 1000,
+      repDuration: { unit: 'km', value: 1 },
+      recovery: { unit: 'min', value: 2 },
+      warmup: { unit: 'km', value: 1 },
+      cooldown: { unit: 'km', value: 1 },
+      runStructure: {
+        items: [{ kind: 'RUN', volume: { unit: 'km', value: 8 } }],
+      },
+    }));
+
+    expect(recovery).toMatchObject({
+      type: 'RECOVERY',
+      format: 'simple',
+      plannedVolume: { unit: 'min', value: 35 },
+      intensityTarget: expect.objectContaining({ profileKey: 'recovery', effortCue: 'very easy' }),
+    });
+    expect(recovery).not.toHaveProperty('distance');
+    expect(recovery).not.toHaveProperty('pace');
+    expect(recovery).not.toHaveProperty('runStructure');
+    expect(recovery).not.toHaveProperty('reps');
+    expect(recovery).not.toHaveProperty('repDist');
+    expect(recovery).not.toHaveProperty('warmup');
+    expect(recovery).not.toHaveProperty('cooldown');
+
+    expect(rest).toMatchObject({
+      type: 'REST',
+      format: 'simple',
+    });
+    expect(rest).not.toHaveProperty('distance');
+    expect(rest).not.toHaveProperty('pace');
+    expect(rest).not.toHaveProperty('plannedVolume');
+    expect(rest).not.toHaveProperty('intensityTarget');
+    expect(rest).not.toHaveProperty('runStructure');
+    expect(rest).not.toHaveProperty('reps');
+    expect(rest).not.toHaveProperty('repDist');
+    expect(rest).not.toHaveProperty('repDuration');
+    expect(rest).not.toHaveProperty('recovery');
+    expect(rest).not.toHaveProperty('warmup');
+    expect(rest).not.toHaveProperty('cooldown');
   });
 
   it('rejects nested repeat groups in v1 normalization', () => {

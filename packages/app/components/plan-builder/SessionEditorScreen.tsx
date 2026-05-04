@@ -3,6 +3,8 @@ import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   normalizeRunStructure,
+  resolveSessionFormat,
+  sessionSupportsFormat,
   type PlannedSession,
   type SessionFormat,
   type TrainingPaceProfile,
@@ -20,6 +22,35 @@ interface SessionEditorScreenProps {
   onClose: () => void;
 }
 
+interface FormatChangeContext {
+  restoreStructuredDraft?: Partial<PlannedSession>;
+  pendingStructureClear?: boolean;
+  pendingStructureClearReason?: StructureClearReason;
+}
+
+type StructureClearReason = 'simple' | 'recovery' | 'rest';
+
+function resolveInitialFormat(existing: Partial<PlannedSession> | null): SessionFormat {
+  if (!existing?.type) {
+    return 'simple';
+  }
+
+  return resolveSessionFormat({
+    type: existing.type,
+    format: existing.format,
+    runStructure: existing.runStructure,
+  });
+}
+
+function planNoteFrom(
+  session: Partial<PlannedSession>,
+  fallback: Partial<PlannedSession>,
+): string | undefined {
+  return Object.prototype.hasOwnProperty.call(session, 'planNote')
+    ? session.planNote
+    : fallback.planNote;
+}
+
 export function SessionEditorScreen({
   dayIndex,
   existing,
@@ -28,11 +59,64 @@ export function SessionEditorScreen({
   onClose,
 }: SessionEditorScreenProps) {
   const insets = useSafeAreaInsets();
-  const initialFormat: SessionFormat = existing?.format === 'structured' || normalizeRunStructure(existing?.runStructure)
-    ? 'structured'
-    : 'simple';
+  const initialFormat = resolveInitialFormat(existing);
   const [format, setFormat] = React.useState<SessionFormat>(initialFormat);
   const [draft, setDraft] = React.useState<Partial<PlannedSession> | null>(existing);
+  const [structureClearReason, setStructureClearReason] = React.useState<StructureClearReason | null>(null);
+  const structuredDraftRef = React.useRef<Partial<PlannedSession> | null>(
+    initialFormat === 'structured' ? existing : null,
+  );
+
+  function handleChangeFormat(
+    nextFormat: SessionFormat,
+    session: Partial<PlannedSession>,
+    context: FormatChangeContext = {},
+  ) {
+    if (nextFormat === 'structured') {
+      const nextType = session.type ?? structuredDraftRef.current?.type ?? draft?.type ?? 'EASY';
+      const reusableStructuredDraft = structuredDraftRef.current
+        && sessionSupportsFormat(nextType, 'structured')
+        && (structureClearReason || structuredDraftRef.current.type === nextType)
+        ? structuredDraftRef.current
+        : null;
+
+      setDraft({
+        ...(reusableStructuredDraft ?? session),
+        type: nextType,
+        format: 'structured',
+        ...(reusableStructuredDraft
+          ? { planNote: planNoteFrom(session, reusableStructuredDraft) }
+          : null),
+      });
+      setFormat('structured');
+      setStructureClearReason(null);
+      return;
+    }
+
+    const restoreDraft = context.restoreStructuredDraft
+      ?? (format === 'structured' ? draft : null);
+    if (
+      restoreDraft?.type
+      && sessionSupportsFormat(restoreDraft.type, 'structured')
+      && normalizeRunStructure(restoreDraft.runStructure)
+    ) {
+      structuredDraftRef.current = {
+        ...restoreDraft,
+        format: 'structured',
+      };
+    }
+
+    setDraft({
+      ...session,
+      format: 'simple',
+    });
+    setFormat('simple');
+    setStructureClearReason(
+      context.pendingStructureClear
+        ? context.pendingStructureClearReason ?? 'simple'
+        : null,
+    );
+  }
 
   if (format === 'structured') {
     return (
@@ -43,10 +127,7 @@ export function SessionEditorScreen({
           trainingPaceProfile={trainingPaceProfile}
           onSave={onSave}
           onClose={onClose}
-          onChangeFormat={(nextFormat, session) => {
-            setDraft(session);
-            setFormat(nextFormat);
-          }}
+          onChangeFormat={handleChangeFormat}
         />
       </View>
     );
@@ -60,13 +141,9 @@ export function SessionEditorScreen({
         trainingPaceProfile={trainingPaceProfile}
         onSave={onSave}
         onClose={onClose}
-        onChangeFormat={(nextFormat, session) => {
-          setDraft({
-            ...session,
-            format: nextFormat,
-          });
-          setFormat(nextFormat);
-        }}
+        onChangeFormat={handleChangeFormat}
+        structureClearPending={Boolean(structureClearReason)}
+        structureClearReason={structureClearReason}
         presentation="screen"
       />
     </View>

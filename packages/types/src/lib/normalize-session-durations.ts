@@ -1,7 +1,11 @@
 import type { TrainingPlan, PlanWeek } from '../plan';
 import { normalizeSessionDuration, sessionSupportsWarmupCooldown, type PlannedSession } from '../session';
 import { normalizeSessionIntensityTarget } from './intensity-targets';
-import { normalizePlannedVolume, normalizeRunStructure } from './structured-session';
+import {
+  normalizePlannedVolume,
+  normalizeRunStructure,
+  normalizeSessionFormatSupport,
+} from './structured-session';
 
 export function normalizeSessionDurations(
   session: PlannedSession | null,
@@ -45,7 +49,7 @@ export function normalizeSessionDurations(
     normalizedSession.cooldown = normalizeSessionDuration(cooldown);
   }
 
-  return normalizeSessionIntensityTarget(normalizedSession);
+  return normalizeSessionFormatSupport(normalizeSessionIntensityTarget(normalizedSession));
 }
 
 export function normalizePlanWeekSessionDurations(week: PlanWeek): PlanWeek {

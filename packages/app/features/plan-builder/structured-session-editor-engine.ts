@@ -2,6 +2,8 @@ import {
   defaultIntensityTargetForSessionType,
   normalizeIntensityTarget,
   normalizeRunStructure,
+  resolveSessionFormat,
+  sessionSupportsFormat,
   structuredSessionVolume,
   type IntensityTarget,
   type PlannedSession,
@@ -10,6 +12,7 @@ import {
   type RunStructureSegment,
   type RunStructureSegmentKind,
   type RunStructureVolume,
+  type SessionFormat,
   type SessionDurationSpec,
   type SessionType,
   type TrainingPaceProfile,
@@ -37,6 +40,8 @@ interface StructureTemplate extends StructuredSessionTemplateOption {
   build: (session: Partial<PlannedSession>) => Partial<PlannedSession>;
 }
 
+type StructuredFormatSessionType = Exclude<SessionType, 'RECOVERY' | 'REST'>;
+
 export interface StructuredSessionDraft {
   session: Partial<PlannedSession>;
   items: RunStructureItem[];
@@ -59,6 +64,27 @@ export interface StructuredSessionDraftInput {
   session: Partial<PlannedSession>;
   items: RunStructureItem[];
   planNote: string;
+}
+
+export interface PreviewStructuredSessionTypeChangeInput extends StructuredSessionDraftInput {
+  nextType: SessionType;
+  selectedTemplate?: StructuredSessionTemplateKey;
+  preservedStructuredDraft?: StructuredSessionDraft | null;
+}
+
+export interface PreviewStructuredSessionTypeChangeResult {
+  format: SessionFormat;
+  session: Partial<PlannedSession>;
+  items: RunStructureItem[];
+  selectedTemplate: StructuredSessionTemplateKey;
+  preservedStructuredDraft: StructuredSessionDraft | null;
+  clearRunStructureOnSave: boolean;
+}
+
+export function sessionTypeSupportsStructuredFormat(
+  type: SessionType | null | undefined,
+): type is StructuredFormatSessionType {
+  return type ? sessionSupportsFormat(type, 'structured') : false;
 }
 
 function target(
@@ -157,6 +183,14 @@ function simpleIntervalStructure(session: Partial<PlannedSession>): RunStructure
 }
 
 function customStructuredSession(session: Partial<PlannedSession>): Partial<PlannedSession> {
+  const type = session.type ?? 'EASY';
+  if (!sessionTypeSupportsStructuredFormat(type)) {
+    return buildSimpleSessionForUnsupportedStructuredFormat({
+      session: { ...session, type },
+      planNote: session.planNote ?? '',
+    });
+  }
+
   const existing = normalizeRunStructure(session.runStructure);
   if (existing) {
     return {
@@ -166,7 +200,6 @@ function customStructuredSession(session: Partial<PlannedSession>): Partial<Plan
     };
   }
 
-  const type = session.type ?? 'EASY';
   if (type === 'INTERVAL') {
     return {
       ...session,
@@ -371,7 +404,7 @@ function getTemplate(key: StructuredSessionTemplateKey): StructureTemplate {
 export function getStructuredSessionTemplatesForType(
   type: SessionType,
 ): StructuredSessionTemplateOption[] {
-  if (type === 'RECOVERY' || type === 'REST') {
+  if (!sessionTypeSupportsStructuredFormat(type)) {
     return [];
   }
 
@@ -462,6 +495,19 @@ function hydrateProfileTargetsInItems(
 export function createStructuredSessionDraft(
   session: Partial<PlannedSession>,
 ): StructuredSessionDraft {
+  if (!sessionTypeSupportsStructuredFormat(session.type ?? 'EASY')) {
+    const simpleSession = buildSimpleSessionForUnsupportedStructuredFormat({
+      session,
+      planNote: session.planNote ?? '',
+    });
+
+    return {
+      session: simpleSession,
+      items: [],
+      selectedTemplate: 'custom',
+    };
+  }
+
   const draftSession = customStructuredSession(session);
   const normalized = normalizeRunStructure(draftSession.runStructure);
 
@@ -477,6 +523,18 @@ export function applyStructuredSessionTemplate({
   session,
   trainingPaceProfile,
 }: ApplyStructuredSessionTemplateInput): ApplyStructuredSessionTemplateResult {
+  const type = session.type ?? 'EASY';
+  if (!sessionTypeSupportsStructuredFormat(type)) {
+    return {
+      selectedTemplate: 'custom',
+      session: buildSimpleSessionForUnsupportedStructuredFormat({
+        session: { ...session, type },
+        planNote: session.planNote ?? '',
+      }),
+      items: [],
+    };
+  }
+
   const template = getTemplate(templateKey);
   const next = template.build(session);
   const nextStructure = normalizeRunStructure(next.runStructure);
@@ -498,6 +556,54 @@ function roundKm(value: number): number {
 
 function structuredKm(volume: ReturnType<typeof structuredSessionVolume>): number {
   return roundKm(volume.structuredExactKm + volume.structuredEstimatedKm);
+}
+
+function cleanedPlanNote(planNote: string): string | undefined {
+  const trimmed = planNote.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function simpleRecoverySession(
+  session: Partial<PlannedSession>,
+  planNote: string,
+): Partial<PlannedSession> {
+  return {
+    id: session.id,
+    date: session.date,
+    type: 'RECOVERY',
+    format: 'simple',
+    plannedVolume: session.plannedVolume?.unit === 'min'
+      ? { unit: 'min', value: session.plannedVolume.value }
+      : { unit: 'min', value: 35 },
+    intensityTarget: normalizeIntensityTarget(session.intensityTarget)
+      ?? defaultIntensityTargetForSessionType('RECOVERY'),
+    planNote: cleanedPlanNote(planNote),
+  };
+}
+
+function simpleRestSession(
+  session: Partial<PlannedSession>,
+  planNote: string,
+): Partial<PlannedSession> {
+  return {
+    id: session.id,
+    date: session.date,
+    type: 'REST',
+    format: 'simple',
+    planNote: cleanedPlanNote(planNote),
+  };
+}
+
+export function buildSimpleSessionForUnsupportedStructuredFormat({
+  session,
+  planNote,
+}: {
+  session: Partial<PlannedSession>;
+  planNote: string;
+}): Partial<PlannedSession> {
+  return session.type === 'REST'
+    ? simpleRestSession(session, planNote)
+    : simpleRecoverySession({ ...session, type: 'RECOVERY' }, planNote);
 }
 
 export function structuredSessionMismatchWarning(session: PlannedSession): string | null {
@@ -532,6 +638,21 @@ export function materializeStructuredSessionDraft({
 }: StructuredSessionDraftInput): PlannedSession {
   const normalized = normalizeRunStructure({ items });
   const type = session.type ?? 'EASY';
+  if (!sessionTypeSupportsStructuredFormat(type)) {
+    return {
+      ...buildSimpleSessionForUnsupportedStructuredFormat({
+        session: {
+          ...session,
+          id: session.id ?? 'run-structure-draft',
+          date: session.date ?? 'draft',
+          type,
+        },
+        planNote,
+      }),
+      id: session.id ?? 'run-structure-draft',
+      date: session.date ?? 'draft',
+    } as PlannedSession;
+  }
 
   return {
     ...session,
@@ -587,6 +708,10 @@ export function buildStructuredSessionSave({
   items,
   planNote,
 }: StructuredSessionDraftInput): Partial<PlannedSession> | null {
+  if (!sessionTypeSupportsStructuredFormat(session.type ?? 'EASY')) {
+    return buildSimpleSessionForUnsupportedStructuredFormat({ session, planNote });
+  }
+
   const normalizedStructure = normalizeRunStructure({ items });
   if (!normalizedStructure) {
     return null;
@@ -607,6 +732,13 @@ export function convertStructuredSessionDraftToSimple({
   planNote,
 }: StructuredSessionDraftInput): Partial<PlannedSession> {
   const type = session.type ?? 'EASY';
+  if (!sessionTypeSupportsStructuredFormat(type)) {
+    return buildSimpleSessionForUnsupportedStructuredFormat({
+      session: { ...session, type },
+      planNote,
+    });
+  }
+
   const materialized = materializeStructuredSessionDraft({ session, items, planNote });
   const volume = structuredSessionVolume(materialized);
   const structureKm = structuredKm(volume);
@@ -639,4 +771,79 @@ export function convertStructuredSessionDraftToSimple({
   }
 
   return simple;
+}
+
+function structuredDraftFromInput({
+  session,
+  items,
+  selectedTemplate = 'custom',
+}: Pick<PreviewStructuredSessionTypeChangeInput, 'session' | 'items' | 'selectedTemplate'>): StructuredSessionDraft {
+  return {
+    session: {
+      ...session,
+      format: 'structured',
+    },
+    items: cloneRunStructureItems(items),
+    selectedTemplate,
+  };
+}
+
+export function previewStructuredSessionTypeChange({
+  session,
+  items,
+  planNote,
+  nextType,
+  selectedTemplate = 'custom',
+  preservedStructuredDraft = null,
+}: PreviewStructuredSessionTypeChangeInput): PreviewStructuredSessionTypeChangeResult {
+  const currentType = session.type ?? 'EASY';
+  const currentDraft = structuredDraftFromInput({ session, items, selectedTemplate });
+
+  if (!sessionTypeSupportsStructuredFormat(nextType)) {
+    return {
+      format: 'simple',
+      session: buildSimpleSessionForUnsupportedStructuredFormat({
+        session: { ...session, type: nextType },
+        planNote,
+      }),
+      items: cloneRunStructureItems(items),
+      selectedTemplate,
+      preservedStructuredDraft: preservedStructuredDraft
+        ?? (sessionTypeSupportsStructuredFormat(currentType) ? currentDraft : null),
+      clearRunStructureOnSave: true,
+    };
+  }
+
+  const restored = preservedStructuredDraft?.session.type === nextType
+    ? preservedStructuredDraft
+    : null;
+  if (restored) {
+    const restoredStructure = normalizeRunStructure({ items: restored.items });
+    return {
+      format: resolveSessionFormat({
+        type: nextType,
+        format: restored.session.format,
+        runStructure: restoredStructure,
+      } as PlannedSession),
+      session: restored.session,
+      items: cloneRunStructureItems(restored.items),
+      selectedTemplate: restored.selectedTemplate,
+      preservedStructuredDraft: null,
+      clearRunStructureOnSave: false,
+    };
+  }
+
+  return {
+    format: 'structured',
+    session: {
+      ...session,
+      type: nextType,
+      format: 'structured',
+      intensityTarget: session.intensityTarget ?? defaultIntensityTargetForSessionType(nextType),
+    },
+    items: cloneRunStructureItems(items),
+    selectedTemplate,
+    preservedStructuredDraft: null,
+    clearRunStructureOnSave: false,
+  };
 }

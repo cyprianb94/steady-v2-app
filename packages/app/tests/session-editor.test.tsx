@@ -128,7 +128,7 @@ describe('SessionEditor colour language', () => {
   it('keeps unselected session type chips on the editor surface', () => {
     renderSessionEditor({ type: 'EASY', distance: 8, pace: '5:20' });
 
-    expect(screen.getByText('Interval').parentElement?.style.backgroundColor).toBe(rgb(C.surface));
+    expect(screen.getByText('Interval').parentElement?.parentElement?.style.backgroundColor).toBe(rgb(C.surface));
   });
 
   it('uses quiet metric styling for expanded repetition controls', () => {
@@ -194,7 +194,7 @@ describe('SessionEditor colour language', () => {
       },
     });
 
-    expect(screen.getByText('Recovery').parentElement?.style.borderColor).toBe(rgb(C.lavender));
+    expect(screen.getByText('Recovery').parentElement?.parentElement?.style.borderColor).toBe(rgb(C.lavender));
 
     fireEvent.click(screen.getByText('Duration'));
 
