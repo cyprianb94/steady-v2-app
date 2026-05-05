@@ -14,6 +14,7 @@ import type {
   PhaseName,
   PlannedSession,
   PlanWeek,
+  SkippedSessionReason,
   TrainingPaceProfile,
   TrainingPlan,
   TrainingPlanWithAnnotation,
@@ -44,6 +45,15 @@ export interface PropagatePlanChangeInput {
   updated: PlannedSession | null;
   scope: 'this' | 'remaining' | 'build';
   targetPhase?: PhaseName;
+}
+
+export interface MarkSessionSkippedInput {
+  sessionId: string;
+  reason: SkippedSessionReason;
+}
+
+export interface ClearSessionSkippedInput {
+  sessionId: string;
 }
 
 export type PlanWorkflowErrorCode = 'BAD_REQUEST' | 'NOT_FOUND';
@@ -155,6 +165,40 @@ function normalizeWeeks(weeks: PlanWeek[]): PlanWeek[] {
   return normalizeSessionIds(weeks.map(normalizePlanWeekSessionDurations));
 }
 
+function updateSessionById(
+  weeks: PlanWeek[],
+  sessionId: string,
+  update: (session: PlannedSession) => PlannedSession,
+): { weeks: PlanWeek[]; found: boolean; changed: boolean } {
+  let found = false;
+  let changed = false;
+
+  const nextWeeks = weeks.map((week) => {
+    let weekChanged = false;
+    const sessions = week.sessions.map((session) => {
+      if (!session || session.id !== sessionId) {
+        return session;
+      }
+
+      found = true;
+      const nextSession = update(session);
+      if (nextSession !== session) {
+        changed = true;
+        weekChanged = true;
+      }
+      return nextSession;
+    });
+
+    return weekChanged ? { ...week, sessions } : week;
+  });
+
+  return {
+    weeks: nextWeeks,
+    found,
+    changed,
+  };
+}
+
 export interface PlanWorkflowService {
   getActivePlan(userId: string): Promise<TrainingPlanWithAnnotation | null>;
   getTrainingPaceProfile(userId: string): Promise<TrainingPaceProfile | null>;
@@ -172,6 +216,8 @@ export interface PlanWorkflowService {
   savePlan(userId: string, input: SavePlanWorkflowInput): Promise<TrainingPlan>;
   propagatePlanChange(userId: string, input: PropagatePlanChangeInput): Promise<TrainingPlan | null>;
   updateWeeks(userId: string, weeks: PlanWeek[]): Promise<TrainingPlan | null>;
+  markSessionSkipped(userId: string, input: MarkSessionSkippedInput): Promise<TrainingPlan | null>;
+  clearSessionSkipped(userId: string, input: ClearSessionSkippedInput): Promise<TrainingPlan | null>;
   markInjury(userId: string, name: string): Promise<TrainingPlan | null>;
   updateInjury(userId: string, updates: InjuryUpdate): Promise<TrainingPlan | null>;
   clearInjury(userId: string): Promise<TrainingPlan | null>;
@@ -296,6 +342,50 @@ export function createPlanWorkflowService({
       if (!plan) return null;
 
       return planRepo.updateWeeks(plan.id, normalizeWeeks(weeks));
+    },
+
+    async markSessionSkipped(userId, input) {
+      const plan = await planRepo.getActive(userId);
+      if (!plan) return null;
+
+      const markedAt = now();
+      const result = updateSessionById(plan.weeks, input.sessionId, (session) => ({
+        ...session,
+        skipped: {
+          reason: input.reason,
+          markedAt,
+        },
+      }));
+
+      if (!result.found) {
+        throw new PlanWorkflowError('NOT_FOUND', 'Session not found in active plan');
+      }
+
+      return planRepo.updateWeeks(plan.id, normalizeWeeks(result.weeks));
+    },
+
+    async clearSessionSkipped(userId, input) {
+      const plan = await planRepo.getActive(userId);
+      if (!plan) return null;
+
+      const result = updateSessionById(plan.weeks, input.sessionId, (session) => {
+        if (!session.skipped) {
+          return session;
+        }
+
+        const { skipped: _skipped, ...sessionWithoutSkipped } = session;
+        return sessionWithoutSkipped;
+      });
+
+      if (!result.found) {
+        throw new PlanWorkflowError('NOT_FOUND', 'Session not found in active plan');
+      }
+
+      if (!result.changed) {
+        return plan;
+      }
+
+      return planRepo.updateWeeks(plan.id, normalizeWeeks(result.weeks));
     },
 
     async markInjury(userId, name) {

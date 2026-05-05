@@ -244,6 +244,111 @@ describe('plan workflow service', () => {
     });
   });
 
+  it('marks a planned session skipped with the server timestamp', async () => {
+    await planRepo.save(makePlan({
+      weeks: [
+        {
+          weekNumber: 1,
+          phase: 'BASE',
+          plannedKm: 14,
+          sessions: [
+            {
+              id: 'client-session-id',
+              type: 'EASY',
+              date: '2026-04-06',
+              distance: 8,
+              pace: '5:20',
+            },
+            {
+              id: 'second-session',
+              type: 'TEMPO',
+              date: '2026-04-07',
+              distance: 6,
+              pace: '4:30',
+            },
+            null, null, null, null, null,
+          ],
+        },
+      ],
+    }));
+
+    const updated = await workflow.markSessionSkipped('user-1', {
+      sessionId: 'w1d0',
+      reason: 'busy',
+    });
+
+    expect(updated?.weeks[0].sessions[0]).toMatchObject({
+      id: 'w1d0',
+      distance: 8,
+      skipped: {
+        reason: 'busy',
+        markedAt: '2026-04-16T10:00:00.000Z',
+      },
+    });
+    expect(updated?.weeks[0].sessions[1]).toMatchObject({ id: 'w1d1' });
+    expect(updated?.weeks[0].sessions[1]?.skipped).toBeUndefined();
+
+    const persisted = await planRepo.getActive('user-1');
+    expect(persisted?.weeks[0].sessions[0]?.skipped).toEqual({
+      reason: 'busy',
+      markedAt: '2026-04-16T10:00:00.000Z',
+    });
+  });
+
+  it('clears skipped status without changing the planned session', async () => {
+    await planRepo.save(makePlan({
+      weeks: [
+        {
+          weekNumber: 1,
+          phase: 'BASE',
+          plannedKm: 8,
+          sessions: [
+            {
+              id: 'client-session-id',
+              type: 'EASY',
+              date: '2026-04-06',
+              distance: 8,
+              pace: '5:20',
+              skipped: {
+                reason: 'tired',
+                markedAt: '2026-04-15T07:00:00.000Z',
+              },
+            },
+            null, null, null, null, null, null,
+          ],
+        },
+      ],
+    }));
+
+    const updated = await workflow.clearSessionSkipped('user-1', {
+      sessionId: 'w1d0',
+    });
+
+    expect(updated?.weeks[0].sessions[0]).toMatchObject({
+      id: 'w1d0',
+      type: 'EASY',
+      date: '2026-04-06',
+      distance: 8,
+      pace: '5:20',
+    });
+    expect(updated?.weeks[0].sessions[0]?.skipped).toBeUndefined();
+
+    const persisted = await planRepo.getActive('user-1');
+    expect(persisted?.weeks[0].sessions[0]?.skipped).toBeUndefined();
+  });
+
+  it('rejects skipped-session mutations when the session is not in the active plan', async () => {
+    await planRepo.save(makePlan());
+
+    await expect(workflow.markSessionSkipped('user-1', {
+      sessionId: 'missing-session',
+      reason: 'other',
+    })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+      message: 'Session not found in active plan',
+    } satisfies Partial<PlanWorkflowError>);
+  });
+
   it('propagates training pace changes without rewriting matched, completed, manual, or legacy sessions', async () => {
     const before = deriveTrainingPaceProfile({
       raceDistance: 'Marathon',

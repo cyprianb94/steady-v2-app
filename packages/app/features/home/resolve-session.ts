@@ -1,4 +1,4 @@
-import type { Activity, PlannedSession, PlanWeek, SkippedSessionReason } from '@steady/types';
+import type { Activity, PlannedSession } from '@steady/types';
 import { candidateActivitiesForSession } from '../run/session-activity-candidates';
 import type { ActivityDayStatus } from '../run/activity-resolution';
 
@@ -37,51 +37,4 @@ export function possibleActivityMatchesForSession(
   activities: readonly Activity[],
 ): Activity[] {
   return candidateActivitiesForSession(session, activities);
-}
-
-export function markSessionSkippedInWeeks({
-  weeks,
-  sessionId,
-  reason,
-  markedAt,
-}: {
-  weeks: readonly PlanWeek[];
-  sessionId: string;
-  reason: SkippedSessionReason;
-  markedAt: string;
-}): PlanWeek[] {
-  return weeks.map((week) => ({
-    ...week,
-    sessions: week.sessions.map((session) => (
-      session?.id === sessionId
-        ? {
-            ...session,
-            skipped: {
-              reason,
-              markedAt,
-            },
-          }
-        : session
-    )),
-  }));
-}
-
-export function clearSessionSkippedInWeeks({
-  weeks,
-  sessionId,
-}: {
-  weeks: readonly PlanWeek[];
-  sessionId: string;
-}): PlanWeek[] {
-  return weeks.map((week) => ({
-    ...week,
-    sessions: week.sessions.map((session) => {
-      if (session?.id !== sessionId) {
-        return session;
-      }
-
-      const { skipped: _skipped, ...sessionWithoutSkipped } = session;
-      return sessionWithoutSkipped;
-    }),
-  }));
 }

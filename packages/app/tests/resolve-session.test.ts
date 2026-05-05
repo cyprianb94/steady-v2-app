@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { Activity, PlannedSession, PlanWeek } from '@steady/types';
+import type { Activity, PlannedSession } from '@steady/types';
 import {
   canOpenHomeSessionRow,
   canOpenResolveSessionSheet,
-  clearSessionSkippedInWeeks,
-  markSessionSkippedInWeeks,
   possibleActivityMatchesForSession,
 } from '../features/home/resolve-session';
 
@@ -72,58 +70,5 @@ describe('home resolve-session helpers', () => {
     ]);
 
     expect(matches.map((match) => match.id)).toEqual(['previous-day-close', 'same-date-close', 'same-date-far']);
-  });
-
-  it('marks a session skipped without mutating the original weeks', () => {
-    const session = intervalSession();
-    const weeks: PlanWeek[] = [
-      {
-        weekNumber: 2,
-        phase: 'BASE',
-        sessions: [session, null, null, null, null, null, null],
-        plannedKm: 10,
-      },
-    ];
-
-    const nextWeeks = markSessionSkippedInWeeks({
-      weeks,
-      sessionId: session.id,
-      reason: 'busy',
-      markedAt: '2026-04-24T12:00:00.000Z',
-    });
-
-    expect(nextWeeks[0].sessions[0]?.skipped).toEqual({
-      reason: 'busy',
-      markedAt: '2026-04-24T12:00:00.000Z',
-    });
-    expect(weeks[0].sessions[0]?.skipped).toBeUndefined();
-  });
-
-  it('clears a skipped session without mutating the original weeks', () => {
-    const session = intervalSession({
-      skipped: {
-        reason: 'busy',
-        markedAt: '2026-04-24T12:00:00.000Z',
-      },
-    });
-    const weeks: PlanWeek[] = [
-      {
-        weekNumber: 2,
-        phase: 'BASE',
-        sessions: [session, null, null, null, null, null, null],
-        plannedKm: 10,
-      },
-    ];
-
-    const nextWeeks = clearSessionSkippedInWeeks({
-      weeks,
-      sessionId: session.id,
-    });
-
-    expect(nextWeeks[0].sessions[0]?.skipped).toBeUndefined();
-    expect(weeks[0].sessions[0]?.skipped).toEqual({
-      reason: 'busy',
-      markedAt: '2026-04-24T12:00:00.000Z',
-    });
   });
 });

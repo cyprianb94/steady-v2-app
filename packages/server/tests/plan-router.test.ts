@@ -242,6 +242,67 @@ describe('plan router', () => {
     });
   });
 
+  it('marks and clears skipped planned sessions through dedicated router commands', async () => {
+    await planRepo.save(makePlan(undefined, {
+      phases: { BASE: 1, BUILD: 0, RECOVERY: 0, PEAK: 0, TAPER: 0 },
+      weeks: [
+        {
+          weekNumber: 1,
+          phase: 'BASE',
+          plannedKm: 8,
+          sessions: [
+            {
+              id: 'client-session-id',
+              type: 'EASY',
+              date: '2026-04-09',
+              distance: 8,
+              pace: '5:20',
+            },
+            null, null, null, null, null, null,
+          ],
+        },
+      ],
+    }));
+
+    const marked = await caller.plan.markSessionSkipped({
+      sessionId: 'w1d0',
+      reason: 'sore',
+    });
+
+    expect(marked?.weeks[0].sessions[0]).toMatchObject({
+      id: 'w1d0',
+      distance: 8,
+      skipped: {
+        reason: 'sore',
+        markedAt: expect.any(String),
+      },
+    });
+
+    const cleared = await caller.plan.clearSessionSkipped({
+      sessionId: 'w1d0',
+    });
+
+    expect(cleared?.weeks[0].sessions[0]).toMatchObject({
+      id: 'w1d0',
+      type: 'EASY',
+      date: '2026-04-09',
+      distance: 8,
+      pace: '5:20',
+    });
+    expect(cleared?.weeks[0].sessions[0]?.skipped).toBeUndefined();
+  });
+
+  it('rejects invalid skipped-session reasons before workflow mutation', async () => {
+    await planRepo.save(makePlan());
+
+    await expect(caller.plan.markSessionSkipped({
+      sessionId: 'w1d0',
+      reason: 'travelling' as never,
+    })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
+  });
+
   it('saves and exposes the active plan training pace profile through stable router APIs', async () => {
     const profile = deriveTrainingPaceProfile({
       raceDistance: 'Marathon',

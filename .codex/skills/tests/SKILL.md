@@ -31,7 +31,7 @@ Steady-specific preference: put canonical structured-session and volume behavior
 
 For Block review, test source-of-truth volume semantics in `packages/types/tests/block-review.test.ts`, especially stale persisted `PlanWeek.plannedKm` versus session-derived exact/estimated km. Test app-only boundaries in focused files such as `review-volume-chart-model.test.ts`, `block-reschedule-controller.test.ts`, and `live-block-review-model.test.ts`; keep React tests for meaningful rendered behavior and interaction only.
 
-For plan persistence, put orchestration coverage on `packages/server/src/services/plan-workflow-service.ts` and keep `packages/app/lib/plan-api.ts` tests transport-thin. Do not test duplicated app-side Supabase plan writes; real plan load/save/profile/week behavior should be proven through the server workflow and router boundaries.
+For plan persistence, put orchestration coverage on `packages/server/src/services/plan-workflow-service.ts` and keep `packages/app/lib/plan-api.ts` tests transport-thin. Do not test duplicated app-side Supabase plan writes; real plan load/save/profile/week/skipped-session behavior should be proven through the server workflow and router boundaries. Home skipped-session tests should prove the rendered interaction calls the dedicated intent API and never reintroduces whole-plan `updatePlanWeeks` payloads.
 
 For sync-run detail, put load/draft/save/split-refresh behavior on `packages/app/features/sync/use-run-detail-controller.ts` tests with mocked transport boundaries. Keep `sync-run-detail.test.tsx` for rendered behavior and high-value interactions only, and rely on server activity workflow/router tests for multi-step persistence and rollback.
 

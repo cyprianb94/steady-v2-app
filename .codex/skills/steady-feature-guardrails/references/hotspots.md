@@ -15,10 +15,10 @@ Use this file when a feature touches an area that historically attracted debt.
 - `packages/app/app/onboarding/plan-builder/step-goal.tsx` — `562` lines. Plan-builder rules should land in shared plan-builder modules or shared domain helpers, not in the screen.
 - `packages/app/app/onboarding/plan-builder/step-plan.tsx` — `622` lines. Keep generated-plan editing rules out of the onboarding screen shell.
 - `packages/app/app/onboarding/plan-builder/step-template.tsx` — `949` lines. Template-week logic should prefer shared plan-builder modules over screen-local logic.
-- `packages/app/app/(tabs)/home.tsx` — `609` lines. Home should stay a composition surface, not a new business-logic sink; skipped-session plan writes should go through `packages/app/lib/plan-api.ts` and the server plan workflow.
+- `packages/app/app/(tabs)/home.tsx` — `606` lines. Home should stay a composition surface, not a new business-logic sink; skipped-session writes must use the intention APIs in `packages/app/lib/plan-api.ts`, not `updatePlanWeeks` or screen-local whole-plan mutation helpers.
 - `packages/server/src/services/strava-workflow-service.ts` — `546` lines. High-impact workflow boundary. Keep new behavior cohesive and avoid leaking orchestration back into routers or screens.
-- `packages/server/src/trpc/plan.ts` — `289` lines. Thin plan router: keep it to auth, Zod validation, workflow delegation, and transport error mapping.
-- `packages/server/src/services/plan-workflow-service.ts` — `315` lines. Source of truth for active-plan load/save/week/profile/injury orchestration. Keep app-side Supabase writes and router-side workflow logic from reappearing.
+- `packages/server/src/trpc/plan.ts` — `311` lines. Thin plan router: keep it to auth, Zod validation, workflow delegation, and transport error mapping.
+- `packages/server/src/services/plan-workflow-service.ts` — `405` lines. Source of truth for active-plan load/save/week/profile/injury/skipped-session orchestration. Keep app-side Supabase writes and router-side workflow logic from reappearing.
 - `packages/server/src/services/activity-workflow-service.ts` — `395` lines. Shared activity save/list workflow carries niggle enrichment plus match/shoe/fuelling persistence and rollback. Keep UI-specific shaping out of this service.
 
 ## Preferred landing zones
@@ -87,7 +87,7 @@ Start by looking in:
 - `packages/server/src/trpc/plan.ts` for input schemas and delegation only.
 - `packages/server/src/repos/plan-repo*` for persistence mapping only.
 
-Keep annotation behavior server-owned outside screenshot demo mode, and keep `updateWeeks` as a migration bridge rather than a preferred new screen API.
+Keep annotation behavior server-owned outside screenshot demo mode. For Home skipped-session changes, use `markPlannedSessionSkipped` / `clearPlannedSessionSkipped` from `packages/app/lib/plan-api.ts`, backed by dedicated plan workflow commands; do not send whole `weeks` arrays from Home. Keep `updateWeeks` as a migration bridge rather than a preferred new screen API.
 
 ### Block review and live Block work
 

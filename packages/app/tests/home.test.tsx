@@ -53,6 +53,8 @@ const mockActivityList = vi.hoisted(() => vi.fn());
 const mockActivityGet = vi.hoisted(() => vi.fn());
 const mockActivityMatchSession = vi.hoisted(() => vi.fn());
 const mockPlanUpdateWeeks = vi.hoisted(() => vi.fn());
+const mockPlanMarkSessionSkipped = vi.hoisted(() => vi.fn());
+const mockPlanClearSessionSkipped = vi.hoisted(() => vi.fn());
 const mockPreferences = vi.hoisted(() => ({
   units: 'metric' as 'metric' | 'imperial',
   weeklyVolumeMetric: 'distance' as 'distance' | 'time',
@@ -79,6 +81,12 @@ vi.mock('../lib/trpc', () => ({
     plan: {
       updateWeeks: {
         mutate: mockPlanUpdateWeeks,
+      },
+      markSessionSkipped: {
+        mutate: mockPlanMarkSessionSkipped,
+      },
+      clearSessionSkipped: {
+        mutate: mockPlanClearSessionSkipped,
       },
     },
   },
@@ -121,6 +129,8 @@ describe('HomeScreen', () => {
     mockActivityGet.mockReset();
     mockActivityMatchSession.mockReset();
     mockPlanUpdateWeeks.mockReset();
+    mockPlanMarkSessionSkipped.mockReset();
+    mockPlanClearSessionSkipped.mockReset();
     mockPreferences.units = 'metric';
     mockPreferences.weeklyVolumeMetric = 'distance';
     mockPreferences.loading = false;
@@ -132,6 +142,8 @@ describe('HomeScreen', () => {
     mockActivityGet.mockResolvedValue(null);
     mockActivityMatchSession.mockResolvedValue({});
     mockPlanUpdateWeeks.mockResolvedValue({});
+    mockPlanMarkSessionSkipped.mockResolvedValue({});
+    mockPlanClearSessionSkipped.mockResolvedValue({});
     vi.spyOn(Alert, 'alert').mockImplementation(() => {});
   });
 
@@ -1085,8 +1097,82 @@ describe('HomeScreen', () => {
       await Promise.resolve();
     });
 
-    const updateInput = mockPlanUpdateWeeks.mock.calls[0]?.[0];
-    expect(updateInput.weeks[0].sessions[0].skipped).toBeUndefined();
+    expect(mockPlanClearSessionSkipped).toHaveBeenCalledWith({
+      sessionId: 'mon-session',
+    });
+    expect(mockPlanUpdateWeeks).not.toHaveBeenCalled();
+    expect(mockPlan.refresh).toHaveBeenCalled();
+  });
+
+  it('marks a planned session skipped from the sheet without sending plan weeks', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-06T12:00:00Z')); // Monday
+    const week = {
+      weekNumber: 3,
+      phase: 'BASE' as const,
+      sessions: [
+        {
+          id: 'today-session',
+          type: 'EASY',
+          date: '2026-04-06',
+          distance: 8,
+          pace: '5:20',
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+      ],
+      plannedKm: 8,
+    };
+
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDate: '2026-07-15',
+      coachAnnotation: null,
+    };
+    mockPlan.currentWeek = week;
+    mockActivityList.mockResolvedValue([]);
+
+    render(<HomeScreen />);
+
+    fireEvent.click(screen.getByTestId('hero-card'));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getAllByText('TODAY').length).toBeGreaterThan(1);
+    fireEvent.click(screen.getByTestId('resolve-session-skip'));
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Mark skipped?',
+      'Choose the closest reason. You can still log the run later if this changes.',
+      expect.any(Array),
+    );
+
+    const buttons = vi.mocked(Alert.alert).mock.calls.at(-1)?.[2] as Array<{ text: string; onPress?: () => void }>;
+    const busyButton = buttons.find((button) => button.text === 'Busy');
+    if (!busyButton?.onPress) {
+      throw new Error('Expected a Busy action');
+    }
+
+    await act(async () => {
+      busyButton.onPress?.();
+      await Promise.resolve();
+    });
+
+    expect(mockPlanMarkSessionSkipped).toHaveBeenCalledWith({
+      sessionId: 'today-session',
+      reason: 'busy',
+    });
+    expect(mockPlanUpdateWeeks).not.toHaveBeenCalled();
     expect(mockPlan.refresh).toHaveBeenCalled();
   });
 

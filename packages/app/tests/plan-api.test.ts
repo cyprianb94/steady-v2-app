@@ -5,6 +5,8 @@ import type { SavePlanInput } from '../lib/plan-api';
 const mockTrpcPlanGet = vi.hoisted(() => vi.fn());
 const mockTrpcPlanSave = vi.hoisted(() => vi.fn());
 const mockTrpcPlanUpdateWeeks = vi.hoisted(() => vi.fn());
+const mockTrpcPlanMarkSessionSkipped = vi.hoisted(() => vi.fn());
+const mockTrpcPlanClearSessionSkipped = vi.hoisted(() => vi.fn());
 const mockTrpcPlanGetTrainingPaceProfile = vi.hoisted(() => vi.fn());
 const mockTrpcPlanUpdateTrainingPaceProfile = vi.hoisted(() => vi.fn());
 const mockIsScreenshotDemoMode = vi.hoisted(() => vi.fn());
@@ -21,6 +23,12 @@ vi.mock('../lib/trpc', () => ({
       },
       updateWeeks: {
         mutate: mockTrpcPlanUpdateWeeks,
+      },
+      markSessionSkipped: {
+        mutate: mockTrpcPlanMarkSessionSkipped,
+      },
+      clearSessionSkipped: {
+        mutate: mockTrpcPlanClearSessionSkipped,
       },
       getTrainingPaceProfile: {
         query: mockTrpcPlanGetTrainingPaceProfile,
@@ -98,6 +106,8 @@ describe('plan api', () => {
     mockTrpcPlanGet.mockReset();
     mockTrpcPlanSave.mockReset();
     mockTrpcPlanUpdateWeeks.mockReset();
+    mockTrpcPlanMarkSessionSkipped.mockReset();
+    mockTrpcPlanClearSessionSkipped.mockReset();
     mockTrpcPlanGetTrainingPaceProfile.mockReset();
     mockTrpcPlanUpdateTrainingPaceProfile.mockReset();
     mockIsScreenshotDemoMode.mockReset();
@@ -117,6 +127,8 @@ describe('plan api', () => {
       mockTrpcPlanGetTrainingPaceProfile.mockResolvedValue(profile);
       mockTrpcPlanUpdateTrainingPaceProfile.mockResolvedValue(profile);
       mockTrpcPlanUpdateWeeks.mockResolvedValue(plan);
+      mockTrpcPlanMarkSessionSkipped.mockResolvedValue(plan);
+      mockTrpcPlanClearSessionSkipped.mockResolvedValue(plan);
 
       const {
         getPlan,
@@ -124,6 +136,8 @@ describe('plan api', () => {
         getTrainingPaceProfile,
         saveTrainingPaceProfile,
         updatePlanWeeks,
+        markPlannedSessionSkipped,
+        clearPlannedSessionSkipped,
       } = await import('../lib/plan-api');
 
       await expect(getPlan()).resolves.toEqual(plan);
@@ -131,6 +145,13 @@ describe('plan api', () => {
       await expect(getTrainingPaceProfile()).resolves.toEqual(profile);
       await expect(saveTrainingPaceProfile(profile)).resolves.toEqual(profile);
       await expect(updatePlanWeeks(input.weeks)).resolves.toEqual(plan);
+      await expect(markPlannedSessionSkipped({
+        sessionId: 'w1d0',
+        reason: 'busy',
+      })).resolves.toEqual(plan);
+      await expect(clearPlannedSessionSkipped({
+        sessionId: 'w1d0',
+      })).resolves.toEqual(plan);
 
       expect(mockTrpcPlanGet).toHaveBeenCalledWith();
       expect(mockTrpcPlanSave).toHaveBeenCalledWith(input);
@@ -139,6 +160,13 @@ describe('plan api', () => {
         trainingPaceProfile: profile,
       });
       expect(mockTrpcPlanUpdateWeeks).toHaveBeenCalledWith({ weeks: input.weeks });
+      expect(mockTrpcPlanMarkSessionSkipped).toHaveBeenCalledWith({
+        sessionId: 'w1d0',
+        reason: 'busy',
+      });
+      expect(mockTrpcPlanClearSessionSkipped).toHaveBeenCalledWith({
+        sessionId: 'w1d0',
+      });
     },
   );
 
@@ -184,6 +212,8 @@ describe('plan api', () => {
       getTrainingPaceProfile,
       saveTrainingPaceProfile,
       updatePlanWeeks,
+      markPlannedSessionSkipped,
+      clearPlannedSessionSkipped,
     } = await import('../lib/plan-api');
 
     await expect(getPlan()).resolves.toEqual(plan);
@@ -191,11 +221,20 @@ describe('plan api', () => {
     await expect(getTrainingPaceProfile()).resolves.toBeNull();
     await expect(saveTrainingPaceProfile(null)).resolves.toBeNull();
     await expect(updatePlanWeeks(makeSaveInput().weeks)).resolves.toEqual(plan);
+    await expect(markPlannedSessionSkipped({
+      sessionId: 'w1d0',
+      reason: 'busy',
+    })).resolves.toEqual(plan);
+    await expect(clearPlannedSessionSkipped({
+      sessionId: 'w1d0',
+    })).resolves.toEqual(plan);
 
     expect(mockTrpcPlanGet).not.toHaveBeenCalled();
     expect(mockTrpcPlanSave).not.toHaveBeenCalled();
     expect(mockTrpcPlanGetTrainingPaceProfile).not.toHaveBeenCalled();
     expect(mockTrpcPlanUpdateTrainingPaceProfile).not.toHaveBeenCalled();
     expect(mockTrpcPlanUpdateWeeks).not.toHaveBeenCalled();
+    expect(mockTrpcPlanMarkSessionSkipped).not.toHaveBeenCalled();
+    expect(mockTrpcPlanClearSessionSkipped).not.toHaveBeenCalled();
   });
 });

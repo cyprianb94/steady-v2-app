@@ -108,8 +108,9 @@ const SubjectiveInputSchema = z.object({
   breathing: z.enum(['easy', 'controlled', 'labored']),
   overall: z.enum(['could-go-again', 'done', 'shattered']),
 });
+const SkippedSessionReasonSchema = z.enum(['tired', 'ill', 'busy', 'sore', 'other']);
 const SkippedSessionSchema = z.object({
-  reason: z.enum(['tired', 'ill', 'busy', 'sore', 'other']),
+  reason: SkippedSessionReasonSchema,
   markedAt: z.string(),
 });
 const PlannedSessionSchema = z.object({
@@ -263,6 +264,27 @@ export function createPlanRouter(planWorkflow: PlanWorkflowService) {
       )
       .mutation(async ({ ctx, input }) => {
         return runWorkflow(() => planWorkflow.updateWeeks(ctx.userId, input.weeks as PlanWeek[]));
+      }),
+
+    markSessionSkipped: authedProcedure
+      .input(
+        z.object({
+          sessionId: z.string().min(1),
+          reason: SkippedSessionReasonSchema,
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        return runWorkflow(() => planWorkflow.markSessionSkipped(ctx.userId, input));
+      }),
+
+    clearSessionSkipped: authedProcedure
+      .input(
+        z.object({
+          sessionId: z.string().min(1),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        return runWorkflow(() => planWorkflow.clearSessionSkipped(ctx.userId, input));
       }),
 
     markInjury: authedProcedure

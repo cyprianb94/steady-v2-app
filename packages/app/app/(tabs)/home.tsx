@@ -21,7 +21,7 @@ import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { useAuth } from '../../lib/auth';
 import { trpc } from '../../lib/trpc';
-import { updatePlanWeeks } from '../../lib/plan-api';
+import { clearPlannedSessionSkipped, markPlannedSessionSkipped } from '../../lib/plan-api';
 import { usePlan } from '../../hooks/usePlan';
 import { useStravaSync } from '../../hooks/useStravaSync';
 import { useTodayIso } from '../../hooks/useTodayIso';
@@ -49,8 +49,6 @@ import { connectStravaAndRefresh } from '../../features/strava/strava-connection
 import { buildCurrentDisplayWeek, resolveDisplayWeekStartDate } from '../../features/run/display-week';
 import {
   canOpenResolveSessionSheet,
-  clearSessionSkippedInWeeks,
-  markSessionSkippedInWeeks,
   possibleActivityMatchesForSession,
 } from '../../features/home/resolve-session';
 import { resolveProfileLinkedWeekTargets } from '../../features/plan-builder/session-editing';
@@ -273,12 +271,10 @@ export default function HomeScreen() {
 
     try {
       setResolveSessionBusy(true);
-      await updatePlanWeeks(markSessionSkippedInWeeks({
-        weeks: plan.weeks,
+      await markPlannedSessionSkipped({
         sessionId: sessionToSkip.id,
         reason,
-        markedAt: new Date().toISOString(),
-      }));
+      });
       setResolvingSession(null);
       await refresh();
     } catch (error) {
@@ -296,10 +292,9 @@ export default function HomeScreen() {
 
     try {
       setResolveSessionBusy(true);
-      await updatePlanWeeks(clearSessionSkippedInWeeks({
-        weeks: plan.weeks,
+      await clearPlannedSessionSkipped({
         sessionId: sessionToClear.id,
-      }));
+      });
       setResolvingSession(null);
       await refresh();
     } catch (error) {

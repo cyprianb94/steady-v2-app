@@ -2,6 +2,7 @@ import type {
   PhaseConfig,
   PlannedSession,
   PlanWeek,
+  SkippedSessionReason,
   TrainingPaceProfile,
   TrainingPlan,
   TrainingPlanWithAnnotation,
@@ -71,4 +72,33 @@ export async function updatePlanWeeks(weeks: PlanWeek[]): Promise<TrainingPlan |
   }
 
   return trpc.plan.updateWeeks.mutate({ weeks });
+}
+
+export async function markPlannedSessionSkipped({
+  sessionId,
+  reason,
+}: {
+  sessionId: string;
+  reason: SkippedSessionReason;
+}): Promise<TrainingPlan | null> {
+  if (isScreenshotDemoMode()) {
+    return getScreenshotDemoPlan();
+  }
+
+  return trpc.plan.markSessionSkipped.mutate({
+    sessionId,
+    reason,
+  });
+}
+
+export async function clearPlannedSessionSkipped({
+  sessionId,
+}: {
+  sessionId: string;
+}): Promise<TrainingPlan | null> {
+  if (isScreenshotDemoMode()) {
+    return getScreenshotDemoPlan();
+  }
+
+  return trpc.plan.clearSessionSkipped.mutate({ sessionId });
 }
