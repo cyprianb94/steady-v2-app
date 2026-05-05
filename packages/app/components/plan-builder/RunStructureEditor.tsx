@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   Animated,
+  Easing,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -33,10 +34,12 @@ import { SESSION_TYPE } from '../../constants/session-types';
 import { FONTS } from '../../constants/typography';
 import {
   useDirectListReorder,
+  type DirectListReorderExtractDirection,
   type DirectListReorderDragState,
 } from '../../features/plan-builder/use-direct-list-reorder';
 import {
   applyStructuredSessionTemplate,
+  buildSimpleSessionForUnsupportedStructuredFormat,
   buildStructuredSessionSave,
   cloneRunStructureItems,
   convertStructuredSessionDraftToSimple,
@@ -45,6 +48,7 @@ import {
   materializeStructuredSessionDraft,
   runStructureRepeat as repeat,
   runStructureSegment as segment,
+  sessionTypeSupportsStructuredFormat,
   structuredSessionMismatchWarning,
   type StructuredSessionTemplateKey,
 } from '../../features/plan-builder/structured-session-editor-engine';
@@ -62,7 +66,7 @@ import { ChipStripEditor } from '../ui/ChipStripEditor';
 import { EditableChipStrip, type EditableChipOption } from '../ui/EditableChipStrip';
 import { SectionLabel } from '../ui/SectionLabel';
 import { UnitTogglePill } from '../ui/UnitTogglePill';
-import { DragHandle } from './DragHandle';
+import { SessionTypeCardGrid } from './SessionTypeCardGrid';
 
 interface RunStructureEditorProps {
   dayIndex: number;
@@ -70,9 +74,18 @@ interface RunStructureEditorProps {
   trainingPaceProfile?: TrainingPaceProfile | null;
   onSave: (dayIndex: number, session: Partial<PlannedSession>) => void;
   onClose: () => void;
-  onChangeFormat?: (format: SessionFormat, session: Partial<PlannedSession>) => void;
+  onChangeFormat?: (
+    format: SessionFormat,
+    session: Partial<PlannedSession>,
+    context?: {
+      restoreStructuredDraft?: Partial<PlannedSession>;
+      pendingStructureClear?: boolean;
+      pendingStructureClearReason?: StructureClearReason;
+    },
+  ) => void;
 }
 
+type StructureClearReason = 'simple' | 'recovery' | 'rest';
 type TemplateKey =
   StructuredSessionTemplateKey;
 
@@ -92,13 +105,40 @@ const SECOND_PRESETS = [20, 30, 45, 60, 90];
 const PACE_PRESET_OFFSETS = [-15, -10, -5, 0, 5, 10, 15];
 const MIN_TARGET_PACE_SECONDS = 150;
 const MAX_TARGET_PACE_SECONDS = 720;
-const STRUCTURED_SESSION_TYPES: Exclude<SessionType, 'RECOVERY' | 'REST'>[] = [
+const STRUCTURED_EDITOR_SESSION_TYPES: SessionType[] = [
   'EASY',
+  'RECOVERY',
   'INTERVAL',
   'TEMPO',
   'LONG',
+  'REST',
 ];
+const LONG_PRESS_DRAG_DELAY_MS = 360;
+const GESTURE_INTENT_SLOP = 8;
+const SWIPE_DELETE_THRESHOLD = 118;
+const SWIPE_ACTION_LABEL_WIDTH = 112;
+const NESTED_EXTRACT_SLOT_HEIGHT = 76;
+const NESTED_EXTRACT_AFTER_GAP = 8;
+const NESTED_EXTRACT_BEFORE_GAP = 26;
+const STRUCTURE_PREVIEW_ANIMATION_MS = 130;
+const NESTED_EXTRACT_ANIMATION_MS = 155;
+const USE_STRUCTURE_MOTION = Platform.OS !== 'web' && typeof globalThis.document === 'undefined';
 const FULL_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
+
+function animateStructureTop(value: Animated.Value, toValue: number, duration: number) {
+  value.stopAnimation();
+  if (!USE_STRUCTURE_MOTION) {
+    value.setValue(toValue);
+    return;
+  }
+
+  Animated.timing(value, {
+    toValue,
+    duration,
+    easing: Easing.out(Easing.cubic),
+    useNativeDriver: false,
+  }).start();
+}
 
 function formatVolume(volume: RunStructureVolume): string {
   if (volume.unit === 'sec') return `${volume.value}s`;
@@ -299,13 +339,6 @@ function formatVolumeSummary(volume: { km: number; seconds: number }): string {
   return '0';
 }
 
-function repeatsMetric(items: RunStructureItem[]): { value: string; caption: string } {
-  const groups = items.filter((item): item is Extract<RunStructureItem, { kind: 'REPEAT' }> => item.kind === 'REPEAT');
-  if (groups.length === 0) return { value: '0', caption: 'none' };
-  if (groups.length === 1) return { value: String(groups[0].repeats), caption: 'rounds' };
-  return { value: String(groups.length), caption: 'groups' };
-}
-
 function roundKm(value: number): number {
   return Math.round(value * 10) / 10;
 }
@@ -314,7 +347,7 @@ function structuredKm(volume: ReturnType<typeof structuredSessionVolume>): numbe
   return roundKm(volume.structuredExactKm + volume.structuredEstimatedKm);
 }
 
-function totalMetric(session: PlannedSession): { value: string; color: string; caption: string } {
+function distanceMetric(session: PlannedSession): { value: string; color: string; caption: string } {
   const volume = structuredSessionVolume(session);
   const structureKm = structuredKm(volume);
   if (structureKm > 0) {
@@ -330,14 +363,46 @@ function totalMetric(session: PlannedSession): { value: string; color: string; c
   if (volume.estimatedKm > 0) {
     return { value: `${volume.estimatedKm}km`, color: C.metricDistance, caption: 'estimated' };
   }
-  if (volume.plannedMinutes > 0) {
-    return { value: `${volume.plannedMinutes}min`, color: C.metricTime, caption: 'planned' };
-  }
+  return { value: '-', color: C.metricDistance, caption: 'no distance' };
+}
+
+function timeMetric(session: PlannedSession): { value: string; color: string; caption: string } {
+  const volume = structuredSessionVolume(session);
   if (volume.structuredSeconds > 0) {
     const minutes = Math.round((volume.structuredSeconds / 60) * 10) / 10;
     return { value: `${minutes}min`, color: C.metricTime, caption: 'structured' };
   }
-  return { value: '0', color: C.ink, caption: 'not set' };
+  if (volume.plannedMinutes > 0) {
+    return { value: `${volume.plannedMinutes}min`, color: C.metricTime, caption: 'planned' };
+  }
+  return { value: '-', color: C.metricTime, caption: 'from pace' };
+}
+
+function qualityMetric(
+  items: RunStructureItem[],
+  session: PlannedSession,
+): { value: string; color: string; caption: string } {
+  const quality = qualityVolume(items);
+  const volume = structuredSessionVolume(session);
+  const totalKm = volume.structuredExactKm + volume.structuredEstimatedKm;
+
+  if (quality.km > 0 && totalKm > 0) {
+    return {
+      value: `${Math.round((quality.km / totalKm) * 100)}%`,
+      color: C.metricEffort,
+      caption: 'of session',
+    };
+  }
+
+  if (quality.seconds > 0 && volume.structuredSeconds > 0) {
+    return {
+      value: `${Math.round((quality.seconds / volume.structuredSeconds) * 100)}%`,
+      color: C.metricEffort,
+      caption: 'of session',
+    };
+  }
+
+  return { value: '0%', color: C.metricEffort, caption: 'of session' };
 }
 
 function groupVolume(item: Extract<RunStructureItem, { kind: 'REPEAT' }>): string {
@@ -370,20 +435,6 @@ function segmentKindLabel(kind: RunStructureSegmentKind): string {
   }
 }
 
-function typeChipLabel(type: SessionType): string {
-  switch (type) {
-    case 'INTERVAL':
-      return 'Interval';
-    case 'LONG':
-      return 'Long';
-    case 'TEMPO':
-      return 'Tempo';
-    case 'EASY':
-    default:
-      return 'Easy';
-  }
-}
-
 function typeHeaderLabel(type: SessionType): string {
   switch (type) {
     case 'INTERVAL':
@@ -398,8 +449,7 @@ function typeHeaderLabel(type: SessionType): string {
   }
 }
 
-interface StructureDragHandleProps {
-  testID: string;
+interface StructureDragControls {
   index: number;
   active: boolean;
   recordTouchStart: (pageY: number) => void;
@@ -411,63 +461,450 @@ interface StructureDragHandleProps {
   onDragActiveChange?: (active: boolean) => void;
 }
 
-function StructureDragHandle({
+interface FormatSegmentedControlProps {
+  onSimplePress: () => void;
+}
+
+function FormatSegmentedControl({ onSimplePress }: FormatSegmentedControlProps) {
+  return (
+    <View style={styles.formatSegmentedControl}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onSimplePress}
+        style={({ pressed }) => [
+          styles.formatSegment,
+          pressed && styles.formatSegmentPressed,
+        ]}
+      >
+        <Text style={styles.formatSegmentText}>Simple</Text>
+      </Pressable>
+      <View style={[styles.formatSegment, styles.formatSegmentActive]}>
+        <Text style={[styles.formatSegmentText, styles.formatSegmentTextActive]}>
+          Structured
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+interface MetricSummaryCardsProps {
+  distance: { value: string; color: string; caption: string };
+  time: { value: string; color: string; caption: string };
+  quality: { value: string; color: string; caption: string };
+}
+
+function MetricSummaryCards({ distance, time, quality }: MetricSummaryCardsProps) {
+  const cards = [
+    { label: 'Distance', metric: distance },
+    { label: 'Time', metric: time },
+    { label: 'Quality', metric: quality },
+  ];
+
+  return (
+    <View style={styles.summaryCards}>
+      {cards.map(({ label, metric }) => (
+        <View key={label} style={styles.summaryCard}>
+          <Text style={styles.summaryLabel}>{label}</Text>
+          <Text style={[styles.summaryValue, { color: metric.color }]}>{metric.value}</Text>
+          <Text style={styles.summaryCaption}>{metric.caption}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+interface ReorderableStructureItemProps {
+  itemKey: string;
+  testID: string;
+  dragging: boolean;
+  elevated?: boolean;
+  extracting?: boolean;
+  extractDirection?: DirectListReorderExtractDirection | null;
+  extractAfterTop?: number | null;
+  extractBeforeGap?: number;
+  dragY: Animated.Value;
+  dragOffset?: number;
+  previewOffset: number;
+  onLayout: (event: Parameters<NonNullable<React.ComponentProps<typeof Animated.View>['onLayout']>>[0]) => void;
+  children: React.ReactNode;
+}
+
+function ReorderableStructureItem({
+  itemKey,
   testID,
-  index,
-  active,
-  recordTouchStart,
-  beginDrag,
-  updateDrag,
-  cancelDrag,
-  finishDrag,
-  onFinish,
-  onDragActiveChange,
-}: StructureDragHandleProps) {
-  function finish() {
-    const dragState = finishDrag();
-    onDragActiveChange?.(false);
-    onFinish?.(dragState);
+  dragging,
+  elevated = false,
+  extracting = false,
+  extractDirection = null,
+  extractAfterTop = null,
+  extractBeforeGap = NESTED_EXTRACT_BEFORE_GAP,
+  dragY,
+  dragOffset = 0,
+  previewOffset,
+  onLayout,
+  children,
+}: ReorderableStructureItemProps) {
+  const [layoutY, setLayoutY] = useState(0);
+  const [layoutHeight, setLayoutHeight] = useState(0);
+  const previewTop = React.useRef(new Animated.Value(previewOffset)).current;
+  const extractionTop = React.useRef(new Animated.Value(0)).current;
+  const extractingRef = React.useRef(false);
+  const extractionTargetRef = React.useRef<number | null>(null);
+  const extractingDrag = dragging && extracting;
+  const extractTop = (() => {
+    if (!extractingDrag) return null;
+    if (extractDirection === 'after' && extractAfterTop != null) {
+      return extractAfterTop;
+    }
+    if (extractDirection === 'before' && layoutHeight > 0) {
+      return -extractBeforeGap - layoutHeight;
+    }
+    return layoutY + dragOffset;
+  })();
+
+  React.useLayoutEffect(() => {
+    if (dragging || extractingDrag) {
+      previewTop.stopAnimation();
+      previewTop.setValue(previewOffset);
+      return;
+    }
+
+    animateStructureTop(previewTop, previewOffset, STRUCTURE_PREVIEW_ANIMATION_MS);
+  }, [dragging, extractingDrag, previewOffset, previewTop]);
+
+  React.useLayoutEffect(() => {
+    if (!extractingDrag || extractTop == null) {
+      extractionTop.stopAnimation();
+      extractingRef.current = false;
+      extractionTargetRef.current = null;
+      return;
+    }
+
+    if (!extractingRef.current) {
+      extractionTop.stopAnimation();
+      extractionTop.setValue(layoutY + dragOffset);
+      extractingRef.current = true;
+      extractionTargetRef.current = null;
+    }
+
+    if (extractionTargetRef.current === extractTop) {
+      return;
+    }
+
+    extractionTargetRef.current = extractTop;
+    animateStructureTop(extractionTop, extractTop, NESTED_EXTRACT_ANIMATION_MS);
+  }, [dragOffset, extractTop, extractingDrag, extractionTop, layoutY]);
+
+  function handleLayout(
+    event: Parameters<NonNullable<React.ComponentProps<typeof Animated.View>['onLayout']>>[0],
+  ) {
+    if (!dragging) {
+      const nextY = event.nativeEvent.layout.y;
+      const nextHeight = event.nativeEvent.layout.height;
+      setLayoutY((current) => (Math.abs(current - nextY) > 0.5 ? nextY : current));
+      setLayoutHeight((current) => (Math.abs(current - nextHeight) > 0.5 ? nextHeight : current));
+    }
+    onLayout(event);
   }
 
   return (
-    <DragHandle
+    <Animated.View
+      key={itemKey}
       testID={testID}
-      active={active}
-      onMouseDown={(event) => {
-        event.stopPropagation?.();
-        onDragActiveChange?.(true);
-        recordTouchStart(event.clientY);
-        beginDrag(index);
-      }}
-      onMouseMove={(event) => {
-        event.stopPropagation?.();
-        updateDrag(event.clientY);
-      }}
-      onMouseUp={(event) => {
-        event.stopPropagation?.();
-        finish();
-      }}
-      onTouchStart={(event) => {
-        event.stopPropagation?.();
-        onDragActiveChange?.(true);
-        recordTouchStart(event.nativeEvent.pageY);
-      }}
-      onLongPress={(event) => {
-        recordTouchStart(event.nativeEvent.pageY);
-        beginDrag(index);
-      }}
-      onTouchMove={(event) => {
-        event.stopPropagation?.();
-        updateDrag(event.nativeEvent.pageY);
-      }}
-      onTouchCancel={() => {
-        cancelDrag();
-        onDragActiveChange?.(false);
-      }}
-      onTouchEnd={() => {
-        finish();
-      }}
-    />
+      onLayout={handleLayout}
+      style={[
+        styles.structureItemWrap,
+        extractingDrag && styles.structureItemWrapExtracting,
+        (dragging || elevated) && styles.structureItemWrapDragging,
+        extractingDrag
+          ? { top: USE_STRUCTURE_MOTION ? extractionTop : extractTop ?? layoutY + dragOffset }
+          : { top: dragging ? dragY : USE_STRUCTURE_MOTION ? previewTop : previewOffset },
+        {
+          transform: [
+            { scale: dragging ? 1.015 : 1 },
+          ],
+        },
+      ]}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
+interface SwipeDeleteSegmentProps {
+  testID: string;
+  disabled?: boolean;
+  overflowVisible?: boolean;
+  dragControls?: StructureDragControls;
+  onSwipeActiveChange?: (active: boolean) => void;
+  onDelete: () => void;
+  children: React.ReactNode;
+}
+
+function SwipeDeleteSegment({
+  testID,
+  disabled = false,
+  overflowVisible = false,
+  dragControls,
+  onSwipeActiveChange,
+  onDelete,
+  children,
+}: SwipeDeleteSegmentProps) {
+  const translateX = React.useRef(new Animated.Value(0)).current;
+  const deleteLabelTranslateX = React.useRef(new Animated.Value(SWIPE_ACTION_LABEL_WIDTH / 2)).current;
+  const startXRef = React.useRef<number | null>(null);
+  const startYRef = React.useRef<number | null>(null);
+  const latestYRef = React.useRef<number | null>(null);
+  const currentXRef = React.useRef(0);
+  const swipingRef = React.useRef(false);
+  const swipingActiveRef = React.useRef(false);
+  const draggingRef = React.useRef(false);
+  const longPressTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const armedRef = React.useRef(false);
+  const [armed, setArmed] = React.useState(false);
+
+  function pageXFromEvent(event: unknown): number | null {
+    const candidate = event as {
+      clientX?: unknown;
+      nativeEvent?: { pageX?: unknown; clientX?: unknown };
+    };
+    if (typeof candidate.clientX === 'number') return candidate.clientX;
+    if (typeof candidate.nativeEvent?.pageX === 'number') return candidate.nativeEvent.pageX;
+    if (typeof candidate.nativeEvent?.clientX === 'number') return candidate.nativeEvent.clientX;
+    return null;
+  }
+
+  function pageYFromEvent(event: unknown): number | null {
+    const candidate = event as {
+      clientY?: unknown;
+      nativeEvent?: { pageY?: unknown; clientY?: unknown };
+    };
+    if (typeof candidate.clientY === 'number') return candidate.clientY;
+    if (typeof candidate.nativeEvent?.pageY === 'number') return candidate.nativeEvent.pageY;
+    if (typeof candidate.nativeEvent?.clientY === 'number') return candidate.nativeEvent.clientY;
+    return null;
+  }
+
+  function stopEvent(event: unknown) {
+    (event as { stopPropagation?: () => void }).stopPropagation?.();
+  }
+
+  function clearLongPressTimer() {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }
+
+  function setArmedValue(nextArmed: boolean) {
+    if (armedRef.current === nextArmed) return;
+    armedRef.current = nextArmed;
+    setArmed(nextArmed);
+  }
+
+  function setSwipeActive(nextActive: boolean) {
+    if (swipingActiveRef.current === nextActive) return;
+    swipingActiveRef.current = nextActive;
+    onSwipeActiveChange?.(nextActive);
+  }
+
+  function resetGestureState() {
+    clearLongPressTimer();
+    startXRef.current = null;
+    startYRef.current = null;
+    latestYRef.current = null;
+    currentXRef.current = 0;
+    swipingRef.current = false;
+    draggingRef.current = false;
+  }
+
+  function startDrag(pageY: number | null) {
+    if (!dragControls || swipingRef.current || draggingRef.current) return;
+    clearLongPressTimer();
+    const activationY = pageY ?? latestYRef.current ?? startYRef.current ?? 0;
+    draggingRef.current = true;
+    dragControls.onDragActiveChange?.(true);
+    dragControls.recordTouchStart(activationY);
+    dragControls.beginDrag(dragControls.index);
+  }
+
+  function startGesture(event: unknown) {
+    stopEvent(event);
+    const pageX = pageXFromEvent(event);
+    const pageY = pageYFromEvent(event);
+    if (pageX == null && pageY == null) return;
+    startXRef.current = pageX;
+    startYRef.current = pageY;
+    latestYRef.current = pageY;
+    currentXRef.current = 0;
+    swipingRef.current = false;
+    draggingRef.current = false;
+    setArmedValue(false);
+    translateX.setValue(0);
+    deleteLabelTranslateX.setValue(SWIPE_ACTION_LABEL_WIDTH / 2);
+
+    if (dragControls && pageY != null) {
+      clearLongPressTimer();
+      longPressTimerRef.current = setTimeout(() => {
+        startDrag(latestYRef.current);
+      }, LONG_PRESS_DRAG_DELAY_MS);
+    }
+  }
+
+  function updateGesture(event: unknown) {
+    if (startXRef.current == null && startYRef.current == null) return;
+    stopEvent(event);
+    const pageX = pageXFromEvent(event);
+    const pageY = pageYFromEvent(event);
+    if (pageY != null) {
+      latestYRef.current = pageY;
+    }
+
+    if (draggingRef.current) {
+      if (pageY != null) {
+        dragControls?.updateDrag(pageY);
+      }
+      return;
+    }
+
+    const dx = pageX != null && startXRef.current != null ? pageX - startXRef.current : 0;
+    const dy = pageY != null && startYRef.current != null ? pageY - startYRef.current : 0;
+    const horizontalIntent = dx < -GESTURE_INTENT_SLOP && Math.abs(dx) > Math.abs(dy);
+
+    if (horizontalIntent && !disabled) {
+      clearLongPressTimer();
+      setSwipeActive(true);
+      swipingRef.current = true;
+    } else if (
+      !swipingRef.current
+      && (Math.abs(dx) > GESTURE_INTENT_SLOP || Math.abs(dy) > GESTURE_INTENT_SLOP)
+    ) {
+      clearLongPressTimer();
+    }
+
+    if (!swipingRef.current || disabled) {
+      return;
+    }
+
+    const nextX = Math.min(0, dx);
+    currentXRef.current = nextX;
+    translateX.setValue(nextX);
+    deleteLabelTranslateX.setValue((nextX + SWIPE_ACTION_LABEL_WIDTH) / 2);
+    setArmedValue(nextX <= -SWIPE_DELETE_THRESHOLD);
+  }
+
+  function finishGesture() {
+    clearLongPressTimer();
+
+    if (draggingRef.current) {
+      const dragState = dragControls?.finishDrag() ?? null;
+      dragControls?.onDragActiveChange?.(false);
+      dragControls?.onFinish?.(dragState);
+      resetGestureState();
+      return;
+    }
+
+    if (disabled || !swipingRef.current || startXRef.current == null) {
+      setSwipeActive(false);
+      resetGestureState();
+      return;
+    }
+
+    const shouldDelete = currentXRef.current <= -SWIPE_DELETE_THRESHOLD;
+
+    if (shouldDelete) {
+      Animated.timing(translateX, {
+        toValue: currentXRef.current,
+        duration: 90,
+        useNativeDriver: true,
+      }).start(() => {
+        translateX.setValue(0);
+        deleteLabelTranslateX.setValue(SWIPE_ACTION_LABEL_WIDTH / 2);
+        setArmedValue(false);
+        setSwipeActive(false);
+        resetGestureState();
+        onDelete();
+      });
+      return;
+    }
+
+    Animated.timing(translateX, {
+      toValue: 0,
+      duration: 150,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(deleteLabelTranslateX, {
+      toValue: SWIPE_ACTION_LABEL_WIDTH / 2,
+      duration: 150,
+      useNativeDriver: true,
+    }).start();
+    setArmedValue(false);
+    setSwipeActive(false);
+    resetGestureState();
+  }
+
+  function cancelGesture() {
+    clearLongPressTimer();
+
+    if (draggingRef.current) {
+      dragControls?.cancelDrag();
+      dragControls?.onDragActiveChange?.(false);
+    }
+
+    translateX.setValue(0);
+    deleteLabelTranslateX.setValue(SWIPE_ACTION_LABEL_WIDTH / 2);
+    setArmedValue(false);
+    setSwipeActive(false);
+    resetGestureState();
+  }
+
+  return (
+    <View
+      testID={testID}
+      style={[
+        styles.swipeDeleteShell,
+        overflowVisible && styles.swipeDeleteShellOverflowVisible,
+      ]}
+      onTouchStart={startGesture}
+      onTouchMove={updateGesture}
+      onTouchCancel={cancelGesture}
+      onTouchEnd={finishGesture}
+      {...({
+        onMouseDown: startGesture,
+        onMouseMove: updateGesture,
+        onMouseUp: (event: unknown) => {
+          stopEvent(event);
+          finishGesture();
+        },
+        onMouseLeave: (event: unknown) => {
+          stopEvent(event);
+          finishGesture();
+        },
+      } as object)}
+    >
+      <Animated.View
+        testID={`${testID}-action-${armed ? 'armed' : 'idle'}`}
+        pointerEvents="none"
+        style={[
+          styles.swipeDeleteAction,
+          armed && styles.swipeDeleteActionArmed,
+        ]}
+      >
+        <Animated.View
+          style={[
+            styles.swipeDeleteTextWrap,
+            { transform: [{ translateX: deleteLabelTranslateX }] },
+          ]}
+        >
+          <Text style={[styles.swipeDeleteText, armed && styles.swipeDeleteTextArmed]}>
+            Delete
+          </Text>
+        </Animated.View>
+      </Animated.View>
+      <Animated.View style={{ transform: [{ translateX }] }}>
+        {children}
+      </Animated.View>
+    </View>
   );
 }
 
@@ -477,17 +914,31 @@ interface RepeatGroupStructureCardProps {
   item: RepeatStructureItem;
   itemIndex: number;
   dragging: boolean;
-  dragHandle: React.ReactNode;
+  collapsed: boolean;
   onSetRepeatCount: (itemIndex: number, repeats: number) => void;
-  onRemoveItem: (itemIndex: number) => void;
+  onToggleCollapsed: (itemIndex: number) => void;
   onSegmentsReordered: (itemIndex: number, segments: RunStructureSegment[]) => void;
+  onRemoveSegment: (itemIndex: number, segmentIndex: number) => void;
+  onSegmentExtracted: (
+    itemIndex: number,
+    segmentIndex: number,
+    direction: DirectListReorderExtractDirection,
+    nextSegments: RunStructureSegment[],
+    segmentValue: RunStructureSegment,
+  ) => void;
+  onNestedExtractionChange: (
+    itemIndex: number,
+    direction: DirectListReorderExtractDirection | null,
+  ) => void;
   onDragActiveChange: (active: boolean) => void;
   renderSegment: (
     segmentValue: RunStructureSegment,
     itemIndex: number,
     segmentIndex: number | null,
     nested: boolean,
-    dragHandle: React.ReactNode,
+    dragControls: StructureDragControls,
+    onDelete?: () => void,
+    standalonePreview?: boolean,
   ) => React.ReactNode;
 }
 
@@ -495,32 +946,80 @@ function RepeatGroupStructureCard({
   item,
   itemIndex,
   dragging,
-  dragHandle,
+  collapsed,
   onSetRepeatCount,
-  onRemoveItem,
+  onToggleCollapsed,
   onSegmentsReordered,
+  onRemoveSegment,
+  onSegmentExtracted,
+  onNestedExtractionChange,
   onDragActiveChange,
   renderSegment,
 }: RepeatGroupStructureCardProps) {
+  const [repeatGroupHeight, setRepeatGroupHeight] = useState(0);
+  const [repeatSegmentsY, setRepeatSegmentsY] = useState(0);
   const segmentOrder = useDirectListReorder<RunStructureSegment>({
     initialItems: item.segments,
+    canExtractItem: () => true,
+    extractThreshold: 12,
     onReorder: (_fromIndex, _toIndex, nextSegments) => {
       onSegmentsReordered(itemIndex, nextSegments);
     },
+    onExtract: (fromIndex, direction, nextSegments, segmentValue) => {
+      onSegmentExtracted(itemIndex, fromIndex, direction, nextSegments, segmentValue);
+    },
   });
+  const childDragActive = segmentOrder.dragState != null;
+  const nestedExtractDirection = segmentOrder.dragState?.extractDirection ?? null;
+  const extractAfterTop = repeatGroupHeight > 0
+    ? Math.max(0, repeatGroupHeight - repeatSegmentsY + NESTED_EXTRACT_AFTER_GAP)
+    : null;
+  const extractBeforeGap = repeatSegmentsY + NESTED_EXTRACT_BEFORE_GAP;
+
+  React.useEffect(() => {
+    onNestedExtractionChange(itemIndex, nestedExtractDirection);
+  }, [itemIndex, nestedExtractDirection, onNestedExtractionChange]);
+
+  React.useEffect(() => () => {
+    onNestedExtractionChange(itemIndex, null);
+  }, [itemIndex, onNestedExtractionChange]);
 
   return (
-    <View style={[styles.repeatGroupCard, dragging && styles.structureItemDragging]}>
+    <View
+      style={[
+        styles.repeatGroupCard,
+        dragging && styles.structureItemDragging,
+        dragging && styles.repeatGroupCardDragging,
+        childDragActive && styles.repeatGroupCardChildDragging,
+      ]}
+      onLayout={(event) => {
+        const nextHeight = event.nativeEvent.layout.height;
+        setRepeatGroupHeight((current) => (
+          Math.abs(current - nextHeight) > 0.5 ? nextHeight : current
+        ));
+      }}
+    >
+      <View pointerEvents="none" style={styles.repeatGroupRail} />
       <View style={styles.repeatHeader}>
-        <View style={styles.repeatHeaderTitleRow}>
-          {dragHandle}
-          <View style={styles.repeatHeaderCopy}>
-            <Text style={styles.itemTitle}>Repeat group</Text>
-            <Text style={styles.itemCaption}>
-              {item.repeats} rounds · {groupVolume(item)}
-            </Text>
+        <Pressable
+          testID={`run-structure-repeat-toggle-${itemIndex}`}
+          accessibilityRole="button"
+          accessibilityLabel={collapsed ? 'Expand repeat group' : 'Collapse repeat group'}
+          onPress={() => onToggleCollapsed(itemIndex)}
+          style={({ pressed }) => [
+            styles.repeatHeaderToggle,
+            pressed && styles.repeatHeaderTogglePressed,
+          ]}
+        >
+          <View style={styles.repeatHeaderTitleRow}>
+            <View style={styles.repeatHeaderCopy}>
+              <Text style={styles.itemTitle}>Repeat group</Text>
+              <Text style={styles.itemCaption}>
+                {item.repeats} rounds · {groupVolume(item)}
+              </Text>
+            </View>
           </View>
-        </View>
+        </Pressable>
         <View style={styles.repeatHeaderActions}>
           <View style={styles.repeatStepper}>
             <Pressable
@@ -539,61 +1038,77 @@ function RepeatGroupStructureCard({
               <Text style={styles.repeatStepButtonText}>+</Text>
             </Pressable>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => onRemoveItem(itemIndex)}
-            style={styles.removeButton}
-          >
-            <Text style={styles.removeButtonText}>Remove</Text>
-          </Pressable>
         </View>
       </View>
-      <View style={styles.repeatSegments}>
-        {segmentOrder.items.map((child, childIndex) => {
-          const childDragging = segmentOrder.dragState?.fromIndex === childIndex;
-          const childDropTarget =
-            segmentOrder.dragState?.overIndex === childIndex
-            && segmentOrder.dragState.fromIndex !== childIndex;
+      {collapsed ? null : (
+        <View
+          style={styles.repeatSegments}
+          onLayout={(event) => {
+            const nextY = event.nativeEvent.layout.y;
+            setRepeatSegmentsY((current) => (
+              Math.abs(current - nextY) > 0.5 ? nextY : current
+            ));
+          }}
+        >
+          {segmentOrder.items.map((child, childIndex) => {
+            const childDragging = segmentOrder.dragState?.fromIndex === childIndex;
+            const childExtractDirection = childDragging
+              ? segmentOrder.dragState?.extractDirection ?? null
+              : null;
+            const childExtracting = childExtractDirection != null;
+            const childDropTarget =
+              segmentOrder.dragState?.overIndex === childIndex
+              && segmentOrder.dragState.fromIndex !== childIndex
+              && !segmentOrder.dragState.extractDirection;
+            const childPreviewOffset = segmentOrder.previewOffsetForIndex(childIndex);
 
-          return (
-            <Animated.View
-              key={`${itemIndex}-${childIndex}`}
-              onLayout={(event) => {
-                segmentOrder.registerSlotLayout(
+            return (
+              <ReorderableStructureItem
+                key={`${itemIndex}-${childIndex}`}
+                itemKey={`${itemIndex}-${childIndex}`}
+                testID={`run-structure-repeat-item-${itemIndex}-${childIndex}`}
+                dragging={Boolean(childDragging)}
+                extracting={childExtracting}
+                extractDirection={childExtractDirection}
+                extractAfterTop={extractAfterTop}
+                extractBeforeGap={extractBeforeGap}
+                dragY={segmentOrder.dragY}
+                dragOffset={segmentOrder.dragOffset}
+                previewOffset={childPreviewOffset}
+                onLayout={(event) => {
+                  segmentOrder.registerSlotLayout(
+                    childIndex,
+                    event.nativeEvent.layout.y,
+                    event.nativeEvent.layout.height,
+                  );
+                }}
+              >
+                {childDropTarget ? (
+                  <View pointerEvents="none" style={styles.structureDropTargetOutline} />
+                ) : null}
+                {renderSegment(
+                  child,
+                  itemIndex,
                   childIndex,
-                  event.nativeEvent.layout.y,
-                  event.nativeEvent.layout.height,
-                );
-              }}
-              style={[
-                styles.structureItemWrap,
-                childDragging && { transform: [{ translateY: segmentOrder.dragY }] },
-              ]}
-            >
-              {childDropTarget ? (
-                <View pointerEvents="none" style={styles.structureDropTargetOutline} />
-              ) : null}
-              {renderSegment(
-                child,
-                itemIndex,
-                childIndex,
-                true,
-                <StructureDragHandle
-                  testID={`run-structure-repeat-segment-drag-handle-${itemIndex}-${childIndex}`}
-                  index={childIndex}
-                  active={Boolean(childDragging)}
-                  recordTouchStart={segmentOrder.recordTouchStart}
-                  beginDrag={segmentOrder.beginDrag}
-                  updateDrag={segmentOrder.updateDrag}
-                  cancelDrag={segmentOrder.cancelDrag}
-                  finishDrag={segmentOrder.finishDrag}
-                  onDragActiveChange={onDragActiveChange}
-                />,
-              )}
-            </Animated.View>
-          );
-        })}
-      </View>
+                  true,
+                  {
+                    index: childIndex,
+                    active: Boolean(childDragging),
+                    recordTouchStart: segmentOrder.recordTouchStart,
+                    beginDrag: segmentOrder.beginDrag,
+                    updateDrag: segmentOrder.updateDrag,
+                    cancelDrag: segmentOrder.cancelDrag,
+                    finishDrag: segmentOrder.finishDrag,
+                    onDragActiveChange,
+                  },
+                  () => onRemoveSegment(itemIndex, childIndex),
+                  childExtracting,
+                )}
+              </ReorderableStructureItem>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 }
@@ -619,24 +1134,105 @@ export function RunStructureEditor({
   const [customPaceKey, setCustomPaceKey] = useState<string | null>(null);
   const [customPaceValue, setCustomPaceValue] = useState('');
   const [isStructureDragActive, setIsStructureDragActive] = useState(false);
+  const [isStructureSwipeActive, setIsStructureSwipeActiveState] = useState(false);
+  const [activeNestedRepeatIndex, setActiveNestedRepeatIndex] = useState<number | null>(null);
+  const [activeNestedExtraction, setActiveNestedExtraction] = useState<{
+    itemIndex: number;
+    direction: DirectListReorderExtractDirection;
+  } | null>(null);
+  const suppressSegmentPressRef = React.useRef(false);
+  const gestureSuppressTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showConvertConfirm, setShowConvertConfirm] = useState(false);
   const [templatesExpanded, setTemplatesExpanded] = useState(false);
+  const [customEdited, setCustomEdited] = useState(false);
+  const [collapsedRepeatIndexes, setCollapsedRepeatIndexes] = useState<Set<number>>(() => new Set());
   const structureOrder = useDirectListReorder<RunStructureItem>({
     initialItems,
+    canCombineItem: (draggedItem, targetItem, fromIndex, targetIndex, currentItems) => {
+      if (!draggedItem || draggedItem.kind === 'REPEAT' || !targetItem) {
+        return false;
+      }
+
+      if (targetItem.kind === 'REPEAT') {
+        return true;
+      }
+
+      const firstIndex = Math.min(fromIndex, targetIndex);
+      const secondIndex = Math.max(fromIndex, targetIndex);
+      const skippedItems = currentItems.slice(firstIndex + 1, secondIndex);
+      if (skippedItems.some((item) => item.kind === 'REPEAT')) {
+        return false;
+      }
+
+      return fromIndex !== targetIndex;
+    },
+    combineItems: (current, fromIndex, targetIndex) => {
+      const draggedItem = current[fromIndex];
+      const targetItem = current[targetIndex];
+      if (!draggedItem || draggedItem.kind === 'REPEAT' || !targetItem) {
+        return current;
+      }
+
+      if (targetItem.kind === 'REPEAT') {
+        return current.flatMap((item, index) => {
+          if (index === fromIndex) return [];
+          if (index !== targetIndex || item.kind !== 'REPEAT') return [item];
+          return [{
+            ...item,
+            segments: [...item.segments, draggedItem],
+          }];
+        });
+      }
+
+      const segments = targetIndex < fromIndex
+        ? [targetItem, draggedItem]
+        : [draggedItem, targetItem];
+
+      return current.flatMap((item, index) => {
+        if (index === fromIndex) return [];
+        if (index === targetIndex) return [repeat(2, segments)];
+        return [item];
+      });
+    },
     onReorder: () => {
-      setSelectedTemplate('custom');
+      clearCollapsedRepeatGroups();
+      markCustomStructure();
+      setExpandedSegmentKey(null);
+      setCustomVolumeKey(null);
+      setCustomPaceKey(null);
+    },
+    onCombine: () => {
+      clearCollapsedRepeatGroups();
+      markCustomStructure();
       setExpandedSegmentKey(null);
       setCustomVolumeKey(null);
       setCustomPaceKey(null);
     },
   });
+  React.useEffect(() => {
+    clearCollapsedRepeatGroups();
+  }, [initialItems]);
+  React.useEffect(() => () => {
+    if (gestureSuppressTimerRef.current) {
+      clearTimeout(gestureSuppressTimerRef.current);
+    }
+  }, []);
   const items = structureOrder.items;
+  const isStructureScrollLocked = isStructureDragActive || isStructureSwipeActive;
   const type = draftSession.type ?? session.type ?? 'EASY';
   const typeMeta = SESSION_TYPE[type];
   const availableTemplates = useMemo(
     () => getStructuredSessionTemplatesForType(type),
     [type],
   );
+  const visibleTemplates = useMemo(
+    () => availableTemplates.filter((template) => template.key !== 'custom'),
+    [availableTemplates],
+  );
+  const selectedTemplateOption = availableTemplates.find((template) => template.key === selectedTemplate);
+  const selectedNamedTemplate = selectedTemplate !== 'custom' ? selectedTemplateOption : null;
+  const showCustomStatus = selectedTemplate === 'custom' && (customEdited || session.runStructure != null);
+  const customStatusLabel = customEdited ? 'Custom · changed' : 'Custom';
   const materialized = materializeStructuredSessionDraft({
     session: draftSession,
     items,
@@ -644,9 +1240,9 @@ export function RunStructureEditor({
   });
   const summary = summariseRunStructure(materialized);
   const warning = structuredSessionMismatchWarning(materialized);
-  const total = totalMetric(materialized);
-  const quality = qualityVolume(items);
-  const repeated = repeatsMetric(items);
+  const distanceTotal = distanceMetric(materialized);
+  const timeTotal = timeMetric(materialized);
+  const qualityTotal = qualityMetric(items, materialized);
   const simplePreview = convertStructuredSessionDraftToSimple({
     session: draftSession,
     items,
@@ -655,6 +1251,59 @@ export function RunStructureEditor({
   const simplePreviewDistance = simplePreview?.distance != null && simplePreview.distance > 0
     ? `${simplePreview.distance}km`
     : null;
+
+  function markCustomStructure() {
+    setSelectedTemplate('custom');
+    setCustomEdited(true);
+  }
+
+  function holdSegmentPressSuppression(active: boolean) {
+    if (gestureSuppressTimerRef.current) {
+      clearTimeout(gestureSuppressTimerRef.current);
+      gestureSuppressTimerRef.current = null;
+    }
+
+    if (active) {
+      suppressSegmentPressRef.current = true;
+      return;
+    }
+
+    gestureSuppressTimerRef.current = setTimeout(() => {
+      suppressSegmentPressRef.current = false;
+      gestureSuppressTimerRef.current = null;
+    }, 220);
+  }
+
+  function setStructureDragActive(active: boolean) {
+    setIsStructureDragActive(active);
+    holdSegmentPressSuppression(active);
+  }
+
+  function setStructureSwipeActive(active: boolean) {
+    setIsStructureSwipeActiveState(active);
+    holdSegmentPressSuppression(active);
+  }
+
+  const handleNestedExtractionChange = React.useCallback((
+    itemIndex: number,
+    direction: DirectListReorderExtractDirection | null,
+  ) => {
+    setActiveNestedExtraction((current) => {
+      if (direction == null) {
+        return current?.itemIndex === itemIndex ? null : current;
+      }
+
+      if (current?.itemIndex === itemIndex && current.direction === direction) {
+        return current;
+      }
+
+      return { itemIndex, direction };
+    });
+  }, []);
+
+  function clearCollapsedRepeatGroups() {
+    setCollapsedRepeatIndexes(new Set());
+  }
 
   function applyTemplate(template: { key: TemplateKey }) {
     const next = applyStructuredSessionTemplate({
@@ -667,8 +1316,10 @@ export function RunStructureEditor({
       trainingPaceProfile,
     });
     setSelectedTemplate(next.selectedTemplate);
+    setCustomEdited(false);
     setDraftSession(next.session);
     structureOrder.replaceItems(next.items);
+    clearCollapsedRepeatGroups();
     setError(null);
     setExpandedSegmentKey(null);
     setCustomVolumeKey(null);
@@ -677,7 +1328,27 @@ export function RunStructureEditor({
   }
 
   function changeType(nextType: SessionType) {
-    if (nextType === type || nextType === 'RECOVERY' || nextType === 'REST') {
+    if (nextType === type) {
+      return;
+    }
+
+    if (!sessionTypeSupportsStructuredFormat(nextType)) {
+      onChangeFormat?.(
+        'simple',
+        buildSimpleSessionForUnsupportedStructuredFormat({
+          session: {
+            ...draftSession,
+            type: nextType,
+            planNote,
+          },
+          planNote,
+        }),
+        {
+          restoreStructuredDraft: materialized,
+          pendingStructureClear: true,
+          pendingStructureClearReason: nextType === 'REST' ? 'rest' : 'recovery',
+        },
+      );
       return;
     }
 
@@ -687,7 +1358,7 @@ export function RunStructureEditor({
       format: 'structured',
       intensityTarget: current.intensityTarget ?? defaultIntensityTargetForSessionType(nextType),
     }));
-    setSelectedTemplate('custom');
+    markCustomStructure();
     setExpandedSegmentKey(null);
     setCustomVolumeKey(null);
     setCustomPaceKey(null);
@@ -740,11 +1411,23 @@ export function RunStructureEditor({
         : item
     )));
     if (changed) {
-      setSelectedTemplate('custom');
+      markCustomStructure();
       setExpandedSegmentKey(null);
       setCustomVolumeKey(null);
       setCustomPaceKey(null);
     }
+  }
+
+  function toggleRepeatCollapsed(itemIndex: number) {
+    setCollapsedRepeatIndexes((current) => {
+      const next = new Set(current);
+      if (next.has(itemIndex)) {
+        next.delete(itemIndex);
+      } else {
+        next.add(itemIndex);
+      }
+      return next;
+    });
   }
 
   function addRunSegment() {
@@ -752,30 +1435,9 @@ export function RunStructureEditor({
       ...current,
       segment('RUN', { unit: 'km', value: 1 }, defaultIntensityTargetForSessionType(type)),
     ]);
-    setSelectedTemplate('custom');
+    markCustomStructure();
     setExpandedSegmentKey(null);
     setCustomPaceKey(null);
-  }
-
-  function groupLastTwoSegments() {
-    let changed = false;
-    structureOrder.updateItems((current) => {
-      if (current.length < 2) return current;
-      const last = current[current.length - 1];
-      const previous = current[current.length - 2];
-      if (last.kind === 'REPEAT' || previous.kind === 'REPEAT') return current;
-      changed = true;
-      return [
-        ...current.slice(0, current.length - 2),
-        repeat(2, [previous, last]),
-      ];
-    });
-    if (changed) {
-      setSelectedTemplate('custom');
-      setExpandedSegmentKey(null);
-      setCustomVolumeKey(null);
-      setCustomPaceKey(null);
-    }
   }
 
   function save() {
@@ -796,12 +1458,17 @@ export function RunStructureEditor({
   }
 
   function convertToSimple() {
-    onChangeFormat?.('simple', simplePreview);
+    onChangeFormat?.('simple', simplePreview, {
+      restoreStructuredDraft: materialized,
+      pendingStructureClear: true,
+      pendingStructureClearReason: 'simple',
+    });
   }
 
   function removeItem(itemIndex: number) {
     structureOrder.updateItems((current) => current.filter((_, index) => index !== itemIndex));
-    setSelectedTemplate('custom');
+    markCustomStructure();
+    clearCollapsedRepeatGroups();
     setExpandedSegmentKey(null);
     setCustomVolumeKey(null);
     setCustomPaceKey(null);
@@ -813,10 +1480,52 @@ export function RunStructureEditor({
         ? { ...item, segments }
         : item
     )));
-    setSelectedTemplate('custom');
+    markCustomStructure();
     setExpandedSegmentKey(null);
     setCustomVolumeKey(null);
     setCustomPaceKey(null);
+  }
+
+  function removeRepeatSegment(itemIndex: number, segmentIndex: number) {
+    let changed = false;
+    structureOrder.updateItems((current) => current.flatMap((item, index) => {
+      if (index !== itemIndex || item.kind !== 'REPEAT') return [item];
+      const nextSegments = item.segments.filter((_, childIndex) => childIndex !== segmentIndex);
+      changed = nextSegments.length !== item.segments.length;
+      return nextSegments.length > 0 ? [{ ...item, segments: nextSegments }] : [];
+    }));
+    if (changed) {
+      markCustomStructure();
+      clearCollapsedRepeatGroups();
+      setExpandedSegmentKey(null);
+      setCustomVolumeKey(null);
+      setCustomPaceKey(null);
+    }
+  }
+
+  function extractRepeatSegment(
+    itemIndex: number,
+    _segmentIndex: number,
+    direction: DirectListReorderExtractDirection,
+    nextSegments: RunStructureSegment[],
+    segmentValue: RunStructureSegment,
+  ) {
+    let changed = false;
+    structureOrder.updateItems((current) => current.flatMap((item, index) => {
+      if (index !== itemIndex || item.kind !== 'REPEAT') return [item];
+      changed = true;
+      const nextGroup = nextSegments.length > 0 ? [{ ...item, segments: nextSegments }] : [];
+      return direction === 'before'
+        ? [segmentValue, ...nextGroup]
+        : [...nextGroup, segmentValue];
+    }));
+    if (changed) {
+      markCustomStructure();
+      clearCollapsedRepeatGroups();
+      setExpandedSegmentKey(null);
+      setCustomVolumeKey(null);
+      setCustomPaceKey(null);
+    }
   }
 
   function segmentEditorKey(itemIndex: number, segmentIndex: number | null): string {
@@ -832,7 +1541,7 @@ export function RunStructureEditor({
       volumesMatch(current.volume, volume) ? current : { ...current, volume }
     ));
     if (changed) {
-      setSelectedTemplate('custom');
+      markCustomStructure();
     }
   }
 
@@ -851,7 +1560,7 @@ export function RunStructureEditor({
           }
     ));
     if (changed) {
-      setSelectedTemplate('custom');
+      markCustomStructure();
     }
   }
 
@@ -886,7 +1595,7 @@ export function RunStructureEditor({
             chips={SEGMENT_KINDS.map((kind) => ({
               key: kind,
               label: segmentKindLabel(kind),
-              color: typeMeta.color,
+              color: C.ink2,
             }))}
             selected={segmentValue.kind}
             onSelect={(kind) => {
@@ -895,7 +1604,7 @@ export function RunStructureEditor({
                 current.kind === nextKind ? current : { ...current, kind: nextKind }
               ));
               if (changed) {
-                setSelectedTemplate('custom');
+                markCustomStructure();
               }
             }}
           />
@@ -1017,45 +1726,58 @@ export function RunStructureEditor({
     itemIndex: number,
     segmentIndex: number | null,
     nested = false,
-    dragHandle?: React.ReactNode,
+    dragControls: StructureDragControls,
+    onDelete?: () => void,
+    standalonePreview = false,
   ) {
     const key = segmentEditorKey(itemIndex, segmentIndex);
     const expanded = expandedSegmentKey === key;
     const metricColor = volumeMetricColor(segmentValue.volume.unit);
 
     return (
-      <View
-        style={[styles.segmentCard, nested && styles.segmentCardNested]}
+      <SwipeDeleteSegment
         key={`${itemIndex}-${segmentIndex ?? 'single'}`}
+        testID={`run-structure-segment-swipe-${itemIndex}-${segmentIndex ?? 'single'}`}
+        disabled={!onDelete || isStructureDragActive}
+        dragControls={dragControls}
+        onSwipeActiveChange={setStructureSwipeActive}
+        onDelete={() => onDelete?.()}
       >
-        <Pressable
-          testID={`run-structure-segment-${itemIndex}-${segmentIndex ?? 'single'}`}
-          accessibilityRole="button"
-          onPress={() => {
-            setExpandedSegmentKey(expanded ? null : key);
-            setCustomVolumeKey(null);
-            setCustomPaceKey(null);
-          }}
-          style={styles.segmentSummary}
+        <View
+          style={[
+            styles.segmentCard,
+            nested && !standalonePreview && styles.segmentCardNested,
+            dragControls.active && styles.segmentCardDragging,
+          ]}
         >
-          {dragHandle}
-          <View style={styles.segmentCopy}>
-            <Text style={styles.segmentTitle}>{segmentKindLabel(segmentValue.kind)}</Text>
-            <Text style={styles.segmentCaption}>{segmentIntensityLabel(segmentValue, units)}</Text>
-          </View>
-          <Text style={[styles.segmentVolume, { color: metricColor }]}>
-            {formatVolume(segmentValue.volume)}
-          </Text>
-        </Pressable>
-        {expanded ? renderSegmentEditor(segmentValue, itemIndex, segmentIndex, key) : null}
-      </View>
+          <Pressable
+            testID={`run-structure-segment-${itemIndex}-${segmentIndex ?? 'single'}`}
+            accessibilityRole="button"
+            onPress={() => {
+              if (suppressSegmentPressRef.current) {
+                return;
+              }
+              setExpandedSegmentKey(expanded ? null : key);
+              setCustomVolumeKey(null);
+              setCustomPaceKey(null);
+            }}
+            style={styles.segmentSummary}
+          >
+            <View style={styles.segmentCopy}>
+              <Text style={styles.segmentTitle}>{segmentKindLabel(segmentValue.kind)}</Text>
+              <Text style={styles.segmentCaption}>{segmentIntensityLabel(segmentValue, units)}</Text>
+            </View>
+            <Text style={[styles.segmentVolume, { color: metricColor }]}>
+              {formatVolume(segmentValue.volume)}
+            </Text>
+          </Pressable>
+          {expanded ? renderSegmentEditor(segmentValue, itemIndex, segmentIndex, key) : null}
+        </View>
+      </SwipeDeleteSegment>
     );
   }
 
-  const canGroupLastTwo = items.length >= 2
-    && items[items.length - 1].kind !== 'REPEAT'
-    && items[items.length - 2].kind !== 'REPEAT';
-  const headerTitle = `${total.value} ${typeHeaderLabel(type)} · Structured`;
+  const headerTitle = `${distanceTotal.value} ${typeHeaderLabel(type)} · Structured`;
 
   return (
     <KeyboardAvoidingView
@@ -1076,45 +1798,29 @@ export function RunStructureEditor({
       </View>
 
       <ScrollView
-        testID={isStructureDragActive ? 'run-structure-scroll-locked' : 'run-structure-scroll'}
+        testID={isStructureScrollLocked ? 'run-structure-scroll-locked' : 'run-structure-scroll'}
         style={styles.body}
         contentContainerStyle={styles.bodyContent}
-        scrollEnabled={!isStructureDragActive}
+        scrollEnabled={!isStructureScrollLocked}
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.section}>
-          <SectionLabel>Session type</SectionLabel>
-          <ChipRow
-            chips={STRUCTURED_SESSION_TYPES.map((sessionType) => ({
-              key: sessionType,
-              label: typeChipLabel(sessionType),
-              color: SESSION_TYPE[sessionType].color,
-            }))}
-            selected={type}
-            onSelect={(nextType) => changeType(nextType as SessionType)}
+          <SessionTypeCardGrid
+            types={STRUCTURED_EDITOR_SESSION_TYPES}
+            value={type}
+            onChange={changeType}
           />
         </View>
 
         <View style={styles.section}>
           <SectionLabel>Format</SectionLabel>
-          <ChipRow
-            chips={[
-              { key: 'simple', label: 'Simple', color: typeMeta.color },
-              { key: 'structured', label: 'Structured', color: typeMeta.color },
-            ]}
-            selected="structured"
-            onSelect={(nextFormat) => {
-              if (nextFormat === 'simple') {
-                setShowConvertConfirm(true);
-              }
-            }}
-          />
+          <FormatSegmentedControl onSimplePress={() => setShowConvertConfirm(true)} />
           {showConvertConfirm ? (
             <View style={styles.convertCard}>
-              <Text style={styles.convertTitle}>Use simple run?</Text>
+              <Text style={styles.convertTitle}>Switch to Simple?</Text>
               <Text style={styles.convertCopy}>
-                This will remove the detailed structure and keep the total distance as one run.
+                Simple keeps {simplePreviewDistance ?? 'the current total'} as one run and discards the segment structure.
               </Text>
               <View style={styles.convertPreview}>
                 <Text style={styles.convertPreviewText}>
@@ -1142,7 +1848,16 @@ export function RunStructureEditor({
               </View>
             </View>
           ) : null}
+          <Text style={styles.formatHelper}>
+            Simple keeps it as a single run. Structured breaks it into segments.
+          </Text>
         </View>
+
+        <MetricSummaryCards
+          distance={distanceTotal}
+          time={timeTotal}
+          quality={qualityTotal}
+        />
 
         <View style={styles.section}>
           <SectionLabel>Templates</SectionLabel>
@@ -1152,16 +1867,27 @@ export function RunStructureEditor({
             style={({ pressed }) => [styles.templateSummaryCard, pressed && styles.templatePressed]}
           >
             <View style={styles.templateSummaryCopy}>
-              <Text style={styles.templateTitle}>Starting structures</Text>
-              <Text style={styles.templateCaption}>Choose a starting structure.</Text>
+              <View style={styles.templateTitleRow}>
+                <Text style={styles.templateTitle}>
+                  {selectedNamedTemplate ? `Template · ${selectedNamedTemplate.label}` : 'Start from a template'}
+                </Text>
+                {showCustomStatus ? (
+                  <Text style={styles.customTemplateBadge}>{customStatusLabel}</Text>
+                ) : null}
+              </View>
+              <Text style={styles.templateCaption}>
+                {selectedNamedTemplate
+                  ? 'Tap to change. Editing any segment makes it custom.'
+                  : 'Optional starting point.'}
+              </Text>
             </View>
-            <Text style={[styles.templateToggle, { color: typeMeta.color }]}>
-              {templatesExpanded ? 'Hide' : 'Change'}
+            <Text style={styles.templateToggle}>
+              {templatesExpanded ? 'Hide' : selectedNamedTemplate ? 'Change' : 'Browse'}
             </Text>
           </Pressable>
           {templatesExpanded ? (
-            <View style={styles.templateGrid}>
-              {availableTemplates.map((template) => {
+            <View style={styles.templateList}>
+              {visibleTemplates.map((template) => {
                 const active = selectedTemplate === template.key;
                 return (
                   <Pressable
@@ -1170,17 +1896,15 @@ export function RunStructureEditor({
                     accessibilityRole="button"
                     onPress={() => applyTemplate(template)}
                     style={[
-                      styles.templateCard,
-                      active && {
-                        borderColor: typeMeta.color,
-                        backgroundColor: `${typeMeta.color}12`,
-                      },
+                      styles.templateRow,
+                      active && styles.templateRowActive,
                     ]}
                   >
-                    <Text style={[styles.templateTitle, active && { color: typeMeta.color }]}>
-                      {template.label}
-                    </Text>
-                    <Text style={styles.templateCaption}>{template.caption}</Text>
+                    <View style={styles.templateSummaryCopy}>
+                      <Text style={styles.templateTitle}>{template.label}</Text>
+                      <Text style={styles.templateCaption}>{template.caption}</Text>
+                    </View>
+                    {active ? <Text style={styles.templateSelectedText}>Selected ✓</Text> : null}
                   </Pressable>
                 );
               })}
@@ -1189,25 +1913,9 @@ export function RunStructureEditor({
         </View>
 
         <View style={styles.section}>
-          <SectionLabel>Run structure</SectionLabel>
-          <View style={styles.summaryCards}>
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>Adds up to</Text>
-              <Text style={[styles.summaryValue, { color: total.color }]}>{total.value}</Text>
-              <Text style={styles.summaryCaption}>{total.caption}</Text>
-            </View>
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>Quality</Text>
-              <Text style={[styles.summaryValue, { color: quality.km > 0 ? C.metricDistance : C.metricTime }]}>
-                {formatVolumeSummary(quality)}
-              </Text>
-              <Text style={styles.summaryCaption}>structured</Text>
-            </View>
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>Repeats</Text>
-              <Text style={styles.summaryValue}>{repeated.value}</Text>
-              <Text style={styles.summaryCaption}>{repeated.caption}</Text>
-            </View>
+          <View style={styles.structureHeaderRow}>
+            <Text style={styles.structureHeaderLabel}>Structure</Text>
+            <Text style={styles.structureHeaderHint}>Drag to reorder</Text>
           </View>
           {summary ? <Text style={styles.structureSummaryLine}>{summary}</Text> : null}
           {warning ? <Text style={styles.warningText}>{warning}</Text> : null}
@@ -1215,26 +1923,49 @@ export function RunStructureEditor({
           <View style={styles.itemsList}>
             {items.map((item, itemIndex) => {
               const dragging = structureOrder.dragState?.fromIndex === itemIndex;
+              const combineTarget = structureOrder.dragState?.combineIndex === itemIndex;
               const dropTarget =
                 structureOrder.dragState?.overIndex === itemIndex
-                && structureOrder.dragState.fromIndex !== itemIndex;
-              const dragHandle = (
-                <StructureDragHandle
-                  testID={`run-structure-drag-handle-${itemIndex}`}
-                  index={itemIndex}
-                  active={Boolean(dragging)}
-                  recordTouchStart={structureOrder.recordTouchStart}
-                  beginDrag={structureOrder.beginDrag}
-                  updateDrag={structureOrder.updateDrag}
-                  cancelDrag={structureOrder.cancelDrag}
-                  finishDrag={structureOrder.finishDrag}
-                  onDragActiveChange={setIsStructureDragActive}
-                />
-              );
+                && structureOrder.dragState.fromIndex !== itemIndex
+                && !combineTarget;
+              const nestedExtractionOffset = (() => {
+                if (!activeNestedExtraction) return 0;
+                if (
+                  activeNestedExtraction.direction === 'after'
+                  && itemIndex > activeNestedExtraction.itemIndex
+                ) {
+                  return NESTED_EXTRACT_SLOT_HEIGHT;
+                }
+                if (
+                  activeNestedExtraction.direction === 'before'
+                  && itemIndex >= activeNestedExtraction.itemIndex
+                ) {
+                  return NESTED_EXTRACT_SLOT_HEIGHT;
+                }
+                return 0;
+              })();
+              const previewOffset = structureOrder.previewOffsetForIndex(itemIndex)
+                + nestedExtractionOffset;
+              const dragControls: StructureDragControls = {
+                index: itemIndex,
+                active: Boolean(dragging),
+                recordTouchStart: structureOrder.recordTouchStart,
+                beginDrag: structureOrder.beginDrag,
+                updateDrag: structureOrder.updateDrag,
+                cancelDrag: structureOrder.cancelDrag,
+                finishDrag: structureOrder.finishDrag,
+                onDragActiveChange: setStructureDragActive,
+              };
 
               return (
-                <Animated.View
+                <ReorderableStructureItem
                   key={`${item.kind}-${itemIndex}`}
+                  itemKey={`${item.kind}-${itemIndex}`}
+                  testID={`run-structure-item-${itemIndex}`}
+                  dragging={Boolean(dragging)}
+                  elevated={activeNestedRepeatIndex === itemIndex}
+                  dragY={structureOrder.dragY}
+                  previewOffset={previewOffset}
                   onLayout={(event) => {
                     structureOrder.registerSlotLayout(
                       itemIndex,
@@ -1242,59 +1973,76 @@ export function RunStructureEditor({
                       event.nativeEvent.layout.height,
                     );
                   }}
-                  style={[
-                    styles.structureItemWrap,
-                    dragging && { transform: [{ translateY: structureOrder.dragY }] },
-                  ]}
                 >
                   {dropTarget ? (
-                    <View pointerEvents="none" style={styles.structureDropTargetOutline} />
+                    <View
+                      testID={`run-structure-swap-target-${itemIndex}`}
+                      pointerEvents="none"
+                      style={styles.structureDropTargetOutline}
+                    />
+                  ) : null}
+                  {combineTarget ? (
+                    <View
+                      testID={`run-structure-combine-target-${itemIndex}`}
+                      pointerEvents="none"
+                      style={styles.structureCombineTargetOutline}
+                    >
+                      <Text style={styles.structureCombineTargetText}>
+                        {item.kind === 'REPEAT' ? 'Drop to add to group' : 'Drop to group'}
+                      </Text>
+                    </View>
                   ) : null}
                   {item.kind === 'REPEAT' ? (
-                    <RepeatGroupStructureCard
-                      item={item}
-                      itemIndex={itemIndex}
-                      dragging={Boolean(dragging)}
-                      dragHandle={dragHandle}
-                      onSetRepeatCount={setRepeatCount}
-                      onRemoveItem={removeItem}
-                      onSegmentsReordered={replaceRepeatSegments}
-                      onDragActiveChange={setIsStructureDragActive}
-                      renderSegment={renderSegment}
-                    />
+                    <SwipeDeleteSegment
+                      testID={`run-structure-group-swipe-${itemIndex}`}
+                      disabled={isStructureDragActive}
+                      overflowVisible={activeNestedRepeatIndex === itemIndex}
+                      dragControls={dragControls}
+                      onSwipeActiveChange={setStructureSwipeActive}
+                      onDelete={() => removeItem(itemIndex)}
+                    >
+                      <RepeatGroupStructureCard
+                        item={item}
+                        itemIndex={itemIndex}
+                        dragging={Boolean(dragging)}
+                        collapsed={collapsedRepeatIndexes.has(itemIndex)}
+                        onSetRepeatCount={setRepeatCount}
+                        onToggleCollapsed={toggleRepeatCollapsed}
+                        onSegmentsReordered={replaceRepeatSegments}
+                        onRemoveSegment={removeRepeatSegment}
+                        onSegmentExtracted={extractRepeatSegment}
+                        onNestedExtractionChange={handleNestedExtractionChange}
+                        onDragActiveChange={(active) => {
+                          setActiveNestedRepeatIndex(active ? itemIndex : null);
+                          if (!active) {
+                            handleNestedExtractionChange(itemIndex, null);
+                          }
+                          setStructureDragActive(active);
+                        }}
+                        renderSegment={renderSegment}
+                      />
+                    </SwipeDeleteSegment>
                   ) : (
                     <View style={[styles.itemShell, dragging && styles.structureItemDragging]}>
-                      {renderSegment(item, itemIndex, null, false, dragHandle)}
-                      <Pressable
-                        accessibilityRole="button"
-                        onPress={() => removeItem(itemIndex)}
-                        style={styles.removeInlineButton}
-                      >
-                        <Text style={styles.removeButtonText}>Remove</Text>
-                      </Pressable>
+                      {renderSegment(item, itemIndex, null, false, dragControls, () => removeItem(itemIndex))}
                     </View>
                   )}
-                </Animated.View>
+                </ReorderableStructureItem>
               );
             })}
           </View>
 
           <View style={styles.addPanel}>
-            <Btn title="Add segment" variant="secondary" onPress={addRunSegment} />
+            <Pressable
+              accessibilityRole="button"
+              onPress={addRunSegment}
+              style={({ pressed }) => [styles.addSegmentButton, pressed && styles.addSegmentButtonPressed]}
+            >
+              <Text style={styles.addSegmentText}>+ Add segment</Text>
+            </Pressable>
             <Text style={styles.addHint}>
-              Add segments first. Group adjacent segments when they should repeat together.
+              Drag and drop segments together to create a repeat group.
             </Text>
-            {canGroupLastTwo ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={groupLastTwoSegments}
-                style={styles.groupButton}
-              >
-                <Text style={[styles.groupButtonText, { color: typeMeta.color }]}>
-                  Group last 2 segments
-                </Text>
-              </Pressable>
-            ) : null}
           </View>
         </View>
 
@@ -1383,9 +2131,54 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 18,
   },
-  templateGrid: {
+  formatSegmentedControl: {
+    flexDirection: 'row',
+    gap: 2,
+    padding: 3,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: C.cream,
+  },
+  formatSegment: {
+    flex: 1,
+    minHeight: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 18,
+  },
+  formatSegmentPressed: {
+    opacity: 0.72,
+  },
+  formatSegmentActive: {
+    backgroundColor: C.surface,
+    borderWidth: 1.5,
+    borderColor: C.ink2,
+  },
+  formatSegmentText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 12,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: C.muted,
+  },
+  formatSegmentTextActive: {
+    color: C.ink2,
+  },
+  formatHelper: {
+    marginTop: 7,
+    fontFamily: FONTS.sans,
+    fontSize: 12,
+    lineHeight: 18,
+    color: C.muted,
+  },
+  templateList: {
     marginTop: 8,
-    gap: 8,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 12,
+    backgroundColor: C.surface,
+    overflow: 'hidden',
   },
   templateSummaryCard: {
     minHeight: 58,
@@ -1407,17 +2200,50 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 4,
   },
+  templateTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 7,
+  },
+  customTemplateBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: C.cream,
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 9.5,
+    color: C.ink2,
+  },
   templateToggle: {
     fontFamily: FONTS.sansSemiBold,
     fontSize: 12,
+    color: C.ink2,
   },
-  templateCard: {
-    borderWidth: 1.5,
-    borderColor: C.border,
-    borderRadius: 12,
+  templateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+    borderTopWidth: 1,
+    borderTopColor: C.border,
+    borderLeftWidth: 3,
+    borderLeftColor: 'transparent',
     backgroundColor: C.surface,
-    padding: 13,
-    gap: 4,
+  },
+  templateRowActive: {
+    borderLeftColor: C.clay,
+    backgroundColor: `${C.clay}0A`,
+  },
+  templateSelectedText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 9.5,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: C.statusConnected,
   },
   templateTitle: {
     fontFamily: FONTS.sansSemiBold,
@@ -1446,7 +2272,7 @@ const styles = StyleSheet.create({
   summaryCards: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 10,
+    marginBottom: 18,
   },
   summaryCard: {
     flex: 1,
@@ -1493,12 +2319,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: `${C.statusConnected}25`,
-    backgroundColor: C.statusConnectedBg,
+    borderColor: `${C.metricDistance}25`,
+    backgroundColor: `${C.metricDistance}10`,
     fontFamily: FONTS.sans,
     fontSize: 12,
     lineHeight: 17,
-    color: C.statusConnected,
+    color: C.ink2,
   },
   errorText: {
     marginBottom: 10,
@@ -1507,11 +2333,43 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     color: C.clay,
   },
+  structureHeaderRow: {
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  structureHeaderLabel: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 10,
+    lineHeight: 14,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    color: C.muted,
+  },
+  structureHeaderHint: {
+    flexShrink: 1,
+    fontFamily: FONTS.sansMedium,
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: C.muted,
+    textAlign: 'right',
+  },
   itemsList: {
     gap: 10,
   },
   structureItemWrap: {
     position: 'relative',
+  },
+  structureItemWrapExtracting: {
+    position: 'absolute',
+    left: -24,
+    right: -10,
+  },
+  structureItemWrapDragging: {
+    zIndex: 30,
+    elevation: 8,
   },
   structureItemDragging: {
     opacity: 0.94,
@@ -1528,22 +2386,122 @@ const styles = StyleSheet.create({
     borderColor: C.metricDistance,
     backgroundColor: `${C.metricDistance}08`,
   },
+  structureCombineTargetOutline: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    bottom: -4,
+    left: -4,
+    zIndex: 12,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: C.clay,
+    borderStyle: 'dashed',
+    backgroundColor: `${C.clay}0D`,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  structureCombineTargetText: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: `${C.clay}55`,
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 11,
+    lineHeight: 15,
+    color: C.clay,
+  },
   itemShell: {
     gap: 6,
+  },
+  swipeDeleteShell: {
+    position: 'relative',
+    overflow: 'hidden',
+    borderRadius: 14,
+  },
+  swipeDeleteShellOverflowVisible: {
+    overflow: 'visible',
+  },
+  swipeDeleteAction: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: `${C.clay}14`,
+    borderWidth: 1,
+    borderColor: `${C.clay}40`,
+    borderRadius: 14,
+    overflow: 'hidden',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  swipeDeleteActionArmed: {
+    backgroundColor: C.clay,
+    borderColor: C.clay,
+  },
+  swipeDeleteTextWrap: {
+    position: 'absolute',
+    right: 0,
+    width: SWIPE_ACTION_LABEL_WIDTH,
+    alignItems: 'center',
+  },
+  swipeDeleteText: {
+    textAlign: 'center',
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 12,
+    lineHeight: 16,
+    color: C.clay,
+  },
+  swipeDeleteTextArmed: {
+    color: C.surface,
   },
   repeatGroupCard: {
     borderWidth: 1,
     borderColor: C.border,
-    borderRadius: 12,
-    backgroundColor: C.card,
-    padding: 12,
+    borderRadius: 14,
+    backgroundColor: C.cream,
+    padding: 10,
     gap: 10,
+    position: 'relative',
+    overflow: 'visible',
+  },
+  repeatGroupCardDragging: {
+    borderColor: `${C.clay}AA`,
+  },
+  repeatGroupCardChildDragging: {
+    zIndex: 40,
+    elevation: 10,
+  },
+  repeatGroupRail: {
+    position: 'absolute',
+    left: -1,
+    top: 44,
+    bottom: 44,
+    width: 3,
+    borderRadius: 2,
+    backgroundColor: C.clay,
+    opacity: 0.55,
   },
   repeatHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 10,
+  },
+  repeatHeaderToggle: {
+    flex: 1,
+    minHeight: 46,
+    margin: -6,
+    padding: 6,
+    borderRadius: 12,
+    justifyContent: 'center',
+  },
+  repeatHeaderTogglePressed: {
+    backgroundColor: `${C.border}55`,
   },
   repeatHeaderTitleRow: {
     flex: 1,
@@ -1568,20 +2526,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.sans,
     fontSize: 12,
     color: C.muted,
-  },
-  removeButton: {
-    paddingVertical: 2,
-    paddingHorizontal: 2,
-  },
-  removeInlineButton: {
-    alignSelf: 'flex-end',
-    paddingVertical: 2,
-    paddingHorizontal: 2,
-  },
-  removeButtonText: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 11,
-    color: C.clay,
   },
   repeatStepper: {
     flexDirection: 'row',
@@ -1611,7 +2555,10 @@ const styles = StyleSheet.create({
     color: C.ink,
   },
   repeatSegments: {
-    gap: 8,
+    gap: 6,
+    paddingLeft: 14,
+    overflow: 'visible',
+    zIndex: 20,
   },
   segmentCard: {
     borderWidth: 1,
@@ -1620,8 +2567,13 @@ const styles = StyleSheet.create({
     backgroundColor: C.surface,
     overflow: 'hidden',
   },
+  segmentCardDragging: {
+    borderColor: `${C.clay}AA`,
+    backgroundColor: C.surface,
+  },
   segmentCardNested: {
     backgroundColor: C.surface,
+    borderColor: `${C.border}CC`,
   },
   segmentSummary: {
     flexDirection: 'row',
@@ -1679,20 +2631,30 @@ const styles = StyleSheet.create({
     marginTop: 12,
     gap: 8,
   },
+  addSegmentButton: {
+    minHeight: 48,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: `${C.ink2}55`,
+    borderStyle: 'dashed',
+    backgroundColor: C.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addSegmentButtonPressed: {
+    opacity: 0.78,
+  },
+  addSegmentText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 14,
+    color: C.ink,
+  },
   addHint: {
     fontFamily: FONTS.sans,
     fontSize: 11.5,
     lineHeight: 16,
     color: C.muted,
-  },
-  groupButton: {
-    alignSelf: 'flex-start',
-    paddingVertical: 7,
-    paddingHorizontal: 2,
-  },
-  groupButtonText: {
-    fontFamily: FONTS.sansSemiBold,
-    fontSize: 12,
+    textAlign: 'center',
   },
   convertLink: {
     alignSelf: 'flex-start',
@@ -1707,7 +2669,7 @@ const styles = StyleSheet.create({
   convertCard: {
     marginTop: 12,
     borderWidth: 1,
-    borderColor: `${C.clay}30`,
+    borderColor: `${C.metricDistance}25`,
     borderRadius: 12,
     backgroundColor: C.surface,
     padding: 13,

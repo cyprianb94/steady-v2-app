@@ -12,7 +12,9 @@ import {
   type RunStructureSegment,
   type RunStructureSegmentKind,
   type RunStructureVolume,
+  type SessionFormat,
   type SessionDurationSpec,
+  type SessionType,
 } from '../session';
 import {
   getSessionIntensityTarget,
@@ -22,6 +24,8 @@ import {
 } from './intensity-targets';
 
 export type SessionDemandLevel = 'rest' | 'recovery' | 'easy' | 'moderate' | 'demanding';
+
+export const STRUCTURED_FORMAT_SESSION_TYPES = ['EASY', 'INTERVAL', 'TEMPO', 'LONG'] as const;
 
 export interface SessionDemand {
   level: SessionDemandLevel;
@@ -36,6 +40,50 @@ export interface StructuredSessionVolume {
   structuredSeconds: number;
   structuredExactKm: number;
   structuredEstimatedKm: number;
+}
+
+export function sessionSupportsFormat(type: SessionType, format: SessionFormat): boolean {
+  return format === 'simple'
+    || STRUCTURED_FORMAT_SESSION_TYPES.includes(
+      type as typeof STRUCTURED_FORMAT_SESSION_TYPES[number],
+    );
+}
+
+export function resolveSessionFormat(
+  session: Pick<PlannedSession, 'type' | 'format' | 'runStructure'> | null | undefined,
+): SessionFormat {
+  if (!session || !sessionSupportsFormat(session.type, 'structured')) {
+    return 'simple';
+  }
+
+  return normalizeRunStructure(session.runStructure) ? 'structured' : (session.format ?? 'simple');
+}
+
+export function normalizeSessionFormatSupport<T extends Partial<PlannedSession>>(session: T): T {
+  if (session.type !== 'RECOVERY' && session.type !== 'REST') {
+    return session;
+  }
+
+  const next = {
+    ...session,
+    format: 'simple',
+  };
+  delete next.distance;
+  delete next.pace;
+  delete next.runStructure;
+  delete next.reps;
+  delete next.repDist;
+  delete next.repDuration;
+  delete next.recovery;
+  delete next.warmup;
+  delete next.cooldown;
+
+  if (next.type === 'REST') {
+    delete next.plannedVolume;
+    delete next.intensityTarget;
+  }
+
+  return next;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

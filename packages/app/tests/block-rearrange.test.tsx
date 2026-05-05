@@ -740,7 +740,13 @@ describe('BlockTab session rearrange', () => {
 
     await waitFor(() => expect(mockUpdatePlanWeeks).toHaveBeenCalledTimes(1));
     const input = mockUpdatePlanWeeks.mock.calls[0][0];
-    expect(input[0].sessions[2]).toBeNull();
+    expect(input[0].sessions[2]).toMatchObject({
+      id: 'w1-linked-future-long',
+      date: '2026-04-08',
+      type: 'REST',
+      format: 'simple',
+    });
+    expect(input[0].sessions[2]).not.toHaveProperty('actualActivityId');
     expect(input[1].sessions[2]?.type).toBe('LONG');
   });
 

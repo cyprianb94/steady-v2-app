@@ -193,7 +193,7 @@ describe('buildSystemPrompt — structure', () => {
 
     const prompt = buildSystemPrompt(USER, plan, [], 'free_form');
 
-    expect(prompt).toContain('LONG 26km | structure: 3 x 3km marathon pace off 1km float | note: Keep the floats honest.');
+    expect(prompt).toContain('LONG 26km | structure: 3× 3km marathon pace, 1km float | note: Keep the floats honest.');
     expect(prompt).not.toContain('hit every segment');
   });
 
@@ -228,7 +228,7 @@ describe('buildSystemPrompt — structure', () => {
 
     const prompt = buildSystemPrompt(USER, plan, [], 'free_form');
 
-    expect(prompt).toContain('INTERVAL | structure: 4 x 1.5min on/off, 4 x 30s on/off');
+    expect(prompt).toContain('INTERVAL | structure: 4× 1.5min run, 1.5min recovery, 4× 30s run, 30s recovery');
     expect(prompt).not.toContain('INTERVAL 6×800m');
   });
 

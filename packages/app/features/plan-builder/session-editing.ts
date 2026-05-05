@@ -329,7 +329,7 @@ export function resolveProfileLinkedWeekTargets(
 export function normalizeSessionEditorResult(
   updated: SessionEditorResult,
 ): SessionEditorResult {
-  if (!updated || updated.type === 'REST') {
+  if (!updated) {
     return null;
   }
 
@@ -385,6 +385,28 @@ export function materializeEditedSession(
     }
   }
 
+  if (merged.type === 'RECOVERY' || merged.type === 'REST') {
+    delete merged.distance;
+    delete merged.pace;
+    delete merged.reps;
+    delete merged.repDist;
+    delete merged.repDuration;
+    delete merged.recovery;
+    delete merged.warmup;
+    delete merged.cooldown;
+    delete merged.runStructure;
+    merged.format = 'simple';
+  }
+
+  if (merged.type === 'REST') {
+    delete merged.actualActivityId;
+    delete merged.subjectiveInput;
+    delete merged.subjectiveInputDismissed;
+    delete merged.skipped;
+    delete merged.plannedVolume;
+    delete merged.intensityTarget;
+  }
+
   if (clearRunStructure) {
     delete merged.runStructure;
   }
@@ -426,11 +448,20 @@ function intensityTargetFingerprint(
 function plannedSessionEditFingerprint(
   session: PlannedSession | null,
 ): PlannedSessionEditFingerprint {
-  if (!session || session.type === 'REST') {
+  if (!session) {
     return { type: 'REST' };
   }
 
   const normalized = normalizeSessionIntensityTarget(session);
+  if (normalized.type === 'REST') {
+    const fingerprint: PlannedSessionEditFingerprint = {
+      type: 'REST',
+      format: normalized.format ?? 'simple',
+    };
+    if (normalized.planNote != null) fingerprint.planNote = normalized.planNote;
+    return fingerprint;
+  }
+
   const fingerprint: PlannedSessionEditFingerprint = {
     type: normalized.type,
     format: normalized.runStructure ? 'structured' : (normalized.format ?? 'simple'),

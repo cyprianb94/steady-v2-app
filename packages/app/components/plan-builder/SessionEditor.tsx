@@ -36,6 +36,7 @@ import { RepStepper } from '../ui/RepStepper';
 import { SectionLabel } from '../ui/SectionLabel';
 import { UnitTogglePill } from '../ui/UnitTogglePill';
 import { GorhomSheet } from '../ui/GorhomSheet';
+import { SessionTypeCardGrid } from './SessionTypeCardGrid';
 import { TYPE_DEFAULTS, sessionLabel } from '../../lib/plan-helpers';
 import { formatIntensityTargetParts } from '../../lib/units';
 import { triggerSegmentTickHaptic } from '../../lib/haptics';
@@ -56,10 +57,21 @@ interface SessionEditorProps {
   trainingPaceProfile?: TrainingPaceProfile | null;
   onSave: (dayIndex: number, session: Partial<PlannedSession> | null) => void;
   onClose: () => void;
-  onChangeFormat?: (format: SessionFormat, session: Partial<PlannedSession>) => void;
+  onChangeFormat?: (
+    format: SessionFormat,
+    session: Partial<PlannedSession>,
+    context?: {
+      restoreStructuredDraft?: Partial<PlannedSession>;
+      pendingStructureClear?: boolean;
+      pendingStructureClearReason?: StructureClearReason;
+    },
+  ) => void;
+  structureClearPending?: boolean;
+  structureClearReason?: StructureClearReason | null;
   presentation?: 'sheet' | 'screen';
 }
 
+type StructureClearReason = 'simple' | 'recovery' | 'rest';
 type ExpandedRow = 'distance' | 'repetitions' | 'pace' | 'recovery' | 'warmup' | 'cooldown' | null;
 type CustomField = Exclude<ExpandedRow, null> | null;
 type ManualPaceMode = 'single' | 'range';
@@ -97,24 +109,6 @@ const LEGACY_RECOVERY_MINUTES: Record<RecoveryDuration, number> = {
 
 function formatValue(value: number): string {
   return Number.isInteger(value) ? String(value) : String(value);
-}
-
-function typeChipLabel(type: SessionType): string {
-  switch (type) {
-    case 'INTERVAL':
-      return 'Interval';
-    case 'LONG':
-      return 'Long';
-    case 'RECOVERY':
-      return 'Recovery';
-    case 'REST':
-      return 'Rest';
-    case 'TEMPO':
-      return 'Tempo';
-    case 'EASY':
-    default:
-      return 'Easy';
-  }
 }
 
 function buildDurationState(value: Partial<PlannedSession>['warmup']): DurationState {
@@ -304,6 +298,8 @@ export function SessionEditor({
   onSave,
   onClose,
   onChangeFormat,
+  structureClearPending = false,
+  structureClearReason = null,
   presentation = 'sheet',
 }: SessionEditorProps) {
   const { units } = usePreferences();
@@ -358,6 +354,7 @@ export function SessionEditor({
   const [customWarmup, setCustomWarmup] = useState('');
   const [customCooldown, setCustomCooldown] = useState('');
   const [planNote, setPlanNote] = useState(existing?.planNote ?? '');
+  const [showDisabledFormatNote, setShowDisabledFormatNote] = useState(false);
 
   const isInterval = type === 'INTERVAL';
   const isRecovery = type === 'RECOVERY';
@@ -385,6 +382,12 @@ export function SessionEditor({
   const hasSelectedProfileOption = Boolean(
     selectedProfileKey && profileBands.some((band) => band.profileKey === selectedProfileKey),
   );
+  const pendingStructureClearCopy =
+    structureClearReason === 'rest'
+      ? 'Saving as Rest will clear this structure. Switch back before saving to keep your structured draft.'
+      : structureClearReason === 'recovery'
+        ? 'Saving as Recovery will clear this structure. Switch back before saving to keep your structured draft.'
+        : 'Saving as Simple will clear this structure. Switch back before saving to keep your structured draft.';
   const targetForDisplay = intensityTarget ?? manualPaceIntensityTarget(pace);
   const targetDisplay = formatIntensityTargetParts(targetForDisplay, units, {
     withUnit: true,
@@ -413,19 +416,35 @@ export function SessionEditor({
     };
   });
   const build = (): Partial<PlannedSession> | null => {
+    const trimmedPlanNote = planNote.trim();
+    const structureClearFields = structureClearPending
+      ? {
+        clearRunStructure: true,
+        clearPlannedVolume: !isRecovery,
+      }
+      : {};
+
     if (isRest) {
-      return { type: 'REST', format: 'simple' };
+      return {
+        type: 'REST',
+        format: 'simple',
+        planNote: trimmedPlanNote.length > 0 ? trimmedPlanNote : undefined,
+        ...structureClearFields,
+      } as Partial<PlannedSession>;
     }
 
     const targetForSave = intensityTarget ?? manualPaceIntensityTarget(pace);
-    const session: Partial<PlannedSession> = { type, format: 'simple' };
+    const session: Partial<PlannedSession> = {
+      type,
+      format: 'simple',
+      ...structureClearFields,
+    } as Partial<PlannedSession>;
     if (!isRecovery) {
       session.pace = pace;
     }
     if (targetForSave) {
       session.intensityTarget = targetForSave;
     }
-    const trimmedPlanNote = planNote.trim();
     session.planNote = trimmedPlanNote.length > 0 ? trimmedPlanNote : undefined;
     if (isRecovery) {
       session.plannedVolume = { unit: 'min', value: plannedMinutes };
@@ -467,6 +486,21 @@ export function SessionEditor({
       return;
     }
 
+    if (
+      structureClearPending
+      && structureClearReason !== 'simple'
+      && nextType !== 'RECOVERY'
+      && nextType !== 'REST'
+    ) {
+      onChangeFormat?.('structured', {
+        ...TYPE_DEFAULTS[nextType],
+        type: nextType,
+        format: 'structured',
+        planNote: planNote.trim() || undefined,
+      });
+      return;
+    }
+
     const defaults = TYPE_DEFAULTS[nextType];
     const defaultWarmup = normalizeSessionDuration(defaults.warmup);
     const defaultCooldown = normalizeSessionDuration(defaults.cooldown);
@@ -490,6 +524,7 @@ export function SessionEditor({
     setExpandedRow(null);
     setCustomField(null);
     setCustomPaceSelected(nextManualRangeSelected);
+    setShowDisabledFormatNote(false);
 
     if (nextType === 'INTERVAL') {
       setReps(defaults.reps ?? 6);
@@ -639,6 +674,50 @@ export function SessionEditor({
   function switchToStructured() {
     onChangeFormat?.('structured', build() ?? { type, format: 'simple' });
   }
+
+  function renderFormatOption(
+    key: SessionFormat,
+    label: string,
+    disabled = false,
+  ) {
+    const active = key === 'simple';
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ selected: active, disabled }}
+        onPress={() => {
+          if (disabled) {
+            setShowDisabledFormatNote(true);
+            return;
+          }
+
+          setShowDisabledFormatNote(false);
+          if (key === 'structured') {
+            switchToStructured();
+          }
+        }}
+        style={({ pressed }) => [
+          styles.formatOption,
+          active && styles.formatOptionActive,
+          disabled && styles.formatOptionDisabled,
+          pressed && !disabled && styles.formatOptionPressed,
+        ]}
+      >
+        <Text
+          style={[
+            styles.formatOptionText,
+            active && styles.formatOptionTextActive,
+            disabled && styles.formatOptionTextDisabled,
+          ]}
+        >
+          {label}
+        </Text>
+      </Pressable>
+    );
+  }
+
+  const disabledFormatNote = 'Structured runs are available for Easy, Interval, Tempo, and Long sessions.';
+  const shouldShowDisabledFormatNote = !canUseStructuredFormat || showDisabledFormatNote;
 
   function handleCustomNumberChange(
     field: Exclude<CustomField, 'pace' | null>,
@@ -842,37 +921,40 @@ export function SessionEditor({
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.section}>
-          <SectionLabel>Session type</SectionLabel>
-          <ChipRow
-            chips={SESSION_TYPES.map((sessionType) => ({
-              key: sessionType,
-              label: typeChipLabel(sessionType),
-              color: SESSION_TYPE[sessionType].color,
-            }))}
-            selected={type}
-            onSelect={(nextType) => changeType(nextType as SessionType)}
+          <SessionTypeCardGrid
+            types={SESSION_TYPES}
+            value={type}
+            onChange={changeType}
           />
         </View>
 
-        {canUseStructuredFormat ? (
-          <View style={styles.section}>
-            <SectionLabel>Format</SectionLabel>
-            <ChipRow
-              chips={[
-                { key: 'simple', label: 'Simple', color: typeMeta.color },
-                { key: 'structured', label: 'Structured', color: typeMeta.color },
-              ]}
-              selected="simple"
-              onSelect={(nextFormat) => {
-                if (nextFormat === 'structured') {
-                  switchToStructured();
-                }
-              }}
-            />
+        <View style={styles.section}>
+          <SectionLabel>Format</SectionLabel>
+          <View style={styles.formatRow}>
+            {renderFormatOption('simple', 'Simple')}
+            {renderFormatOption('structured', 'Structured', !canUseStructuredFormat)}
           </View>
-        ) : null}
+          {structureClearPending ? (
+            <View style={styles.inlineNoteGroup}>
+              <Text style={styles.inlineNoteInGroup}>Structure will be cleared when you save.</Text>
+              <Text style={styles.inlineNoteInGroup}>{pendingStructureClearCopy}</Text>
+            </View>
+          ) : shouldShowDisabledFormatNote ? (
+            <Text style={styles.inlineNote}>{disabledFormatNote}</Text>
+          ) : (
+            <Text style={styles.formatHelper}>
+              Simple keeps it as a single run. Structured breaks it into segments.
+            </Text>
+          )}
+        </View>
 
-        <View style={styles.stack}>
+        {isRest ? (
+          <View style={styles.restStateCard}>
+            <Text style={styles.restStateLabel}>Rest day</Text>
+            <Text style={styles.restStateTitle}>No run planned.</Text>
+          </View>
+        ) : (
+          <View style={styles.stack}>
               {isInterval ? (
                 <NotebookRow
                   first
@@ -1373,7 +1455,8 @@ export function SessionEditor({
                   </NotebookRow>
                 </>
               ) : null}
-        </View>
+          </View>
+        )}
 
         <View style={styles.detailSection}>
           <Text style={styles.detailLabel}>Plan note</Text>
@@ -1500,6 +1583,93 @@ const styles = StyleSheet.create({
   },
   section: {
     paddingVertical: 14,
+  },
+  formatRow: {
+    flexDirection: 'row',
+    gap: 2,
+    padding: 3,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: C.cream,
+  },
+  formatOption: {
+    flex: 1,
+    minHeight: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 18,
+  },
+  formatOptionActive: {
+    borderWidth: 1.5,
+    borderColor: C.ink2,
+    backgroundColor: C.surface,
+  },
+  formatOptionDisabled: {
+    opacity: 0.48,
+  },
+  formatOptionPressed: {
+    opacity: 0.78,
+  },
+  formatOptionText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: C.muted,
+  },
+  formatOptionTextActive: {
+    color: C.ink2,
+  },
+  formatOptionTextDisabled: {
+    color: C.muted,
+  },
+  formatHelper: {
+    marginTop: 7,
+    fontFamily: FONTS.sans,
+    fontSize: 12,
+    lineHeight: 18,
+    color: C.muted,
+  },
+  inlineNote: {
+    marginTop: 8,
+    fontFamily: FONTS.sans,
+    fontSize: 11,
+    lineHeight: 16,
+    color: C.muted,
+  },
+  inlineNoteGroup: {
+    marginTop: 8,
+    gap: 2,
+  },
+  inlineNoteInGroup: {
+    fontFamily: FONTS.sans,
+    fontSize: 11,
+    lineHeight: 16,
+    color: C.muted,
+  },
+  restStateCard: {
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    backgroundColor: C.surface,
+    gap: 6,
+    marginBottom: 8,
+  },
+  restStateLabel: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 10,
+    lineHeight: 14,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: C.muted,
+  },
+  restStateTitle: {
+    fontFamily: FONTS.sans,
+    fontSize: 14,
+    lineHeight: 20,
+    color: C.ink,
   },
   repsRow: {
     flexDirection: 'row',
