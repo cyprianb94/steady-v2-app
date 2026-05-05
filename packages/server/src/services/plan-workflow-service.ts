@@ -191,7 +191,8 @@ export function createPlanWorkflowService({
       profileRepo.getById(userId),
     ]);
 
-    // Home annotations are intentionally server-owned so every client transport sees the same copy.
+    // Home annotations are server-owned. During the AI freeze this must not
+    // generate or return proactive coach/Steady AI notes.
     return withHomeAnnotations(plan, todayForTimezone(profile?.timezone ?? 'UTC'));
   }
 

@@ -33,7 +33,7 @@ function makeInput(overrides: Partial<AnnotationInput> = {}): AnnotationInput {
 }
 
 describe('generateHomeAnnotations', () => {
-  it('keeps tomorrow-focused guidance out of the inline note path', () => {
+  it('keeps tomorrow-focused guidance out of the inline note path without generating coach notes', () => {
     const result = generateHomeAnnotations(makeInput({
       phase: 'BUILD',
       todaySession: makeSession('EASY', 8, 'today-easy'),
@@ -50,10 +50,10 @@ describe('generateHomeAnnotations', () => {
     }));
 
     expect(result.todayAnnotation).toMatch(/volume is climbing|recover well/i);
-    expect(result.coachAnnotation).toMatch(/intervals tomorrow|conversational/i);
+    expect(result.coachAnnotation).toBeNull();
   });
 
-  it('surfaces back-to-back quality risk as broader coach guidance', () => {
+  it('keeps back-to-back quality risk out of coach notes during the AI freeze', () => {
     const tempo = makeSession('TEMPO', 10, 'today-tempo');
     const result = generateHomeAnnotations(makeInput({
       todaySession: tempo,
@@ -70,7 +70,7 @@ describe('generateHomeAnnotations', () => {
     }));
 
     expect(result.todayAnnotation).toMatch(/tempo|rhythm|confidence/i);
-    expect(result.coachAnnotation).toMatch(/back-to-back|swapping|heavy/i);
+    expect(result.coachAnnotation).toBeNull();
   });
 
   it('keeps long-run advice in the inline note path', () => {
@@ -101,7 +101,7 @@ describe('generateHomeAnnotations', () => {
     expect(result.coachAnnotation).toBeNull();
   });
 
-  it('keeps rest-day advice inline while still allowing tomorrow guidance below', () => {
+  it('keeps rest-day advice inline without adding tomorrow guidance below', () => {
     const result = generateHomeAnnotations(makeInput({
       todaySession: null,
       tomorrowSession: makeSession('INTERVAL', undefined, 'tomorrow-interval'),
@@ -117,7 +117,7 @@ describe('generateHomeAnnotations', () => {
     }));
 
     expect(result.todayAnnotation).toMatch(/rest day|recovery/i);
-    expect(result.coachAnnotation).toMatch(/intervals tomorrow|conversational/i);
+    expect(result.coachAnnotation).toBeNull();
   });
 
   it('uses the first-week confidence note inline when no stronger today rule fires', () => {

@@ -37,9 +37,11 @@ No other app treats injury as a first-class part of training — it's either ign
 
 A runner can invite their real human coach into the app. The coach can see everything and make changes to the plan directly, based on how the runner is feeling and performing. This mirrors how a real coaching relationship actually works: the runner logs what happened, the coach adjusts what's next. No spreadsheets over email, no re-explaining the block before every call. Free always.
 
-## Steady AI (paid add-on, ~£8–10/month)
+## Steady AI (future paid add-on, ~£8–10/month)
 
 After key sessions, Steady AI reads the full training block and gives feedback — not just on the last run, but in context of the whole block. It can suggest plan changes when training drifts and initiates the conversation proactively. This is the only paid feature and exists to cover LLM costs. It should never feel like it's being pushed on users who don't want it.
+
+**Current freeze:** Steady AI is not live. Do not surface proactive AI notes, nudges, debriefs, weekly previews, chat entry points, paywalls, or LLM-backed behaviour until the freeze is deliberately lifted. Build new product surfaces with future AI extension points in mind, but keep runtime behaviour non-AI today.
 
 ## Important naming distinction
 
@@ -61,11 +63,12 @@ The AI feature is called **Steady AI**. The word "coach" is reserved exclusively
 | Price | Free* | £10/mo | £11/mo | Free | **Free** |
 
 The bold rows are Steady's exclusive territory. No other app does them.
+The AI rows are future differentiators, not active product behaviour during the current AI freeze.
 
 ---
 
 ## Monetisation
 
 - **Free tier:** plan management, tracking, recovery phase, coach mode — everything except AI
-- **Steady AI:** ~£8–10/month — AI debriefs, adaptation suggestions, proactive session analysis
+- **Future Steady AI:** ~£8–10/month — AI debriefs, adaptation suggestions, proactive session analysis, only after the AI freeze is lifted
 - No trial timers. No feature gates on the core app. The free product must be genuinely useful on its own.

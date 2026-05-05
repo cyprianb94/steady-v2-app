@@ -5,6 +5,20 @@ description: Use when working on Steady AI behavior, proactive messaging, conver
 
 # Steady — AI (Steady AI)
 
+## AI freeze — current product state
+
+Steady AI is currently frozen. Do not add or re-enable user-visible Steady AI behaviour unless the user explicitly asks to lift this freeze.
+
+During the freeze:
+- no proactive AI/coach notes, Home nudges, session reads, weekly previews, debriefs, missed-session prompts, push notifications, or surprise messages
+- no Steady AI chat entry points, message inputs, LLM calls, plan-edit proposal cards, or generated recommendations in production flows
+- keep future Steady AI in mind by preserving narrow extension points, nullable fields, and clean boundaries, but return `null`, no-op, or a frozen state at runtime
+- the word "coach" remains reserved for a real human coach; do not label AI output as a coach note
+
+Everything below describes the future intended Steady AI behaviour after the freeze is deliberately lifted. It is not permission to surface AI now.
+
+---
+
 Use `/brand-and-content` alongside this skill when changing naming, user-facing copy outside the model prompt, notification text, upgrade copy, or the coach-vs-Steady-AI distinction. This skill owns Steady AI behaviour and conversation design.
 
 The AI feature is called Steady AI. It is not a chatbot the user queries — it initiates. This is the most important product distinction. Every other AI app waits for input. Steady AI comes to you.
@@ -244,13 +258,13 @@ If the API call fails:
 
 ---
 
-## Conversation history
+## Future conversation history
 
-- Steady AI is accessed from Settings (a "Steady AI" row that opens the conversation screen)
+- Future: Steady AI is accessed from Settings (a "Steady AI" row that opens the conversation screen)
 - Conversations are per-session (one thread per debrief, one thread per weekly preview)
-- Users can also open a free-form conversation from the Steady AI screen at any time
+- Future: users can also open a free-form conversation from the Steady AI screen at any time
 - All messages persisted to Supabase `coach_messages` table
-- History displayed newest-first in the Steady AI screen, most recent thread at top
+- Future: history displayed newest-first in the Steady AI screen, most recent thread at top
 - Thread titles: "Week 14 preview", "Tuesday intervals debrief", etc.
 
 ---

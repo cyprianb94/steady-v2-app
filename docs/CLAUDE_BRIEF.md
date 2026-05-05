@@ -2,7 +2,7 @@
 
 ## What this is
 
-Steady is an iOS plan manager for runners with their own plans replacing multiple tools in one app. It recognises that training isn't always going to plan, niggles and injuries happen and lets runners easily adapt to that. Whether you manage your plan on your own, with a real coach, or with Steady AI, it supports those scenarios and helps physio visits be more efficient through customised injury timeline reports. It sits in the gap between Strava (tracking only, no planning) and Runna (AI-generated plans, no flexibility). The core premise: the user already has a plan they trust — from a book, a coach, or an LLM — and Steady helps them execute it, track it against reality, and adapt it with Steady AI.
+Steady is an iOS plan manager for runners with their own plans replacing multiple tools in one app. It recognises that training isn't always going to plan, niggles and injuries happen and lets runners easily adapt to that. Whether you manage your plan on your own, with a real coach, or eventually with Steady AI, it supports those scenarios and helps physio visits be more efficient through customised injury timeline reports. It sits in the gap between Strava (tracking only, no planning) and Runna (AI-generated plans, no flexibility). The core premise: the user already has a plan they trust — from a book, a coach, or an LLM — and Steady helps them execute it, track it against reality, and adapt it. Steady AI is currently frozen: do not add live AI notes, nudges, chat, debriefs, weekly previews, notifications, or LLM calls until the freeze is deliberately lifted.
 
 This is v2. A previous attempt exists. This is a clean rebuild with a clearer product vision, a fully designed UI system, and a working React prototype of the two most complex flows already built.
 
@@ -111,7 +111,7 @@ Two working React prototypes exist in this project. Read them before building an
 - `WeekTab` — current week view with session grid, load bar, AI nudge
 - `BlockTab` — full training block with phase strip and all weeks
 - `SettingsTab` — integrations, plan management, subscription
-- Steady AI conversation is reached from Settings or a Steady nudge, not as a visible tab
+- Steady AI is frozen; no Settings entry, Steady nudge, chat input, or visible Coach tab
 - `app/sync-run/[activityId].tsx` — shared full-screen run detail for matched/saved runs
 - `PaceTrace` — SVG component overlaying planned vs actual pace splits
 
@@ -141,4 +141,4 @@ The prototypes are still useful references, but current React Native source wins
 
 ## The one thing that must never be compromised
 
-The app name is Steady. The AI feature is Steady AI, and its conversational persona is called Steady. Steady AI initiates conversations — it does not wait to be asked. After every run it sends a debrief. Every Monday it sends a week preview. This proactive behaviour is the entire emotional differentiator of the product. If Steady AI feels passive or generic, the product fails.
+The app name is Steady. The future AI feature is Steady AI, and its conversational persona is called Steady. Current AI freeze: do not surface Steady AI until the freeze is deliberately lifted. After that, Steady AI should initiate conversations rather than wait to be asked; post-run debriefs and Monday previews are future behaviour, not current runtime behaviour.

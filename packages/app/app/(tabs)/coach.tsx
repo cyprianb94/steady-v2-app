@@ -1,157 +1,16 @@
-import { useState, useRef, useCallback } from 'react';
-import { router } from 'expo-router';
-import {
-  View,
-  FlatList,
-  StyleSheet,
-  ActivityIndicator,
-  Text,
-} from 'react-native';
-import { CoachHeader } from '../../components/coach/CoachHeader';
-import { MessageBubble } from '../../components/coach/MessageBubble';
-import { CoachInput } from '../../components/coach/CoachInput';
-import { Btn } from '../../components/ui/Btn';
+import React from 'react';
+import { View, StyleSheet, Text } from 'react-native';
+import { STEADY_AI_FREEZE_MESSAGE, STEADY_AI_FREEZE_TITLE } from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
-import { createId } from '../../lib/id';
-import { trpc } from '../../lib/trpc';
-import { useAuth } from '../../lib/auth';
-import {
-  getScreenshotDemoCoachMessages,
-  isScreenshotDemoMode,
-} from '../../demo/screenshot-demo';
-
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  createdAt: string;
-}
 
 export default function CoachTab() {
-  const { session, isLoading } = useAuth();
-  const [messages, setMessages] = useState<Message[]>(
-    () => (isScreenshotDemoMode() ? getScreenshotDemoCoachMessages() : []),
-  );
-  const [conversationId, setConversationId] = useState<string | undefined>();
-  const [sending, setSending] = useState(false);
-  const listRef = useRef<FlatList>(null);
-
-  const formatTime = (iso: string) => {
-    const d = new Date(iso);
-    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  };
-
-  const handleSend = useCallback(
-    async (text: string) => {
-      const userMsg: Message = {
-        id: createId(),
-        role: 'user',
-        content: text,
-        createdAt: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, userMsg]);
-      setSending(true);
-
-      try {
-        const result = await trpc.coach.send.mutate({
-          conversationId,
-          message: text,
-        });
-        setConversationId(result.conversationId);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: result.reply.id,
-            role: 'assistant',
-            content: result.reply.content,
-            createdAt: result.reply.createdAt,
-          },
-        ]);
-      } catch (err) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: createId(),
-            role: 'assistant',
-            content:
-              err instanceof Error
-                ? `Sorry, that request failed: ${err.message}`
-                : 'Sorry, I couldn\'t connect. Make sure the server is running.',
-            createdAt: new Date().toISOString(),
-          },
-        ]);
-      } finally {
-        setSending(false);
-      }
-    },
-    [conversationId],
-  );
-
-  if (isLoading) {
-    return (
-      <View style={styles.empty}>
-        <ActivityIndicator size="small" color={C.muted} />
-      </View>
-    );
-  }
-
-  if (!session) {
-    return (
-      <View style={styles.container}>
-        <CoachHeader />
-        <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>Sign in to chat with Steady</Text>
-          <Text style={styles.emptyBody}>
-            Use the Settings tab to continue with Google, then come back here to test coach persistence.
-          </Text>
-          <View style={{ marginTop: 20 }}>
-            <Btn title="Go to settings" onPress={() => router.push('/(tabs)/settings')} />
-          </View>
-        </View>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      <CoachHeader />
-
-      {messages.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>Chat with Steady</Text>
-          <Text style={styles.emptyBody}>
-            Ask about your training plan, pacing, recovery, or anything running-related.
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          ref={listRef}
-          data={messages}
-          keyExtractor={(m) => m.id}
-          contentContainerStyle={styles.list}
-          onContentSizeChange={() =>
-            listRef.current?.scrollToEnd({ animated: true })
-          }
-          renderItem={({ item }) => (
-            <MessageBubble
-              role={item.role}
-              content={item.content}
-              time={formatTime(item.createdAt)}
-            />
-          )}
-          ListFooterComponent={
-            sending ? (
-              <View style={styles.typing}>
-                <ActivityIndicator size="small" color={C.muted} />
-                <Text style={styles.typingText}>Steady is thinking…</Text>
-              </View>
-            ) : null
-          }
-        />
-      )}
-
-      <CoachInput onSend={handleSend} disabled={sending} />
+      <View style={styles.empty}>
+        <Text style={styles.emptyTitle}>{STEADY_AI_FREEZE_TITLE}</Text>
+        <Text style={styles.emptyBody}>{STEADY_AI_FREEZE_MESSAGE}</Text>
+      </View>
     </View>
   );
 }
@@ -160,10 +19,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: C.cream,
-  },
-  list: {
-    padding: 16,
-    paddingBottom: 8,
   },
   empty: {
     flex: 1,
@@ -183,16 +38,5 @@ const styles = StyleSheet.create({
     color: C.muted,
     textAlign: 'center',
     lineHeight: 22,
-  },
-  typing: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 8,
-  },
-  typingText: {
-    fontFamily: FONTS.sans,
-    fontSize: 12,
-    color: C.muted,
   },
 });

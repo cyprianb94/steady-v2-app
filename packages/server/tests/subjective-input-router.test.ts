@@ -169,7 +169,7 @@ describe('subjective input router contract', () => {
     expect(plan?.coachAnnotation).toBeNull();
   });
 
-  it('uses the profile timezone when local time is still yesterday behind UTC', async () => {
+  it('uses the profile timezone when local time is still yesterday behind UTC without surfacing coach notes', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-10T00:30:00Z'));
     await profileRepo.upsert(makeUser({ timezone: 'America/New_York' }));
@@ -209,7 +209,7 @@ describe('subjective input router contract', () => {
 
     expect(plan?.todayAnnotation).toMatch(/first week|consistency/i);
     expect(plan?.todayAnnotation).not.toMatch(/intervals tomorrow|conversational/i);
-    expect(plan?.coachAnnotation).toMatch(/intervals tomorrow|conversational/i);
+    expect(plan?.coachAnnotation).toBeNull();
   });
 
   it('uses the profile timezone when local time is already tomorrow ahead of UTC', async () => {

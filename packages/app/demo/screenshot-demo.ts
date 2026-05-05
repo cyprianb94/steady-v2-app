@@ -19,6 +19,9 @@ const DEMO_USER_ID = 'screenshot-demo-user';
 const DEMO_PLAN_ID = 'screenshot-demo-plan';
 const BLOCK_START_DATE = '2026-03-23';
 
+// Screenshot demo data is an explicit preview harness. Normal app mode should
+// reach this file only through screenshot-demo gates, never as a fallback path.
+
 function readQueryParam(name: string): string | null {
   const location = (globalThis as { location?: { search?: string } }).location;
   const search = location?.search?.replace(/^\?/, '');
@@ -172,8 +175,7 @@ export function getScreenshotDemoPlan(): TrainingPlanWithAnnotation {
     ...plan,
     todayAnnotation:
       'Tempo today. Your last tempo faded late. Start at 4:18/km and hold it.',
-    coachAnnotation:
-      'This is a heavy build week. Keep Friday genuinely easy before the long run.',
+    coachAnnotation: null,
   };
 }
 

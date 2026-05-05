@@ -98,6 +98,11 @@ export type {
 } from './coach';
 
 export type { User, WeeklyVolumeMetric } from './user';
+export {
+  STEADY_AI_FREEZE_ACTIVE,
+  STEADY_AI_FREEZE_MESSAGE,
+  STEADY_AI_FREEZE_TITLE,
+} from './ai-freeze';
 
 // Shared pure functions (used by both server and app)
 export { expectedDistance, sessionKm, sessionKmBreakdown, weekKm, weekKmBreakdown } from './lib/session-km';

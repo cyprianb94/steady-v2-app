@@ -815,7 +815,7 @@ describe('HomeScreen', () => {
     expect(screen.getByText('Saturday, Apr 18')).toBeTruthy();
   });
 
-  it('keeps today annotations out of the Today card and renders coach guidance lower down', () => {
+  it('keeps today annotations out of the Today card and hides frozen coach guidance', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-06T12:00:00Z')); // Monday
     const today = '2026-04-06';
@@ -855,11 +855,11 @@ describe('HomeScreen', () => {
     render(<HomeScreen />);
 
     expect(screen.queryByText(/consistency set the tone/i)).toBeNull();
-    expect(screen.getByTestId('coach-annotation')).toBeTruthy();
-    expect(screen.getByText(/keep today conversational/i)).toBeTruthy();
+    expect(screen.queryByTestId('coach-annotation')).toBeNull();
+    expect(screen.queryByText(/keep today conversational/i)).toBeNull();
   });
 
-  it('renders the lower coach card when a coach note is available', () => {
+  it('does not render the lower coach card when stale coach note data is available', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-06T12:00:00Z')); // Monday
     const today = '2026-04-06';
@@ -898,8 +898,8 @@ describe('HomeScreen', () => {
 
     render(<HomeScreen />);
 
-    expect(screen.getByText(/keep today conversational/i)).toBeTruthy();
-    expect(screen.getByTestId('coach-annotation')).toBeTruthy();
+    expect(screen.queryByText(/keep today conversational/i)).toBeNull();
+    expect(screen.queryByTestId('coach-annotation')).toBeNull();
   });
 
   it('opens the planned-session sheet from the planned today hero without routing to Steady conversation', async () => {

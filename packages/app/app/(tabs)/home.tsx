@@ -29,7 +29,6 @@ import { Btn } from '../../components/ui/Btn';
 import { PhaseThemeProvider } from '../../components/home/PhaseThemeProvider';
 import { TodayHeroCard } from '../../components/home/TodayHeroCard';
 import { RemainingDaysList } from '../../components/home/RemainingDaysList';
-import { CoachAnnotationCard } from '../../components/home/CoachAnnotationCard';
 import { NiggleBanner } from '../../components/home/NiggleBanner';
 import { WeeklyVolumeCard } from '../../components/home/WeeklyLoadCard';
 import { ResolveSessionSheet } from '../../components/home/ResolveSessionSheet';
@@ -225,7 +224,6 @@ export default function HomeScreen() {
     && !todaySession.skipped
     && !activityResolution.isSessionComplete(todaySession),
   );
-  const coachNote = plan.coachAnnotation ?? null;
   const handleTodayHeroPress = runDetailNavigation.canOpenRunDetail(todaySession)
     ? () => runDetailNavigation.openRunDetail(todaySession)
     : canOpenResolveSessionSheet(todaySession, todayStatus)
@@ -479,7 +477,6 @@ export default function HomeScreen() {
                 onReviewRun={handleReviewRunPress}
               />
               {todayActivity?.niggles?.length ? <NiggleBanner niggles={todayActivity.niggles} /> : null}
-              <CoachAnnotationCard annotation={coachNote} />
               <RemainingDaysList
                 sessions={weekSessions}
                 today={today}

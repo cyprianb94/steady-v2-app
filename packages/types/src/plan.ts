@@ -58,5 +58,9 @@ export interface TrainingPlan {
 
 export interface TrainingPlanWithAnnotation extends TrainingPlan {
   todayAnnotation: string | null;
+  /**
+   * AI freeze: retained for transport compatibility only.
+   * Keep null until Steady AI is deliberately re-enabled.
+   */
   coachAnnotation: string | null;
 }

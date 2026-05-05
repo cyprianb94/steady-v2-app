@@ -15,6 +15,7 @@ Its job is simple:
 
 Read [references/hotspots.md](references/hotspots.md) before touching any hotspot file.
 If your change materially changes hotspot files or preferred landing zones, update that reference in the same change.
+Read [references/parked-feature-gates.md](references/parked-feature-gates.md) before touching recovery gates, Coach, Steady AI, screenshot demo mode, Home nudges, Settings entries, or tab navigation.
 
 ## Load these companion skills
 
@@ -115,6 +116,15 @@ If a refactor changes hotspot size, risk, or landing zones:
 - remove stale line counts
 - remove dead file references
 - keep the map aligned with the codebase you just changed
+
+### 10. Keep parked features explicitly gated
+
+Steady AI, human coach surfaces, and normal-mode recovery UI must stay hidden unless the user explicitly asks to re-enable them.
+
+- use `packages/app/features/parked-feature-gates.ts` for app-side visibility decisions
+- do not expose the Coach tab, Steady AI Settings rows, Home AI nudges, AI CTAs, or chat inputs by relying on a single shared constant flip
+- keep screenshot demo fixtures behind explicit screenshot demo mode
+- add rendered tests at the Home, Settings, tab, or routed-screen boundary when parked visibility changes
 
 ## Quick decision check
 

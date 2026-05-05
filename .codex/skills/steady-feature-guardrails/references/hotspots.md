@@ -47,12 +47,24 @@ Keep `packages/app/app/(tabs)/home.tsx` focused on composition. Do not move row-
 
 Start by looking in:
 
+- `packages/app/features/parked-feature-gates.ts` for the normal-app versus screenshot-demo visibility gate
 - `packages/app/features/recovery/recovery-ui-gate.ts` for the shared MVP suppression switch that parks or re-enables injury UI across Home, Week, Block, and Settings
 - `packages/app/features/recovery/*`
 - `packages/app/components/recovery/*`
 - `packages/app/lib/resume-week.ts`
 
 Keep recovery rules shared. Do not re-encode them separately in `Home` and `Settings`.
+
+### Parked Coach and Steady AI visibility
+
+Start by looking in:
+
+- `packages/app/features/parked-feature-gates.ts` for tab, Settings, Home nudge, conversation input, and LLM-call gates
+- `packages/app/app/(tabs)/_layout.tsx` for tab visibility only
+- `packages/app/app/(tabs)/coach.tsx` for the paused hidden-route state
+- `packages/types/src/ai-freeze.ts` for shared freeze copy and server-visible constants
+
+Normal app mode must not expose Coach, Steady AI Settings entries, Home AI nudges, AI CTAs, chat inputs, or LLM calls unless the freeze is deliberately lifted in the task.
 
 ### Plan-builder work
 

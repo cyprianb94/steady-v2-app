@@ -206,7 +206,7 @@ Implementation rules:
 
 - Fixed elements: status bar at top, tab bar at bottom. Everything else scrolls.
 - Bottom tab bar has 3 visible tabs: Home, Block, Settings.
-- Steady AI is reached from Settings or from a Steady nudge. Do not add a visible Coach tab.
+- Steady AI is frozen. Do not add a Settings entry, Steady nudge, message input, or visible Coach tab while the freeze is active.
 - No hamburger menus. No deep nesting. Everything reachable in at most 2 taps.
 - Default home is the Home tab.
 
@@ -232,7 +232,9 @@ All bottom sheets (session detail, session editor, propagate modal):
 - Background overlay: `rgba(28,21,16,0.60)`
 - Close on overlay tap
 
-### Chat bubbles (Steady AI)
+### Chat bubbles (Steady AI — future only)
+
+Do not render Steady AI chat bubbles while the AI freeze is active. These styles are retained only for a deliberate future re-enable.
 
 - Steady message, left: `background: C.card`, `borderRadius: 5px 14px 14px 14px`.
 - Runner message, right: `background: C.surface`, `borderRadius: 14px 5px 14px 14px`.

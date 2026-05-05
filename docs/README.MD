@@ -13,7 +13,7 @@ Steady is an iOS beta for runners who already have a plan. The current beta is f
 - CSV or screenshot/photo plan import
 - Apple Health or Garmin sync
 - Coach invite / coach collaboration
-- Proactive Steady AI debriefs, weekly previews, or paid packaging
+- All Steady AI surfaces are frozen for now: chat, proactive notes, debriefs, weekly previews, nudges, paid packaging, and LLM-backed recommendations
 - Physio export reports
 
 ## Stack

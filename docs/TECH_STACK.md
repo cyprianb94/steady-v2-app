@@ -38,6 +38,8 @@
 
 ### AI — Anthropic Claude API
 
+**Current status:** Steady AI is frozen. Keep AI-related modules as future extension points, but do not add live LLM calls, proactive notes, conversation entry points, push triggers, cron previews, or paywall flows until the freeze is deliberately lifted.
+
 **Model:** `claude-sonnet-4-20250514` — fast enough for conversational use (<3s response), smart enough for genuine coaching quality.
 
 **Two use cases:**
@@ -56,7 +58,7 @@ steady-v2-app/
 │   ├── (tabs)/
 │   │   ├── week.tsx              # Week tab
 │   │   ├── block.tsx             # Block tab
-│   │   └── settings.tsx          # Settings tab (includes Steady AI entry point)
+│   │   └── settings.tsx          # Settings tab
 │   ├── onboarding/
 │   │   ├── welcome.tsx
 │   │   ├── plan-builder/
@@ -124,7 +126,7 @@ steady-v2-app/
 ├── server/                       # Fastify backend (separate repo or monorepo)
 │   ├── routes/
 │   │   ├── strava.ts             # OAuth callback, webhook handler
-│   │   ├── coach.ts              # Claude API proxy
+│   │   ├── coach.ts              # Frozen Claude API proxy
 │   │   └── plan.ts               # Plan CRUD
 │   ├── jobs/
 │   │   ├── monday-preview.ts     # Cron: weekly preview generation
@@ -184,6 +186,8 @@ This is the highest priority UI feature. Build it first so you have data to popu
 **Reference:** `steady-app.jsx` is the complete working prototype.
 
 ### Phase 4 — Steady AI (Week 7–8)
+
+Frozen. Do not implement this phase in live product flows until the AI freeze is deliberately lifted. The list below is future scope only.
 
 1. Steady AI conversation UI (`MessageBubble`, `SteadyAIHeader`, `SteadyAIInput`)
 2. `PlanEditCard` component (before/after, apply/reject)

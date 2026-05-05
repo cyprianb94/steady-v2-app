@@ -22,21 +22,6 @@ const PHASE_FALLBACKS: Record<PhaseName, string> = {
   TAPER: 'Taper phase — less is more. Stay sharp but keep the legs fresh for race day.',
 };
 
-function isQualitySession(session: PlannedSession | null): boolean {
-  return session?.type === 'INTERVAL' || session?.type === 'TEMPO';
-}
-
-function findSessionIndex(
-  allSessions: (PlannedSession | null)[],
-  todaySession: PlannedSession,
-): number {
-  return allSessions.findIndex((session) => {
-    if (!session) return false;
-    if (session.id === todaySession.id) return true;
-    return session.date === todaySession.date;
-  });
-}
-
 function generateTodayAnnotation(input: AnnotationInput): string {
   const { todaySession, phase, weekNumber, totalWeeks, allSessions } = input;
 
@@ -82,40 +67,11 @@ function generateTodayAnnotation(input: AnnotationInput): string {
   return PHASE_FALLBACKS[phase];
 }
 
-function generateCoachAnnotation(input: AnnotationInput): string | null {
-  const { todaySession, tomorrowSession, phase, allSessions } = input;
-
-  if (phase === 'RECOVERY') {
-    return null;
-  }
-
-  if (!todaySession || todaySession.type === 'REST') {
-    if (tomorrowSession?.type === 'INTERVAL') {
-      return 'Intervals tomorrow — keep today conversational to stay fresh for the hard work.';
-    }
-
-    return null;
-  }
-
-  const todayIdx = findSessionIndex(allSessions, todaySession);
-  const yesterday = todayIdx > 0 ? allSessions[todayIdx - 1] : null;
-  const isBackToBackQuality =
-    isQualitySession(todaySession) && (isQualitySession(yesterday) || isQualitySession(tomorrowSession));
-
-  if (isBackToBackQuality) {
-    return 'Back-to-back quality days — consider swapping if legs are heavy.';
-  }
-
-  if (tomorrowSession?.type === 'INTERVAL') {
-    return 'Intervals tomorrow — keep today conversational to stay fresh for the hard work.';
-  }
-
-  return null;
-}
-
 export function generateHomeAnnotations(input: AnnotationInput): HomeAnnotations {
   return {
     todayAnnotation: generateTodayAnnotation(input),
-    coachAnnotation: generateCoachAnnotation(input),
+    // AI freeze: keep the legacy field null so deterministic "coach notes"
+    // cannot reappear while Steady AI is paused.
+    coachAnnotation: null,
   };
 }

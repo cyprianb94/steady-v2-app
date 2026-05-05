@@ -6,10 +6,16 @@ const {
   mockRouterPush,
   mockActivityList,
   mockCrossTrainingGetForWeek,
+  mockGetScreenshotDemoPlan,
+  mockGetScreenshotDemoActivities,
+  mockGetScreenshotDemoCrossTrainingEntries,
 } = vi.hoisted(() => ({
   mockRouterPush: vi.fn(),
   mockActivityList: vi.fn(),
   mockCrossTrainingGetForWeek: vi.fn(),
+  mockGetScreenshotDemoPlan: vi.fn(),
+  mockGetScreenshotDemoActivities: vi.fn(),
+  mockGetScreenshotDemoCrossTrainingEntries: vi.fn(),
 }));
 
 const mockAuth = {
@@ -39,6 +45,13 @@ vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 
+vi.mock('../demo/screenshot-demo', () => ({
+  isScreenshotDemoMode: () => true,
+  getScreenshotDemoPlan: mockGetScreenshotDemoPlan,
+  getScreenshotDemoActivities: mockGetScreenshotDemoActivities,
+  getScreenshotDemoCrossTrainingEntries: mockGetScreenshotDemoCrossTrainingEntries,
+}));
+
 vi.mock('../lib/auth', () => ({
   useAuth: () => mockAuth,
 }));
@@ -50,13 +63,15 @@ vi.mock('../hooks/usePlan', () => ({
 vi.mock('../hooks/useStravaSync', () => ({
   useStravaSync: () => ({
     forceSync: async () => null,
+    refreshStatus: async () => null,
+    status: { connected: true },
     syncRevision: 0,
     syncing: false,
   }),
 }));
 
 vi.mock('../hooks/useTodayIso', () => ({
-  useTodayIso: () => '2026-04-15',
+  useTodayIso: () => '2026-05-06',
 }));
 
 vi.mock('../lib/resume-week', () => ({
@@ -69,6 +84,9 @@ vi.mock('../lib/trpc', () => ({
     activity: {
       list: {
         query: mockActivityList,
+      },
+      matchSession: {
+        mutate: vi.fn(),
       },
     },
     crossTraining: {
@@ -130,66 +148,34 @@ vi.mock('../components/recovery/RecoveryFlowModal', () => ({
 
 import HomeScreen from '../app/(tabs)/home';
 
-describe('HomeScreen recovery behavior', () => {
+describe('HomeScreen screenshot demo recovery behavior', () => {
   beforeEach(() => {
     mockRouterPush.mockReset();
     mockActivityList.mockReset();
     mockActivityList.mockResolvedValue([]);
     mockCrossTrainingGetForWeek.mockReset();
     mockCrossTrainingGetForWeek.mockResolvedValue([]);
+    mockGetScreenshotDemoPlan.mockReset();
+    mockGetScreenshotDemoActivities.mockReset();
+    mockGetScreenshotDemoActivities.mockReturnValue([]);
+    mockGetScreenshotDemoCrossTrainingEntries.mockReset();
+    mockGetScreenshotDemoCrossTrainingEntries.mockReturnValue([
+      {
+        id: 'cross-1',
+        userId: 'user-1',
+        planId: 'plan-1',
+        date: '2026-05-06',
+        type: 'Cycling',
+        durationMinutes: 45,
+        createdAt: '2026-05-06T08:00:00.000Z',
+      },
+    ]);
     mockPlan.refresh.mockReset();
     mockPlan.refresh.mockResolvedValue(undefined);
     mockPlan.currentWeekIndex = 0;
   });
 
-  it('shows the displayed plan week range instead of the device calendar week', async () => {
-    const week = {
-      weekNumber: 4,
-      phase: 'BUILD' as const,
-      sessions: [
-        { id: 'mon', type: 'EASY', date: '2026-05-04', distance: 8, pace: '5:20' },
-        {
-          id: 'tue',
-          type: 'INTERVAL',
-          date: '2026-05-05',
-          reps: 6,
-          repDist: 800,
-          pace: '3:50',
-          recovery: '90s',
-          warmup: { unit: 'km', value: 1.5 },
-          cooldown: { unit: 'km', value: 1 },
-        },
-        { id: 'wed', type: 'EASY', date: '2026-05-06', distance: 8, pace: '5:30' },
-        { id: 'thu', type: 'TEMPO', date: '2026-05-07', distance: 10, pace: '4:20' },
-        null,
-        { id: 'sat', type: 'EASY', date: '2026-05-09', distance: 12, pace: '5:15' },
-        { id: 'sun', type: 'LONG', date: '2026-05-10', distance: 20, pace: '5:05' },
-      ],
-      plannedKm: 58,
-    };
-
-    mockPlan.plan = {
-      id: 'plan-1',
-      weeks: [week],
-      phases: {},
-      raceDate: '2026-08-02',
-      coachAnnotation: 'Keep the first week controlled.',
-      activeInjury: null,
-    };
-    mockPlan.currentWeek = week;
-
-    render(<HomeScreen />);
-
-    expect(screen.getByText('MAY 4 – 10 · 2026')).toBeTruthy();
-    expect(screen.queryByText('APR 13 – 19 · 2026')).toBeNull();
-    expect(screen.getByText('Week 4 · Build Phase')).toBeTruthy();
-
-    await waitFor(() => {
-      expect(mockActivityList).toHaveBeenCalled();
-    });
-  });
-
-  it('keeps the normal MVP home UI when persisted injury data exists', async () => {
+  it('keeps parked recovery UI available in explicit screenshot demo mode', async () => {
     const week = {
       weekNumber: 4,
       phase: 'BUILD' as const,
@@ -222,7 +208,7 @@ describe('HomeScreen recovery behavior', () => {
       raceDate: '2026-08-02',
       raceDistance: 'Marathon',
       targetTime: 'sub-3:15',
-      coachAnnotation: 'Ease back in steadily.',
+      coachAnnotation: 'Screenshot-only fixture data should not become a normal Home nudge.',
       activeInjury: {
         name: 'Calf strain',
         markedDate: '2026-04-15',
@@ -235,16 +221,16 @@ describe('HomeScreen recovery behavior', () => {
 
     render(<HomeScreen />);
 
-    expect(screen.getByText('Week 4 · Build Phase')).toBeTruthy();
-    expect(screen.getByText('WEEKLY VOLUME')).toBeTruthy();
-    expect(screen.queryByText('Recovery Mode')).toBeNull();
-    expect(screen.queryByText('Calf strain')).toBeNull();
-    expect(screen.queryByText('Cross-Training This Week')).toBeNull();
-    expect(screen.queryByText('Return To Running')).toBeNull();
-    expect(screen.queryByText('Mark injury')).toBeNull();
+    expect(screen.getByText('Recovery Mode')).toBeTruthy();
+    expect(screen.getByText('Calf strain')).toBeTruthy();
+    expect(screen.getByText('Cross-Training This Week')).toBeTruthy();
+    expect(screen.getByText('Return To Running')).toBeTruthy();
+    expect(screen.getByText('End recovery')).toBeTruthy();
+    expect(screen.queryByText('WEEKLY VOLUME')).toBeNull();
+    expect(screen.queryByText(/Screenshot-only fixture data/i)).toBeNull();
 
     await waitFor(() => {
-      expect(mockActivityList).toHaveBeenCalled();
+      expect(mockGetScreenshotDemoCrossTrainingEntries).toHaveBeenCalled();
     });
     expect(mockCrossTrainingGetForWeek).not.toHaveBeenCalled();
   });

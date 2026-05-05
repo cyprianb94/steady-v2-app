@@ -18,7 +18,7 @@ For visual implementation details, pair this with `/design-system`. For screen s
 Steady is an iOS beta for runners who already have a training plan. The current beta focuses on the core loop: build a plan in app, see the current week and block clearly, sync Strava runs back to the plan, compare planned vs actual, and handle injury/recovery without losing context.
 
 Current beta surfaces:
-- iOS app — Home, Block, Settings, Steady AI conversation, run detail
+- iOS app — Home, Block, Settings, run detail
 - Plan builder — goal, template week, full plan review
 - Landing page — waitlist and product story
 
@@ -26,10 +26,12 @@ Not in beta yet:
 - CSV/screenshot/photo plan import
 - Apple Health or Garmin sync
 - Coach invite / coach collaboration
-- Proactive Steady AI debriefs, weekly previews, or paid packaging
+- All Steady AI surfaces: chat, proactive notes, debriefs, weekly previews, nudges, paid packaging, and LLM-backed recommendations
 - Physio export reports
 
 Naming rule: the AI feature is **Steady AI**. The word "coach" is reserved for the real human coach a runner might invite. The AI's persona name is "Steady" in conversational UI, for example "Message Steady...".
+
+Current AI freeze: do not introduce user-facing Steady AI copy or label deterministic app guidance as AI/coach output. Future AI extension points are fine; live copy should stay focused on the core plan, run review, sync, and recovery flows.
 
 ---
 

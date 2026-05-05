@@ -1,5 +1,15 @@
 # Steady — AI (Steady AI)
 
+## AI freeze — current product state
+
+Steady AI is currently frozen. Do not add or re-enable user-visible Steady AI behaviour unless the freeze is deliberately lifted.
+
+During the freeze, the product must not surface proactive AI/coach notes, Home nudges, session reads, weekly previews, debriefs, missed-session prompts, push notifications, chat inputs, plan-edit proposal cards, or LLM calls. Future work can preserve extension points, nullable fields, and module boundaries, but runtime behaviour should be `null`, no-op, or a frozen state.
+
+Everything below is the future intended Steady AI specification after the freeze is lifted.
+
+---
+
 The AI feature is called Steady AI. It is not a chatbot the user queries — it initiates. This is the most important product distinction. Every other AI app waits for input. Steady AI comes to you.
 
 **Important naming rule:** The word "coach" is reserved exclusively for the real human coach a runner might work with. The AI feature is always "Steady AI". The AI's conversational persona name is "Steady" (e.g. "Message Steady…").
@@ -237,13 +247,13 @@ If the API call fails:
 
 ---
 
-## Conversation history
+## Future conversation history
 
-- Steady AI is accessed from Settings (a "Steady AI" row that opens the conversation screen)
+- Future: Steady AI is accessed from Settings (a "Steady AI" row that opens the conversation screen)
 - Conversations are per-session (one thread per debrief, one thread per weekly preview)
-- Users can also open a free-form conversation from the Steady AI screen at any time
+- Future: users can also open a free-form conversation from the Steady AI screen at any time
 - All messages persisted to Supabase `coach_messages` table
-- History displayed newest-first in the Steady AI screen, most recent thread at top
+- Future: history displayed newest-first in the Steady AI screen, most recent thread at top
 - Thread titles: "Week 14 preview", "Tuesday intervals debrief", etc.
 
 ---

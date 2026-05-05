@@ -16,7 +16,7 @@ Active tab: `C.clay`. Inactive: `C.muted`. Tab labels capitalised. Icons are inl
 
 The Home tab is the default home screen. The app always opens here.
 
-Steady AI (the paid AI feature) is accessed from Settings. Coach mode (real human coach) is also managed in Settings.
+Steady AI is currently frozen. Do not add a visible Settings entry, Home nudge, notification deep link, or surprise AI surface while the freeze is active. Coach mode (real human coach) is also managed in Settings when that feature is live.
 
 ---
 
@@ -27,7 +27,7 @@ App
 ├── Home Tab  ← DEFAULT HOME
 │   ├── Week header (week number, phase label, date range)
 │   ├── Load bar (planned km vs actual km so far)
-│   ├── Steady nudge (AI-generated, context-aware, 2 lines max)
+│   ├── No Steady AI nudge while the AI freeze is active
 │   ├── 7-day session list (Mon–Sun)
 │   │   └── Each day: type dot, session name, status badge, key metric
 │   ├── [Tap completed session] → Run Detail screen (`/sync-run/[activityId]`)
@@ -51,8 +51,8 @@ App
 │
 └── Settings Tab
     ├── PLAN section (training plan, goal race, mark injury)
-    ├── YOUR COACH section (invite coach, connected coach name, coach access status)
-    ├── STEADY AI section (open Steady AI conversation, subscription status)
+    ├── YOUR COACH section (future: invite coach, connected coach name, coach access status)
+    ├── No STEADY AI section while the AI freeze is active
     ├── INTEGRATIONS section (Strava, Apple Health, Garmin)
     └── ACCOUNT section (email, subscription tier)
 ```
@@ -94,7 +94,11 @@ Launch
 - Labels: `Space Mono 12px` — actual km in forest, planned km in muted
 - Label: "WEEKLY LOAD" uppercase DM Sans 9.5px
 
-**Steady nudge**
+**Steady nudge — frozen**
+- Do not render this while the AI freeze is active.
+- Do not replace it with deterministic "coach note" copy.
+
+Future implementation notes, once the freeze is lifted:
 - Small card: `background: ${C.clay}0C, border: 1px solid ${C.clay}28`
 - 6px dot bullet (clay), then AI text
 - Max 2 lines. References specific data — not generic motivation.
@@ -122,7 +126,7 @@ Launch
 
 **Purpose:** When an injury is active, the Home tab transforms to show recovery progress instead of normal training. This is NOT a separate screen — the Home tab itself changes.
 
-**Trigger:** Runner marks an injury (via Settings > Plan > Mark Injury, or via Steady AI suggestion).
+**Trigger:** Runner marks an injury via Settings > Plan > Mark Injury. Steady AI suggestions are frozen.
 
 **Key components:**
 
@@ -188,11 +192,13 @@ Launch
 
 ## Screen: Steady AI Conversation
 
-**Purpose:** The AI conversation. Proactive — Steady AI always has an opening message. A paid feature.
+**Current status:** Frozen. Do not expose this screen as a live user flow, accept input, call the LLM, or show proactive messages while the AI freeze is active.
 
-**Access:** From Settings > Steady AI, or by tapping the nudge on the Home tab, or via push notification deep link.
+**Future purpose:** The AI conversation. Proactive — Steady AI always has an opening message. A paid feature.
 
-**Prototype reference:** `CoachTab` in `steady-app.jsx` for the conversation UI only. In the current app, Steady AI is not a visible tab; it is reached from Settings, a Steady nudge, or a notification deep link. See also `AI_COACH.md` for full specification.
+**Future access:** From Settings > Steady AI, or by tapping the nudge on the Home tab, or via push notification deep link.
+
+**Prototype reference:** `CoachTab` in `steady-app.jsx` for future conversation UI only. In the current app, Steady AI is frozen and not a visible tab; hidden/deep-linked access should show a paused state. See also `AI_COACH.md` for full future specification.
 
 **Key components:**
 
@@ -223,15 +229,15 @@ Launch
 
 ## Screen: Settings Tab
 
-**Purpose:** Manage integrations, plan, coach, Steady AI subscription. Should feel like the least important screen in the app.
+**Purpose:** Manage integrations, plan, and account. Future coach and Steady AI subscription areas must stay hidden while those features are frozen/not live. Settings should feel like the least important screen in the app.
 
 **Sections:**
 
 **PLAN** — current training plan details, goal race, mark injury action
 
-**YOUR COACH** — invite a real human coach by email, show connected coach name and status. Coach can view the full plan, all sessions (planned vs actual), and make changes directly. This section only appears if a coach is connected or the runner taps "Invite coach".
+**YOUR COACH** — future: invite a real human coach by email, show connected coach name and status. Coach can view the full plan, all sessions (planned vs actual), and make changes directly. This section only appears if a coach is connected or the runner taps "Invite coach".
 
-**STEADY AI** — entry point to open Steady AI conversation. Shows subscription status (active / not subscribed). If not subscribed, tapping shows a simple upgrade prompt.
+**STEADY AI** — frozen. Do not show an entry point, subscription status, or upgrade prompt while the AI freeze is active.
 
 **INTEGRATIONS** — Strava (connected/disconnected), Apple Health, Garmin
 
@@ -263,7 +269,7 @@ Integration rows:
 
 5. **Split breakdown** (interval sessions only) — each rep as a row: planned target / actual result. Green if within 3%, amber if within 8%, red if missed by more.
 
-6. **Steady's read** — 3–5 sentence AI analysis. Must reference specific numbers. Not generic.
+6. **Steady's read** — frozen. Do not render AI analysis while the AI freeze is active. Future implementation should be 3–5 sentences and reference specific numbers.
 
 7. **Upcoming sessions** — for future sessions with no actual, show: contextual explanation + "Check back after your run"
 
@@ -277,17 +283,19 @@ These must be designed, not left blank:
 
 - **No plan created:** Illustration + "You haven't created a plan yet." + CTA to plan builder
 - **No run synced today:** "No run yet today. Your {session name} is planned — it'll appear here once it syncs."
-- **Steady AI — no messages:** Steady introduces itself with a first message automatically
+- **Steady AI — frozen:** if a hidden/deep-linked route is reached, show a paused state and no input
 - **Block tab — plan just created:** Week list shows with all sessions in "upcoming" state
 
 ---
 
 ## Notifications (push)
 
-Two notification types, both initiated by the app:
+Steady AI notifications are frozen. Do not add post-run debrief, weekly preview, missed-session, or other AI-initiated notifications until the freeze is deliberately lifted.
+
+Future notification types, once the freeze is lifted:
 
 1. **Post-run debrief:** "Your {session name} is ready to debrief. Steady has thoughts." — triggers within 15 minutes of a run syncing. Opens Steady AI conversation with debrief pre-loaded.
 
 2. **Monday preview:** "Week {n} starts today. Steady has your preview ready." — triggers Monday 7am local time. Opens Steady AI conversation with week preview.
 
-No other notification types in MVP.
+No other notification types in the future AI MVP.

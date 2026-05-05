@@ -3,8 +3,11 @@ import { Tabs } from 'expo-router';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
 import { TabIcon } from '../../components/ui/TabIcon';
+import { shouldShowSteadyAiTab } from '../../features/parked-feature-gates';
 
 export default function TabLayout() {
+  const showSteadyAiTab = shouldShowSteadyAiTab();
+
   return (
     <Tabs
       screenOptions={{
@@ -48,7 +51,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="coach"
         options={{
-          href: null,
+          href: showSteadyAiTab ? undefined : null,
         }}
       />
       <Tabs.Screen
