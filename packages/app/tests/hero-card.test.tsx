@@ -94,7 +94,8 @@ describe('TodayHeroCard', () => {
     );
 
     expect(screen.getByText('Structure')).toBeTruthy();
-    expect(screen.getByText(byExactTextContent('3 x 3km marathon pace off 1km float'))).toBeTruthy();
+    expect(screen.getByText(byExactTextContent('3× 3km marathon pace'))).toBeTruthy();
+    expect(screen.getByText(byExactTextContent('1km float'))).toBeTruthy();
     expect(screen.queryByText('Plan note saved')).toBeNull();
     expect(screen.queryByText('Target')).toBeNull();
   });

@@ -207,8 +207,10 @@ describe('ResolveSessionSheet', () => {
     );
 
     expect(await screen.findByText('RUN STRUCTURE')).toBeTruthy();
-    expect(screen.getAllByText(byExactTextContent('5km')).length).toBeGreaterThan(0);
-    expect(screen.getByText(byExactTextContent('3 x 3km marathon pace off 1km float'))).toBeTruthy();
+    expect(screen.getByText(byExactTextContent('5km warmup'))).toBeTruthy();
+    expect(screen.getByText('3×')).toBeTruthy();
+    expect(screen.getByText(byExactTextContent('3km marathon pace'))).toBeTruthy();
+    expect(screen.getByText(byExactTextContent('1km float'))).toBeTruthy();
     expect(screen.getAllByText(byExactTextContent('9km')).length).toBeGreaterThan(0);
     expect(screen.getByText('DISTANCE')).toBeTruthy();
     expect(screen.getByText('26km')).toBeTruthy();
@@ -311,6 +313,92 @@ describe('ResolveSessionSheet', () => {
     expect(screen.getByText(byExactTextContent('3km marathon pace · 4:37/km'))).toBeTruthy();
   });
 
+  it('renders threshold-float structures as grouped segment lines without off copy', async () => {
+    const trainingPaceProfile = deriveTrainingPaceProfile({
+      raceDistance: 'Marathon',
+      targetTime: 'sub-3:15',
+    });
+    trainingPaceProfile.bands.recovery.paceRange = { min: '5:50', max: '6:20' };
+    trainingPaceProfile.bands.threshold.paceRange = { min: '4:10', max: '4:20' };
+
+    render(
+      <ResolveSessionSheet
+        open
+        trainingPaceProfile={trainingPaceProfile}
+        session={intervalSession({
+          type: 'TEMPO',
+          distance: 10,
+          plannedVolume: { unit: 'km', value: 10 },
+          runStructure: {
+            items: [
+              {
+                kind: 'WARMUP',
+                volume: { unit: 'km', value: 2 },
+                intensityTarget: {
+                  source: 'manual',
+                  mode: 'effort',
+                  profileKey: 'recovery',
+                  effortCue: 'very easy',
+                },
+              },
+              {
+                kind: 'REPEAT',
+                repeats: 2,
+                segments: [
+                  {
+                    kind: 'RUN',
+                    volume: { unit: 'min', value: 10 },
+                    intensityTarget: {
+                      source: 'manual',
+                      mode: 'effort',
+                      profileKey: 'threshold',
+                      effortCue: 'controlled hard',
+                    },
+                  },
+                  {
+                    kind: 'FLOAT',
+                    volume: { unit: 'min', value: 3 },
+                    intensityTarget: {
+                      source: 'manual',
+                      mode: 'effort',
+                      profileKey: 'recovery',
+                      effortCue: 'very easy',
+                    },
+                  },
+                ],
+              },
+              {
+                kind: 'COOLDOWN',
+                volume: { unit: 'km', value: 2 },
+                intensityTarget: {
+                  source: 'manual',
+                  mode: 'effort',
+                  profileKey: 'recovery',
+                  effortCue: 'very easy',
+                },
+              },
+            ],
+          },
+        })}
+        status="upcoming"
+        possibleMatches={[]}
+        onDismiss={vi.fn()}
+        onLogSession={vi.fn()}
+        onMarkSkipped={vi.fn()}
+        onEditSkipped={vi.fn()}
+        onAttachMatch={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText('RUN STRUCTURE')).toBeTruthy();
+    expect(screen.getByText(byExactTextContent('2km warmup very easy · 5:50-6:20/km'))).toBeTruthy();
+    expect(screen.getByText('2×')).toBeTruthy();
+    expect(screen.getByText(byExactTextContent('10min threshold · 4:10-4:20/km'))).toBeTruthy();
+    expect(screen.getByText(byExactTextContent('3min float · 5:50-6:20/km'))).toBeTruthy();
+    expect(screen.getByText(byExactTextContent('2km cooldown very easy · 5:50-6:20/km'))).toBeTruthy();
+    expect(screen.queryByText(/ off /)).toBeNull();
+  });
+
   it('does not show fallback quick-interval rows for structured-only intervals', async () => {
     render(
       <ResolveSessionSheet
@@ -351,8 +439,11 @@ describe('ResolveSessionSheet', () => {
     );
 
     expect(await screen.findByText('RUN STRUCTURE')).toBeTruthy();
-    expect(screen.getByText(byExactTextContent('4 x 1.5min on/off'))).toBeTruthy();
-    expect(screen.getByText(byExactTextContent('4 x 30s on/off'))).toBeTruthy();
+    expect(screen.getAllByText('4×')).toHaveLength(2);
+    expect(screen.getAllByText(byExactTextContent('1.5min')).length).toBeGreaterThan(0);
+    expect(screen.getByText(byExactTextContent('1.5min recovery'))).toBeTruthy();
+    expect(screen.getAllByText(byExactTextContent('30s')).length).toBeGreaterThan(0);
+    expect(screen.getByText(byExactTextContent('30s recovery'))).toBeTruthy();
     expect(screen.queryByText('REPETITIONS')).toBeNull();
     expect(screen.queryByText('REP TARGET PACE')).toBeNull();
     expect(screen.queryByText('6×800m')).toBeNull();

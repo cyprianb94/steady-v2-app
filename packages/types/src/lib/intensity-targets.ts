@@ -14,6 +14,7 @@ import {
 } from '../session';
 
 export type IntensityTargetType = 'none' | 'pace' | 'paceRange' | 'effort' | 'both';
+export type PaceTargetComparison = 'fast' | 'on-target' | 'slow';
 
 export interface NormalizeIntensityTargetOptions {
   fallbackPace?: string | null;
@@ -157,6 +158,25 @@ export function parsePaceSeconds(value: unknown): number | null {
 
   const [minutes, seconds] = normalized.split(':').map(Number);
   return minutes * 60 + seconds;
+}
+
+export function comparePaceToTargetRange(
+  paceSecondsPerKm: number,
+  minSecondsPerKm: number,
+  maxSecondsPerKm: number,
+): PaceTargetComparison {
+  const fastestSeconds = Math.min(minSecondsPerKm, maxSecondsPerKm);
+  const slowestSeconds = Math.max(minSecondsPerKm, maxSecondsPerKm);
+
+  if (paceSecondsPerKm < fastestSeconds) {
+    return 'fast';
+  }
+
+  if (paceSecondsPerKm > slowestSeconds) {
+    return 'slow';
+  }
+
+  return 'on-target';
 }
 
 export function secondsToPace(totalSeconds: number): string {

@@ -120,6 +120,7 @@ export {
   normalizeTrainingPlanSessionDurations,
 } from './lib/normalize-session-durations';
 export {
+  comparePaceToTargetRange,
   defaultIntensityTargetForSessionType,
   detectIntensityTargetType,
   formatIntensityTarget,
@@ -141,6 +142,7 @@ export type {
   IntensityTargetType,
   NormalizeIntensityTargetOptions,
   NormalizeSessionIntensityTargetOptions,
+  PaceTargetComparison,
 } from './lib/intensity-targets';
 export { buildStructuredQualitySummary } from './lib/structured-quality-summary';
 export type {

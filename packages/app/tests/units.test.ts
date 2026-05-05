@@ -226,8 +226,14 @@ describe('intensity target display', () => {
       },
     };
 
-    expect(formatSessionLabel(session, 'metric')).toBe('4 x 1.5min on/off, 4 x 30s on/off');
-    expect(formatCompactSessionLabel(session, 'metric')).toBe('4 x 1.5min on/off, 4 x 30s on/off');
-    expect(formatSessionTitle(session, 'metric')).toBe('4 x 1.5min on/off, 4 x 30s on/off');
+    expect(formatSessionLabel(session, 'metric')).toBe(
+      '4× 1.5min run, 1.5min recovery, 4× 30s run, 30s recovery',
+    );
+    expect(formatCompactSessionLabel(session, 'metric')).toBe(
+      '4× 1.5min run, 1.5min recovery, 4× 30s run, 30s recovery',
+    );
+    expect(formatSessionTitle(session, 'metric')).toBe(
+      '4× 1.5min run, 1.5min recovery, 4× 30s run, 30s recovery',
+    );
   });
 });

@@ -193,8 +193,8 @@ describe('BlockWeekList', () => {
       />,
     );
 
-    expect(screen.getByText('3 x 3km marathon pace off 1km float')).toBeTruthy();
-    expect(screen.getByText('Long run · Marathon pace · Structure · Note')).toBeTruthy();
+    expect(screen.getByText('Structured 3×3km marathon pace')).toBeTruthy();
+    expect(screen.getByText('Long run · Marathon pace · Note')).toBeTruthy();
   });
 
   it('lets consumers adapt labels without owning editing or propagation state', () => {

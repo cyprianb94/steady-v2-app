@@ -1,4 +1,5 @@
 import {
+  comparePaceToTargetRange,
   getSessionIntensityTarget,
   parsePaceSeconds,
   RECOVERY_KM,
@@ -78,7 +79,6 @@ interface SplitSpan {
 
 const DISTANCE_TOLERANCE_KM = 0.05;
 const DISTANCE_TOLERANCE_RATIO = 0.08;
-const PACE_TARGET_TOLERANCE_SECONDS = 2;
 const AVERAGE_RAIL_MAX_WIDTH_PERCENT = 46;
 const KM_PER_MILE = 1.609344;
 const AVERAGE_COMPARISON_MIN_SPLIT_UNIT_FRACTION = 0.1;
@@ -420,11 +420,17 @@ function targetComparison(
     return { comparisonLabel: null, targetStatus: null };
   }
 
-  if (split.pace < range.fastestSeconds - PACE_TARGET_TOLERANCE_SECONDS) {
+  const comparison = comparePaceToTargetRange(
+    split.pace,
+    range.fastestSeconds,
+    range.slowestSeconds,
+  );
+
+  if (comparison === 'fast') {
     return { comparisonLabel: 'FAST', targetStatus: 'fast' };
   }
 
-  if (split.pace > range.slowestSeconds + PACE_TARGET_TOLERANCE_SECONDS) {
+  if (comparison === 'slow') {
     return { comparisonLabel: 'SLOW', targetStatus: 'slow' };
   }
 

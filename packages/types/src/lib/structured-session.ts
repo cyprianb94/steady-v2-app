@@ -414,6 +414,12 @@ function summariseSegment(segment: RunStructureSegment): string {
   const volume = formatVolume(segment.volume);
   const intensity = segmentIntensityName(segment);
 
+  if (segment.kind === 'WARMUP') {
+    return [volume, 'warmup', intensity].filter(Boolean).join(' ');
+  }
+  if (segment.kind === 'COOLDOWN') {
+    return [volume, 'cooldown', intensity].filter(Boolean).join(' ');
+  }
   if (segment.kind === 'STRIDE') {
     return `${volume} stride`;
   }
@@ -443,7 +449,7 @@ function summariseRepeat(group: RunStructureRepeatGroup): string {
     && sameVolume(first.volume, second.volume)
     && !segmentIntensityName(first)
   ) {
-    return `${group.repeats} x ${formatVolume(first.volume)} on/off`;
+    return `${group.repeats}× ${formatVolume(first.volume)} run, ${formatVolume(second.volume)} recovery`;
   }
 
   if (group.segments.length === 2 && first.kind === 'RUN' && second.kind === 'FLOAT') {
@@ -451,7 +457,7 @@ function summariseRepeat(group: RunStructureRepeatGroup): string {
     const run = intensity
       ? `${formatVolume(first.volume)} ${intensity}`
       : formatVolume(first.volume);
-    return `${group.repeats} x ${run} off ${formatVolume(second.volume)} float`;
+    return `${group.repeats}× ${run}, ${formatVolume(second.volume)} float`;
   }
 
   if (group.segments.length === 2 && first.kind === 'RUN' && second.kind === 'RECOVERY') {
@@ -460,14 +466,14 @@ function summariseRepeat(group: RunStructureRepeatGroup): string {
       ? `${formatVolume(first.volume)} ${intensity}`
       : formatVolume(first.volume);
     const recoveryLabel = segmentIntensityName(second) === 'easy' ? 'jog' : 'recovery';
-    return `${group.repeats} x ${run}, ${formatVolume(second.volume)} ${recoveryLabel}`;
+    return `${group.repeats}× ${run}, ${formatVolume(second.volume)} ${recoveryLabel}`;
   }
 
   if (group.segments.length === 1 && first.kind === 'STRIDE') {
-    return `${group.repeats} x ${formatVolume(first.volume)} strides`;
+    return `${group.repeats}× ${formatVolume(first.volume)} strides`;
   }
 
-  return `${group.repeats} x (${group.segments.map(summariseSegment).join(' + ')})`;
+  return `${group.repeats}× (${group.segments.map(summariseSegment).join(' + ')})`;
 }
 
 function summariseItem(item: RunStructureItem): string {

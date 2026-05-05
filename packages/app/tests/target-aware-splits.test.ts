@@ -185,6 +185,35 @@ describe('buildTargetAwareSplitsModel', () => {
     ]);
   });
 
+  it('marks reps outside the displayed target range as fast or slow', () => {
+    const model = buildTargetAwareSplitsModel({
+      session: {
+        ...intervalSession,
+        reps: 3,
+        warmup: undefined,
+        recovery: undefined,
+        cooldown: undefined,
+        intensityTarget: {
+          source: 'manual',
+          mode: 'pace',
+          paceRange: { min: '3:40', max: '3:50' },
+        },
+      },
+      splits: [
+        split(1, 0.4, 218, 190),
+        split(2, 0.4, 220, 191),
+        split(3, 0.4, 232, 192),
+      ],
+      units: 'metric',
+    });
+
+    expect(model.rows.filter((row) => row.kind === 'work').map((row) => row.comparisonLabel)).toEqual([
+      'FAST',
+      'ON TARGET',
+      'SLOW',
+    ]);
+  });
+
   it('classifies interval reps when recorded recovery distances vary', () => {
     const model = buildTargetAwareSplitsModel({
       session: {

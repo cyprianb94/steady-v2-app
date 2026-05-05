@@ -1,7 +1,7 @@
 import type { Activity, ActivitySplit } from '../activity';
 import type { PlannedSession, RecoveryDuration } from '../session';
 import { normalizeSessionDuration, RECOVERY_KM, RECOVERY_KM_PER_MIN } from '../session';
-import { getSessionIntensityTarget, parsePaceSeconds } from './intensity-targets';
+import { comparePaceToTargetRange, getSessionIntensityTarget, parsePaceSeconds } from './intensity-targets';
 
 export type StructuredQualitySummaryStatus = 'available' | 'unavailable' | 'not-applicable';
 export type StructuredQualitySummaryReason =
@@ -62,8 +62,6 @@ interface SplitSpan {
 
 const DISTANCE_TOLERANCE_RATIO = 0.2;
 const DISTANCE_TOLERANCE_MIN_KM = 0.05;
-const PACE_TARGET_TOLERANCE_SECONDS = 2;
-
 function unavailable(
   session: PlannedSession,
   reason: StructuredQualitySummaryReason,
@@ -334,8 +332,11 @@ function isPaceInTargetRange(
     targetRange.maxSecondsPerKm,
   );
 
-  return paceSecondsPerKm >= fastestSeconds - PACE_TARGET_TOLERANCE_SECONDS
-    && paceSecondsPerKm <= slowestSeconds + PACE_TARGET_TOLERANCE_SECONDS;
+  return comparePaceToTargetRange(
+    paceSecondsPerKm,
+    fastestSeconds,
+    slowestSeconds,
+  ) === 'on-target';
 }
 
 function buildIntervalSummary(

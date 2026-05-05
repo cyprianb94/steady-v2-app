@@ -12,6 +12,7 @@ import {
   formatStoredPace,
   type DistanceUnits,
 } from './units';
+import { structuredRunSummaryTitle } from './structured-run-display';
 
 export interface SessionRowText {
   title: string;
@@ -78,13 +79,12 @@ export function formatSessionRowText(
   const structureSummary = summariseRunStructure(session as PlannedSession);
   const focus = deriveSessionFocus(session as PlannedSession);
   const indicators = [
-    structureSummary ? 'Structure' : null,
     session.planNote ? 'Note' : null,
   ].filter((part): part is string => Boolean(part));
 
   if (structureSummary) {
     return {
-      title: structureSummary,
+      title: structuredRunSummaryTitle(session as PlannedSession, units) ?? structureSummary,
       caption: [focus, ...indicators].join(' · '),
     };
   }

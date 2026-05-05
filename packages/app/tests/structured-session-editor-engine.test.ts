@@ -62,7 +62,7 @@ describe('structured session editor engine', () => {
     });
     expect(sessionKm(saved as PlannedSession)).toBe(26);
     expect(summariseRunStructure(saved as PlannedSession)).toBe(
-      '5km easy, 3 x 3km marathon pace off 1km float, 9km easy',
+      '5km warmup easy, 3× 3km marathon pace, 1km float, 9km easy',
     );
   });
 

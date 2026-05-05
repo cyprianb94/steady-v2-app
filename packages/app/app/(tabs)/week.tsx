@@ -23,6 +23,7 @@ import { useRecoveryData } from '../../features/recovery/use-recovery-data';
 import { useRecoveryActionController } from '../../features/recovery/use-recovery-action-controller';
 import { getVisibleActiveInjury, MVP_RECOVERY_UI_ENABLED } from '../../features/recovery/recovery-ui-gate';
 import { usePlanRefreshCoordinator } from '../../features/sync/use-plan-refresh-coordinator';
+import { resolveProfileLinkedWeekTargets } from '../../features/plan-builder/session-editing';
 
 export default function WeekTab() {
   const isFocused = useIsFocused();
@@ -36,6 +37,9 @@ export default function WeekTab() {
     ? Math.min(Math.max(currentWeekIndex + weekOffset, 0), Math.max(plan.weeks.length - 1, 0))
     : 0;
   const week = plan?.weeks[weekIdx] ?? null;
+  const displayWeek = week
+    ? resolveProfileLinkedWeekTargets(week, plan?.trainingPaceProfile, { today })
+    : null;
   const weekStartDate = week ? inferWeekStartDate(week, today) : null;
   const activeInjury = getVisibleActiveInjury(plan);
   const activityResolution = useActivityResolution({
@@ -123,7 +127,7 @@ export default function WeekTab() {
       </View>
     );
   }
-  if (!week) {
+  if (!week || !displayWeek) {
     return (
       <View style={styles.center}>
         <Text style={styles.emptyTitle}>Could not load this week</Text>
@@ -165,7 +169,7 @@ export default function WeekTab() {
       {activeInjury ? null : (
         <WeekHeader
           plan={plan}
-          weekNumber={week.weekNumber}
+          weekNumber={displayWeek.weekNumber}
           totalWeeks={plan.weeks.length}
           onPrev={() => setWeekOffset((o) => Math.max(o - 1, -currentWeekIndex))}
           onNext={() => setWeekOffset((o) => Math.min(o + 1, plan.weeks.length - 1 - currentWeekIndex))}
@@ -188,7 +192,7 @@ export default function WeekTab() {
             <InjuryBanner
               injury={activeInjury}
               plan={plan}
-              weekNumber={week.weekNumber}
+              weekNumber={displayWeek.weekNumber}
               totalWeeks={plan.weeks.length}
               onSaveReassessedTarget={async (value) => {
                 await recoveryController.saveReassessedTarget(value);
@@ -209,16 +213,16 @@ export default function WeekTab() {
             />
             <ReturnToRunning
               injury={activeInjury}
-              currentWeekNumber={week.weekNumber}
+              currentWeekNumber={displayWeek.weekNumber}
               onMarkComplete={handleMarkRtrStepComplete}
               isUpdating={recoveryController.isUpdatingRtr}
             />
           </>
         ) : (
-          <LoadBar week={week} maxKm={maxKm} />
+          <LoadBar week={displayWeek} maxKm={maxKm} />
         )}
 
-        {week.sessions.map((session, i) => {
+        {displayWeek.sessions.map((session, i) => {
           const sessionDate = session?.date ?? '';
           const isToday = sessionDate === today;
 
@@ -243,7 +247,7 @@ export default function WeekTab() {
           visible={showResumeModal}
           mode="resume"
           plan={plan}
-          currentWeekNumber={week.weekNumber}
+          currentWeekNumber={displayWeek.weekNumber}
           injury={activeInjury}
           busy={recoveryController.isUpdatingRtr || recoveryController.isEndingRecovery}
           onClose={() => setShowResumeModal(false)}

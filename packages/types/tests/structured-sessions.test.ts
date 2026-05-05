@@ -55,7 +55,7 @@ describe('structured session model', () => {
     });
 
     expect(structured.type).toBe('LONG');
-    expect(summariseRunStructure(structured)).toBe('5km easy, 3 x 3km marathon pace off 1km float, 9km easy');
+    expect(summariseRunStructure(structured)).toBe('5km warmup easy, 3× 3km marathon pace, 1km float, 9km easy');
     expect(deriveSessionFocus(structured)).toBe('Long run · Marathon pace');
     expect(deriveSessionDemand(structured).level).toBe('demanding');
     expect(sessionKm(structured)).toBe(26);
@@ -112,7 +112,9 @@ describe('structured session model', () => {
       },
     });
 
-    expect(summariseRunStructure(fartlek)).toBe('4 x 1.5min on/off, 4 x 1min on/off, 4 x 30s on/off');
+    expect(summariseRunStructure(fartlek)).toBe(
+      '4× 1.5min run, 1.5min recovery, 4× 1min run, 1min recovery, 4× 30s run, 30s recovery',
+    );
     expect(structuredSessionVolume(fartlek)).toMatchObject({
       exactKm: 0,
       estimatedKm: 0,
@@ -145,7 +147,7 @@ describe('structured session model', () => {
       },
     });
 
-    expect(summariseRunStructure(cruise)).toBe('3 x 10min threshold, 2min jog');
+    expect(summariseRunStructure(cruise)).toBe('3× 10min threshold, 2min jog');
     expect(deriveSessionFocus(cruise)).toBe('Tempo · Threshold');
     expect(structuredSessionVolume(cruise)).toMatchObject({
       structuredSeconds: 2160,
@@ -178,7 +180,7 @@ describe('structured session model', () => {
       },
     });
 
-    expect(summariseRunStructure(strides)).toBe('8km easy, 6 x 20s strides');
+    expect(summariseRunStructure(strides)).toBe('8km easy, 6× 20s strides');
     expect(deriveSessionFocus(strides)).toBe('Easy run · Strides');
     expect(deriveSessionDemand(strides)).toMatchObject({
       level: 'easy',

@@ -25,6 +25,17 @@ export interface StructuredRunDisplayToken {
 
 export type StructuredRunDisplayLine = StructuredRunDisplayToken[];
 
+export type StructuredRunDisplayBlock =
+  | {
+      kind: 'line';
+      line: StructuredRunDisplayLine;
+    }
+  | {
+      kind: 'repeat';
+      repeatLabel: string;
+      lines: StructuredRunDisplayLine[];
+    };
+
 function token(text: string, kind: StructuredRunDisplayKind = 'neutral'): StructuredRunDisplayToken {
   return { text, kind };
 }
@@ -149,14 +160,7 @@ function segmentTokens(
   if (progression) return progression;
 
   const intensity = segmentIntensityName(segment);
-  const kindLabel = segment.kind === 'STRIDE'
-    ? 'stride'
-    : segment.kind === 'FLOAT'
-      ? 'float'
-      : segment.kind === 'RECOVERY'
-        ? 'recovery'
-        : null;
-  const label = kindLabel ?? intensity;
+  const label = segmentLabel(segment, intensity);
 
   return [
     volumeToken(segment.volume, units),
@@ -165,99 +169,117 @@ function segmentTokens(
   ];
 }
 
-function sameVolume(a: RunStructureVolume, b: RunStructureVolume): boolean {
-  return a.unit === b.unit && a.value === b.value;
+function segmentLabel(segment: RunStructureSegment, intensity: string | null): string | null {
+  if (segment.kind === 'WARMUP') {
+    return ['warmup', intensity].filter(Boolean).join(' ');
+  }
+  if (segment.kind === 'COOLDOWN') {
+    return ['cooldown', intensity].filter(Boolean).join(' ');
+  }
+  if (segment.kind === 'STRIDE') {
+    return 'stride';
+  }
+  if (segment.kind === 'FLOAT') {
+    return 'float';
+  }
+  if (segment.kind === 'RECOVERY') {
+    return intensity === 'easy' ? 'jog' : 'recovery';
+  }
+  if (segment.kind === 'REST') {
+    return 'rest';
+  }
+
+  return intensity;
 }
 
-function repeatRunRecoveryTokens(
-  group: RunStructureRepeatGroup,
-  first: RunStructureSegment,
-  second: RunStructureSegment,
-  trainingPaceProfile: TrainingPaceProfile | null | undefined,
-  units: DistanceUnits,
-): StructuredRunDisplayLine {
-  const intensity = segmentIntensityName(first);
-  const recoveryLabel = segmentIntensityName(second) === 'easy' ? 'jog' : 'recovery';
-
-  return [
-    token(`${group.repeats} x `),
-    volumeToken(first.volume, units),
-    ...(intensity ? [token(` ${intensity}`)] : []),
-    ...paceSuffix(first, trainingPaceProfile, units),
-    token(', '),
-    volumeToken(second.volume, units),
-    token(` ${recoveryLabel}`),
-    ...paceSuffix(second, trainingPaceProfile, units),
-  ];
-}
-
-function repeatTokens(
+function repeatBlock(
   group: RunStructureRepeatGroup,
   trainingPaceProfile: TrainingPaceProfile | null | undefined,
   units: DistanceUnits,
-): StructuredRunDisplayLine {
-  const [first, second] = group.segments;
-
-  if (
-    group.segments.length === 2
-    && first.kind === 'RUN'
-    && second.kind === 'RECOVERY'
-    && sameVolume(first.volume, second.volume)
-    && !segmentIntensityName(first)
-  ) {
-    return [
-      token(`${group.repeats} x `),
-      volumeToken(first.volume, units),
-      token(' on/off'),
-    ];
-  }
-
-  if (group.segments.length === 2 && first.kind === 'RUN' && second.kind === 'FLOAT') {
-    const intensity = segmentIntensityName(first);
-    return [
-      token(`${group.repeats} x `),
-      volumeToken(first.volume, units),
-      ...(intensity ? [token(` ${intensity}`)] : []),
-      ...paceSuffix(first, trainingPaceProfile, units),
-      token(' off '),
-      volumeToken(second.volume, units),
-      token(' float'),
-      ...paceSuffix(second, trainingPaceProfile, units),
-    ];
-  }
-
-  if (group.segments.length === 2 && first.kind === 'RUN' && second.kind === 'RECOVERY') {
-    return repeatRunRecoveryTokens(group, first, second, trainingPaceProfile, units);
-  }
-
-  if (group.segments.length === 1 && first.kind === 'STRIDE') {
-    return [
-      token(`${group.repeats} x `),
-      volumeToken(first.volume, units),
-      token(' strides'),
-      ...paceSuffix(first, trainingPaceProfile, units),
-    ];
-  }
-
-  const parts: StructuredRunDisplayLine = [token(`${group.repeats} x (`)];
-  group.segments.forEach((segment, index) => {
-    if (index > 0) {
-      parts.push(token(' + '));
-    }
-    parts.push(...segmentTokens(segment, trainingPaceProfile, units));
-  });
-  parts.push(token(')'));
-  return parts;
+): StructuredRunDisplayBlock {
+  return {
+    kind: 'repeat',
+    repeatLabel: `${group.repeats}×`,
+    lines: group.segments.map((segment) => segmentTokens(segment, trainingPaceProfile, units)),
+  };
 }
 
-function itemTokens(
+function itemBlock(
   item: RunStructureItem,
   trainingPaceProfile: TrainingPaceProfile | null | undefined,
   units: DistanceUnits,
-): StructuredRunDisplayLine {
+): StructuredRunDisplayBlock {
   return item.kind === 'REPEAT'
-    ? repeatTokens(item, trainingPaceProfile, units)
-    : segmentTokens(item, trainingPaceProfile, units);
+    ? repeatBlock(item, trainingPaceProfile, units)
+    : {
+        kind: 'line',
+        line: segmentTokens(item, trainingPaceProfile, units),
+      };
+}
+
+function compactSegmentLabel(segment: RunStructureSegment): string | null {
+  if (segment.progression?.from || segment.progression?.to) return 'progression';
+
+  const intensity = segmentIntensityName(segment);
+  if (segment.kind === 'STRIDE') return 'strides';
+  if (segment.kind === 'FLOAT') return 'float';
+  if (segment.kind === 'RECOVERY') return 'recovery';
+  if (segment.kind === 'WARMUP') return 'warmup';
+  if (segment.kind === 'COOLDOWN') return 'cooldown';
+  return intensity;
+}
+
+function isQualityLabel(label: string | null): boolean {
+  return Boolean(label && !['easy', 'very easy', 'recovery', 'jog', 'warmup', 'cooldown', 'float'].includes(label));
+}
+
+function primaryRepeatSegment(group: RunStructureRepeatGroup): RunStructureSegment {
+  return group.segments.find((segment) => isQualityLabel(compactSegmentLabel(segment)))
+    ?? group.segments.find((segment) => segment.kind === 'RUN')
+    ?? group.segments[0]!;
+}
+
+function compactRepeatSummary(
+  group: RunStructureRepeatGroup,
+  units: DistanceUnits,
+): string {
+  const segment = primaryRepeatSegment(group);
+  const label = compactSegmentLabel(segment);
+  const volume = formatVolume(segment.volume, units);
+  const suffix = label ? ` ${label}` : '';
+  return `${group.repeats}×${volume}${suffix}`;
+}
+
+function compactItemSummary(
+  item: RunStructureItem,
+  units: DistanceUnits,
+): string {
+  if (item.kind === 'REPEAT') {
+    return compactRepeatSummary(item, units);
+  }
+
+  const label = compactSegmentLabel(item);
+  const volume = formatVolume(item.volume, units);
+  return label ? `${volume} ${label}` : volume;
+}
+
+function isQualityItem(item: RunStructureItem): boolean {
+  if (item.kind === 'REPEAT') {
+    return item.segments.some((segment) => isQualityLabel(compactSegmentLabel(segment)));
+  }
+
+  return isQualityLabel(compactSegmentLabel(item));
+}
+
+export function buildStructuredRunDisplayBlocks(
+  session: PlannedSession | null,
+  units: DistanceUnits,
+  trainingPaceProfile?: TrainingPaceProfile | null,
+): StructuredRunDisplayBlock[] | null {
+  const structure = normalizeRunStructure(session?.runStructure);
+  if (!structure) return null;
+
+  return structure.items.map((item) => itemBlock(item, trainingPaceProfile, units));
 }
 
 export function buildStructuredRunDisplayLines(
@@ -265,12 +287,31 @@ export function buildStructuredRunDisplayLines(
   units: DistanceUnits,
   trainingPaceProfile?: TrainingPaceProfile | null,
 ): StructuredRunDisplayLine[] | null {
-  const structure = normalizeRunStructure(session?.runStructure);
-  if (!structure) return null;
+  const blocks = buildStructuredRunDisplayBlocks(session, units, trainingPaceProfile);
+  if (!blocks) return null;
 
-  return structure.items.map((item) => itemTokens(item, trainingPaceProfile, units));
+  return blocks.flatMap((block) => {
+    if (block.kind === 'line') {
+      return [block.line];
+    }
+
+    return block.lines.map((line, index) => (
+      index === 0 ? [token(`${block.repeatLabel} `), ...line] : line
+    ));
+  });
 }
 
 export function structuredRunDisplayText(lines: StructuredRunDisplayLine[]): string {
   return lines.map((line) => line.map((part) => part.text).join('')).join(', ');
+}
+
+export function structuredRunSummaryTitle(
+  session: PlannedSession | null,
+  units: DistanceUnits,
+): string | null {
+  const structure = normalizeRunStructure(session?.runStructure);
+  if (!structure) return null;
+
+  const primary = structure.items.find(isQualityItem) ?? structure.items[0];
+  return `Structured ${compactItemSummary(primary, units)}`;
 }

@@ -2,6 +2,10 @@ import React from 'react';
 import { Alert } from 'react-native';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import {
+  deriveTrainingPaceProfile,
+  trainingPaceBandToIntensityTarget,
+} from '@steady/types';
 
 const mockRouterPush = vi.hoisted(() => vi.fn());
 
@@ -357,6 +361,84 @@ describe('HomeScreen', () => {
 
     expect(screen.getByText('APR 6 – 12 · 2026')).toBeTruthy();
     expect(screen.getByText('Week 3 · Build Phase')).toBeTruthy();
+  });
+
+  it('renders future this-week rows from the current Training pace profile', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-05T12:00:00.000Z'));
+    const beforeProfile = deriveTrainingPaceProfile({
+      raceDistance: 'Marathon',
+      targetTime: 'sub-3:15',
+    });
+    beforeProfile.bands.easy.paceRange = { min: '5:07', max: '5:28' };
+    const afterProfile = {
+      ...beforeProfile,
+      bands: {
+        ...beforeProfile.bands,
+        easy: {
+          ...beforeProfile.bands.easy,
+          paceRange: { min: '5:30', max: '5:50' },
+        },
+      },
+    };
+    const oldEasyTarget = trainingPaceBandToIntensityTarget(beforeProfile.bands.easy);
+    const currentEasyTarget = trainingPaceBandToIntensityTarget(afterProfile.bands.easy);
+    const week = {
+      weekNumber: 3,
+      phase: 'BUILD' as const,
+      sessions: [
+        {
+          id: 'mon',
+          type: 'EASY',
+          date: '2026-05-04',
+          distance: 8,
+          pace: '5:18',
+          actualActivityId: 'act-mon',
+          intensityTarget: oldEasyTarget,
+        },
+        null,
+        {
+          id: 'wed',
+          type: 'EASY',
+          date: '2026-05-06',
+          distance: 8,
+          pace: '5:18',
+          intensityTarget: oldEasyTarget,
+        },
+        null,
+        null,
+        null,
+        {
+          id: 'sun',
+          type: 'EASY',
+          date: '2026-05-10',
+          distance: 10,
+          pace: '5:40',
+          intensityTarget: currentEasyTarget,
+        },
+      ],
+      plannedKm: 26,
+    };
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = {
+      id: 'p1',
+      weeks: [week],
+      phases: {},
+      raceDistance: 'Marathon',
+      targetTime: 'sub-3:15',
+      raceDate: '2026-07-15',
+      trainingPaceProfile: afterProfile,
+      coachAnnotation: null,
+    };
+    mockPlan.currentWeek = week;
+
+    render(<HomeScreen />);
+
+    expect(screen.getByText('8km · 5:07-5:28')).toBeTruthy();
+    expect(screen.getByText('8km · 5:30-5:50')).toBeTruthy();
+    expect(screen.getByText('10km · 5:30-5:50')).toBeTruthy();
   });
 
   it('uses the device local date after midnight when choosing the today card', () => {

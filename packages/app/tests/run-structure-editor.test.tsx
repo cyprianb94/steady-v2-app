@@ -169,7 +169,7 @@ describe('RunStructureEditor', () => {
     openTemplates();
     fireEvent.click(screen.getByText('Race-pace blocks'));
 
-    expect(screen.getByText((text) => text.includes('3 x 3km marathon pace off 1km float'))).toBeTruthy();
+    expect(screen.getByText((text) => text.includes('5km warmup easy, 3× 3km marathon pace, 1km float'))).toBeTruthy();
     expect(screen.getByText('Adds up to')).toBeTruthy();
     expect(screen.getByText('Quality')).toBeTruthy();
     expect(screen.getByText('Repeats')).toBeTruthy();

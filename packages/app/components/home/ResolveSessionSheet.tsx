@@ -25,8 +25,10 @@ import {
   type DistanceUnits,
 } from '../../lib/units';
 import {
+  buildStructuredRunDisplayBlocks,
   buildStructuredRunDisplayLines,
   structuredRunDisplayText,
+  type StructuredRunDisplayBlock,
   type StructuredRunDisplayKind,
   type StructuredRunDisplayLine,
   type StructuredRunDisplayToken,
@@ -60,6 +62,7 @@ interface PlannedSessionRow {
   accentColor: string;
   subparts?: PlannedSessionValuePart[];
   lineParts?: PlannedSessionValuePart[][];
+  structureBlocks?: StructuredRunDisplayBlock[];
 }
 
 interface PlannedSessionValuePart {
@@ -183,6 +186,20 @@ function structuredTokenPart(token: StructuredRunDisplayToken): PlannedSessionVa
 
 function structuredLineParts(line: StructuredRunDisplayLine): PlannedSessionValuePart[] {
   return line.map(structuredTokenPart);
+}
+
+function structuredBlockFallbackParts(blocks: StructuredRunDisplayBlock[]): PlannedSessionValuePart[][] {
+  return blocks.flatMap((block) => {
+    if (block.kind === 'line') {
+      return [structuredLineParts(block.line)];
+    }
+
+    return block.lines.map((line, index) => structuredLineParts(
+      index === 0
+        ? [{ text: `${block.repeatLabel} `, kind: 'neutral' }, ...line]
+        : line,
+    ));
+  });
 }
 
 function buildPlanNoteRow(planNote: string | undefined): PlannedSessionRow | null {
@@ -321,12 +338,16 @@ function buildPlannedRows(
   const structureSummary = summariseRunStructure(session);
 
   if (structureSummary) {
+    const structureBlocks = buildStructuredRunDisplayBlocks(session, units, trainingPaceProfile);
     const structureLines = buildStructuredRunDisplayLines(session, units, trainingPaceProfile);
     return [
       {
         label: 'RUN STRUCTURE',
         parts: [copyPart(structureLines ? structuredRunDisplayText(structureLines) : structureSummary)],
-        lineParts: structureLines?.map(structuredLineParts),
+        lineParts: structureBlocks
+          ? structuredBlockFallbackParts(structureBlocks)
+          : structureLines?.map(structuredLineParts),
+        structureBlocks: structureBlocks ?? undefined,
         accentColor: SESSION_TYPE[session.type].color,
       },
       buildVolumeRow(session, units, { allowFallback: false, allowStructuredTotal: true }),
@@ -391,10 +412,69 @@ function PlannedRowMarker({ color }: { color: string }) {
   return <View style={[styles.rowAccent, { backgroundColor: color }]} />;
 }
 
+function StructuredLineText({ line }: { line: StructuredRunDisplayLine }) {
+  return (
+    <Text style={styles.plannedValueText}>
+      {structuredLineParts(line).map((part, index) => (
+        <Text
+          key={`${part.text}-${index}`}
+          style={[
+            part.mono ? styles.plannedValueMetric : styles.plannedValueCopy,
+            part.muted && styles.plannedValueMuted,
+            part.color ? { color: part.color } : null,
+          ]}
+        >
+          {part.text}
+        </Text>
+      ))}
+    </Text>
+  );
+}
+
+function StructuredRunBlocks({ blocks }: { blocks: StructuredRunDisplayBlock[] }) {
+  return (
+    <View style={styles.structuredBlockList}>
+      {blocks.map((block, blockIndex) => {
+        if (block.kind === 'line') {
+          return (
+            <View
+              key={`line-${blockIndex}`}
+              style={styles.structuredStandaloneLine}
+            >
+              <StructuredLineText line={block.line} />
+            </View>
+          );
+        }
+
+        return (
+          <View
+            key={`repeat-${block.repeatLabel}-${blockIndex}`}
+            style={styles.structuredRepeatGroup}
+          >
+            <View style={styles.structuredRepeatLabelWrap}>
+              <Text style={styles.structuredRepeatLabel}>{block.repeatLabel}</Text>
+            </View>
+            <View style={styles.structuredRepeatLines}>
+              {block.lines.map((line, lineIndex) => (
+                <StructuredLineText
+                  key={`${line.map((part) => part.text).join('')}-${lineIndex}`}
+                  line={line}
+                />
+              ))}
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 function PlannedRowValue({ row }: { row: PlannedSessionRow }) {
   return (
     <View style={styles.plannedValueWrap}>
-      {row.lineParts ? (
+      {row.structureBlocks ? (
+        <StructuredRunBlocks blocks={row.structureBlocks} />
+      ) : row.lineParts ? (
         row.lineParts.map((line, lineIndex) => (
           <Text
             key={`${row.label}-${lineIndex}`}
@@ -952,6 +1032,35 @@ const styles = StyleSheet.create({
   plannedValueWrap: {
     flex: 1,
     gap: 2,
+  },
+  structuredBlockList: {
+    gap: 7,
+  },
+  structuredStandaloneLine: {
+    minHeight: 20,
+    justifyContent: 'center',
+  },
+  structuredRepeatGroup: {
+    position: 'relative',
+    paddingVertical: 1,
+  },
+  structuredRepeatLabelWrap: {
+    position: 'absolute',
+    left: -40,
+    top: 0,
+    bottom: 0,
+    width: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  structuredRepeatLabel: {
+    fontFamily: FONTS.monoBold,
+    fontSize: 13,
+    lineHeight: 18,
+    color: C.muted,
+  },
+  structuredRepeatLines: {
+    gap: 3,
   },
   plannedValueText: {
     fontSize: 14,

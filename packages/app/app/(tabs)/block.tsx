@@ -32,7 +32,7 @@ import {
   buildSessionEditDescription,
   hasMaterialSessionEdit,
   materializeEditedSession,
-  resolveProfileLinkedSessionTarget,
+  resolveProfileLinkedWeekTargets,
   type SessionEditorResult,
 } from '../../features/plan-builder/session-editing';
 import { consumeSessionEditReturn } from '../../features/plan-builder/session-edit-return';
@@ -934,14 +934,11 @@ export default function BlockTab() {
               }
             : week;
         const datedDisplayWeek = buildDisplayWeek(baseDisplayWeek, getWeekStartDate(week));
-        const resolvedDisplaySessions = datedDisplayWeek.sessions.map((session) => (
-          resolveProfileLinkedSessionTarget(session, plan.trainingPaceProfile, { today })
-        ));
-        const displayWeek = {
-          ...datedDisplayWeek,
-          sessions: resolvedDisplaySessions,
-          plannedKm: weekKm(resolvedDisplaySessions),
-        };
+        const displayWeek = resolveProfileLinkedWeekTargets(
+          datedDisplayWeek,
+          plan.trainingPaceProfile,
+          { today },
+        );
         const weekEntries = injuryWeek ? getWeekEntries(recoveryData.entries, week) : [];
         const volumeTone = getBlockVolumeTone(i, safeCurrentWeekIndex);
         const volumeSummary = getResolvedWeekVolumeSummary(displayWeek, volumeTone, activityResolution);

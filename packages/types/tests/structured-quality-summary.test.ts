@@ -54,7 +54,7 @@ describe('buildStructuredQualitySummary', () => {
           { km: 5, label: 'Recovery 2', distance: 0.4, pace: 395, hr: 149 },
           { km: 6, label: 'Rep 3', distance: 0.8, pace: 234, hr: 170 },
           { km: 7, label: 'Recovery 3', distance: 0.4, pace: 400, hr: 148 },
-          { km: 8, label: 'Rep 4', distance: 0.8, pace: 224, hr: 172 },
+          { km: 8, label: 'Rep 4', distance: 0.8, pace: 225, hr: 172 },
           { km: 9, label: 'Recovery 4', distance: 0.4, pace: 410, hr: 147 },
           { km: 10, label: 'Cool down', distance: 1, pace: 370, hr: 140 },
         ],
@@ -142,7 +142,7 @@ describe('buildStructuredQualitySummary', () => {
         intensityTarget: {
           source: 'manual',
           mode: 'pace',
-          paceRange: { min: '3:47', max: '4:10' },
+          paceRange: { min: '3:45', max: '4:10' },
         },
       }),
       makeActivity({
@@ -176,6 +176,43 @@ describe('buildStructuredQualitySummary', () => {
         planned: 6,
         found: 6,
         inTargetRange: 2,
+      },
+    });
+  });
+
+  it('counts only reps inside the displayed interval target range', () => {
+    const summary = buildStructuredQualitySummary(
+      makeSession({
+        reps: 6,
+        repDist: 400,
+        recovery: undefined,
+        warmup: undefined,
+        cooldown: undefined,
+        intensityTarget: {
+          source: 'manual',
+          mode: 'pace',
+          paceRange: { min: '3:40', max: '3:50' },
+        },
+      }),
+      makeActivity({
+        splits: [
+          { km: 1, distance: 0.4, pace: 218, hr: 190 },
+          { km: 2, distance: 0.4, pace: 216, hr: 190 },
+          { km: 3, distance: 0.4, pace: 223, hr: 192 },
+          { km: 4, distance: 0.4, pace: 225, hr: 192 },
+          { km: 5, distance: 0.4, pace: 228, hr: 192 },
+          { km: 6, distance: 0.4, pace: 230, hr: 192 },
+        ],
+      }),
+    );
+
+    expect(summary).toMatchObject({
+      status: 'available',
+      sessionType: 'INTERVAL',
+      intervalReps: {
+        planned: 6,
+        found: 6,
+        inTargetRange: 4,
       },
     });
   });

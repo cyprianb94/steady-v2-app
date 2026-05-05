@@ -8,9 +8,11 @@ import {
   normalizeTrainingPaceProfile,
   representativePace,
   trainingPaceBandToIntensityTarget,
+  weekKm,
   type IntensityTarget,
   type PaceRange,
   type PlannedSession,
+  type PlanWeek,
   type SessionType,
   type TrainingPaceProfile,
   type TrainingPaceProfileBand,
@@ -306,6 +308,22 @@ export function resolveProfileLinkedSessionTarget(
     ...session,
     intensityTarget: target,
   });
+}
+
+export function resolveProfileLinkedWeekTargets(
+  week: PlanWeek,
+  profile: TrainingPaceProfile | null | undefined,
+  options: { today?: string } = {},
+): PlanWeek {
+  const sessions = week.sessions.map((session) => (
+    resolveProfileLinkedSessionTarget(session, profile, options)
+  ));
+
+  return {
+    ...week,
+    sessions,
+    plannedKm: weekKm(sessions),
+  };
 }
 
 export function normalizeSessionEditorResult(

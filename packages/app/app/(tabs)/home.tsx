@@ -54,6 +54,7 @@ import {
   markSessionSkippedInWeeks,
   possibleActivityMatchesForSession,
 } from '../../features/home/resolve-session';
+import { resolveProfileLinkedWeekTargets } from '../../features/plan-builder/session-editing';
 
 const HOME_SCROLL_TOP_PADDING = 14;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
@@ -202,7 +203,11 @@ export default function HomeScreen() {
 
   const week = currentWeek;
   const resolvedWeekStartDate = weekStartDate ?? resolveDisplayWeekStartDate(week, today);
-  const displayWeek = buildCurrentDisplayWeek(week, today);
+  const displayWeek = resolveProfileLinkedWeekTargets(
+    buildCurrentDisplayWeek(week, today),
+    plan.trainingPaceProfile,
+    { today },
+  );
   const weekSessions = displayWeek.sessions;
   const todaySession = findSessionForDateOrWeekday(weekSessions, today);
   const todayIndex = dayIndexForIsoDate(today);
