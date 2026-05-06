@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { deriveTrainingPaceProfile, trainingPaceBandToIntensityTarget, type PlannedSession } from '@steady/types';
 import {
+  buildSimpleSessionEditorSave,
   getSessionEditorProfileBands,
   hasMaterialSessionEdit,
   materializeEditedSession,
   resolveProfileLinkedSessionTarget,
 } from '../features/plan-builder/session-editing';
+import {
+  normalizeCustomPace,
+  pacePresetsAround,
+  paceRangeAroundPace,
+} from '../features/plan-builder/session-editor-targets';
 
 const existingEasy: PlannedSession = {
   id: 'session-1',
@@ -20,6 +26,131 @@ const existingEasy: PlannedSession = {
     effortCue: 'conversational',
   },
 };
+
+describe('session editor target helpers', () => {
+  it('normalizes custom pace text and builds bounded nearby presets', () => {
+    expect(normalizeCustomPace('4:5 / km')).toBe('4:05');
+    expect(normalizeCustomPace('4:75')).toBeNull();
+    expect(pacePresetsAround('4:30')).toEqual([
+      '4:15',
+      '4:20',
+      '4:25',
+      '4:30',
+      '4:35',
+      '4:40',
+      '4:45',
+    ]);
+  });
+
+  it('creates a manual range draft around the selected target pace', () => {
+    expect(paceRangeAroundPace('4:30')).toEqual({
+      min: '4:25',
+      max: '4:35',
+    });
+  });
+});
+
+describe('simple session editor save payloads', () => {
+  it('saves manual pace ranges without collapsing them to a single target', () => {
+    const saved = buildSimpleSessionEditorSave({
+      type: 'TEMPO',
+      distance: 10,
+      plannedMinutes: 35,
+      reps: 6,
+      repDuration: { unit: 'km', value: 0.8 },
+      recovery: { unit: 'min', value: 1.5 },
+      warmup: { unit: 'km', value: 2 },
+      cooldown: { unit: 'km', value: 1 },
+      pace: '4:15',
+      intensityTarget: {
+        source: 'manual',
+        mode: 'pace',
+        paceRange: { min: '4:10', max: '4:20' },
+      },
+      planNote: '  Hold range, not a fixed split.  ',
+      structureClearPending: false,
+    });
+
+    expect(saved).toMatchObject({
+      type: 'TEMPO',
+      format: 'simple',
+      distance: 10,
+      pace: '4:15',
+      warmup: { unit: 'km', value: 2 },
+      cooldown: { unit: 'km', value: 1 },
+      intensityTarget: {
+        source: 'manual',
+        mode: 'pace',
+        paceRange: { min: '4:10', max: '4:20' },
+      },
+      planNote: 'Hold range, not a fixed split.',
+    });
+  });
+
+  it('saves minute-based interval reps without carrying stale rep distance', () => {
+    const saved = buildSimpleSessionEditorSave({
+      type: 'INTERVAL',
+      distance: 8,
+      plannedMinutes: 35,
+      reps: 8,
+      repDuration: { unit: 'min', value: 3 },
+      recovery: { unit: 'min', value: 1.5 },
+      warmup: { unit: 'km', value: 1.5 },
+      cooldown: { unit: 'km', value: 1 },
+      pace: '3:50',
+      planNote: '',
+      structureClearPending: false,
+    });
+    const materialized = materializeEditedSession(
+      {
+        id: 'interval-stale-repdist',
+        type: 'INTERVAL',
+        date: '2026-05-06',
+        reps: 8,
+        repDist: 800,
+        repDuration: { unit: 'km', value: 0.8 },
+        recovery: { unit: 'min', value: 1.5 },
+        pace: '3:50',
+      },
+      saved,
+      { id: 'fallback', date: 'preview', type: 'INTERVAL' },
+    );
+
+    expect(materialized).toMatchObject({
+      type: 'INTERVAL',
+      reps: 8,
+      repDuration: { unit: 'min', value: 3 },
+      recovery: { unit: 'min', value: 1.5 },
+      warmup: { unit: 'km', value: 1.5 },
+      cooldown: { unit: 'km', value: 1 },
+    });
+    expect(materialized).not.toHaveProperty('repDist');
+  });
+
+  it('marks structured fields for clearing when saving a structured draft as Rest', () => {
+    const saved = buildSimpleSessionEditorSave({
+      type: 'REST',
+      distance: 8,
+      plannedMinutes: 35,
+      reps: 6,
+      repDuration: { unit: 'km', value: 0.8 },
+      recovery: { unit: 'min', value: 1.5 },
+      warmup: { unit: 'km', value: 1 },
+      cooldown: { unit: 'km', value: 1 },
+      pace: '5:20',
+      planNote: 'Full rest.',
+      structureClearPending: true,
+    });
+
+    expect(saved).toMatchObject({
+      type: 'REST',
+      format: 'simple',
+      planNote: 'Full rest.',
+      clearRunStructure: true,
+      clearPlannedVolume: true,
+    });
+  });
+});
 
 describe('session edit materialization', () => {
   it('preserves existing intensity metadata for same-type edits', () => {

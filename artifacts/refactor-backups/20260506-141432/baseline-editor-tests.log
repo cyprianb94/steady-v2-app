@@ -1,0 +1,17 @@
+
+> @steady/app@1.0.0 test
+> vitest run session-editing.test.ts structured-session-editor-engine.test.ts session-editor.test.tsx run-structure-editor.test.tsx
+
+
+ RUN  v3.2.4 /Users/cyprianbrytan/Projects/steady-v2-app/packages/app
+
+ ✓ tests/structured-session-editor-engine.test.ts (8 tests) 9ms
+ ✓ tests/session-editing.test.ts (16 tests) 8ms
+ ✓ tests/session-editor.test.tsx (42 tests) 1160ms
+ ✓ tests/run-structure-editor.test.tsx (39 tests) 1426ms
+
+ Test Files  4 passed (4)
+      Tests  105 passed (105)
+   Start at  14:15:29
+   Duration  3.08s (transform 489ms, setup 313ms, collect 1.23s, tests 2.60s, environment 3.28s, prepare 334ms)
+

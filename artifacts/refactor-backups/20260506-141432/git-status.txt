@@ -1,0 +1,5 @@
+## codex/session-editor-deepening
+?? artifacts/refactor-backups/20260505-200752/
+?? artifacts/refactor-backups/20260505-230911/
+?? artifacts/refactor-backups/20260505-232739/
+?? artifacts/refactor-backups/20260506-141432/

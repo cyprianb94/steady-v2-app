@@ -5,6 +5,7 @@ import {
   normalizePace,
   normalizePaceRange,
   normalizeSessionIntensityTarget,
+  sessionSupportsWarmupCooldown,
   normalizeTrainingPaceProfile,
   representativePace,
   trainingPaceBandToIntensityTarget,
@@ -13,6 +14,8 @@ import {
   type PaceRange,
   type PlannedSession,
   type PlanWeek,
+  type SessionDurationSpec,
+  type SessionDurationUnit,
   type SessionType,
   type TrainingPaceProfile,
   type TrainingPaceProfileBand,
@@ -25,6 +28,26 @@ export type SessionEditorResult = (Partial<PlannedSession> & {
   clearPlannedVolume?: boolean;
   clearRunStructure?: boolean;
 }) | null;
+
+export interface SessionEditorDurationState {
+  unit: SessionDurationUnit;
+  value: number | null;
+}
+
+export interface BuildSimpleSessionEditorSaveInput {
+  type: SessionType;
+  distance: number;
+  plannedMinutes: number;
+  reps: number;
+  repDuration: SessionEditorDurationState;
+  recovery: SessionEditorDurationState;
+  warmup: SessionEditorDurationState;
+  cooldown: SessionEditorDurationState;
+  pace: string;
+  intensityTarget?: IntensityTarget;
+  planNote: string;
+  structureClearPending: boolean;
+}
 
 const PROFILE_KEYS_BY_SESSION_TYPE: Partial<Record<SessionType, TrainingPaceProfileKey[]>> = {
   EASY: ['recovery', 'easy', 'steady'],
@@ -250,6 +273,92 @@ export function targetRepresentativePace(
 ): string | undefined {
   return representativePace(normalizeIntensityTarget(target))
     ?? normalizePace(fallbackPace);
+}
+
+export function sessionEditorDurationSpec(
+  state: SessionEditorDurationState,
+): SessionDurationSpec | undefined {
+  return state.value != null && state.value > 0
+    ? { unit: state.unit, value: state.value }
+    : undefined;
+}
+
+export function buildSimpleSessionEditorSave({
+  type,
+  distance,
+  plannedMinutes,
+  reps,
+  repDuration,
+  recovery,
+  warmup,
+  cooldown,
+  pace,
+  intensityTarget,
+  planNote,
+  structureClearPending,
+}: BuildSimpleSessionEditorSaveInput): SessionEditorResult {
+  const isRest = type === 'REST';
+  const isRecovery = type === 'RECOVERY';
+  const trimmedPlanNote = planNote.trim();
+  const structureClearFields = structureClearPending
+    ? {
+        clearRunStructure: true,
+        clearPlannedVolume: !isRecovery,
+      }
+    : {};
+
+  if (isRest) {
+    return {
+      type: 'REST',
+      format: 'simple',
+      planNote: trimmedPlanNote.length > 0 ? trimmedPlanNote : undefined,
+      ...structureClearFields,
+    };
+  }
+
+  const targetForSave = intensityTarget ?? manualPaceIntensityTarget(pace);
+  const session: Partial<PlannedSession> = {
+    type,
+    format: 'simple',
+    ...structureClearFields,
+  };
+  if (!isRecovery) {
+    session.pace = pace;
+  }
+  if (targetForSave) {
+    session.intensityTarget = targetForSave;
+  }
+  session.planNote = trimmedPlanNote.length > 0 ? trimmedPlanNote : undefined;
+  if (isRecovery) {
+    session.plannedVolume = { unit: 'min', value: plannedMinutes };
+    return session;
+  }
+
+  if (sessionSupportsWarmupCooldown(type)) {
+    session.warmup = sessionEditorDurationSpec(warmup);
+    session.cooldown = sessionEditorDurationSpec(cooldown);
+  }
+
+  if (type === 'INTERVAL') {
+    const repDurationSpec = sessionEditorDurationSpec(repDuration);
+    const recoverySpec = sessionEditorDurationSpec(recovery);
+    const intervalFields: Partial<PlannedSession> = {
+      reps,
+      repDist: undefined,
+      repDuration: repDurationSpec,
+      recovery: recoverySpec,
+    };
+
+    if (repDuration.unit === 'km' && repDuration.value != null) {
+      intervalFields.repDist = Math.round(repDuration.value * 1000);
+    }
+
+    Object.assign(session, intervalFields);
+  } else {
+    Object.assign(session, { distance });
+  }
+
+  return session;
 }
 
 export function applyTrainingPaceProfileTarget(

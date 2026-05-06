@@ -1,0 +1,18 @@
+
+> @steady/app@1.0.0 test
+> vitest run parked-feature-gates.test.ts coach-freeze.test.tsx tab-layout.test.tsx settings.test.tsx home.test.tsx
+
+
+ RUN  v3.2.4 /Users/cyprianbrytan/Projects/steady-v2-app/packages/app
+
+ ✓ tests/parked-feature-gates.test.ts (2 tests) 18ms
+ ✓ tests/tab-layout.test.tsx (2 tests) 38ms
+ ✓ tests/coach-freeze.test.tsx (1 test) 46ms
+ ✓ tests/settings.test.tsx (12 tests) 330ms
+ ✓ tests/home.test.tsx (38 tests) 739ms
+
+ Test Files  5 passed (5)
+      Tests  55 passed (55)
+   Start at  14:15:37
+   Duration  2.66s (transform 831ms, setup 418ms, collect 1.94s, tests 1.17s, environment 3.76s, prepare 500ms)
+

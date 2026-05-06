@@ -13,6 +13,13 @@ import {
   getStructuredSessionTemplatesForType,
   sessionTypeSupportsStructuredFormat,
 } from '../features/plan-builder/structured-session-editor-engine';
+import {
+  distanceMetric,
+  qualityMetric,
+  segmentPaceOptions,
+  selectedSegmentPaceKey,
+  timeMetric,
+} from '../features/plan-builder/structured-session-editor-view-model';
 
 describe('structured session editor engine', () => {
   it('reports structured format support by session type', () => {
@@ -134,6 +141,51 @@ describe('structured session editor engine', () => {
         intensityTarget: expect.objectContaining({ source: 'profile', profileKey: 'marathon' }),
       }),
     ]);
+  });
+
+  it('derives structured segment pace options and selected manual pace keys', () => {
+    const profile = deriveTrainingPaceProfile({
+      raceDistance: 'Marathon',
+      targetTime: '03:15:00',
+    });
+    const segment = {
+      kind: 'FLOAT' as const,
+      volume: { unit: 'km' as const, value: 1 },
+      intensityTarget: {
+        source: 'manual' as const,
+        mode: 'pace' as const,
+        pace: '4:45',
+      },
+    };
+
+    expect(selectedSegmentPaceKey(segment)).toBe('4:45');
+    expect(segmentPaceOptions('LONG', segment, profile, 'metric').map((option) => option.key)).toEqual([
+      'recovery',
+      'easy',
+      'steady',
+    ]);
+  });
+
+  it('derives summary metrics from the materialized structured save', () => {
+    const templated = applyStructuredSessionTemplate({
+      templateKey: 'cruise-intervals',
+      session: {
+        type: 'TEMPO',
+        pace: '4:15',
+      },
+    });
+    const materialized = buildStructuredSessionSave({
+      session: templated.session,
+      items: templated.items,
+      planNote: '',
+    }) as PlannedSession;
+
+    expect(distanceMetric(materialized)).toMatchObject({ value: '8.5km', caption: 'estimated' });
+    expect(timeMetric(materialized)).toMatchObject({ value: '36min', caption: 'structured' });
+    expect(qualityMetric(templated.items, materialized)).toMatchObject({
+      value: '83%',
+      caption: 'of session',
+    });
   });
 
   it('converts a structured draft back to a simple session and clears structured fields', () => {

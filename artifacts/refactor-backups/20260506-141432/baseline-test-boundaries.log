@@ -1,0 +1,5 @@
+
+> test:boundaries
+> node ./scripts/check-package-boundaries.mjs
+
+Package boundary check passed.
