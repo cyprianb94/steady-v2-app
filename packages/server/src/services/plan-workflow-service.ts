@@ -1,26 +1,34 @@
 import {
   generatePlan,
   getDisplayWeekIndex,
+  assignWeekSessionDates,
+  inferWeekStartDate,
   normalizePlanWeekSessionDurations,
   normalizeSessionDurations,
   normalizeSessionIds,
   normalizeTrainingPaceProfile,
   propagateChange,
+  propagateSwap,
   propagateTrainingPaceProfileUpdate,
+  swapSessions,
+  weekKm,
 } from '@steady/types';
 import type {
+  Activity,
   InjuryUpdate,
   PhaseConfig,
   PhaseName,
   PlannedSession,
   PlanWeek,
+  PropagateScope,
   SkippedSessionReason,
+  SwapLogEntry,
   TrainingPaceProfile,
   TrainingPlan,
   TrainingPlanWithAnnotation,
 } from '@steady/types';
 import { generateHomeAnnotations } from '../lib/annotation-engine';
-import { currentIsoDateInTimezone } from '../lib/iso-date';
+import { currentIsoDateInTimezone, isoDateInTimezone } from '../lib/iso-date';
 import type { ActivityRepo } from '../repos/activity-repo';
 import type { PlanRepo } from '../repos/plan-repo';
 import type { ProfileRepo } from '../repos/profile-repo';
@@ -43,8 +51,16 @@ export interface PropagatePlanChangeInput {
   weekIndex: number;
   dayIndex: number;
   updated: PlannedSession | null;
-  scope: 'this' | 'remaining' | 'build';
+  scope: PropagateScope;
   targetPhase?: PhaseName;
+}
+
+export interface ApplyBlockRescheduleInput {
+  weekIndex: number;
+  swapLog: SwapLogEntry[];
+  scope: PropagateScope;
+  targetPhase?: PhaseName;
+  targetSessions?: (PlannedSession | null)[];
 }
 
 export interface MarkSessionSkippedInput {
@@ -140,6 +156,39 @@ function validateWeeks(weeks: PlanWeek[]) {
   }
 }
 
+function validatePlanSlot(plan: TrainingPlan, weekIndex: number, dayIndex: number) {
+  if (!Number.isInteger(weekIndex) || weekIndex < 0 || weekIndex >= plan.weeks.length) {
+    throw new PlanWorkflowError('BAD_REQUEST', 'Week index is outside the active plan');
+  }
+
+  if (!Number.isInteger(dayIndex) || dayIndex < 0 || dayIndex > 6) {
+    throw new PlanWorkflowError('BAD_REQUEST', 'Day index must be between 0 and 6');
+  }
+}
+
+function validateSwapLog(plan: TrainingPlan, input: ApplyBlockRescheduleInput) {
+  if (!Number.isInteger(input.weekIndex) || input.weekIndex < 0 || input.weekIndex >= plan.weeks.length) {
+    throw new PlanWorkflowError('BAD_REQUEST', 'Week index is outside the active plan');
+  }
+
+  if (input.targetSessions && input.targetSessions.length !== 7) {
+    throw new PlanWorkflowError('BAD_REQUEST', 'Target sessions must include exactly 7 day slots');
+  }
+
+  for (const swap of input.swapLog) {
+    if (
+      !Number.isInteger(swap.from)
+      || !Number.isInteger(swap.to)
+      || swap.from < 0
+      || swap.from > 6
+      || swap.to < 0
+      || swap.to > 6
+    ) {
+      throw new PlanWorkflowError('BAD_REQUEST', 'Swap log entries must use day indexes between 0 and 6');
+    }
+  }
+}
+
 function validateSaveInput(input: SavePlanWorkflowInput) {
   const phaseSum = input.phases.BASE
     + input.phases.BUILD
@@ -199,6 +248,228 @@ function updateSessionById(
   };
 }
 
+function matchedActivitiesBySessionId(activities: Activity[]): Map<string, Activity> {
+  return new Map(
+    activities
+      .filter((activity): activity is Activity & { matchedSessionId: string } => Boolean(activity.matchedSessionId))
+      .map((activity) => [activity.matchedSessionId, activity]),
+  );
+}
+
+interface CompletedSessionContext {
+  matchedActivitiesBySessionId: Map<string, Activity>;
+  activityIds: Set<string>;
+  today: string;
+  timezone: string;
+}
+
+function shouldPreserveCompletedOrMatchedSession({
+  matchedActivitiesBySessionId: matchedActivities,
+  activityIds,
+  today,
+  timezone,
+}: CompletedSessionContext): (session: PlannedSession) => boolean {
+  return (session) => {
+    const matchedActivity = matchedActivities.get(session.id);
+    if (matchedActivity && isoDateInTimezone(matchedActivity.startTime, timezone) === session.date) {
+      return true;
+    }
+
+    if (!session.actualActivityId) {
+      return false;
+    }
+
+    return activityIds.has(session.actualActivityId) || session.date <= today;
+  };
+}
+
+function completedSessionContext(
+  activities: Activity[],
+  today: string,
+  timezone: string,
+): CompletedSessionContext {
+  return {
+    matchedActivitiesBySessionId: matchedActivitiesBySessionId(activities),
+    activityIds: new Set(activities.map((activity) => activity.id)),
+    today,
+    timezone,
+  };
+}
+
+function shouldApplyRescheduleToWeek(
+  index: number,
+  week: PlanWeek,
+  weekIndex: number,
+  scope: PropagateScope,
+  targetPhase: PhaseName,
+): boolean {
+  if (scope === 'this') return index === weekIndex;
+  if (scope === 'remaining') return index >= weekIndex;
+  return week.phase === targetPhase;
+}
+
+function hasPreservedSwapPosition(
+  sessions: readonly (PlannedSession | null)[],
+  weekIndex: number,
+  swap: SwapLogEntry,
+  shouldPreserveSession: (session: PlannedSession, weekIndex: number, dayIndex: number) => boolean,
+): boolean {
+  const fromSession = sessions[swap.from] ?? null;
+  const toSession = sessions[swap.to] ?? null;
+
+  return (
+    Boolean(fromSession && shouldPreserveSession(fromSession, weekIndex, swap.from))
+    || Boolean(toSession && shouldPreserveSession(toSession, weekIndex, swap.to))
+  );
+}
+
+function isRestSession(session: PlannedSession | null): boolean {
+  return !session || session.type === 'REST';
+}
+
+function matchesRescheduleRole(
+  session: PlannedSession | null,
+  target: PlannedSession | null,
+): boolean {
+  if (isRestSession(session) || isRestSession(target)) {
+    return isRestSession(session) && isRestSession(target);
+  }
+
+  return session?.type === target?.type;
+}
+
+function matchesTargetReschedulePattern(
+  week: PlanWeek,
+  targetSessions: readonly (PlannedSession | null)[],
+  swapLog: readonly SwapLogEntry[],
+): boolean {
+  return swapLog.every((swap) => (
+    matchesRescheduleRole(week.sessions[swap.from] ?? null, targetSessions[swap.from] ?? null)
+    && matchesRescheduleRole(week.sessions[swap.to] ?? null, targetSessions[swap.to] ?? null)
+  ));
+}
+
+function appendSwapLog(
+  week: PlanWeek,
+  swapLog: readonly SwapLogEntry[],
+): SwapLogEntry[] | undefined {
+  const nextSwapLog = [...(week.swapLog ?? []), ...swapLog];
+  return nextSwapLog.length > 0 ? nextSwapLog : week.swapLog;
+}
+
+function replaceWeekWithTargetSessions(
+  week: PlanWeek,
+  targetSessions: readonly (PlannedSession | null)[],
+  swapLog: readonly SwapLogEntry[],
+): PlanWeek {
+  const sessions = assignWeekSessionDates(
+    targetSessions.map((session) => (session ? { ...session } : null)),
+    inferWeekStartDate(week),
+  );
+
+  return {
+    ...week,
+    sessions,
+    plannedKm: Math.round(weekKm(sessions)),
+    swapLog: appendSwapLog(week, swapLog),
+  };
+}
+
+function applySwapLogToWeek(
+  week: PlanWeek,
+  weekIndex: number,
+  swapLog: readonly SwapLogEntry[],
+  shouldPreserveSession: (session: PlannedSession, weekIndex: number, dayIndex: number) => boolean,
+  targetSessions?: readonly (PlannedSession | null)[],
+): PlanWeek {
+  let sessions = week.sessions;
+  const appliedSwaps: SwapLogEntry[] = [];
+
+  for (const swap of swapLog) {
+    if (
+      targetSessions
+      && matchesRescheduleRole(sessions[swap.from] ?? null, targetSessions[swap.from] ?? null)
+      && matchesRescheduleRole(sessions[swap.to] ?? null, targetSessions[swap.to] ?? null)
+    ) {
+      continue;
+    }
+
+    if (hasPreservedSwapPosition(sessions, weekIndex, swap, shouldPreserveSession)) {
+      continue;
+    }
+
+    const nextSessions = swapSessions(sessions, swap.from, swap.to);
+    if (nextSessions !== sessions) {
+      sessions = nextSessions;
+      appliedSwaps.push(swap);
+    }
+  }
+
+  if (appliedSwaps.length === 0) {
+    return week;
+  }
+
+  const datedSessions = assignWeekSessionDates(sessions, inferWeekStartDate(week));
+  return {
+    ...week,
+    sessions: datedSessions,
+    plannedKm: Math.round(weekKm(datedSessions)),
+    swapLog: appendSwapLog(week, appliedSwaps),
+  };
+}
+
+function applyTargetedBlockReschedule({
+  weeks,
+  input,
+  sourcePhase,
+  shouldPreserveSession,
+}: {
+  weeks: PlanWeek[];
+  input: ApplyBlockRescheduleInput;
+  sourcePhase: PhaseName;
+  shouldPreserveSession: (session: PlannedSession, weekIndex: number, dayIndex: number) => boolean;
+}): PlanWeek[] {
+  const targetSessions = input.targetSessions;
+  if (!targetSessions) {
+    return input.swapLog.reduce<PlanWeek[]>((currentWeeks, swap) => (
+      propagateSwap(
+        currentWeeks,
+        input.weekIndex,
+        swap.from,
+        swap.to,
+        input.scope,
+        sourcePhase,
+        { shouldPreserveSession },
+      )
+    ), weeks);
+  }
+
+  return weeks.map((week, index) => {
+    if (!shouldApplyRescheduleToWeek(index, week, input.weekIndex, input.scope, sourcePhase)) {
+      return week;
+    }
+
+    if (input.swapLog.some((swap) => hasPreservedSwapPosition(
+      week.sessions,
+      index,
+      swap,
+      shouldPreserveSession,
+    ))) {
+      return week;
+    }
+
+    if (index === input.weekIndex) {
+      return replaceWeekWithTargetSessions(week, targetSessions, input.swapLog);
+    }
+
+    if (matchesTargetReschedulePattern(week, targetSessions, input.swapLog)) {
+      return week;
+    }
+
+    return applySwapLogToWeek(week, index, input.swapLog, shouldPreserveSession, targetSessions);
+  });
+}
+
 export interface PlanWorkflowService {
   getActivePlan(userId: string): Promise<TrainingPlanWithAnnotation | null>;
   getTrainingPaceProfile(userId: string): Promise<TrainingPaceProfile | null>;
@@ -215,6 +486,7 @@ export interface PlanWorkflowService {
   }): { weeks: PlanWeek[] };
   savePlan(userId: string, input: SavePlanWorkflowInput): Promise<TrainingPlan>;
   propagatePlanChange(userId: string, input: PropagatePlanChangeInput): Promise<TrainingPlan | null>;
+  applyBlockReschedule(userId: string, input: ApplyBlockRescheduleInput): Promise<TrainingPlan | null>;
   updateWeeks(userId: string, weeks: PlanWeek[]): Promise<TrainingPlan | null>;
   markSessionSkipped(userId: string, input: MarkSessionSkippedInput): Promise<TrainingPlan | null>;
   clearSessionSkipped(userId: string, input: ClearSessionSkippedInput): Promise<TrainingPlan | null>;
@@ -321,7 +593,18 @@ export function createPlanWorkflowService({
     },
 
     async propagatePlanChange(userId, input) {
-      const plan = await getRequiredActivePlan(userId);
+      const [plan, profile, activities] = await Promise.all([
+        getRequiredActivePlan(userId),
+        profileRepo.getById(userId),
+        activityRepo.getByUserId(userId),
+      ]);
+      validatePlanSlot(plan, input.weekIndex, input.dayIndex);
+      const timezone = profile?.timezone ?? 'UTC';
+      const preservationContext = completedSessionContext(
+        activities,
+        todayForTimezone(timezone),
+        timezone,
+      );
       const newWeeks = propagateChange(
         plan.weeks,
         input.weekIndex,
@@ -330,7 +613,41 @@ export function createPlanWorkflowService({
         input.scope,
         plan.templateWeek,
         input.targetPhase,
+        {
+          shouldPreserveSession: shouldPreserveCompletedOrMatchedSession(preservationContext),
+        },
       );
+
+      return planRepo.updateWeeks(plan.id, normalizeWeeks(newWeeks));
+    },
+
+    async applyBlockReschedule(userId, input) {
+      const [plan, profile, activities] = await Promise.all([
+        getRequiredActivePlan(userId),
+        profileRepo.getById(userId),
+        activityRepo.getByUserId(userId),
+      ]);
+      validateSwapLog(plan, input);
+
+      if (input.swapLog.length === 0) {
+        return plan;
+      }
+
+      const timezone = profile?.timezone ?? 'UTC';
+      const shouldPreserveSession = shouldPreserveCompletedOrMatchedSession(
+        completedSessionContext(
+          activities,
+          todayForTimezone(timezone),
+          timezone,
+        ),
+      );
+      const sourcePhase = input.targetPhase ?? plan.weeks[input.weekIndex]?.phase;
+      const newWeeks = applyTargetedBlockReschedule({
+        weeks: plan.weeks,
+        input,
+        sourcePhase,
+        shouldPreserveSession,
+      });
 
       return planRepo.updateWeeks(plan.id, normalizeWeeks(newWeeks));
     },

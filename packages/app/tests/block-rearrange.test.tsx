@@ -4,26 +4,45 @@ import * as Haptics from 'expo-haptics';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PlannedSession, TrainingPlanWithAnnotation } from '@steady/types';
 
-const { mockRefresh, mockUpdatePlanWeeks, mockActivityListQuery, planState, routeParams, mockRouterPush, mockAuth, focusState } = vi.hoisted(() => ({
-  mockRefresh: vi.fn(),
-  mockUpdatePlanWeeks: vi.fn(),
-  mockActivityListQuery: vi.fn(),
-  planState: {
+const {
+  mockRefresh,
+  mockApplyBlockReschedule,
+  mockPropagatePlanChange,
+  mockReplacePlan,
+  mockActivityListQuery,
+  planState,
+  routeParams,
+  mockRouterPush,
+  mockAuth,
+  focusState,
+} = vi.hoisted(() => {
+  const planState = {
     current: null as TrainingPlanWithAnnotation | null,
     currentWeekIndex: 0,
-  },
-  routeParams: {
-    current: {} as Record<string, string>,
-  },
-  mockRouterPush: vi.fn(),
-  mockAuth: {
-    session: { user: { id: 'runner-1' } },
-    isLoading: false,
-  },
-  focusState: {
-    current: true,
-  },
-}));
+  };
+
+  return {
+    mockRefresh: vi.fn(),
+    mockApplyBlockReschedule: vi.fn(),
+    mockPropagatePlanChange: vi.fn(),
+    mockReplacePlan: vi.fn((nextPlan: TrainingPlanWithAnnotation | null) => {
+      planState.current = nextPlan;
+    }),
+    mockActivityListQuery: vi.fn(),
+    planState,
+    routeParams: {
+      current: {} as Record<string, string>,
+    },
+    mockRouterPush: vi.fn(),
+    mockAuth: {
+      session: { user: { id: 'runner-1' } },
+      isLoading: false,
+    },
+    focusState: {
+      current: true,
+    },
+  };
+});
 
 vi.mock('@react-navigation/native', () => ({
   useIsFocused: () => focusState.current,
@@ -47,6 +66,7 @@ vi.mock('../hooks/usePlan', () => ({
     currentWeek: planState.current?.weeks[0] ?? null,
     currentWeekIndex: planState.currentWeekIndex,
     refresh: mockRefresh,
+    replacePlan: mockReplacePlan,
   }),
 }));
 
@@ -58,7 +78,8 @@ vi.mock('../lib/trpc', () => ({
 }));
 
 vi.mock('../lib/plan-api', () => ({
-  updatePlanWeeks: mockUpdatePlanWeeks,
+  applyBlockReschedule: mockApplyBlockReschedule,
+  propagatePlanChange: mockPropagatePlanChange,
 }));
 
 import BlockTab, { getRescheduleRevealScrollTarget } from '../app/(tabs)/block';
@@ -139,16 +160,45 @@ function makePlan(weeks: TrainingPlanWithAnnotation['weeks']): TrainingPlanWithA
   };
 }
 
+function swapWeekDays(
+  plan: TrainingPlanWithAnnotation,
+  weekIndexes: number[],
+  fromDayIndex: number,
+  toDayIndex: number,
+): TrainingPlanWithAnnotation {
+  return {
+    ...plan,
+    weeks: plan.weeks.map((week, weekIndex) => {
+      if (!weekIndexes.includes(weekIndex)) {
+        return week;
+      }
+
+      const sessions = [...week.sessions];
+      const from = sessions[fromDayIndex] ?? null;
+      sessions[fromDayIndex] = sessions[toDayIndex] ?? null;
+      sessions[toDayIndex] = from;
+      return {
+        ...week,
+        sessions,
+        swapLog: [...(week.swapLog ?? []), { from: fromDayIndex, to: toDayIndex }],
+      };
+    }),
+  };
+}
+
 describe('BlockTab session rearrange', () => {
   beforeEach(() => {
     mockRefresh.mockReset();
-    mockUpdatePlanWeeks.mockReset();
+    mockApplyBlockReschedule.mockReset();
+    mockPropagatePlanChange.mockReset();
+    mockReplacePlan.mockClear();
     mockActivityListQuery.mockReset();
     vi.mocked(Haptics.selectionAsync).mockClear();
     mockRouterPush.mockReset();
     routeParams.current = {};
     consumeSessionEditReturn();
-    mockUpdatePlanWeeks.mockResolvedValue(null);
+    mockApplyBlockReschedule.mockResolvedValue(null);
+    mockPropagatePlanChange.mockResolvedValue(null);
     mockActivityListQuery.mockResolvedValue([]);
     planState.currentWeekIndex = 0;
     focusState.current = true;
@@ -220,15 +270,17 @@ describe('BlockTab session rearrange', () => {
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(2);
   });
 
-  it('stages a reschedule locally and persists following weeks only after apply', async () => {
-    renderBlockTab();
+  it('stages a reschedule locally and renders the returned remaining-weeks plan after apply', async () => {
+    const serverPlan = swapWeekDays(planState.current!, [0, 1], 0, 2);
+    mockApplyBlockReschedule.mockResolvedValue(serverPlan);
+    const { rerender } = renderBlockTab();
 
     openWeek(1);
     expect(screen.queryByText('Rearrange sessions')).toBeNull();
 
     dragHandle('block-drag-handle-1-0', 120);
 
-    expect(mockUpdatePlanWeeks).not.toHaveBeenCalled();
+    expect(mockApplyBlockReschedule).not.toHaveBeenCalled();
     expect(screen.getByText('Do you want to apply reschedule?')).toBeTruthy();
     expect(screen.getByTestId('block-day-1-0').textContent).toContain('Long Run');
     expect(screen.queryByText('Moved')).toBeNull();
@@ -243,15 +295,87 @@ describe('BlockTab session rearrange', () => {
 
     fireEvent.click(screen.getAllByText('Apply reschedule').at(-1)!);
 
-    await waitFor(() => expect(mockUpdatePlanWeeks).toHaveBeenCalledTimes(1));
-    const input = mockUpdatePlanWeeks.mock.calls[0][0];
-    expect(input[0].sessions[0]?.id).toBe('w1-long');
-    expect(input[0].sessions[2]?.id).toBe('w1-easy');
-    expect(input[0].swapLog).toEqual([{ from: 0, to: 2 }]);
-    expect(input[1].sessions[0]?.id).toBe('w2-long');
-    expect(input[1].sessions[2]?.id).toBe('w2-easy');
-    expect(input[1].swapLog).toEqual([{ from: 0, to: 2 }]);
-    expect(mockRefresh).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(mockApplyBlockReschedule).toHaveBeenCalledTimes(1));
+    const input = mockApplyBlockReschedule.mock.calls[0][0];
+    expect(input).toMatchObject({
+      weekIndex: 0,
+      swapLog: [{ from: 0, to: 2 }],
+      scope: 'remaining',
+      targetPhase: 'BASE',
+    });
+    expect(input.targetSessions[0]?.type).toBe('LONG');
+    expect(input.targetSessions[2]?.type).toBe('EASY');
+    expect(mockReplacePlan).toHaveBeenCalledWith(serverPlan);
+    expect(mockRefresh).not.toHaveBeenCalled();
+
+    rerender(<BlockTab />);
+    openWeek(2);
+    expect(screen.getByTestId('block-day-2-0').textContent).toContain('Long Run');
+    expect(screen.getByTestId('block-day-2-2').textContent).toContain('Easy Run');
+  });
+
+  it.each([
+    { label: 'Just this week', expectedScope: 'this' as const },
+    { label: 'This week + following weeks', expectedScope: 'remaining' as const },
+    { label: 'Build weeks only', expectedScope: 'build' as const },
+  ])('applies a $expectedScope reschedule started from a future expanded week instead of the current week', async ({
+    label,
+    expectedScope,
+  }) => {
+    planState.current = makePlan([
+      makeWeek(1, [
+        session('w1-easy', 'EASY', { distance: 8 }),
+        session('w1-tempo', 'TEMPO', { distance: 10 }),
+        null,
+        null,
+        null,
+        null,
+        null,
+      ], 'BASE'),
+      makeWeek(2, [
+        session('w2-long', 'LONG', { distance: 16 }),
+        session('w2-interval', 'INTERVAL', { reps: 6, repDist: 400 }),
+        session('w2-easy', 'EASY', { distance: 8 }),
+        null,
+        null,
+        null,
+        null,
+      ], 'BUILD'),
+    ]);
+    planState.currentWeekIndex = 0;
+    const serverPlan = swapWeekDays(planState.current, [1], 1, 2);
+    mockApplyBlockReschedule.mockResolvedValue(serverPlan);
+    const { rerender } = renderBlockTab();
+
+    openWeek(2);
+    expect(screen.getByTestId('block-day-2-1').textContent).toContain('Intervals');
+    expect(screen.getByTestId('block-day-2-2').textContent).toContain('Easy Run');
+
+    dragHandle('block-drag-handle-2-1', 60);
+
+    expect(screen.getByTestId('block-day-2-1').textContent).toContain('Easy Run');
+    expect(screen.getByTestId('block-day-2-2').textContent).toContain('Intervals');
+
+    fireEvent.click(screen.getByTestId('block-apply-reschedule'));
+    fireEvent.click(screen.getByText(label));
+    fireEvent.click(screen.getAllByText('Apply reschedule').at(-1)!);
+
+    await waitFor(() => expect(mockApplyBlockReschedule).toHaveBeenCalledTimes(1));
+    const input = mockApplyBlockReschedule.mock.calls[0][0];
+    expect(input).toMatchObject({
+      weekIndex: 1,
+      swapLog: [{ from: 1, to: 2 }],
+      scope: expectedScope,
+      targetPhase: 'BUILD',
+    });
+    expect(input.targetSessions[1]?.type).toBe('EASY');
+    expect(input.targetSessions[2]?.type).toBe('INTERVAL');
+    expect(mockReplacePlan).toHaveBeenCalledWith(serverPlan);
+    expect(mockRefresh).not.toHaveBeenCalled();
+
+    rerender(<BlockTab />);
+    expect(screen.getByTestId('block-day-2-1').textContent).toContain('Easy Run');
+    expect(screen.getByTestId('block-day-2-2').textContent).toContain('Intervals');
   });
 
   it('calculates a smooth reveal target when the pending reschedule CTA is hidden below the tab bar', () => {
@@ -279,12 +403,16 @@ describe('BlockTab session rearrange', () => {
     fireEvent.click(screen.getByText('Just this week'));
     fireEvent.click(screen.getAllByText('Apply reschedule').at(-1)!);
 
-    await waitFor(() => expect(mockUpdatePlanWeeks).toHaveBeenCalledTimes(1));
-    const input = mockUpdatePlanWeeks.mock.calls[0][0];
-    expect(input[0].sessions[0]?.id).toBe('w1-long');
-    expect(input[0].swapLog).toEqual([{ from: 0, to: 2 }]);
-    expect(input[1].sessions[0]?.id).toBe('w2-easy');
-    expect(input[1].swapLog).toBeUndefined();
+    await waitFor(() => expect(mockApplyBlockReschedule).toHaveBeenCalledTimes(1));
+    const input = mockApplyBlockReschedule.mock.calls[0][0];
+    expect(input).toMatchObject({
+      weekIndex: 0,
+      swapLog: [{ from: 0, to: 2 }],
+      scope: 'this',
+      targetPhase: 'BASE',
+    });
+    expect(input.targetSessions[0]?.type).toBe('LONG');
+    expect(input.targetSessions[2]?.type).toBe('EASY');
   });
 
   it('shows completed rows as locked with the run status symbol and does not stage a drag for them', () => {
@@ -688,11 +816,14 @@ describe('BlockTab session rearrange', () => {
     fireEvent.click(screen.getByText('This session only'));
     fireEvent.click(screen.getByText('Apply change'));
 
-    await waitFor(() => expect(mockUpdatePlanWeeks).toHaveBeenCalledTimes(1));
-    const input = mockUpdatePlanWeeks.mock.calls[0][0];
-    expect(input[0].sessions[0]).toBeNull();
-    expect(input[1].sessions[0]?.id).toBe('w2-int');
-    expect(input[1].sessions[0]?.type).toBe('INTERVAL');
+    await waitFor(() => expect(mockPropagatePlanChange).toHaveBeenCalledTimes(1));
+    expect(mockPropagatePlanChange).toHaveBeenCalledWith({
+      weekIndex: 0,
+      dayIndex: 0,
+      updated: null,
+      scope: 'this',
+      targetPhase: 'BASE',
+    });
   });
 
   it('applies a returned rest edit even when native tab params are unavailable', async () => {
@@ -738,16 +869,20 @@ describe('BlockTab session rearrange', () => {
     expect(screen.getByText('Wednesday sessions from week 1 onwards')).toBeTruthy();
     fireEvent.click(screen.getByText('Apply change'));
 
-    await waitFor(() => expect(mockUpdatePlanWeeks).toHaveBeenCalledTimes(1));
-    const input = mockUpdatePlanWeeks.mock.calls[0][0];
-    expect(input[0].sessions[2]).toMatchObject({
-      id: 'w1-linked-future-long',
-      date: '2026-04-08',
-      type: 'REST',
-      format: 'simple',
+    await waitFor(() => expect(mockPropagatePlanChange).toHaveBeenCalledTimes(1));
+    const input = mockPropagatePlanChange.mock.calls[0][0];
+    expect(input).toMatchObject({
+      weekIndex: 0,
+      dayIndex: 2,
+      scope: 'this',
+      targetPhase: 'BASE',
+      updated: {
+        id: 'w1-linked-future-long',
+        type: 'REST',
+        format: 'simple',
+      },
     });
-    expect(input[0].sessions[2]).not.toHaveProperty('actualActivityId');
-    expect(input[1].sessions[2]?.type).toBe('LONG');
+    expect(input.updated).not.toHaveProperty('actualActivityId');
   });
 
   it('does not open propagation when the returned edit is materially unchanged', () => {
@@ -762,7 +897,7 @@ describe('BlockTab session rearrange', () => {
     returnEditResult(rerender, 0, 0, { type: 'EASY', distance: 8, pace: '5:20' });
 
     expect(screen.queryByText('Where do you want this change applied?')).toBeNull();
-    expect(mockUpdatePlanWeeks).not.toHaveBeenCalled();
+    expect(mockPropagatePlanChange).not.toHaveBeenCalled();
   });
 
   it('lets the user add a session on an empty rest slot from the expanded week editor', async () => {
@@ -778,12 +913,19 @@ describe('BlockTab session rearrange', () => {
     fireEvent.click(screen.getByText('This session only'));
     fireEvent.click(screen.getByText('Apply change'));
 
-    await waitFor(() => expect(mockUpdatePlanWeeks).toHaveBeenCalledTimes(1));
-    const input = mockUpdatePlanWeeks.mock.calls[0][0];
-    expect(input[0].sessions[1]?.type).toBe('EASY');
-    expect(input[0].sessions[1]?.id).toBeTruthy();
-    expect(input[0].sessions[1]?.date).toBe('2026-04-07');
-    expect(input[1].sessions[1]).toBeNull();
+    await waitFor(() => expect(mockPropagatePlanChange).toHaveBeenCalledTimes(1));
+    const input = mockPropagatePlanChange.mock.calls[0][0];
+    expect(input).toMatchObject({
+      weekIndex: 0,
+      dayIndex: 1,
+      scope: 'this',
+      targetPhase: 'BASE',
+      updated: {
+        type: 'EASY',
+        date: '2026-04-07',
+      },
+    });
+    expect(input.updated.id).toBeTruthy();
   });
 
   it('expands the edited future week while choosing where to apply the change', async () => {
@@ -809,7 +951,7 @@ describe('BlockTab session rearrange', () => {
     fireEvent.click(screen.getByText('This session only'));
     fireEvent.click(screen.getByText('Apply change'));
 
-    await waitFor(() => expect(mockUpdatePlanWeeks).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockPropagatePlanChange).toHaveBeenCalledTimes(1));
     expect(screen.queryByTestId('block-day-2-0')).toBeNull();
     expect(screen.getByTestId('block-day-3-0')).toBeTruthy();
   });
@@ -867,12 +1009,14 @@ describe('BlockTab session rearrange', () => {
     fireEvent.click(screen.getByText('This session in this phase'));
     fireEvent.click(screen.getByText('Apply change'));
 
-    await waitFor(() => expect(mockUpdatePlanWeeks).toHaveBeenCalledTimes(1));
-    const input = mockUpdatePlanWeeks.mock.calls[0][0];
-    expect(input[0].sessions[0]?.type).toBe('EASY');
-    expect(input[1].sessions[0]).toBeNull();
-    expect(input[2].sessions[0]).toBeNull();
-    expect(input[3].sessions[0]?.type).toBe('EASY');
+    await waitFor(() => expect(mockPropagatePlanChange).toHaveBeenCalledTimes(1));
+    expect(mockPropagatePlanChange).toHaveBeenCalledWith({
+      weekIndex: 1,
+      dayIndex: 0,
+      updated: null,
+      scope: 'build',
+      targetPhase: 'BUILD',
+    });
   });
 
   it('applies a future peak-phase edit across every peak week only', async () => {
@@ -896,13 +1040,14 @@ describe('BlockTab session rearrange', () => {
     fireEvent.click(screen.getByText('This session in this phase'));
     fireEvent.click(screen.getByText('Apply change'));
 
-    await waitFor(() => expect(mockUpdatePlanWeeks).toHaveBeenCalledTimes(1));
-    const input = mockUpdatePlanWeeks.mock.calls[0][0];
-    expect(input[0].sessions[0]?.type).toBe('EASY');
-    expect(input[1].sessions[0]?.type).toBe('EASY');
-    expect(input[2].sessions[0]).toBeNull();
-    expect(input[3].sessions[0]).toBeNull();
-    expect(input[4].sessions[0]?.type).toBe('EASY');
+    await waitFor(() => expect(mockPropagatePlanChange).toHaveBeenCalledTimes(1));
+    expect(mockPropagatePlanChange).toHaveBeenCalledWith({
+      weekIndex: 3,
+      dayIndex: 0,
+      updated: null,
+      scope: 'build',
+      targetPhase: 'PEAK',
+    });
   });
 
   it('applies a recovery-phase edit across every recovery week only', async () => {
@@ -925,12 +1070,14 @@ describe('BlockTab session rearrange', () => {
     fireEvent.click(screen.getByText('This session in this phase'));
     fireEvent.click(screen.getByText('Apply change'));
 
-    await waitFor(() => expect(mockUpdatePlanWeeks).toHaveBeenCalledTimes(1));
-    const input = mockUpdatePlanWeeks.mock.calls[0][0];
-    expect(input[0].sessions[0]?.type).toBe('EASY');
-    expect(input[1].sessions[0]).toBeNull();
-    expect(input[2].sessions[0]).toBeNull();
-    expect(input[3].sessions[0]?.type).toBe('EASY');
+    await waitFor(() => expect(mockPropagatePlanChange).toHaveBeenCalledTimes(1));
+    expect(mockPropagatePlanChange).toHaveBeenCalledWith({
+      weekIndex: 2,
+      dayIndex: 0,
+      updated: null,
+      scope: 'build',
+      targetPhase: 'RECOVERY',
+    });
   });
 
   it('applies a taper-phase edit across every taper week only', async () => {
@@ -953,11 +1100,13 @@ describe('BlockTab session rearrange', () => {
     fireEvent.click(screen.getByText('This session in this phase'));
     fireEvent.click(screen.getByText('Apply change'));
 
-    await waitFor(() => expect(mockUpdatePlanWeeks).toHaveBeenCalledTimes(1));
-    const input = mockUpdatePlanWeeks.mock.calls[0][0];
-    expect(input[0].sessions[0]?.type).toBe('EASY');
-    expect(input[1].sessions[0]?.type).toBe('EASY');
-    expect(input[2].sessions[0]).toBeNull();
-    expect(input[3].sessions[0]).toBeNull();
+    await waitFor(() => expect(mockPropagatePlanChange).toHaveBeenCalledTimes(1));
+    expect(mockPropagatePlanChange).toHaveBeenCalledWith({
+      weekIndex: 3,
+      dayIndex: 0,
+      updated: null,
+      scope: 'build',
+      targetPhase: 'TAPER',
+    });
   });
 });

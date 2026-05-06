@@ -26,6 +26,7 @@ const mockPlan = {
   loading: false,
   currentWeekIndex: 0,
   refresh: vi.fn(),
+  replacePlan: vi.fn(),
 };
 
 const mockStrava = {
@@ -81,7 +82,8 @@ vi.mock('../lib/trpc', () => ({
 }));
 
 vi.mock('../lib/plan-api', () => ({
-  updatePlanWeeks: vi.fn(),
+  applyBlockReschedule: vi.fn(),
+  propagatePlanChange: vi.fn(),
 }));
 
 vi.mock('../components/plan-builder/PropagateModal', () => ({

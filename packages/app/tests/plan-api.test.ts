@@ -5,6 +5,8 @@ import type { SavePlanInput } from '../lib/plan-api';
 const mockTrpcPlanGet = vi.hoisted(() => vi.fn());
 const mockTrpcPlanSave = vi.hoisted(() => vi.fn());
 const mockTrpcPlanUpdateWeeks = vi.hoisted(() => vi.fn());
+const mockTrpcPlanPropagate = vi.hoisted(() => vi.fn());
+const mockTrpcPlanRescheduleBlockWeek = vi.hoisted(() => vi.fn());
 const mockTrpcPlanMarkSessionSkipped = vi.hoisted(() => vi.fn());
 const mockTrpcPlanClearSessionSkipped = vi.hoisted(() => vi.fn());
 const mockTrpcPlanGetTrainingPaceProfile = vi.hoisted(() => vi.fn());
@@ -23,6 +25,12 @@ vi.mock('../lib/trpc', () => ({
       },
       updateWeeks: {
         mutate: mockTrpcPlanUpdateWeeks,
+      },
+      propagate: {
+        mutate: mockTrpcPlanPropagate,
+      },
+      rescheduleBlockWeek: {
+        mutate: mockTrpcPlanRescheduleBlockWeek,
       },
       markSessionSkipped: {
         mutate: mockTrpcPlanMarkSessionSkipped,
@@ -106,6 +114,8 @@ describe('plan api', () => {
     mockTrpcPlanGet.mockReset();
     mockTrpcPlanSave.mockReset();
     mockTrpcPlanUpdateWeeks.mockReset();
+    mockTrpcPlanPropagate.mockReset();
+    mockTrpcPlanRescheduleBlockWeek.mockReset();
     mockTrpcPlanMarkSessionSkipped.mockReset();
     mockTrpcPlanClearSessionSkipped.mockReset();
     mockTrpcPlanGetTrainingPaceProfile.mockReset();
@@ -127,6 +137,8 @@ describe('plan api', () => {
       mockTrpcPlanGetTrainingPaceProfile.mockResolvedValue(profile);
       mockTrpcPlanUpdateTrainingPaceProfile.mockResolvedValue(profile);
       mockTrpcPlanUpdateWeeks.mockResolvedValue(plan);
+      mockTrpcPlanPropagate.mockResolvedValue(plan);
+      mockTrpcPlanRescheduleBlockWeek.mockResolvedValue(plan);
       mockTrpcPlanMarkSessionSkipped.mockResolvedValue(plan);
       mockTrpcPlanClearSessionSkipped.mockResolvedValue(plan);
 
@@ -136,6 +148,8 @@ describe('plan api', () => {
         getTrainingPaceProfile,
         saveTrainingPaceProfile,
         updatePlanWeeks,
+        propagatePlanChange,
+        applyBlockReschedule,
         markPlannedSessionSkipped,
         clearPlannedSessionSkipped,
       } = await import('../lib/plan-api');
@@ -145,6 +159,20 @@ describe('plan api', () => {
       await expect(getTrainingPaceProfile()).resolves.toEqual(profile);
       await expect(saveTrainingPaceProfile(profile)).resolves.toEqual(profile);
       await expect(updatePlanWeeks(input.weeks)).resolves.toEqual(plan);
+      await expect(propagatePlanChange({
+        weekIndex: 0,
+        dayIndex: 0,
+        updated: null,
+        scope: 'this',
+        targetPhase: 'BASE',
+      })).resolves.toEqual(plan);
+      await expect(applyBlockReschedule({
+        weekIndex: 0,
+        swapLog: [{ from: 0, to: 2 }],
+        scope: 'remaining',
+        targetPhase: 'BASE',
+        targetSessions: input.weeks[0].sessions,
+      })).resolves.toEqual(plan);
       await expect(markPlannedSessionSkipped({
         sessionId: 'w1d0',
         reason: 'busy',
@@ -160,6 +188,20 @@ describe('plan api', () => {
         trainingPaceProfile: profile,
       });
       expect(mockTrpcPlanUpdateWeeks).toHaveBeenCalledWith({ weeks: input.weeks });
+      expect(mockTrpcPlanPropagate).toHaveBeenCalledWith({
+        weekIndex: 0,
+        dayIndex: 0,
+        updated: null,
+        scope: 'this',
+        targetPhase: 'BASE',
+      });
+      expect(mockTrpcPlanRescheduleBlockWeek).toHaveBeenCalledWith({
+        weekIndex: 0,
+        swapLog: [{ from: 0, to: 2 }],
+        scope: 'remaining',
+        targetPhase: 'BASE',
+        targetSessions: input.weeks[0].sessions,
+      });
       expect(mockTrpcPlanMarkSessionSkipped).toHaveBeenCalledWith({
         sessionId: 'w1d0',
         reason: 'busy',
@@ -212,6 +254,8 @@ describe('plan api', () => {
       getTrainingPaceProfile,
       saveTrainingPaceProfile,
       updatePlanWeeks,
+      propagatePlanChange,
+      applyBlockReschedule,
       markPlannedSessionSkipped,
       clearPlannedSessionSkipped,
     } = await import('../lib/plan-api');
@@ -221,6 +265,18 @@ describe('plan api', () => {
     await expect(getTrainingPaceProfile()).resolves.toBeNull();
     await expect(saveTrainingPaceProfile(null)).resolves.toBeNull();
     await expect(updatePlanWeeks(makeSaveInput().weeks)).resolves.toEqual(plan);
+    await expect(propagatePlanChange({
+      weekIndex: 0,
+      dayIndex: 0,
+      updated: null,
+      scope: 'this',
+    })).resolves.toEqual(plan);
+    await expect(applyBlockReschedule({
+      weekIndex: 0,
+      swapLog: [{ from: 0, to: 1 }],
+      scope: 'this',
+      targetSessions: makeSaveInput().weeks[0].sessions,
+    })).resolves.toEqual(plan);
     await expect(markPlannedSessionSkipped({
       sessionId: 'w1d0',
       reason: 'busy',
@@ -234,6 +290,8 @@ describe('plan api', () => {
     expect(mockTrpcPlanGetTrainingPaceProfile).not.toHaveBeenCalled();
     expect(mockTrpcPlanUpdateTrainingPaceProfile).not.toHaveBeenCalled();
     expect(mockTrpcPlanUpdateWeeks).not.toHaveBeenCalled();
+    expect(mockTrpcPlanPropagate).not.toHaveBeenCalled();
+    expect(mockTrpcPlanRescheduleBlockWeek).not.toHaveBeenCalled();
     expect(mockTrpcPlanMarkSessionSkipped).not.toHaveBeenCalled();
     expect(mockTrpcPlanClearSessionSkipped).not.toHaveBeenCalled();
   });

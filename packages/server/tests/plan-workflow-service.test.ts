@@ -75,6 +75,55 @@ function makeActivity(overrides: Partial<Activity> = {}): Activity {
   };
 }
 
+function datedSession(
+  id: string,
+  date: string,
+  overrides: Partial<PlannedSession> = {},
+): PlannedSession {
+  return {
+    id,
+    type: 'EASY',
+    date,
+    distance: 8,
+    pace: '5:20',
+    ...overrides,
+  };
+}
+
+function addDays(startDate: string, offset: number): string {
+  const value = new Date(`${startDate}T00:00:00.000Z`);
+  value.setUTCDate(value.getUTCDate() + offset);
+  return value.toISOString().slice(0, 10);
+}
+
+function makeWorkflowWeek(
+  weekNumber: number,
+  startDate: string,
+  overrides: Partial<TrainingPlan['weeks'][number]> = {},
+): TrainingPlan['weeks'][number] {
+  const sessions = [
+    datedSession(`week-${weekNumber}-mon`, startDate),
+    null,
+    datedSession(`week-${weekNumber}-wed`, addDays(startDate, 2), {
+      type: 'LONG',
+      distance: 16,
+      pace: '5:10',
+    }),
+    null,
+    null,
+    null,
+    null,
+  ];
+
+  return {
+    weekNumber,
+    phase: 'BUILD',
+    plannedKm: 24,
+    sessions,
+    ...overrides,
+  };
+}
+
 describe('plan workflow service', () => {
   let planRepo: InMemoryPlanRepo;
   let profileRepo: InMemoryProfileRepo;
@@ -241,6 +290,223 @@ describe('plan workflow service', () => {
       id: 'w1d0',
       warmup: { unit: 'km', value: 2 },
       cooldown: { unit: 'km', value: 1 },
+    });
+  });
+
+  it('applies Block week reschedule intent while preserving completed and matched sessions', async () => {
+    await activityRepo.save(makeActivity({
+      id: 'activity-matched',
+      matchedSessionId: 'w3d2',
+      startTime: '2026-04-22T07:00:00.000Z',
+    }));
+    await activityRepo.save(makeActivity({
+      id: 'activity-completed',
+    }));
+    await planRepo.save(makePlan({
+      phases: { BASE: 1, BUILD: 3, RECOVERY: 0, PEAK: 0, TAPER: 0 },
+      templateWeek: [datedSession('template-mon', '2026-04-06'), null, datedSession('template-wed', '2026-04-08'), null, null, null, null],
+      weeks: [
+        makeWorkflowWeek(1, '2026-04-06'),
+        makeWorkflowWeek(2, '2026-04-13', {
+          sessions: [
+            datedSession('completed-mon', '2026-04-13', { actualActivityId: 'activity-completed' }),
+            null,
+            datedSession('week-2-wed', '2026-04-15', { type: 'LONG', distance: 16 }),
+            null,
+            null,
+            null,
+            null,
+          ],
+        }),
+        makeWorkflowWeek(3, '2026-04-20'),
+        makeWorkflowWeek(4, '2026-04-27', { phase: 'BASE' }),
+      ],
+    }));
+
+    const updated = await workflow.applyBlockReschedule('user-1', {
+      weekIndex: 0,
+      swapLog: [{ from: 0, to: 2 }],
+      scope: 'build',
+    });
+
+    expect(updated?.weeks[0].sessions[0]).toMatchObject({
+      id: 'w1d0',
+      type: 'LONG',
+      date: '2026-04-06',
+    });
+    expect(updated?.weeks[0].sessions[2]).toMatchObject({
+      id: 'w1d2',
+      type: 'EASY',
+      date: '2026-04-08',
+    });
+    expect(updated?.weeks[1].sessions[0]).toMatchObject({
+      id: 'w2d0',
+      type: 'EASY',
+      actualActivityId: 'activity-completed',
+    });
+    expect(updated?.weeks[1].sessions[2]).toMatchObject({
+      id: 'w2d2',
+      type: 'LONG',
+    });
+    expect(updated?.weeks[2].sessions[0]).toMatchObject({
+      id: 'w3d0',
+      type: 'EASY',
+    });
+    expect(updated?.weeks[2].sessions[2]).toMatchObject({
+      id: 'w3d2',
+      type: 'LONG',
+    });
+    expect(updated?.weeks[3].sessions[0]).toMatchObject({
+      id: 'w4d0',
+      type: 'EASY',
+    });
+  });
+
+  it('keeps a future source week on the requested layout when a stale client repeats the same swap', async () => {
+    await activityRepo.save(makeActivity({
+      id: 'old-activity-with-reused-slot-id',
+      matchedSessionId: 'w2d1',
+      startTime: '2026-03-03T07:00:00.000Z',
+    }));
+    const targetSessions = [
+      datedSession('client-w2-mon', '2026-04-13', { type: 'LONG', distance: 16 }),
+      datedSession('client-w2-tue', '2026-04-14', { type: 'EASY', distance: 8 }),
+      datedSession('client-w2-wed', '2026-04-15', { type: 'INTERVAL', reps: 6, repDist: 800 }),
+      null,
+      null,
+      null,
+      null,
+    ];
+    await planRepo.save(makePlan({
+      phases: { BASE: 3, BUILD: 0, RECOVERY: 0, PEAK: 0, TAPER: 0 },
+      weeks: [
+        makeWorkflowWeek(1, '2026-04-06', { phase: 'BASE' }),
+        makeWorkflowWeek(2, '2026-04-13', {
+          phase: 'BASE',
+          sessions: [
+            datedSession('server-w2-mon', '2026-04-13', { type: 'LONG', distance: 16 }),
+            datedSession('server-w2-tue', '2026-04-14', { type: 'EASY', distance: 8 }),
+            datedSession('server-w2-wed', '2026-04-15', { type: 'INTERVAL', reps: 6, repDist: 800 }),
+            null,
+            null,
+            null,
+            null,
+          ],
+        }),
+        makeWorkflowWeek(3, '2026-04-20', {
+          phase: 'BASE',
+          sessions: [
+            datedSession('server-w3-mon', '2026-04-20', { type: 'LONG', distance: 18 }),
+            datedSession('server-w3-tue', '2026-04-21', { type: 'INTERVAL', reps: 8, repDist: 800 }),
+            datedSession('server-w3-wed', '2026-04-22', { type: 'EASY', distance: 10 }),
+            null,
+            null,
+            null,
+            null,
+          ],
+        }),
+      ],
+    }));
+
+    const updated = await workflow.applyBlockReschedule('user-1', {
+      weekIndex: 1,
+      swapLog: [{ from: 1, to: 2 }],
+      scope: 'remaining',
+      targetPhase: 'BASE',
+      targetSessions,
+    });
+
+    expect(updated?.weeks[1].sessions[1]).toMatchObject({
+      id: 'w2d1',
+      type: 'EASY',
+      date: '2026-04-14',
+    });
+    expect(updated?.weeks[1].sessions[2]).toMatchObject({
+      id: 'w2d2',
+      type: 'INTERVAL',
+      date: '2026-04-15',
+    });
+    expect(updated?.weeks[2].sessions[1]).toMatchObject({
+      id: 'w3d1',
+      type: 'EASY',
+      date: '2026-04-21',
+    });
+    expect(updated?.weeks[2].sessions[2]).toMatchObject({
+      id: 'w3d2',
+      type: 'INTERVAL',
+      date: '2026-04-22',
+    });
+  });
+
+  it('propagates Block session edits while preserving completed and matched sessions', async () => {
+    await activityRepo.save(makeActivity({
+      id: 'activity-matched',
+      matchedSessionId: 'w3d0',
+      startTime: '2026-04-20T07:00:00.000Z',
+    }));
+    await activityRepo.save(makeActivity({
+      id: 'activity-completed',
+    }));
+    await planRepo.save(makePlan({
+      phases: { BASE: 0, BUILD: 4, RECOVERY: 0, PEAK: 0, TAPER: 0 },
+      templateWeek: [datedSession('template-mon', '2026-04-06'), null, null, null, null, null, null],
+      weeks: [
+        makeWorkflowWeek(1, '2026-04-06'),
+        makeWorkflowWeek(2, '2026-04-13', {
+          sessions: [
+            datedSession('future-linked-mon', '2026-04-13', { actualActivityId: 'future-linked-placeholder' }),
+            null,
+            datedSession('week-2-wed', '2026-04-15', { type: 'LONG', distance: 16 }),
+            null,
+            null,
+            null,
+            null,
+          ],
+        }),
+        makeWorkflowWeek(3, '2026-04-20'),
+        makeWorkflowWeek(4, '2026-04-27', {
+          sessions: [
+            datedSession('completed-mon', '2026-04-27', { actualActivityId: 'activity-completed' }),
+            null,
+            datedSession('week-4-wed', '2026-04-29', { type: 'LONG', distance: 16 }),
+            null,
+            null,
+            null,
+            null,
+          ],
+        }),
+      ],
+    }));
+
+    const updated = await workflow.propagatePlanChange('user-1', {
+      weekIndex: 0,
+      dayIndex: 0,
+      updated: datedSession('w1d0', '2026-04-06', { distance: 12 }),
+      scope: 'remaining',
+      targetPhase: 'BUILD',
+    });
+
+    expect(updated?.weeks[0].sessions[0]).toMatchObject({
+      id: 'w1d0',
+      date: '2026-04-06',
+      distance: 12,
+    });
+    expect(updated?.weeks[1].sessions[0]).toMatchObject({
+      id: 'w2d0',
+      date: '2026-04-13',
+      distance: 12,
+      actualActivityId: 'future-linked-placeholder',
+    });
+    expect(updated?.weeks[2].sessions[0]).toMatchObject({
+      id: 'w3d0',
+      date: '2026-04-20',
+      distance: 8,
+    });
+    expect(updated?.weeks[3].sessions[0]).toMatchObject({
+      id: 'w4d0',
+      date: '2026-04-27',
+      distance: 8,
+      actualActivityId: 'activity-completed',
     });
   });
 

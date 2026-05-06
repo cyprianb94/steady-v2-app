@@ -37,13 +37,12 @@ import {
 } from '../../features/plan-builder/session-editing';
 import { consumeSessionEditReturn } from '../../features/plan-builder/session-edit-return';
 import { useDirectWeekReschedule } from '../../features/plan-builder/use-direct-week-reschedule';
-import { applyBlockRescheduleDraft } from '../../features/block-review/block-reschedule-controller';
 import { deriveLiveBlockReviewModel } from '../../features/block-review/live-block-review-model';
 import { formatSessionRowText } from '../../lib/session-row-text';
 import { useAuth } from '../../lib/auth';
 import { triggerSelectionChangeHaptic } from '../../lib/haptics';
 import { createId } from '../../lib/id';
-import { updatePlanWeeks } from '../../lib/plan-api';
+import { applyBlockReschedule, propagatePlanChange } from '../../lib/plan-api';
 import { addDaysIso, inferWeekStartDate, todayIsoLocal, weekKm } from '../../lib/plan-helpers';
 import { usePreferences } from '../../providers/preferences-context';
 import { formatDistance } from '../../lib/units';
@@ -69,7 +68,6 @@ import {
   getInjuryWeekRange,
   getWeekVolumeRatio,
   isInjuryWeek,
-  propagateChange,
   weekKmBreakdown,
   type BlockPhaseSegment,
   type CrossTrainingEntry,
@@ -79,6 +77,8 @@ import {
   type PropagateScope,
   type SessionType,
   type SwapLogEntry,
+  type TrainingPlan,
+  type TrainingPlanWithAnnotation,
 } from '@steady/types';
 
 const COMPACT_PHASE_LABEL: Record<BlockPhaseSegment['name'], string> = {
@@ -313,36 +313,15 @@ function hasMaterialSessionEditForWeek(
   });
 }
 
-function normalizeEditedDayIdentity(
-  originalWeeks: PlanWeek[],
-  nextWeeks: PlanWeek[],
-  dayIndex: number,
-): PlanWeek[] {
-  return nextWeeks.map((nextWeek, weekIndex) => {
-    const nextSession = nextWeek.sessions[dayIndex];
-    if (!nextSession) return nextWeek;
-
-    const originalWeek = originalWeeks[weekIndex] ?? nextWeek;
-    const originalSession = originalWeek.sessions[dayIndex];
-    const id = originalSession?.id ?? createId();
-    const date = addDaysIso(getWeekStartDate(originalWeek), dayIndex);
-
-    if (nextSession.id === id && nextSession.date === date) {
-      return nextWeek;
-    }
-
-    const sessions = [...nextWeek.sessions];
-    sessions[dayIndex] = {
-      ...nextSession,
-      id,
-      date,
-    };
-
-    return {
-      ...nextWeek,
-      sessions,
-    };
-  });
+function preserveCurrentAnnotations(
+  currentPlan: TrainingPlanWithAnnotation,
+  updatedPlan: TrainingPlan,
+): TrainingPlanWithAnnotation {
+  return {
+    ...updatedPlan,
+    todayAnnotation: currentPlan.todayAnnotation,
+    coachAnnotation: currentPlan.coachAnnotation ?? null,
+  };
 }
 
 function firstRouteParamValue(value: string | string[] | undefined): string | null {
@@ -395,7 +374,15 @@ export default function BlockTab() {
     editSessionNonce?: string | string[];
   }>();
   const { session, isLoading: authLoading } = useAuth();
-  const { plan, loading, refreshing, currentWeekIndex, refresh, refreshWithIndicator } = usePlan();
+  const {
+    plan,
+    loading,
+    refreshing,
+    currentWeekIndex,
+    refresh,
+    refreshWithIndicator,
+    replacePlan,
+  } = usePlan();
   const isFocused = useIsFocused();
   const { forceSync, syncRevision, syncing } = useStravaSync();
   const [expandedWeekNumber, setExpandedWeekNumber] = useState<number | null>(null);
@@ -717,18 +704,18 @@ export default function BlockTab() {
   async function applyPendingRearrange(scope: PropagateScope) {
     if (!plan || rescheduleWeekIndex == null || reschedule.swapLog.length === 0) return;
 
-    const nextWeeks = applyBlockRescheduleDraft({
-      weeks: plan.weeks,
-      weekIndex: rescheduleWeekIndex,
-      swapLog: reschedule.swapLog,
-      scope,
-      resolution: activityResolution,
-    });
-
     try {
       setIsSavingRearrange(true);
-      await updatePlanWeeks(nextWeeks);
-      await refresh();
+      const updatedPlan = await applyBlockReschedule({
+        weekIndex: rescheduleWeekIndex,
+        swapLog: [...reschedule.swapLog],
+        scope,
+        targetPhase: plan.weeks[rescheduleWeekIndex]?.phase,
+        targetSessions: [...reschedule.sessions],
+      });
+      if (updatedPlan) {
+        replacePlan(preserveCurrentAnnotations(plan, updatedPlan));
+      }
       setRescheduleScopeVisible(false);
       reschedule.reset();
     } catch (error) {
@@ -767,28 +754,18 @@ export default function BlockTab() {
       pendingEdit.updated,
     );
 
-    const nextWeeks = normalizeEditedDayIdentity(
-      plan.weeks,
-      propagateChange(
-        plan.weeks,
-        pendingEdit.weekIndex,
-        pendingEdit.dayIndex,
-        updatedSession,
-        scope,
-        plan.templateWeek,
-        sourceWeek.phase,
-        {
-          shouldPreserveSession: (sessionToCheck) =>
-            activityResolution.isSessionComplete(sessionToCheck),
-        },
-      ),
-      pendingEdit.dayIndex,
-    );
-
     try {
       setIsSavingEdit(true);
-      await updatePlanWeeks(nextWeeks);
-      await refresh();
+      const updatedPlan = await propagatePlanChange({
+        weekIndex: pendingEdit.weekIndex,
+        dayIndex: pendingEdit.dayIndex,
+        updated: updatedSession,
+        scope,
+        targetPhase: sourceWeek.phase,
+      });
+      if (updatedPlan) {
+        replacePlan(preserveCurrentAnnotations(plan, updatedPlan));
+      }
       if (preservedDraft && preservedDraft.weekNumber > 0) {
         setPreservedReschedule(preservedDraft);
       }

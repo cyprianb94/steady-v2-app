@@ -40,6 +40,9 @@ vi.mock('../hooks/usePlan', () => ({
     currentWeek: planState.current?.weeks[planState.currentWeekIndex] ?? null,
     currentWeekIndex: planState.currentWeekIndex,
     refresh: mockRefresh,
+    replacePlan: vi.fn((nextPlan: TrainingPlanWithAnnotation | null) => {
+      planState.current = nextPlan;
+    }),
   }),
 }));
 
@@ -72,7 +75,8 @@ vi.mock('../lib/trpc', () => ({
 }));
 
 vi.mock('../lib/plan-api', () => ({
-  updatePlanWeeks: vi.fn(),
+  applyBlockReschedule: vi.fn(),
+  propagatePlanChange: vi.fn(),
 }));
 
 import BlockTab from '../app/(tabs)/block';

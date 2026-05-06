@@ -9,7 +9,7 @@ import {
   TRAINING_PACE_PROFILE_BAND_ORDER,
   TRAINING_PACE_PROFILE_KEYS,
 } from '@steady/types';
-import type { PhaseConfig, PlannedSession, PlanWeek } from '@steady/types';
+import type { PhaseConfig, PlannedSession, PlanWeek, SwapLogEntry } from '@steady/types';
 import { PlanWorkflowError, type PlanWorkflowService } from '../services/plan-workflow-service';
 
 const PhaseConfigSchema = z.object({
@@ -144,6 +144,10 @@ const PlanWeekSchema = z.object({
     to: z.number().int().min(0),
   })).optional(),
 });
+const SwapLogEntrySchema = z.object({
+  from: z.number().int().min(0).max(6),
+  to: z.number().int().min(0).max(6),
+});
 
 async function runWorkflow<T>(operation: () => Promise<T>): Promise<T> {
   try {
@@ -255,7 +259,32 @@ export function createPlanRouter(planWorkflow: PlanWorkflowService) {
         }));
       }),
 
-    /** Update a single week's sessions (used by propagateChange on client). */
+    /** Apply a Block week reschedule intent to the active plan. */
+    rescheduleBlockWeek: authedProcedure
+      .input(
+        z.object({
+          weekIndex: z.number().int().min(0),
+          swapLog: z.array(SwapLogEntrySchema),
+          scope: z.enum(['this', 'remaining', 'build']),
+          targetPhase: PhaseNameSchema.optional(),
+          targetSessions: z.array(PlannedSessionSchema.nullable()).length(7).optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        return runWorkflow(() => planWorkflow.applyBlockReschedule(ctx.userId, {
+          weekIndex: input.weekIndex,
+          swapLog: input.swapLog as SwapLogEntry[],
+          scope: input.scope,
+          targetPhase: input.targetPhase,
+          targetSessions: input.targetSessions as (PlannedSession | null)[] | undefined,
+        }));
+      }),
+
+    /**
+     * Transitional whole-plan replacement bridge.
+     * Keep this for legacy plan-builder/generated-plan save flows and tests that still submit
+     * complete week arrays; Block mutations should use propagate/rescheduleBlockWeek.
+     */
     updateWeeks: authedProcedure
       .input(
         z.object({

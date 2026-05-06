@@ -2,6 +2,7 @@ import type { PlannedSession } from '../session';
 import type { PhaseName, PlanWeek } from '../plan';
 import { normalizeSessionIntensityTarget } from './intensity-targets';
 import { weekKm } from './session-km';
+import { assignWeekSessionDates, inferWeekStartDate } from './week-dates';
 
 export type PropagateScope = 'this' | 'remaining' | 'build';
 
@@ -131,6 +132,8 @@ export function propagateChange(
       return normalizedUpdated;
     });
 
-    return { ...w, sessions, plannedKm: weekKm(sessions) };
+    const datedSessions = assignWeekSessionDates(sessions, inferWeekStartDate(w));
+
+    return { ...w, sessions: datedSessions, plannedKm: weekKm(datedSessions) };
   });
 }

@@ -4,7 +4,7 @@ Use this file when a feature touches an area that historically attracted debt.
 
 ## Current hotspot files
 
-- `packages/app/app/(tabs)/block.tsx` — `1748` lines. Highest-risk controller screen. Avoid adding more orchestration here; direct-reschedule state belongs in `packages/app/features/plan-builder/use-direct-week-reschedule.ts`, and live Block reschedule application belongs in `packages/app/features/block-review/block-reschedule-controller.ts`.
+- `packages/app/app/(tabs)/block.tsx` — `1696` lines. Highest-risk controller screen. Avoid adding more orchestration here; direct-reschedule state belongs in `packages/app/features/plan-builder/use-direct-week-reschedule.ts`, and live Block mutations should submit intent through `packages/app/lib/plan-api.ts` so `packages/server/src/services/plan-workflow-service.ts` owns authoritative application.
 - `packages/app/components/block-review/BlockReviewSurface.tsx` — `1714` lines. Large review presentation surface. Keep chart geometry in `packages/app/features/block-review/review-volume-chart-model.ts`; keep this component focused on responder state and rendering.
 - `packages/app/components/block/BlockWeekList.tsx` — `722` lines. Shared review-week list and drag presentation. Keep day-order draft logic in `use-direct-week-reschedule.ts`; do not fork week-row behavior into onboarding and live Block copies.
 - `packages/app/components/plan-builder/RunStructureEditor.tsx` — `1772` lines. Large presentation surface for structured session editing. Structured template/materialization/volume-sync rules now belong in `packages/app/features/plan-builder/structured-session-editor-engine.ts`; keep this component focused on rendering, transient form state, and dispatching engine actions.
@@ -17,8 +17,8 @@ Use this file when a feature touches an area that historically attracted debt.
 - `packages/app/app/onboarding/plan-builder/step-template.tsx` — `949` lines. Template-week logic should prefer shared plan-builder modules over screen-local logic.
 - `packages/app/app/(tabs)/home.tsx` — `606` lines. Home should stay a composition surface, not a new business-logic sink; skipped-session writes must use the intention APIs in `packages/app/lib/plan-api.ts`, not `updatePlanWeeks` or screen-local whole-plan mutation helpers.
 - `packages/server/src/services/strava-workflow-service.ts` — `546` lines. High-impact workflow boundary. Keep new behavior cohesive and avoid leaking orchestration back into routers or screens.
-- `packages/server/src/trpc/plan.ts` — `311` lines. Thin plan router: keep it to auth, Zod validation, workflow delegation, and transport error mapping.
-- `packages/server/src/services/plan-workflow-service.ts` — `405` lines. Source of truth for active-plan load/save/week/profile/injury/skipped-session orchestration. Keep app-side Supabase writes and router-side workflow logic from reappearing.
+- `packages/server/src/trpc/plan.ts` — `338` lines. Thin plan router: keep it to auth, Zod validation, workflow delegation, and transport error mapping.
+- `packages/server/src/services/plan-workflow-service.ts` — `498` lines. Source of truth for active-plan load/save/week/profile/injury/skipped-session/reschedule/session-edit orchestration. Keep app-side Supabase writes, app-side authoritative whole-plan Block mutations, and router-side workflow logic from reappearing.
 - `packages/server/src/services/activity-workflow-service.ts` — `395` lines. Shared activity save/list workflow carries niggle enrichment plus match/shoe/fuelling persistence and rollback. Keep UI-specific shaping out of this service.
 
 ## Preferred landing zones
@@ -87,7 +87,7 @@ Start by looking in:
 - `packages/server/src/trpc/plan.ts` for input schemas and delegation only.
 - `packages/server/src/repos/plan-repo*` for persistence mapping only.
 
-Keep annotation behavior server-owned outside screenshot demo mode. For Home skipped-session changes, use `markPlannedSessionSkipped` / `clearPlannedSessionSkipped` from `packages/app/lib/plan-api.ts`, backed by dedicated plan workflow commands; do not send whole `weeks` arrays from Home. Keep `updateWeeks` as a migration bridge rather than a preferred new screen API.
+Keep annotation behavior server-owned outside screenshot demo mode. For Home skipped-session changes, use `markPlannedSessionSkipped` / `clearPlannedSessionSkipped` from `packages/app/lib/plan-api.ts`, backed by dedicated plan workflow commands; do not send whole `weeks` arrays from Home. For live Block reschedules and session edits, use `applyBlockReschedule` / `propagatePlanChange` from `packages/app/lib/plan-api.ts`; the server workflow must load the active plan, validate indexes/scope, preserve completed or matched sessions, and persist normalized weeks. Keep `updateWeeks` as a migration bridge for legacy whole-plan plan-builder/generated-plan flows rather than a preferred new screen API.
 
 ### Block review and live Block work
 
@@ -96,7 +96,7 @@ Start by looking in:
 - `packages/types/src/lib/block-review.ts` for shared review model derivation, plannedKm/source-of-truth semantics, phase grouping, and volume stats
 - `packages/app/features/block-review/live-block-review-model.ts` for adapting a persisted live plan to the shared model
 - `packages/app/features/block-review/review-volume-chart-model.ts` for chart geometry, ticks, paths, markers, scrub selection, and gradient stops
-- `packages/app/features/block-review/block-reschedule-controller.ts` for applying live Block reschedule drafts with completed/matched session preservation
+- `packages/app/features/block-review/block-reschedule-controller.ts` for client-side draft preview/helpers only; authoritative live Block reschedule application belongs in `packages/server/src/services/plan-workflow-service.ts`
 - `packages/app/features/run/block-week-resolution.ts` for actual/completed overlays and resolved locked-week behavior
 - `packages/app/features/plan-builder/use-direct-week-reschedule.ts` for drag draft state
 - `packages/app/components/block-review/*` and `packages/app/components/block/*` for rendering

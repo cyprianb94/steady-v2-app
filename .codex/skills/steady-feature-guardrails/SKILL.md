@@ -66,7 +66,18 @@ In `packages/server/src/trpc/*`:
 
 Do not add multi-step orchestration directly into routers unless the change is truly tiny.
 
-### 4. Respect package boundaries
+### 4. Keep plan mutations server-owned
+
+Live app screens should submit user intent through `packages/app/lib/plan-api.ts`, not authoritative whole-plan replacements.
+
+For plan mutations:
+
+- send narrow intent such as session edit scope, reschedule swap log, or skipped-session command
+- load and validate the active plan in `packages/server/src/services/plan-workflow-service.ts`
+- preserve completed or matched sessions at the server workflow boundary
+- keep `updateWeeks` / `updatePlanWeeks` as a transitional whole-plan bridge, not a preferred screen API
+
+### 5. Respect package boundaries
 
 The app must not import sibling package internals such as:
 
@@ -74,7 +85,7 @@ The app must not import sibling package internals such as:
 
 Use package exports only. If the export you need does not exist, add the export instead of reaching into `src`.
 
-### 5. Keep environment-sensitive setup out of screens
+### 6. Keep environment-sensitive setup out of screens
 
 Anything that depends on environment detection, native modules, Supabase setup, or platform-specific loading belongs in:
 
@@ -84,7 +95,7 @@ Anything that depends on environment detection, native modules, Supabase setup, 
 
 Do not push that logic down into screen or component files.
 
-### 6. Prefer behavioural tests
+### 7. Prefer behavioural tests
 
 For changed features, test the user-visible flow or public module boundary.
 
@@ -92,7 +103,7 @@ Do not rely only on implementation-coupled tests.
 
 When a change crosses screens or layers, add or update the shared boundary test that proves the behavior still works.
 
-### 7. Do not leave legacy copies behind after extraction
+### 8. Do not leave legacy copies behind after extraction
 
 If you extract shared logic into `packages/app/features/*`, `packages/app/lib/*`, or `packages/server/src/services/*`:
 
@@ -100,7 +111,7 @@ If you extract shared logic into `packages/app/features/*`, `packages/app/lib/*`
 - move tests to the surviving boundary
 - do not keep overlapping old and new copies unless there is a clear temporary migration reason
 
-### 8. If you knowingly add debt, say so before finishing
+### 9. If you knowingly add debt, say so before finishing
 
 If speed forces a shortcut:
 
@@ -108,7 +119,7 @@ If speed forces a shortcut:
 - explain why it was taken
 - create a follow-up Linear issue before you finish
 
-### 9. Keep the guardrail map current
+### 10. Keep the guardrail map current
 
 If a refactor changes hotspot size, risk, or landing zones:
 
@@ -117,7 +128,7 @@ If a refactor changes hotspot size, risk, or landing zones:
 - remove dead file references
 - keep the map aligned with the codebase you just changed
 
-### 10. Keep parked features explicitly gated
+### 11. Keep parked features explicitly gated
 
 Steady AI, human coach surfaces, and normal-mode recovery UI must stay hidden unless the user explicitly asks to re-enable them.
 

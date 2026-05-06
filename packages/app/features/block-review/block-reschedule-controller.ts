@@ -4,7 +4,6 @@ import {
   type PropagateScope,
   type SwapLogEntry,
 } from '@steady/types';
-import { preserveResolvedLockedWeeks } from '../run/block-week-resolution';
 import type { ActivityResolution } from '../run/activity-resolution';
 
 export interface ApplyBlockRescheduleDraftInput {
@@ -35,15 +34,16 @@ export function applyBlockRescheduleDraft({
   const sourceWeek = weeks[weekIndex];
 
   return swapLog.reduce<PlanWeek[]>((currentWeeks, swap) => {
-    const propagated = propagateSwap(
+    return propagateSwap(
       currentWeeks,
       weekIndex,
       swap.from,
       swap.to,
       scope,
       sourceWeek.phase,
+      {
+        shouldPreserveSession: (session) => resolution.isSessionComplete(session),
+      },
     );
-
-    return preserveResolvedLockedWeeks(currentWeeks, propagated, swap, resolution);
   }, weeks);
 }

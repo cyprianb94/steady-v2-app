@@ -102,18 +102,3 @@ export function restoreResolvedSwapDraft(
     };
   }, { sessions, swapLog: [] });
 }
-
-export function preserveResolvedLockedWeeks(
-  previousWeeks: PlanWeek[],
-  nextWeeks: PlanWeek[],
-  swap: SwapLogEntry,
-  resolution: Pick<ActivityResolution, 'isSessionComplete'>,
-): PlanWeek[] {
-  return nextWeeks.map((week, index) => {
-    const previousWeek = previousWeeks[index] ?? week;
-
-    return hasResolvedLockedSwapPosition(previousWeek.sessions, swap.from, swap.to, resolution)
-      ? previousWeek
-      : week;
-  });
-}

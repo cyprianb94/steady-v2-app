@@ -419,6 +419,12 @@ export const screenshotDemoTrpc = {
     updateWeeks: {
       mutate: async () => getScreenshotDemoPlan(),
     },
+    propagate: {
+      mutate: async () => getScreenshotDemoPlan(),
+    },
+    rescheduleBlockWeek: {
+      mutate: async () => getScreenshotDemoPlan(),
+    },
     markInjury: {
       mutate: async () => getScreenshotDemoPlan(),
     },

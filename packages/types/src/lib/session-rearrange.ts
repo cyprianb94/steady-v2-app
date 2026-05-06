@@ -13,6 +13,14 @@ export interface HardSessionConflict {
 
 type HardSessionType = Extract<SessionType, 'INTERVAL' | 'TEMPO'>;
 
+interface PropagateSwapOptions {
+  shouldPreserveSession?: (
+    session: PlannedSession,
+    weekIndex: number,
+    dayIndex: number,
+  ) => boolean;
+}
+
 export function swapSessions(
   sessions: (PlannedSession | null)[],
   fromIndex: number,
@@ -39,13 +47,14 @@ export function propagateSwap(
   toIndex: number,
   scope: PropagateScope,
   targetPhase?: PhaseName,
+  options: PropagateSwapOptions = {},
 ): PlanWeek[] {
   const swapLog: SwapLogEntry = { from: fromIndex, to: toIndex };
   const phaseScope = targetPhase ?? plan[weekIndex]?.phase ?? 'BUILD';
 
   return plan.map((week, index) => {
     if (!shouldApplySwap(index, week, weekIndex, scope, phaseScope)) return week;
-    if (hasCompletedSwapPosition(week, fromIndex, toIndex)) return week;
+    if (hasPreservedSwapPosition(week, index, fromIndex, toIndex, options)) return week;
 
     const weekStartDate = inferWeekStartDate(week);
     const sessions = assignWeekSessionDates(
@@ -75,8 +84,23 @@ function shouldApplySwap(
   return week.phase === targetPhase;
 }
 
-function hasCompletedSwapPosition(week: PlanWeek, fromIndex: number, toIndex: number): boolean {
-  return Boolean(week.sessions[fromIndex]?.actualActivityId || week.sessions[toIndex]?.actualActivityId);
+function hasPreservedSwapPosition(
+  week: PlanWeek,
+  weekIndex: number,
+  fromIndex: number,
+  toIndex: number,
+  options: PropagateSwapOptions,
+): boolean {
+  const shouldPreserveSession =
+    options.shouldPreserveSession
+    ?? ((session: PlannedSession) => Boolean(session.actualActivityId));
+  const fromSession = week.sessions[fromIndex] ?? null;
+  const toSession = week.sessions[toIndex] ?? null;
+
+  return (
+    Boolean(fromSession && shouldPreserveSession(fromSession, weekIndex, fromIndex))
+    || Boolean(toSession && shouldPreserveSession(toSession, weekIndex, toIndex))
+  );
 }
 
 function isDayIndex(index: number, sessions: (PlannedSession | null)[]): boolean {

@@ -166,4 +166,21 @@ describe('usePlan', () => {
       expect(result.current.currentWeek?.weekNumber).toBe(2);
     });
   });
+
+  it('can install a server-returned plan before the next refresh completes', async () => {
+    mockUseIsFocused.mockReturnValue(true);
+    mockGetPlan.mockResolvedValue(makePlan('plan-a', 1));
+    const { usePlan } = await import('../hooks/usePlan');
+
+    const { result } = renderHook(() => usePlan());
+
+    await waitFor(() => expect(result.current.plan?.id).toBe('plan-a'));
+
+    act(() => {
+      result.current.replacePlan(makePlan('plan-b', 2));
+    });
+
+    expect(result.current.plan?.id).toBe('plan-b');
+    expect(result.current.currentWeek?.weekNumber).toBe(2);
+  });
 });

@@ -1,8 +1,11 @@
 import type {
   PhaseConfig,
+  PhaseName,
   PlannedSession,
   PlanWeek,
+  PropagateScope,
   SkippedSessionReason,
+  SwapLogEntry,
   TrainingPaceProfile,
   TrainingPlan,
   TrainingPlanWithAnnotation,
@@ -25,6 +28,22 @@ export interface SavePlanInput {
   trainingPaceProfile?: TrainingPaceProfile | null;
   templateWeek: (PlannedSession | null)[];
   weeks: PlanWeek[];
+}
+
+export interface PropagatePlanChangeInput {
+  weekIndex: number;
+  dayIndex: number;
+  updated: PlannedSession | null;
+  scope: PropagateScope;
+  targetPhase?: PhaseName;
+}
+
+export interface ApplyBlockRescheduleInput {
+  weekIndex: number;
+  swapLog: SwapLogEntry[];
+  scope: PropagateScope;
+  targetPhase?: PhaseName;
+  targetSessions: (PlannedSession | null)[];
 }
 
 export async function getPlan(): Promise<TrainingPlanWithAnnotation | null> {
@@ -66,12 +85,38 @@ export async function saveTrainingPaceProfile(
   });
 }
 
+/**
+ * Transitional whole-plan replacement bridge.
+ * This remains for legacy plan-builder/generated-plan paths that still prepare
+ * a complete week array before save. Live Block mutations should call the
+ * server-owned intention APIs below instead of submitting authoritative weeks.
+ */
 export async function updatePlanWeeks(weeks: PlanWeek[]): Promise<TrainingPlan | null> {
   if (isScreenshotDemoMode()) {
     return getScreenshotDemoPlan();
   }
 
   return trpc.plan.updateWeeks.mutate({ weeks });
+}
+
+export async function propagatePlanChange(
+  input: PropagatePlanChangeInput,
+): Promise<TrainingPlan | null> {
+  if (isScreenshotDemoMode()) {
+    return getScreenshotDemoPlan();
+  }
+
+  return trpc.plan.propagate.mutate(input);
+}
+
+export async function applyBlockReschedule(
+  input: ApplyBlockRescheduleInput,
+): Promise<TrainingPlan | null> {
+  if (isScreenshotDemoMode()) {
+    return getScreenshotDemoPlan();
+  }
+
+  return trpc.plan.rescheduleBlockWeek.mutate(input);
 }
 
 export async function markPlannedSessionSkipped({

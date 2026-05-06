@@ -15,6 +15,7 @@ interface UsePlanResult {
   currentWeekIndex: number;
   refresh: () => Promise<void>;
   refreshWithIndicator: () => Promise<void>;
+  replacePlan: (plan: TrainingPlanWithAnnotation | null) => void;
 }
 
 interface FetchPlanOptions {
@@ -76,6 +77,11 @@ export function usePlan(): UsePlanResult {
     planRef.current = plan;
   }, [plan]);
 
+  const replacePlan = useCallback((nextPlan: TrainingPlanWithAnnotation | null) => {
+    planRef.current = nextPlan;
+    setPlan(nextPlan);
+  }, []);
+
   useEffect(() => {
     if (authLoading) {
       hasLoadedOnceRef.current = false;
@@ -126,5 +132,6 @@ export function usePlan(): UsePlanResult {
       keepVisibleContent: planRef.current !== null,
       showRefreshIndicator: true,
     }),
+    replacePlan,
   };
 }
