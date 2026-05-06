@@ -9,20 +9,14 @@ import type { SessionEditorResult } from '../features/plan-builder/session-editi
 import { stashSessionEditReturn } from '../features/plan-builder/session-edit-return';
 import {
   blockOpenParams,
-  firstRouteParamValue,
   isBlockReturnTarget,
   parseBlockWeekNumber,
 } from '../features/block/block-return-navigation';
+import { parseNonNegativeIntegerRouteParam } from '../lib/route-params';
 import { usePlan } from '../hooks/usePlan';
 
 function parseIndex(value: string | string[] | undefined): number | null {
-  const raw = firstRouteParamValue(value);
-  if (!raw) {
-    return null;
-  }
-
-  const parsed = Number.parseInt(raw, 10);
-  return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+  return parseNonNegativeIntegerRouteParam(value);
 }
 
 export default function EditSessionScreen() {

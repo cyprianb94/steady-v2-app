@@ -1,25 +1,17 @@
+import {
+  firstRouteParamValue,
+  parsePositiveIntegerRouteParam,
+  type RouteParamValue,
+} from '../../lib/route-params';
+
 export const BLOCK_RETURN_TARGET = 'block';
 
-export function firstRouteParamValue(value: string | string[] | undefined): string | null {
-  if (Array.isArray(value)) {
-    return value[0] ?? null;
-  }
-
-  return typeof value === 'string' && value.length > 0 ? value : null;
-}
-
-export function isBlockReturnTarget(value: string | string[] | undefined): boolean {
+export function isBlockReturnTarget(value: RouteParamValue): boolean {
   return firstRouteParamValue(value) === BLOCK_RETURN_TARGET;
 }
 
-export function parseBlockWeekNumber(value: string | string[] | undefined): number | null {
-  const raw = firstRouteParamValue(value);
-  if (!raw) {
-    return null;
-  }
-
-  const parsed = Number.parseInt(raw, 10);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+export function parseBlockWeekNumber(value: RouteParamValue): number | null {
+  return parsePositiveIntegerRouteParam(value);
 }
 
 export function blockSourceParams(weekNumber: number | null | undefined): {

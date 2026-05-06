@@ -335,7 +335,7 @@ const RECOVERY_KM_PER_MIN = 0.18
 function durationKm(value, pace) {
   if (!value || value.value <= 0) return 0
   if (value.unit === 'km') return value.value
-  const paceSeconds = paceToSeconds(pace)
+  const paceSeconds = parsePaceSeconds(pace)
   return paceSeconds ? value.value / (paceSeconds / 60) : 0
 }
 
@@ -394,17 +394,9 @@ Store `matched_session_id` on the activity. This enables planned vs actual compa
 
 ## Pace format
 
-All paces stored as `'M:SS'` strings (e.g. `'4:20'`). For display, always show as-is. For calculation, convert:
+All paces stored as `'M:SS'` strings (e.g. `'4:20'`). Pace parsing, range normalisation, representative pace, and `secondsToPace` live in `packages/types/src/lib/intensity-targets.ts`; app display formatting lives in `packages/app/lib/units.ts`. Do not add package-local pace parsers.
 
 ```javascript
-function paceToSeconds(pace) {
-  const [m, s] = pace.split(':').map(Number)
-  return m * 60 + s
-}
-
-function secondsToPace(seconds) {
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
-  return `${m}:${String(s).padStart(2, '0')}`
-}
+const seconds = parsePaceSeconds('4:20') // 260
+const pace = secondsToPace(260) // '4:20'
 ```

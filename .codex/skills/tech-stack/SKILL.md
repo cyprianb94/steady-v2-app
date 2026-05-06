@@ -117,7 +117,9 @@ steady-v2-app/
 │   ├── plan-generator.ts         # generatePlan() function
 │   ├── session-km.ts             # sessionKm() volume calculator
 │   ├── activity-matcher.ts       # Match activities to sessions
-│   └── pace-utils.ts             # Pace string conversions
+│   ├── units.ts                  # App distance/pace/duration display formatting
+│   ├── date-labels.ts            # App date/month labels
+│   └── route-params.ts           # Expo route-param coercion
 │
 ├── constants/
 │   ├── colours.ts                # Full colour token map (from DESIGN_SYSTEM.md)

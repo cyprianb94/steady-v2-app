@@ -49,9 +49,9 @@ import {
 } from './block-tab-model';
 import {
   blockSourceParams,
-  firstRouteParamValue,
   parseBlockWeekNumber,
 } from './block-return-navigation';
+import { firstRouteParamValue } from '../../lib/route-params';
 import {
   addDaysIso,
 } from '../../lib/plan-helpers';

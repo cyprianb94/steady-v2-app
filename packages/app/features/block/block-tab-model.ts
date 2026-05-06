@@ -25,8 +25,12 @@ import {
   todayIsoLocal,
   weekKm,
 } from '../../lib/plan-helpers';
+import {
+  formatRaceDateLabel,
+  formatShortMonthDayLabel,
+} from '../../lib/date-labels';
+import { firstRouteParamValue } from '../../lib/route-params';
 import { formatDistance } from '../../lib/units';
-import { firstRouteParamValue } from './block-return-navigation';
 import {
   buildBlockPhaseSegments,
   getBlockVolumeTone,
@@ -184,13 +188,7 @@ export function getRescheduleRevealScrollTarget({
 }
 
 export function formatRaceDate(date: string | null | undefined): string {
-  if (!date) return '';
-  const value = new Date(`${date}T00:00:00`);
-  return value.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  return formatRaceDateLabel(date);
 }
 
 export function getWeekStartDate(week: PlanWeek): string {
@@ -292,12 +290,7 @@ export function getPhaseStripLabel(segment: BlockPhaseSegment, totalWeeks: numbe
 }
 
 export function formatShortDate(date: string | null): string {
-  if (!date) return '';
-  const value = new Date(`${date}T00:00:00`);
-  return value.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-  });
+  return formatShortMonthDayLabel(date);
 }
 
 export function formatPlannedDistance(

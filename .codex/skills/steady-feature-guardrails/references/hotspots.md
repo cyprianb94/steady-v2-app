@@ -33,6 +33,15 @@ If the same behavior appears in `Home`, `Week`, `Block`, `Settings`, or `sync-ru
 
 Do not independently patch each screen unless the change is tiny and presentation-only.
 
+Canonical helper locations after the boundary-tightening refactor:
+
+- `packages/types/src/lib/intensity-targets.ts` owns pace parsing, pace normalisation, pace ranges, representative pace, and `secondsToPace`.
+- `packages/app/lib/units.ts` owns app-facing distance, pace, intensity-target, and duration display formatting.
+- `packages/app/lib/date-labels.ts` owns app-facing month/date labels and shared date-label constants.
+- `packages/app/lib/route-params.ts` owns Expo route-param first-value and integer coercion helpers.
+
+Do not re-add screen-local month arrays, route-param parsers, pace parsers, or sync-run duration formatters when touching Home, Block, plan-builder, or sync-run surfaces.
+
 ### Home follow-up work
 
 Start by looking in:
@@ -71,7 +80,7 @@ Normal app mode must not expose Coach, Steady AI Settings entries, Home AI nudge
 Start by looking in:
 
 - `packages/app/features/plan-builder/structured-session-editor-engine.ts` for structured session template selection, simple-to-structured conversion, structured save materialization, parent volume sync, and structured-to-simple conversion
-- `packages/app/features/plan-builder/session-editing.ts` and `packages/app/features/plan-builder/session-editor-targets.ts` for simple editor save payloads, profile-linked target hydration, manual pace/range helpers, and shared pace preset parsing
+- `packages/app/features/plan-builder/session-editing.ts` and `packages/app/features/plan-builder/session-editor-targets.ts` for simple editor save payloads, profile-linked target hydration, and manual pace/range helpers. Pace string parsing/formatting itself should delegate to `@steady/types`.
 - `packages/app/features/plan-builder/structured-session-editor-view-model.ts` for structured editor segment labels, target options, volume presets, and metric summary derivation
 - `packages/app/components/plan-builder/SessionEditorTargetPaceSection.tsx` and `packages/app/components/plan-builder/RunStructureEditorParts.tsx` for extracted editor section and row rendering
 - `packages/app/features/plan-builder/*` for Step 2 starter-mode rules, shared client-side reorder state, staged reschedule drafts, onboarding template orchestration, and other interaction controllers that should stay out of hotspot screens
@@ -87,7 +96,7 @@ Start by looking in:
 
 - `packages/app/lib/plan-api.ts` for the thin app transport/demo wrapper. Real app plan calls should go through tRPC in dev and release; do not reintroduce direct app-side Supabase plan writes.
 - `packages/server/src/services/plan-workflow-service.ts` for active-plan loading, saving, week replacement, training pace profile propagation, injury plan state, orphaned activity-link repair, and Home annotation ownership.
-- `packages/server/src/trpc/plan.ts` for input schemas and delegation only.
+- `packages/server/src/trpc/plan.ts` for input schemas and delegation only. Plan inputs should use concrete Zod schemas, not `z.any()`; onboarding template-week sessions may omit `id`/`date`, while persisted weeks, propagated sessions, and block target sessions require full planned-session payloads.
 - `packages/server/src/repos/plan-repo*` for persistence mapping only.
 
 Keep annotation behavior server-owned outside screenshot demo mode. For Home skipped-session changes, use `markPlannedSessionSkipped` / `clearPlannedSessionSkipped` from `packages/app/lib/plan-api.ts`, backed by dedicated plan workflow commands; do not send whole `weeks` arrays from Home. For live Block reschedules and session edits, use `applyBlockReschedule` / `propagatePlanChange` from `packages/app/lib/plan-api.ts`; the server workflow must load the active plan, validate indexes/scope, preserve completed or matched sessions, and persist normalized weeks. Keep `updateWeeks` as a migration bridge for legacy whole-plan plan-builder/generated-plan flows rather than a preferred new screen API.

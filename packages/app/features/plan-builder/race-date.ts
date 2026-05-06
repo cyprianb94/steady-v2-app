@@ -1,20 +1,15 @@
 import type { DateType } from 'react-native-ui-datepicker';
+import {
+  formatDayMonthYearLabel,
+  isoDateToLocalDate as isoDateToLocalDateValue,
+  parseIsoDate as parseIsoDateValue,
+} from '../../lib/date-labels';
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-export function parseIsoDate(isoDate: string) {
-  const [year, month, day] = isoDate.split('-').map(Number);
-  return { year, monthIndex: month - 1, day };
-}
+export const parseIsoDate = parseIsoDateValue;
+export const isoDateToLocalDate = isoDateToLocalDateValue;
 
 export function formatShortDate(isoDate: string) {
-  const { year, monthIndex, day } = parseIsoDate(isoDate);
-  return `${day} ${MONTHS[monthIndex]} ${year}`;
-}
-
-export function isoDateToLocalDate(isoDate: string) {
-  const { year, monthIndex, day } = parseIsoDate(isoDate);
-  return new Date(year, monthIndex, day);
+  return formatDayMonthYearLabel(isoDate);
 }
 
 export function dateTypeToIsoDate(date: DateType): string | null {

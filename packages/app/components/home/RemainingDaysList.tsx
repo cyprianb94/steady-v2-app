@@ -5,12 +5,12 @@ import { CompactDayRow } from './CompactDayRow';
 import { SectionLabel } from '../ui/SectionLabel';
 import { addDaysIso, dayIndexForIsoDate } from '../../lib/plan-helpers';
 import { usePreferences } from '../../providers/preferences-context';
+import { formatUpperMonthDayLabel } from '../../lib/date-labels';
 import { formatDistance } from '../../lib/units';
 import type { ActivityDayStatus } from '../../features/run/activity-resolution';
 import { canOpenHomeSessionRow } from '../../features/home/resolve-session';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 
 interface RemainingDaysListProps {
   sessions: (PlannedSession | null)[];
@@ -24,11 +24,6 @@ interface RemainingDaysListProps {
     todayIndex: number,
   ) => ActivityDayStatus;
   onSessionPress?: (session: PlannedSession, status: ActivityDayStatus) => void;
-}
-
-function formatShortDate(date: string): string {
-  const value = new Date(`${date}T00:00:00Z`);
-  return `${MONTHS[value.getUTCMonth()].toUpperCase()} ${value.getUTCDate()}`;
 }
 
 function formatActualDistance(distance: number | undefined, units: 'metric' | 'imperial'): string | null {
@@ -65,7 +60,7 @@ export function RemainingDaysList({
           <CompactDayRow
             key={index}
             dayName={DAYS[index]}
-            dateLabel={formatShortDate(addDaysIso(weekStartDate, index))}
+            dateLabel={formatUpperMonthDayLabel(addDaysIso(weekStartDate, index))}
             session={session ?? null}
             status={status}
             metricLabel={formatActualDistance(activity?.distance, units)}

@@ -13,6 +13,7 @@ import {
   representativePace,
   representativePaceSeconds,
   representativeSessionPaceSeconds,
+  secondsToPace,
 } from '../src';
 
 function session(overrides: Partial<PlannedSession>): PlannedSession {
@@ -30,6 +31,16 @@ describe('pace parsing and range normalization', () => {
     expect(normalizePace('04:05 /km')).toBe('4:05');
     expect(parsePaceSeconds('4:20')).toBe(260);
     expect(parsePaceSeconds('4:99')).toBeNull();
+  });
+
+  it('formats canonical pace seconds without server-side duplicate helpers', () => {
+    expect(secondsToPace(260)).toBe('4:20');
+    expect(secondsToPace(245)).toBe('4:05');
+    expect(['3:50', '4:20', '5:00'].map((pace) => secondsToPace(parsePaceSeconds(pace)!))).toEqual([
+      '3:50',
+      '4:20',
+      '5:00',
+    ]);
   });
 
   it('normalizes pace ranges and safely orders swapped bounds', () => {

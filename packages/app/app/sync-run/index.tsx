@@ -12,22 +12,10 @@ import { useStravaSync } from '../../hooks/useStravaSync';
 import { activityLocalDate, addDaysIso, findSessionForDateOrWeekday, startOfWeekIso, todayIsoLocal } from '../../lib/plan-helpers';
 import { buildCurrentDisplayWeek } from '../../features/run/display-week';
 import { usePreferences } from '../../providers/preferences-context';
-import { formatDistance, formatPace, formatSessionTitle } from '../../lib/units';
+import { formatDistance, formatDurationHoursMinutes, formatPace, formatSessionTitle } from '../../lib/units';
+import { formatActivityListTimeLabel } from '../../lib/date-labels';
+import { firstRouteParamValue } from '../../lib/route-params';
 import { candidateActivitiesForSession } from '../../features/run/session-activity-candidates';
-
-function formatDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const mins = Math.floor((seconds % 3600) / 60);
-  if (hours > 0) return `${hours}h ${mins}m`;
-  return `${mins}m`;
-}
-
-function formatActivityTime(startTime: string): string {
-  const value = new Date(startTime);
-  const time = value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-  const label = value.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' });
-  return `${label}, ${time}`;
-}
 
 function formatAverageHeartRate(avgHR: number): string {
   return `${Math.ceil(avgHR)} bpm avg`;
@@ -44,14 +32,6 @@ function activityTitle(activity: Activity): string {
 
 function isRunnableSession(session: PlannedSession | null): session is PlannedSession {
   return session != null && session.type !== 'REST';
-}
-
-function firstRouteParamValue(value: string | string[] | undefined): string | null {
-  if (Array.isArray(value)) {
-    return value[0] ?? null;
-  }
-
-  return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
 /**
@@ -251,10 +231,10 @@ export default function SyncRunPickerScreen() {
               <View style={styles.runBody}>
                 <View style={styles.runTitleRow}>
                   <Text style={styles.runTitle}>{activityTitle(activity)}</Text>
-                  <Text style={styles.runTime}>{formatActivityTime(activity.startTime)}</Text>
+                  <Text style={styles.runTime}>{formatActivityListTimeLabel(activity.startTime)}</Text>
                 </View>
                 <Text style={styles.runMetrics}>
-                  {formatDistance(activity.distance, units, { spaced: true })} · {formatDuration(activity.duration)} · {formatPace(activity.avgPace, units, { withUnit: true })}
+                  {formatDistance(activity.distance, units, { spaced: true })} · {formatDurationHoursMinutes(activity.duration)} · {formatPace(activity.avgPace, units, { withUnit: true })}
                 </Text>
                 <View style={styles.runSubRow}>
                   <Text style={[styles.runTag, (matchesRequestedSession || matchesToday) ? styles.runTagMatch : styles.runTagNoMatch]}>

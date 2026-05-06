@@ -1,10 +1,11 @@
 import React, { useRef, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, type GestureResponderEvent } from 'react-native';
-import { addDaysIso, inferWeekStartDate, type PhaseName, type PlanWeek } from '@steady/types';
+import { inferWeekStartDate, type PhaseName, type PlanWeek } from '@steady/types';
 import { C } from '../../constants/colours';
 import { PHASE_COLOR } from '../../constants/phase-meta';
 import { FONTS } from '../../constants/typography';
 import { triggerSelectionChangeHaptic } from '../../lib/haptics';
+import { formatIsoWeekDateRangeLabel } from '../../lib/date-labels';
 import { formatDistance, type DistanceUnits } from '../../lib/units';
 
 const CHART_WIDTH = 312;
@@ -18,8 +19,6 @@ const LINE_OVERLAP = 1.5;
 const MARKER_SIZE = 8;
 const SELECTED_MARKER_SIZE = 11;
 const TOOLTIP_WIDTH = 138;
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 
 const PHASE_LABEL: Record<PhaseName, string> = {
   BASE: 'Base',
@@ -208,20 +207,6 @@ function weekStartFromRaceDate(raceDate: string | undefined, totalWeeks: number,
   return isoFromDate(weekStart);
 }
 
-function formatDateRange(startIso: string): string {
-  const start = new Date(`${startIso}T00:00:00Z`);
-  const endIso = addDaysIso(startIso, 6);
-  const end = new Date(`${endIso}T00:00:00Z`);
-  const startDay = start.getUTCDate();
-  const endDay = end.getUTCDate();
-  const startMonth = MONTHS[start.getUTCMonth()];
-  const endMonth = MONTHS[end.getUTCMonth()];
-
-  return startMonth === endMonth
-    ? `${startDay} - ${endDay} ${startMonth}`
-    : `${startDay} ${startMonth} - ${endDay} ${endMonth}`;
-}
-
 function weekDateLabel(week: PlanWeek, weekIndex: number, totalWeeks: number, raceDate?: string): string {
   const fallbackStart = weekStartFromRaceDate(raceDate, totalWeeks, weekIndex);
   const hasDatedSession = week.sessions.some((session) => Boolean(session?.date));
@@ -229,7 +214,7 @@ function weekDateLabel(week: PlanWeek, weekIndex: number, totalWeeks: number, ra
     ? inferWeekStartDate(week, fallbackStart ?? raceDate)
     : fallbackStart;
 
-  return startIso ? formatDateRange(startIso) : `Week ${weekIndex + 1}`;
+  return startIso ? formatIsoWeekDateRangeLabel(startIso) : `Week ${weekIndex + 1}`;
 }
 
 function VolumeTooltip({

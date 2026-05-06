@@ -18,10 +18,13 @@ import { usePlan } from '../../hooks/usePlan';
 import { usePreferences } from '../../providers/preferences-context';
 import {
   formatDistance,
+  formatDurationClock,
   formatIntensityTargetDisplay,
   formatPace,
   formatSessionTitle,
 } from '../../lib/units';
+import { formatRunDetailMetaLabel } from '../../lib/date-labels';
+import { firstRouteParamValue } from '../../lib/route-params';
 import { shoeWearState } from '../../features/sync/sync-run-detail';
 import { useRunDetailController } from '../../features/sync/use-run-detail-controller';
 import { MatchPickerModal } from '../../components/sync-run/MatchPickerModal';
@@ -41,23 +44,6 @@ import {
   type AveragePaceComparisonDirection,
   type TargetAwareSplitTargetStatus,
 } from '../../features/run/target-aware-splits';
-
-function formatDuration(seconds: number): string {
-  const hrs = Math.floor(seconds / 3600);
-  const mins = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  return hrs > 0
-    ? `${hrs}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
-    : `${mins}:${String(secs).padStart(2, '0')}`;
-}
-
-function formatRunMeta(startTime: string): string {
-  const value = new Date(startTime);
-  const weekday = value.toLocaleDateString([], { weekday: 'short' });
-  const monthDay = value.toLocaleDateString([], { month: 'short', day: 'numeric' });
-  const time = value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-  return `${weekday} ${monthDay} · ${time}`;
-}
 
 function shoeLabel(shoe: Shoe): string {
   return `${shoe.brand} ${shoe.model}`;
@@ -83,14 +69,6 @@ function splitTargetDisplay(value: string): { pace: string | null; effort: strin
 
 function formatPlannedActualPaceUnit(value: string): string {
   return value.replace(/\s*\/(km|mi)\b/g, ' min/$1');
-}
-
-function firstRouteParamValue(value: string | string[] | undefined): string | null {
-  if (Array.isArray(value)) {
-    return value[0] ?? null;
-  }
-
-  return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
 function targetStatusStyle(status: TargetAwareSplitTargetStatus | null) {
@@ -398,7 +376,7 @@ export default function SyncRunDetailScreen() {
           <Text style={styles.runTitle}>
             {selectedSession ? formatSessionTitle(selectedSession, units) : activity.name ?? 'Bonus run'}
           </Text>
-          <Text style={styles.runMeta}>{formatRunMeta(activity.startTime)}</Text>
+          <Text style={styles.runMeta}>{formatRunDetailMetaLabel(activity.startTime)}</Text>
         </View>
 
         <View style={styles.metricGrid}>
@@ -407,7 +385,7 @@ export default function SyncRunDetailScreen() {
             <Text style={styles.metricLabel}>Distance</Text>
           </View>
           <View style={[styles.metricCell, styles.metricCellTime]}>
-            <Text style={[styles.metricValue, styles.metricTimeValue]}>{formatDuration(activity.duration)}</Text>
+            <Text style={[styles.metricValue, styles.metricTimeValue]}>{formatDurationClock(activity.duration)}</Text>
             <Text style={styles.metricLabel}>Duration</Text>
           </View>
           <View style={[styles.metricCell, styles.metricCellPace]}>

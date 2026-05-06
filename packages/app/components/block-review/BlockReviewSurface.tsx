@@ -26,6 +26,7 @@ import { PHASE_COLOR } from '../../constants/phase-meta';
 import { FONTS } from '../../constants/typography';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { triggerSelectionChangeHaptic } from '../../lib/haptics';
+import { MONTH_SHORT_LABELS } from '../../lib/date-labels';
 import {
   CHART_BOTTOM,
   CHART_CURRENT_GUIDE_DOT_SIZE,
@@ -67,8 +68,6 @@ const ACTION_PRESS_EXPANSION = typeof document !== 'undefined'
       hitSlop: { top: 8, right: 8, bottom: 8, left: 8 },
       pressRetentionOffset: { top: 10, right: 10, bottom: 10, left: 10 },
     };
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 
 const COMPACT_PHASE_LABEL: Record<PhaseName, string> = {
   BASE: 'B',
@@ -246,8 +245,8 @@ export function formatReviewWeekDateRange(
   const start = new Date(`${startIso}T00:00:00Z`);
   const endIso = addDaysIso(startIso, 7);
   const end = new Date(`${endIso}T00:00:00Z`);
-  const startMonth = MONTHS[start.getUTCMonth()];
-  const endMonth = MONTHS[end.getUTCMonth()];
+  const startMonth = MONTH_SHORT_LABELS[start.getUTCMonth()];
+  const endMonth = MONTH_SHORT_LABELS[end.getUTCMonth()];
   const startDay = start.getUTCDate();
   const endDay = end.getUTCDate();
 

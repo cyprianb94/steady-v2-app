@@ -15,6 +15,7 @@ import { SESSION_TYPE } from '../../constants/session-types';
 import { FONTS } from '../../constants/typography';
 import { useDirectWeekReschedule } from '../../features/plan-builder/use-direct-week-reschedule';
 import { DAYS } from '../../lib/plan-helpers';
+import { formatShortMonthDayLabel } from '../../lib/date-labels';
 import { formatSessionRowText } from '../../lib/session-row-text';
 import { formatDistance, type DistanceUnits } from '../../lib/units';
 import { DragHandle } from '../plan-builder/DragHandle';
@@ -135,19 +136,7 @@ function resolveDayDate(
 }
 
 function formatShortDate(date: string | null): string {
-  if (!date) {
-    return '';
-  }
-
-  const value = new Date(`${date}T00:00:00`);
-  if (Number.isNaN(value.getTime())) {
-    return '';
-  }
-
-  return value.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-  });
+  return formatShortMonthDayLabel(date);
 }
 
 export function BlockWeekList({

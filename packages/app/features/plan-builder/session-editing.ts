@@ -22,6 +22,7 @@ import {
   type TrainingPaceProfileKey,
 } from '@steady/types';
 import { DAYS, sessionLabel } from '../../lib/plan-helpers';
+import { firstRouteParamValue } from '../../lib/route-params';
 import type { DistanceUnits } from '../../lib/units';
 
 export type SessionEditorResult = (Partial<PlannedSession> & {
@@ -93,14 +94,6 @@ interface PlannedSessionEditFingerprint {
   plannedVolume?: PlannedSession['plannedVolume'];
   planNote?: PlannedSession['planNote'];
   runStructure?: PlannedSession['runStructure'];
-}
-
-function firstRouteParamValue(value: string | string[] | undefined): string | null {
-  if (Array.isArray(value)) {
-    return value[0] ?? null;
-  }
-
-  return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
 function profileBandForKey(

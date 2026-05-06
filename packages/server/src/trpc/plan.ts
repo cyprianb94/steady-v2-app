@@ -29,6 +29,7 @@ const InjuryUpdateSchema = z.object({
 
 const PhaseNameSchema = z.enum(['BASE', 'BUILD', 'RECOVERY', 'PEAK', 'TAPER']);
 const SessionTypeSchema = z.enum(['EASY', 'INTERVAL', 'TEMPO', 'LONG', 'RECOVERY', 'REST']);
+const SessionFormatSchema = z.enum(['simple', 'structured']);
 const RecoveryDurationSchema = z.enum(['45s', '60s', '90s', '2min', '3min', '4min', '5min']);
 const SessionDurationSchema = z.object({
   unit: z.enum(['km', 'min']),
@@ -113,9 +114,10 @@ const SkippedSessionSchema = z.object({
   reason: SkippedSessionReasonSchema,
   markedAt: z.string(),
 });
-const PlannedSessionSchema = z.object({
+const PlannedSessionBaseSchema = z.object({
   id: z.string(),
   type: SessionTypeSchema,
+  format: SessionFormatSchema.optional(),
   date: z.string(),
   distance: z.number().optional(),
   pace: z.string().optional(),
@@ -134,6 +136,12 @@ const PlannedSessionSchema = z.object({
   subjectiveInputDismissed: z.boolean().optional(),
   skipped: SkippedSessionSchema.optional(),
 });
+const PlannedSessionSchema = PlannedSessionBaseSchema;
+const TemplateSessionSchema = PlannedSessionBaseSchema.extend({
+  id: z.string().optional(),
+  date: z.string().optional(),
+});
+const TemplateWeekSchema = z.array(TemplateSessionSchema.nullable()).length(7);
 const PlanWeekSchema = z.object({
   weekNumber: z.number().int().min(1),
   phase: PhaseNameSchema,
@@ -190,7 +198,7 @@ export function createPlanRouter(planWorkflow: PlanWorkflowService) {
     generate: authedProcedure
       .input(
         z.object({
-          template: z.array(z.any()),
+          template: TemplateWeekSchema,
           totalWeeks: z.number().min(4).max(52),
           progressionPct: z.number().min(0).max(30),
           progressionEveryWeeks: z.number().min(1).max(12).optional(),
@@ -219,7 +227,7 @@ export function createPlanRouter(planWorkflow: PlanWorkflowService) {
           progressionPct: z.number().min(0).max(30),
           progressionEveryWeeks: z.number().min(1).max(12).optional(),
           trainingPaceProfile: TrainingPaceProfileSchema.nullable().optional(),
-          templateWeek: z.array(z.any()),
+          templateWeek: TemplateWeekSchema,
           weeks: z.array(PlanWeekSchema),
         }),
       )
@@ -244,7 +252,7 @@ export function createPlanRouter(planWorkflow: PlanWorkflowService) {
         z.object({
           weekIndex: z.number().min(0),
           dayIndex: z.number().min(0).max(6),
-          updated: z.any(),
+          updated: PlannedSessionSchema.nullable(),
           scope: z.enum(['this', 'remaining', 'build']),
           targetPhase: PhaseNameSchema.optional(),
         }),

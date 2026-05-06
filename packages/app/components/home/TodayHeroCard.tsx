@@ -19,6 +19,7 @@ import { C } from '../../constants/colours';
 import { usePreferences } from '../../providers/preferences-context';
 import {
   formatDistance,
+  formatDurationClock,
   formatIntensityTargetDisplay,
   formatIntensityTargetParts,
   formatIntervalRepLength,
@@ -27,6 +28,10 @@ import {
   formatSessionTitle,
   formatStoredPace,
 } from '../../lib/units';
+import {
+  MONTH_SHORT_LABELS,
+  WEEKDAY_LONG_LABELS_SUNDAY_FIRST,
+} from '../../lib/date-labels';
 import {
   buildStructuredRunDisplayLines,
   type StructuredRunDisplayLine,
@@ -53,8 +58,6 @@ interface TodayHeroCardProps {
   trainingPaceProfile?: TrainingPaceProfile | null;
 }
 
-const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 const COMPLETED_HEADLINES: Record<PvaHeadline, string> = {
   'on-target': 'On target',
   'crushed-it': 'Crushed it',
@@ -102,16 +105,7 @@ interface CompletedNoteDisplay {
 
 function formatSessionDate(date: string): string {
   const value = new Date(`${date}T00:00:00Z`);
-  return `${WEEKDAYS[value.getUTCDay()]}, ${MONTHS[value.getUTCMonth()]} ${value.getUTCDate()}`;
-}
-
-function formatDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const remainder = seconds % 60;
-  return hours > 0
-    ? `${hours}:${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`
-    : `${minutes}:${String(remainder).padStart(2, '0')}`;
+  return `${WEEKDAY_LONG_LABELS_SUNDAY_FIRST[value.getUTCDay()]}, ${MONTH_SHORT_LABELS[value.getUTCMonth()]} ${value.getUTCDate()}`;
 }
 
 function titleCase(value: string): string {
@@ -386,7 +380,7 @@ function buildCompletedHero({
     return {
       primary: qualityPace,
       secondary: qualitySummary.sessionType === 'TEMPO'
-        ? formatDuration(Math.round(
+        ? formatDurationClock(Math.round(
             qualitySummary.averagePaceSecondsPerKm * qualitySummary.qualityDistanceKm,
           ))
         : 'avg rep',

@@ -6,6 +6,7 @@ import { FONTS } from '../../constants/typography';
 import { SectionLabel } from '../ui/SectionLabel';
 import { Btn } from '../ui/Btn';
 import { DAYS, addDaysIso } from '../../lib/plan-helpers';
+import { formatShortMonthDayLabel } from '../../lib/date-labels';
 
 interface CrossTrainingLogProps {
   entries: CrossTrainingEntry[];
@@ -21,11 +22,7 @@ interface CrossTrainingLogProps {
 }
 
 function formatShortDate(date: string): string {
-  const parsed = new Date(`${date}T00:00:00`);
-  return parsed.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-  });
+  return formatShortMonthDayLabel(date);
 }
 
 export function CrossTrainingLog({

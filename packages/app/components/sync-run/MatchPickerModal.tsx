@@ -12,10 +12,11 @@ import {
   formatPace,
   formatSessionTitle,
 } from '../../lib/units';
+import {
+  MONTH_SHORT_LABELS,
+  WEEKDAY_SHORT_LABELS_SUNDAY_FIRST,
+} from '../../lib/date-labels';
 import { SyncRunModalShell } from './SyncRunModalShell';
-
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 
 function formatRunSummaryDate(startTime: string): string {
   const value = new Date(startTime);
@@ -24,7 +25,7 @@ function formatRunSummaryDate(startTime: string): string {
 
 function formatSessionDate(date: string): string {
   const value = new Date(`${date}T00:00:00Z`);
-  return `${WEEKDAYS[value.getUTCDay()]} ${MONTHS[value.getUTCMonth()]} ${value.getUTCDate()}`;
+  return `${WEEKDAY_SHORT_LABELS_SUNDAY_FIRST[value.getUTCDay()]} ${MONTH_SHORT_LABELS[value.getUTCMonth()]} ${value.getUTCDate()}`;
 }
 
 function formatSessionOptionTitle(
@@ -34,7 +35,7 @@ function formatSessionOptionTitle(
 ): string {
   const dayLabel = session.id === todaySessionId
     ? 'Today'
-    : WEEKDAYS[new Date(`${session.date}T00:00:00Z`).getUTCDay()];
+    : WEEKDAY_SHORT_LABELS_SUNDAY_FIRST[new Date(`${session.date}T00:00:00Z`).getUTCDay()];
   return `${dayLabel} · ${formatSessionTitle(session, units)}`;
 }
 

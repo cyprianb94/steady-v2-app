@@ -19,11 +19,16 @@ import { usePreferences } from '../../providers/preferences-context';
 import type { ActivityDayStatus } from '../../features/run/activity-resolution';
 import {
   formatDistance,
+  formatDurationClock,
   formatIntensityTargetParts,
   formatIntervalRepLength,
   formatStoredPace,
   type DistanceUnits,
 } from '../../lib/units';
+import {
+  MONTH_SHORT_LABELS,
+  WEEKDAY_SHORT_LABELS_SUNDAY_FIRST,
+} from '../../lib/date-labels';
 import {
   buildStructuredRunDisplayBlocks,
   buildStructuredRunDisplayLines,
@@ -34,8 +39,6 @@ import {
   type StructuredRunDisplayToken,
 } from '../../lib/structured-run-display';
 
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 const MAX_SHEET_HEIGHT = Math.floor(Dimensions.get('window').height * 0.82);
 
 interface ResolveSessionSheetProps {
@@ -82,28 +85,15 @@ const SKIPPED_REASON_LABELS: Record<SkippedSessionReason, string> = {
 
 function formatSessionDate(date: string): string {
   const value = new Date(`${date}T00:00:00Z`);
-  return `${WEEKDAYS[value.getUTCDay()]} ${value.getUTCDate()} ${MONTHS[value.getUTCMonth()]}`;
+  return `${WEEKDAY_SHORT_LABELS_SUNDAY_FIRST[value.getUTCDay()]} ${value.getUTCDate()} ${MONTH_SHORT_LABELS[value.getUTCMonth()]}`;
 }
 
 function formatActivityStartedAt(startTime: string): string {
   const value = new Date(startTime);
-  const weekday = WEEKDAYS[value.getDay()];
+  const weekday = WEEKDAY_SHORT_LABELS_SUNDAY_FIRST[value.getDay()];
   const hours = String(value.getHours()).padStart(2, '0');
   const minutes = String(value.getMinutes()).padStart(2, '0');
   return `${weekday} ${hours}:${minutes}`;
-}
-
-function formatClockDuration(totalSeconds: number): string {
-  const seconds = Math.max(0, Math.round(totalSeconds));
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const remainder = seconds % 60;
-
-  if (hours > 0) {
-    return `${hours}:${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`;
-  }
-
-  return `${minutes}:${String(remainder).padStart(2, '0')}`;
 }
 
 function formatSourceLabel(source: Activity['source']): string {
@@ -809,7 +799,7 @@ function ResolveSessionSheetMounted({
                       <View style={styles.matchCopy}>
                         <Text style={styles.matchSource}>{formatSourceLabel(activity.source)}</Text>
                         <Text style={styles.matchMetric}>
-                          {formatDistance(activity.distance, units)} · {formatClockDuration(activity.duration)}
+                          {formatDistance(activity.distance, units)} · {formatDurationClock(Math.max(0, Math.round(activity.duration)))}
                         </Text>
                         <Text style={styles.matchMeta}>{formatActivityStartedAt(activity.startTime)}</Text>
                       </View>

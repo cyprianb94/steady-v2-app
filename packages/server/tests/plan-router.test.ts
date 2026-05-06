@@ -242,6 +242,144 @@ describe('plan router', () => {
     });
   });
 
+  it('accepts current app template payloads without id/date and rejects malformed template sessions', async () => {
+    const appTemplate = [
+      {
+        type: 'EASY',
+        distance: 8,
+        pace: '5:20',
+        intensityTarget: trainingPaceBandToIntensityTarget(
+          deriveTrainingPaceProfile({
+            raceDistance: 'Marathon',
+            targetTime: 'sub-3:30',
+          }).bands.easy,
+        ),
+      },
+      null, null, null, null, null, null,
+    ];
+
+    const generated = await caller.plan.generate({
+      template: appTemplate,
+      totalWeeks: 4,
+      progressionPct: 0,
+      phases: { BASE: 1, BUILD: 1, RECOVERY: 0, PEAK: 1, TAPER: 1 },
+    });
+
+    expect(generated.weeks).toHaveLength(4);
+    expect(generated.weeks[0].sessions[0]).toMatchObject({
+      id: 'w1d0',
+      type: 'EASY',
+      distance: 8,
+    });
+
+    await expect(caller.plan.generate({
+      template: [{ distance: 8 } as never],
+      totalWeeks: 4,
+      progressionPct: 0,
+      phases: { BASE: 1, BUILD: 1, RECOVERY: 0, PEAK: 1, TAPER: 1 },
+    })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
+  });
+
+  it('saves current app template payloads while rejecting malformed plan-template sessions', async () => {
+    const input = {
+      raceName: 'London Marathon',
+      raceDate: '2026-10-04',
+      raceDistance: 'Marathon' as const,
+      targetTime: 'sub-3:30',
+      phases: { BASE: 1, BUILD: 0, RECOVERY: 0, PEAK: 0, TAPER: 0 },
+      progressionPct: 0,
+      templateWeek: [
+        { type: 'EASY' as const, distance: 8, pace: '5:20' },
+        null, null, null, null, null, null,
+      ],
+      weeks: [
+        {
+          weekNumber: 1,
+          phase: 'BASE' as const,
+          plannedKm: 8,
+          sessions: [
+            {
+              id: 'session-1',
+              type: 'EASY' as const,
+              date: '2026-04-06',
+              distance: 8,
+              pace: '5:20',
+            },
+            null, null, null, null, null, null,
+          ],
+        },
+      ],
+    };
+
+    await expect(caller.plan.save(input)).resolves.toMatchObject({
+      templateWeek: [
+        { type: 'EASY', distance: 8, pace: '5:20' },
+        null, null, null, null, null, null,
+      ],
+    });
+
+    await expect(caller.plan.save({
+      ...input,
+      templateWeek: [{ type: 'BIKE' } as never, null, null, null, null, null, null],
+    })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
+  });
+
+  it('rejects malformed propagated sessions at the router schema boundary', async () => {
+    await planRepo.save(makePlan(undefined, {
+      phases: { BASE: 1, BUILD: 0, RECOVERY: 0, PEAK: 0, TAPER: 0 },
+      weeks: [
+        {
+          weekNumber: 1,
+          phase: 'BASE',
+          plannedKm: 8,
+          sessions: [
+            {
+              id: 'session-1',
+              type: 'EASY',
+              date: '2026-04-09',
+              distance: 8,
+              pace: '5:20',
+            },
+            null, null, null, null, null, null,
+          ],
+        },
+      ],
+    }));
+
+    await expect(caller.plan.propagate({
+      weekIndex: 0,
+      dayIndex: 0,
+      updated: { type: 'EASY', distance: 10 } as never,
+      scope: 'this',
+      targetPhase: 'BASE',
+    })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
+
+    const propagated = await caller.plan.propagate({
+      weekIndex: 0,
+      dayIndex: 0,
+      updated: {
+        id: 'session-1',
+        type: 'EASY',
+        date: '2026-04-09',
+        distance: 10,
+        pace: '5:20',
+      },
+      scope: 'this',
+      targetPhase: 'BASE',
+    });
+
+    expect(propagated?.weeks[0].sessions[0]).toMatchObject({
+      id: 'w1d0',
+      distance: 10,
+    });
+  });
+
   it('marks and clears skipped planned sessions through dedicated router commands', async () => {
     await planRepo.save(makePlan(undefined, {
       phases: { BASE: 1, BUILD: 0, RECOVERY: 0, PEAK: 0, TAPER: 0 },

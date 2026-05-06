@@ -37,7 +37,7 @@ import { InjuryBanner } from '../../components/recovery/InjuryBanner';
 import { CrossTrainingLog } from '../../components/recovery/CrossTrainingLog';
 import { ReturnToRunning } from '../../components/recovery/ReturnToRunning';
 import { RecoveryFlowModal } from '../../components/recovery/RecoveryFlowModal';
-import { addDaysIso, dayIndexForIsoDate, findSessionForDateOrWeekday } from '../../lib/plan-helpers';
+import { dayIndexForIsoDate, findSessionForDateOrWeekday } from '../../lib/plan-helpers';
 import { useActivityResolution } from '../../features/run/use-activity-resolution';
 import type { ActivityDayStatus } from '../../features/run/activity-resolution';
 import { useRunDetailNavigation } from '../../features/run/use-run-detail-navigation';
@@ -47,6 +47,7 @@ import { getVisibleActiveInjury, MVP_RECOVERY_UI_ENABLED } from '../../features/
 import { usePlanRefreshCoordinator } from '../../features/sync/use-plan-refresh-coordinator';
 import { connectStravaAndRefresh } from '../../features/strava/strava-connection';
 import { buildCurrentDisplayWeek, resolveDisplayWeekStartDate } from '../../features/run/display-week';
+import { formatHomeWeekRangeLabel } from '../../lib/date-labels';
 import {
   canOpenResolveSessionSheet,
   possibleActivityMatchesForSession,
@@ -54,19 +55,10 @@ import {
 import { resolveProfileLinkedWeekTargets } from '../../features/plan-builder/session-editing';
 
 const HOME_SCROLL_TOP_PADDING = 14;
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 
 interface ResolvingSessionState {
   session: PlannedSession;
   status: ActivityDayStatus;
-}
-
-function formatWeekRangeLabel(weekStartDate: string): string {
-  const start = new Date(`${weekStartDate}T00:00:00Z`);
-  const weekEndDate = addDaysIso(weekStartDate, 6);
-  const end = new Date(`${weekEndDate}T00:00:00Z`);
-
-  return `${MONTHS[start.getUTCMonth()].toUpperCase()} ${start.getUTCDate()} – ${end.getUTCDate()} · ${end.getUTCFullYear()}`;
 }
 
 function formatPhaseHeading(weekNumber: number, phase: string): string {
@@ -400,7 +392,7 @@ export default function HomeScreen() {
           ]}
         >
           <View style={styles.header}>
-            <Text style={styles.headerMeta}>{formatWeekRangeLabel(resolvedWeekStartDate)}</Text>
+            <Text style={styles.headerMeta}>{formatHomeWeekRangeLabel(resolvedWeekStartDate)}</Text>
             <Text style={styles.headerKicker}>
               {activeInjury ? 'Recovery Mode' : formatPhaseHeading(week.weekNumber, week.phase)}
             </Text>

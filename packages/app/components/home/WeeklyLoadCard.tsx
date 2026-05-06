@@ -24,6 +24,7 @@ import { triggerSelectionChangeHaptic } from '../../lib/haptics';
 import {
   formatDistance,
   formatDurationAccessible,
+  formatDurationMetricCompact,
 } from '../../lib/units';
 import { usePreferences } from '../../providers/preferences-context';
 import { AnimatedProgressFill } from '../ui/AnimatedProgressFill';
@@ -106,18 +107,6 @@ function metricAccent(metric: WeeklyVolumeMetric): string {
   return metric === 'distance' ? C.metricDistance : C.metricTime;
 }
 
-function formatDurationMetricValue(totalSeconds: number): string {
-  const totalMinutes = Math.max(0, Math.round(totalSeconds / 60));
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-
-  if (hours === 0) {
-    return `${minutes}min`;
-  }
-
-  return minutes === 0 ? `${hours}h` : `${hours}h${String(minutes).padStart(2, '0')}`;
-}
-
 function summaryMetricValues(summary: WeeklyVolumeSummary, metric: WeeklyVolumeMetric) {
   return metric === 'distance'
     ? { actual: summary.actualDistanceKm, planned: summary.plannedDistanceKm }
@@ -127,7 +116,7 @@ function summaryMetricValues(summary: WeeklyVolumeSummary, metric: WeeklyVolumeM
 function formatMetricValue(value: number, metric: WeeklyVolumeMetric, units: 'metric' | 'imperial'): string {
   return metric === 'distance'
     ? formatDistance(value, units)
-    : formatDurationMetricValue(value);
+    : formatDurationMetricCompact(value);
 }
 
 function formatPlannedMetricValue(

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { PlannedSession } from '@steady/types';
 import {
+  formatDurationClock,
+  formatDurationHoursMinutes,
   formatCompactSessionLabel,
   formatIntensityTargetDisplay,
   formatSessionLabel,
@@ -8,6 +10,19 @@ import {
   formatSplitLabel,
   inferSplitLabelMode,
 } from '../lib/units';
+
+describe('duration formatting', () => {
+  it('keeps sync-run clock labels unchanged', () => {
+    expect(formatDurationClock(2827)).toBe('47:07');
+    expect(formatDurationClock(3723)).toBe('1:02:03');
+  });
+
+  it('keeps sync-run picker hour/minute labels unchanged', () => {
+    expect(formatDurationHoursMinutes(2827)).toBe('47m');
+    expect(formatDurationHoursMinutes(3900)).toBe('1h 5m');
+    expect(formatDurationHoursMinutes(3600)).toBe('1h 0m');
+  });
+});
 
 describe('split labels', () => {
   it('labels continuous run splits by position and marks the final partial split', () => {

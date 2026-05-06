@@ -63,8 +63,11 @@ In `packages/server/src/trpc/*`:
 - validate input
 - enforce auth
 - delegate to a service or workflow module
+- use concrete Zod schemas for app payloads; do not use `z.any()` for plan, session, template-week, or mutation inputs
 
 Do not add multi-step orchestration directly into routers unless the change is truly tiny.
+
+For plan router inputs, template-week sessions may omit generated `id`/`date` fields because onboarding submits template days before materialisation. Persisted weeks, propagated sessions, and block reschedule target sessions must use the full planned-session schema with `id` and `date`.
 
 ### 4. Keep plan mutations server-owned
 
@@ -110,6 +113,13 @@ If you extract shared logic into `packages/app/features/*`, `packages/app/lib/*`
 - remove or migrate the old helper/module in the same change
 - move tests to the surviving boundary
 - do not keep overlapping old and new copies unless there is a clear temporary migration reason
+
+Canonical shared helper locations:
+
+- pace parsing/normalisation and `secondsToPace`: `packages/types/src/lib/intensity-targets.ts`
+- app pace/distance/duration display: `packages/app/lib/units.ts`
+- app date and month labels: `packages/app/lib/date-labels.ts`
+- app Expo route-param coercion: `packages/app/lib/route-params.ts`
 
 ### 9. If you knowingly add debt, say so before finishing
 

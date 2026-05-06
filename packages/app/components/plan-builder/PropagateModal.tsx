@@ -3,6 +3,10 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import type { PhaseName } from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
+import {
+  WEEKDAY_LONG_LABELS_MONDAY_FIRST,
+  formatIsoDayContext,
+} from '../../lib/date-labels';
 import { Btn } from '../ui/Btn';
 import { GorhomSheet } from '../ui/GorhomSheet';
 
@@ -29,55 +33,12 @@ const OPTIONS = [
   { key: 'build' as const, label: '' },
 ];
 
-const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
-const LONG_DAYS_BY_WEEK_INDEX = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
-
 function phaseLabel(phaseName: PhaseName): string {
   return `${phaseName.slice(0, 1)}${phaseName.slice(1).toLowerCase()}`;
 }
 
-function parseIsoDateParts(date: string | null | undefined): { shortLabel: string; longDay: string } | null {
-  if (!date) {
-    return null;
-  }
-
-  const [yearRaw, monthRaw, dayRaw] = date.split('-');
-  const year = Number(yearRaw);
-  const month = Number(monthRaw);
-  const day = Number(dayRaw);
-  if (
-    !Number.isInteger(year) ||
-    !Number.isInteger(month) ||
-    !Number.isInteger(day) ||
-    month < 1 ||
-    month > 12 ||
-    day < 1 ||
-    day > 31
-  ) {
-    return null;
-  }
-
-  const value = new Date(Date.UTC(year, month - 1, day));
-  if (
-    Number.isNaN(value.getTime()) ||
-    value.getUTCFullYear() !== year ||
-    value.getUTCMonth() !== month - 1 ||
-    value.getUTCDate() !== day
-  ) {
-    return null;
-  }
-
-  const shortDay = SHORT_DAYS[value.getUTCDay()];
-  const longDay = LONG_DAYS_BY_WEEK_INDEX[value.getUTCDay() === 0 ? 6 : value.getUTCDay() - 1];
-  return {
-    shortLabel: `${shortDay} ${day} ${MONTHS[month - 1]}`,
-    longDay,
-  };
-}
-
 function dayContext(dayIndex: number | undefined, sessionDate: string | null | undefined) {
-  const fromDate = parseIsoDateParts(sessionDate);
+  const fromDate = formatIsoDayContext(sessionDate);
   if (fromDate) {
     return fromDate;
   }
@@ -86,7 +47,7 @@ function dayContext(dayIndex: number | undefined, sessionDate: string | null | u
     return null;
   }
 
-  const longDay = LONG_DAYS_BY_WEEK_INDEX[dayIndex];
+  const longDay = WEEKDAY_LONG_LABELS_MONDAY_FIRST[dayIndex];
   if (!longDay) {
     return null;
   }

@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { Injury, TrainingPlan } from '@steady/types';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
+import { formatShortMonthDayLabel } from '../../lib/date-labels';
 import { GoalReassessment } from './GoalReassessment';
 
 interface InjuryBannerProps {
@@ -15,15 +16,7 @@ interface InjuryBannerProps {
 }
 
 function formatMarkedDate(date: string): string {
-  const parsed = new Date(`${date}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) {
-    return date;
-  }
-
-  return parsed.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-  });
+  return formatShortMonthDayLabel(date) || date;
 }
 
 function formatStatus(status: Injury['status']): string {
