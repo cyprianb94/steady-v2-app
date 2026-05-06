@@ -1,0 +1,142 @@
+
+> @steady/app@1.0.0 test
+> vitest run edit-session-return.test.tsx block-rearrange.test.tsx sync-run-detail.test.tsx use-run-detail-navigation.test.tsx block-tab-model.test.ts
+
+
+ RUN  v3.2.4 /Users/cyprianbrytan/Projects/steady-v2-app/packages/app
+
+ ✓ tests/use-run-detail-navigation.test.tsx (4 tests) 52ms
+ ✓ tests/edit-session-return.test.tsx (2 tests) 74ms
+ ✓ tests/block-tab-model.test.ts (3 tests) 17ms
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > formats the race date and uses the wireframe-style phase caption copy
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > shows the session target as the main expanded-row label with the run type below
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > emits a light haptic when expanding a week, but not when collapsing it
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > shows completed rows as locked with the run status symbol and does not stage a drag for them
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > lets the user drag a rest day to move the gap within the week
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > keeps past weeks review-only even when some sessions were never logged
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > resets the staged reschedule back to the saved order
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > does not open propagation when the returned edit is materially unchanged
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > reopens the edited week when returning from the session editor without a saved edit
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ tests/sync-run-detail.test.tsx (26 tests) 3179ms
+   ✓ SyncRunDetailScreen > normalizes array route params and loads the requested run once  501ms
+   ✓ SyncRunDetailScreen > shows a fuelling migration-specific save error when the database column is missing  306ms
+   ✓ SyncRunDetailScreen > keeps brands chosen during fuelling edits pinned as quick chips  333ms
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > waits for the block tab to refocus before opening the apply-change sheet
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ tests/block-rearrange.test.tsx (30 tests) 3715ms
+   ✓ BlockTab session rearrange > formats the race date and uses the wireframe-style phase caption copy  464ms
+   ✓ BlockTab session rearrange > stages a reschedule locally and renders the returned remaining-weeks plan after apply  340ms
+
+ Test Files  5 passed (5)
+      Tests  65 passed (65)
+   Start at  13:59:28
+   Duration  10.01s (transform 2.06s, setup 1.86s, collect 3.72s, tests 7.04s, environment 12.54s, prepare 2.11s)

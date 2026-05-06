@@ -1,0 +1,393 @@
+
+> @steady/app@1.0.0 test
+> vitest run
+
+
+ RUN  v3.2.4 /Users/cyprianbrytan/Projects/steady-v2-app/packages/app
+
+stderr | tests/block.test.tsx > BlockTab > renders one continuous block view with race details, graph, phase timeline, and weeks
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/block.test.tsx > BlockTab > keeps the existing week expansion behavior below the graph
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/step-plan.test.tsx > StepPlan session editing > opens the shared full-screen editor and applies an edit to remaining weeks
+Removing a style property during rerender (borderTopColor) when a conflicting property is set (borderColor) can lead to styling bugs. To avoid this, don't mix shorthand and non-shorthand properties for the same value; instead, replace the shorthand with separate values.
+
+stderr | tests/block.test.tsx > BlockTab > keeps pace ranges in the Block row title and moves effort cues to the caption
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ tests/weekly-volume-card.test.tsx (24 tests) 3980ms
+   ✓ WeeklyVolumeCard > temporarily flips expanded chart metric while the axis or lower plot area is held  770ms
+   ✓ WeeklyVolumeCard > collapses immediately when the screen loses focus  306ms
+ ✓ tests/step-template.test.tsx (6 tests) 3748ms
+   ✓ StepTemplate starter choice > loads into the chooser-first state  440ms
+   ✓ StepTemplate starter choice > hydrates the Steady template and passes the resolved template to Step 3  375ms
+   ✓ StepTemplate starter choice > keeps the clean slate CTA disabled until a session is added  738ms
+   ✓ StepTemplate starter choice > keeps back gestures inside the inline session editor on Step 5  929ms
+   ✓ StepTemplate starter choice > asks for confirmation before replacing an edited week with a different starter mode  707ms
+   ✓ StepTemplate starter choice > warns before replacing the template when per-week preview tweaks already exist  552ms
+stderr | tests/block.test.tsx > BlockTab > renders future profile-linked sessions from the current Training pace profile
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ tests/block.test.tsx (6 tests) 3373ms
+   ✓ BlockTab > renders one continuous block view with race details, graph, phase timeline, and weeks  935ms
+   ✓ BlockTab > keeps the existing week expansion behavior below the graph  868ms
+   ✓ BlockTab > keeps pace ranges in the Block row title and moves effort cues to the caption  675ms
+   ✓ BlockTab > renders future profile-linked sessions from the current Training pace profile  554ms
+ ✓ tests/step-plan.test.tsx (8 tests) 7315ms
+   ✓ StepPlan session editing > opens on the revised Structure and Weeks review tabs  783ms
+   ✓ StepPlan session editing > opens the shared full-screen editor and applies an edit to remaining weeks  2338ms
+   ✓ StepPlan session editing > closes the editor without propagation when nothing materially changed  880ms
+   ✓ StepPlan session editing > keeps the Weeks tab collapsible and scopes Block-style drag rescheduling  903ms
+   ✓ StepPlan session editing > opens interval sessions in the notebook-row editor rather than the old inline controls  961ms
+   ✓ StepPlan session editing > applies edited phases, custom overload cadence, and saves a dated plan  920ms
+ ✓ tests/home.test.tsx (38 tests) 8532ms
+   ✓ HomeScreen > can transition from loading to a loaded weekly volume view  388ms
+   ✓ HomeScreen > shows the Strava overlay only after status resolves disconnected  573ms
+   ✓ HomeScreen > locks home scroll while the weekly volume plot is scrubbed  694ms
+   ✓ HomeScreen > renders future this-week rows from the current Training pace profile  324ms
+   ✓ HomeScreen > opens the planned-session sheet from an upcoming This week row  510ms
+   ✓ HomeScreen > opens skipped rows and can clear the skipped status from the sheet  419ms
+   ✓ HomeScreen > keeps the Review run CTA when the session is linked before activity details resolve  309ms
+   ✓ HomeScreen > renders custom Other niggle text in the banner summary  313ms
+ ✓ tests/block-week-list.test.tsx (6 tests) 1862ms
+   ✓ BlockWeekList > renders compact Block-style week rows and exposes week callbacks  473ms
+   ✓ BlockWeekList > renders expanded day rows through shared label helpers and exposes day callbacks  564ms
+ ✓ tests/block-review-surface.test.tsx (7 tests) 2116ms
+   ✓ BlockReviewSurface > renders structure content from the shared model and exposes controlled tabs  932ms
+   ✓ BlockReviewSurface > builds a smooth phase-aware chart and scrubs week volume with date context  356ms
+   ✓ BlockReviewSurface > renders phase summary edits and week review views without owning navigation  483ms
+ ✓ tests/settings.test.tsx (12 tests) 2284ms
+   ✓ SettingsTab > starts the debug onboarding replay from Settings  574ms
+   ✓ SettingsTab > replays the welcome and account screens without reauthenticating signed-in testers  309ms
+   ✓ SettingsTab > shows the TestFlight settings hierarchy without future or internal surfaces  406ms
+ ✓ tests/session-editor.test.tsx (42 tests) 12594ms
+   ✓ SessionEditor custom field editing > opens 'Distance' custom input empty instead of copying the selected value  578ms
+   ✓ SessionEditor custom field editing > opens 'Repetitions' custom input empty instead of copying the selected value  423ms
+   ✓ SessionEditor custom field editing > opens 'Rep target pace' custom input empty instead of copying the selected value  376ms
+   ✓ SessionEditor custom field editing > opens 'Recovery between reps' custom input empty instead of copying the selected value  448ms
+   ✓ SessionEditor custom field editing > opens 'Warm-up' custom input empty instead of copying the selected value  585ms
+   ✓ SessionEditor custom field editing > opens a previously selected custom target pace as an empty input for replacement  776ms
+   ✓ SessionEditor haptics > emits selection haptics only when chip values change  668ms
+   ✓ SessionEditor recovery role > saves Recovery as a first-class time-led session  325ms
+   ✓ SessionEditor plan note and structure entry > saves simple distance changes without carrying structured fields  399ms
+   ✓ SessionEditor keyboard-safe custom duration editing > saves a custom 'Warm-up' value while rendered in the keyboard-safe frame  370ms
+   ✓ SessionEditor keyboard-safe custom duration editing > saves a custom 'Cool-down' value while rendered in the keyboard-safe frame  401ms
+   ✓ SessionEditor target pace editing > shows Training paces first and Custom pace options below  456ms
+   ✓ SessionEditor target pace editing > shows profile band context and saves custom paces as manual targets  565ms
+   ✓ SessionEditor target pace editing > keeps manual single pace chips available alongside profile pace chips  569ms
+   ✓ SessionEditor target pace editing > saves manual pace ranges from faster and slower boundaries  710ms
+   ✓ SessionEditor target pace editing > saves a custom target pace for interval sessions  302ms
+   ✓ SessionEditor interval notebook rows > saves custom repetition duration and recovery without the old rep distance section  403ms
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > formats the race date and uses the wireframe-style phase caption copy
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > shows the session target as the main expanded-row label with the run type below
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > emits a light haptic when expanding a week, but not when collapsing it
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ tests/run-structure-editor.test.tsx (39 tests) 14742ms
+   ✓ RunStructureEditor > switches from simple to structured in the same edit flow  722ms
+   ✓ RunStructureEditor > opens an already structured run directly in the structure editor  348ms
+   ✓ RunStructureEditor > previews a Recovery switch as clear-on-save and restores the structured draft when switching back  853ms
+   ✓ RunStructureEditor > clears structure only on save when a structured draft is switched to Recovery  402ms
+   ✓ RunStructureEditor > converts a structured run to the simple editor only after confirmation  661ms
+   ✓ RunStructureEditor > saves marathon-pace blocks without changing the parent Long role  671ms
+   ✓ RunStructureEditor > does not duplicate the selected template when the picker is reopened  315ms
+   ✓ RunStructureEditor > keeps a chosen template selected when opening a segment without changing it  494ms
+   ✓ RunStructureEditor > marks template segment training paces as selected when a profile is available  1334ms
+   ✓ RunStructureEditor > saves a fartlek ladder as multiple one-level repeat groups with seconds precision  448ms
+   ✓ RunStructureEditor > uses the shared plan-builder drag flow to reorder top-level structure items  513ms
+   ✓ RunStructureEditor > shows a swap target while dragging past another top-level structure item  557ms
+   ✓ RunStructureEditor > uses the same drag flow inside repeat groups  664ms
+   ✓ RunStructureEditor > drops a top-level segment onto a repeat group to add it instead of swapping  590ms
+   ✓ RunStructureEditor > drops an adjacent segment onto a loose segment to create a repeat group  443ms
+   ✓ RunStructureEditor > groups a dragged segment with a non-adjacent loose segment from the centre zone  576ms
+   ✓ RunStructureEditor > drags a segment out of a repeat group to ungroup it  553ms
+   ✓ RunStructureEditor > previews an ungrouped repeat segment outside the group while dragging  366ms
+   ✓ RunStructureEditor > creates a larger live slot above a repeat group while extracting upward  382ms
+   ✓ RunStructureEditor > expands collapsed repeat groups after top-level structure shape changes  312ms
+   ✓ RunStructureEditor > does not expand a segment from the press that ends a drag gesture  352ms
+ ✓ tests/remaining-days.test.tsx (11 tests) 1446ms
+   ✓ RemainingDaysList > renders the full current week with past, today, and future days  662ms
+ ✓ tests/hero-card.test.tsx (36 tests) 1772ms
+   ✓ TodayHeroCard > shows session type label, distance, and pace for an easy run  399ms
+ ✓ tests/block-injury-history.test.tsx (2 tests) 2152ms
+   ✓ BlockTab injury history > keeps the normal block rendering when injury history is persisted  1425ms
+   ✓ BlockTab injury history > describes the underlying training phase instead of injury history when the UI is hidden  696ms
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > shows completed rows as locked with the run status symbol and does not stage a drag for them
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > lets the user drag a rest day to move the gap within the week
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ tests/step-template-rearrange.test.tsx (4 tests) 3602ms
+   ✓ StepTemplate direct week reorder > reorders the visible week directly and sends the updated template to Step 3  1908ms
+   ✓ StepTemplate direct week reorder > emits haptics when a session is picked up and moved over another slot  647ms
+   ✓ StepTemplate direct week reorder > lets the user cancel the regeneration warning when per-week edits exist  677ms
+   ✓ StepTemplate direct week reorder > lets the user drag the default rest day to a new slot  366ms
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > keeps past weeks review-only even when some sessions were never logged
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ tests/training-paces-screen.test.tsx (4 tests) 1656ms
+   ✓ TrainingPacesScreen > derives editable profile estimates from the active plan and keeps race pace locked  548ms
+   ✓ TrainingPacesScreen > saves edited ranges through the plan profile API and refreshes the active plan  388ms
+   ✓ TrainingPacesScreen > resets edited ranges to the target estimate before saving  508ms
+ ✓ tests/resolve-session-sheet.test.tsx (9 tests) 1571ms
+   ✓ ResolveSessionSheet > renders the no-match planned-session decision sheet  540ms
+   ✓ ResolveSessionSheet > renders run structure, distance, plan note, and recovery duration in planned rows  381ms
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > resets the staged reschedule back to the saved order
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > does not open propagation when the returned edit is materially unchanged
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ tests/use-run-detail-controller.test.tsx (5 tests) 1361ms
+   ✓ useRunDetailController > loads an activity and seeds the draft from existing run-detail fields  548ms
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > reopens the edited week when returning from the session editor without a saved edit
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ tests/step-target.test.tsx (3 tests) 2071ms
+   ✓ StepTarget target step > routes to base week with default phases hidden from the first goal screen  584ms
+   ✓ StepTarget target step > lets the runner adjust estimates before the base week step  977ms
+   ✓ StepTarget target step > hides pace estimate status labels for Half Marathon onboarding too  488ms
+ ✓ tests/trpc-boundary.test.ts (10 tests) 1361ms
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > waits for the block tab to refocus before opening the apply-change sheet
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ tests/block-volume-card.test.tsx (3 tests) 771ms
+   ✓ BlockVolumeCard curve model > shows phase-start x-axis labels and scrubs weekly totals  750ms
+ ✓ tests/sync-run-picker.test.tsx (4 tests) 852ms
+   ✓ SyncRunPickerScreen > shows a Back CTA when no Strava runs are available to review  477ms
+ ✓ tests/sync-run-detail.test.tsx (26 tests) 13293ms
+   ✓ SyncRunDetailScreen > normalizes array route params and loads the requested run once  714ms
+   ✓ SyncRunDetailScreen > still renders the run when shoe loading fails  396ms
+   ✓ SyncRunDetailScreen > keeps the previous run hidden while a different run is loading  1082ms
+   ✓ SyncRunDetailScreen > surfaces a stale match warning instead of silently keeping a dead selection  336ms
+   ✓ SyncRunDetailScreen > shows structured planned targets in planned-vs-actual without collapsing range or effort cues  301ms
+   ✓ SyncRunDetailScreen > shows an interval quality summary from work reps and target-aware split times  411ms
+   ✓ SyncRunDetailScreen > refreshes stale whole-run Strava laps for easy runs and compares splits against average pace  313ms
+   ✓ SyncRunDetailScreen > uses a centre-average split rail and reveals fast/slow detail on tap  322ms
+   ✓ SyncRunDetailScreen > shows the slot-corrected weekday for stale session dates in the match picker  579ms
+   ✓ SyncRunDetailScreen > does not offer future planned sessions when matching a completed run  310ms
+   ✓ SyncRunDetailScreen > saves the staged shoe and niggles from the modal pickers  1011ms
+   ✓ SyncRunDetailScreen > adds a gel by minute and includes fuelling in the run-detail save  889ms
+   ✓ SyncRunDetailScreen > shows a fuelling migration-specific save error when the database column is missing  1374ms
+   ✓ SyncRunDetailScreen > keeps brands chosen during fuelling edits pinned as quick chips  1673ms
+   ✓ SyncRunDetailScreen > requires custom text for Other niggles and saves it once provided  1283ms
+   ✓ SyncRunDetailScreen > navigates home after saving even when the follow-up plan refresh fails  426ms
+ ✓ tests/step-goal.test.tsx (2 tests) 658ms
+   ✓ StepGoal race step > keeps the race decision focused and routes to the date step  393ms
+ ✓ tests/block-rearrange.test.tsx (30 tests) 19692ms
+   ✓ BlockTab session rearrange > formats the race date and uses the wireframe-style phase caption copy  549ms
+   ✓ BlockTab session rearrange > emits a light haptic when expanding a week, but not when collapsing it  403ms
+   ✓ BlockTab session rearrange > stages a reschedule locally and renders the returned remaining-weeks plan after apply  1358ms
+   ✓ BlockTab session rearrange > applies a 'this' reschedule started from a future expanded week instead of the current week  1366ms
+   ✓ BlockTab session rearrange > applies a 'remaining' reschedule started from a future expanded week instead of the current week  821ms
+   ✓ BlockTab session rearrange > applies a 'build' reschedule started from a future expanded week instead of the current week  1586ms
+   ✓ BlockTab session rearrange > respects this-week scope from the propagation picker  867ms
+   ✓ BlockTab session rearrange > shows completed rows as locked with the run status symbol and does not stage a drag for them  462ms
+   ✓ BlockTab session rearrange > shows off-target synced rows with the non-judgemental completed icon  449ms
+   ✓ BlockTab session rearrange > lets the user drag a rest day to move the gap within the week  501ms
+   ✓ BlockTab session rearrange > opens run details from the run status symbol in a past week  431ms
+   ✓ BlockTab session rearrange > opens run details from a logged session row in the current week  318ms
+   ✓ BlockTab session rearrange > locks matched completed rows and counts their distance before actualActivityId refreshes  612ms
+   ✓ BlockTab session rearrange > resets the staged reschedule back to the saved order  472ms
+   ✓ BlockTab session rearrange > lets the user turn a planned day into a rest day from the expanded week editor  493ms
+   ✓ BlockTab session rearrange > applies a returned rest edit even when native tab params are unavailable  778ms
+   ✓ BlockTab session rearrange > reopens the edited week when returning from the session editor without a saved edit  684ms
+   ✓ BlockTab session rearrange > lets the user add a session on an empty rest slot from the expanded week editor  981ms
+   ✓ BlockTab session rearrange > expands the edited future week while choosing where to apply the change  1320ms
+   ✓ BlockTab session rearrange > waits for the block tab to refocus before opening the apply-change sheet  792ms
+   ✓ BlockTab session rearrange > applies a build-phase edit across every build week only  888ms
+   ✓ BlockTab session rearrange > applies a future peak-phase edit across every peak week only  575ms
+   ✓ BlockTab session rearrange > applies a recovery-phase edit across every recovery week only  749ms
+   ✓ BlockTab session rearrange > applies a taper-phase edit across every taper week only  834ms
+ ✓ tests/plan-live.test.tsx (3 tests) 646ms
+   ✓ PlanLiveScreen > makes Connect Strava primary and keeps the training CTA secondary after plan save  546ms
+ ✓ tests/home-recovery-screenshot-demo.test.tsx (1 test) 219ms
+ ✓ tests/quality-summary-card.test.tsx (4 tests) 457ms
+   ✓ QualitySummaryCard > renders an interval summary without a redundant session chip and keeps metric-value colours separate  364ms
+ ✓ tests/index-route.test.tsx (3 tests) 407ms
+   ✓ first-run index route > starts unauthenticated runners on the welcome screen, then signs in before plan builder  392ms
+ ✓ tests/match-picker-modal.test.tsx (3 tests) 598ms
+   ✓ MatchPickerModal > renders effort-only targets without target pace placeholders  393ms
+ ✓ tests/week.test.tsx (4 tests) 459ms
+ ✓ tests/home-recovery.test.tsx (2 tests) 453ms
+   ✓ HomeScreen recovery behavior > shows the displayed plan week range instead of the device calendar week  416ms
+ ✓ tests/use-activity-resolution.test.tsx (3 tests) 711ms
+ ✓ tests/compact-day-row.test.tsx (9 tests) 394ms
+ ✓ tests/recovery-flow-modal.test.tsx (2 tests) 243ms
+ ✓ tests/use-plan.test.tsx (4 tests) 436ms
+ ✓ tests/step-date.test.tsx (1 test) 401ms
+   ✓ StepDate race date picker > lets the user pick a race date and carries it to the target step  396ms
+ ✓ tests/plan-api.test.ts (4 tests) 1002ms
+   ✓ plan api > normalizes training pace profile input before saving  432ms
+   ✓ plan api > bypasses tRPC only for screenshot demo mode  358ms
+ ✓ tests/phase-info-strip.test.tsx (4 tests) 353ms
+ ✓ tests/coach-freeze.test.tsx (1 test) 339ms
+   ✓ CoachTab Steady AI freeze > renders a paused state instead of chat, input, or navigation CTAs  337ms
+ ✓ tests/step-base-week.test.tsx (2 tests) 846ms
+   ✓ StepBaseWeek starter selection > keeps run count selection inside the template card  685ms
+ ✓ tests/plan-refresh-coordinator.test.tsx (3 tests) 77ms
+ ✓ tests/preferences-provider.test.tsx (2 tests) 204ms
+ ✓ tests/tab-layout.test.tsx (2 tests) 93ms
+ ✓ tests/use-recovery-data.test.tsx (3 tests) 272ms
+ ✓ tests/activity-resolution.test.ts (19 tests) 26ms
+ ✓ tests/target-aware-splits.test.ts (8 tests) 34ms
+ ✓ tests/live-block-review-model.test.ts (6 tests) 24ms
+ ✓ tests/review-volume-chart-model.test.ts (3 tests) 23ms
+ ✓ tests/use-recovery-action-controller.test.tsx (6 tests) 73ms
+ ✓ tests/session-editing.test.ts (16 tests) 43ms
+ ✓ tests/phase-theme.test.ts (2 tests) 7ms
+ ✓ tests/app-config.test.ts (10 tests) 35ms
+ ✓ tests/use-run-detail-navigation.test.tsx (4 tests) 70ms
+ ✓ tests/edit-session-return.test.tsx (2 tests) 98ms
+ ✓ tests/strava-auth.test.ts (8 tests) 25ms
+ ✓ tests/template-starter.test.ts (5 tests) 37ms
+ ✓ tests/structured-session-editor-engine.test.ts (8 tests) 50ms
+ ✓ tests/units.test.ts (11 tests) 77ms
+ ✓ tests/strava-connection.test.ts (3 tests) 92ms
+ ✓ tests/parked-feature-gates.test.ts (2 tests) 19ms
+ ✓ tests/block-reschedule-controller.test.ts (3 tests) 15ms
+ ✓ tests/session-activity-candidates.test.ts (2 tests) 7ms
+ ✓ tests/fuel-events.test.ts (4 tests) 15ms
+ ✓ tests/block-tab-model.test.ts (3 tests) 23ms
+ ✓ tests/resolve-session.test.ts (3 tests) 12ms
+ ✓ tests/colour-language.test.ts (2 tests) 9ms
+ ✓ tests/sync-run-detail-helpers.test.ts (1 test) 9ms
+ ✓ tests/sync-run-detail-splits.test.ts (2 tests) 7ms
+
+ Test Files  68 passed (68)
+      Tests  530 passed (530)
+   Start at  14:00:49
+   Duration  64.53s (transform 9.69s, setup 8.38s, collect 44.93s, tests 122.25s, environment 184.82s, prepare 18.99s)

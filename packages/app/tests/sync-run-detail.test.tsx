@@ -16,7 +16,12 @@ const {
 } = vi.hoisted(() => ({
   mockRouterBack: vi.fn(),
   mockRouterReplace: vi.fn(),
-  mockUseLocalSearchParams: vi.fn<() => { activityId: string | string[] }>(() => ({ activityId: 'activity-1' })),
+  mockUseLocalSearchParams: vi.fn<() => {
+    activityId: string | string[];
+    sessionId?: string | string[];
+    returnTo?: string | string[];
+    returnWeekNumber?: string | string[];
+  }>(() => ({ activityId: 'activity-1' })),
   mockActivityGet: vi.fn(),
   mockActivityList: vi.fn(),
   mockShoeList: vi.fn(),
@@ -1228,6 +1233,47 @@ describe('SyncRunDetailScreen', () => {
     });
 
     expect(Alert.alert).toHaveBeenCalledWith('Run saved', 'We could not refresh the plan yet, but your run was saved.');
+  });
+
+  it('returns to the opened Block week after saving when run detail was opened from Block', async () => {
+    mockUseLocalSearchParams.mockReturnValue({
+      activityId: 'activity-1',
+      returnTo: 'block',
+      returnWeekNumber: '2',
+    });
+    mockActivityGet.mockResolvedValue({
+      id: 'activity-1',
+      source: 'strava',
+      startTime: '2026-04-15T07:15:00.000Z',
+      distance: 8.2,
+      duration: 2650,
+      avgPace: 323,
+      avgHR: 148,
+      splits: [],
+      matchedSessionId: null,
+    });
+
+    render(<SyncRunDetailScreen />);
+
+    await screen.findByText('Run detail');
+
+    fireEvent.click(screen.getByText('Fresh'));
+    fireEvent.click(screen.getByText('Easy'));
+    fireEvent.click(screen.getByText('Could go again'));
+    fireEvent.click(await screen.findByText('Save run'));
+
+    await waitFor(() => {
+      expect(mockSaveRunDetail).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(mockRouterReplace).toHaveBeenCalledWith({
+        pathname: '/(tabs)/block',
+        params: {
+          openWeekNumber: '2',
+          blockReturnNonce: expect.any(String),
+        },
+      });
+    });
   });
 
   it('offers recovery when the requested run is missing', async () => {

@@ -82,7 +82,8 @@ vi.mock('../lib/plan-api', () => ({
   propagatePlanChange: mockPropagatePlanChange,
 }));
 
-import BlockTab, { getRescheduleRevealScrollTarget } from '../app/(tabs)/block';
+import BlockTab from '../app/(tabs)/block';
+import { getRescheduleRevealScrollTarget } from '../features/block/block-tab-model';
 import {
   consumeSessionEditReturn,
   stashSessionEditReturn,
@@ -109,9 +110,17 @@ function returnEditResult(
   dayIndex: number,
   updated: Partial<PlannedSession> | null,
 ) {
+  const weekNumber = planState.current?.weeks[weekIndex]?.weekNumber ?? null;
+  const nonce = `${weekIndex}-${dayIndex}-${Date.now()}`;
   routeParams.current = {
     editSessionResult: JSON.stringify({ weekIndex, dayIndex, updated }),
-    editSessionNonce: `${weekIndex}-${dayIndex}-${Date.now()}`,
+    editSessionNonce: nonce,
+    ...(weekNumber == null
+      ? {}
+      : {
+          openWeekNumber: String(weekNumber),
+          blockReturnNonce: nonce,
+        }),
   };
   rerender(<BlockTab />);
 }
@@ -553,7 +562,7 @@ describe('BlockTab session rearrange', () => {
 
     fireEvent.click(screen.getByTestId('block-review-run-1-0'));
 
-    expect(mockRouterPush).toHaveBeenCalledWith('/sync-run/act-1');
+    expect(mockRouterPush).toHaveBeenCalledWith('/sync-run/act-1?returnTo=block&returnWeekNumber=1');
   });
 
   it('opens run details from a logged session row in the current week', async () => {
@@ -596,7 +605,7 @@ describe('BlockTab session rearrange', () => {
 
     fireEvent.click(screen.getByTestId('block-day-1-0'));
 
-    expect(mockRouterPush).toHaveBeenCalledWith('/sync-run/act-1');
+    expect(mockRouterPush).toHaveBeenCalledWith('/sync-run/act-1?returnTo=block&returnWeekNumber=1');
   });
 
   it('locks matched completed rows and counts their distance before actualActivityId refreshes', async () => {
@@ -692,7 +701,7 @@ describe('BlockTab session rearrange', () => {
     expect(screen.queryByText('✓')).toBeNull();
 
     fireEvent.click(screen.getByTestId('block-day-1-6'));
-    expect(mockRouterPush).toHaveBeenCalledWith('/sync-run/act-sun');
+    expect(mockRouterPush).toHaveBeenCalledWith('/sync-run/act-sun?returnTo=block&returnWeekNumber=1');
   });
 
   it('does not count or lock a future linked-only long run in the current week', async () => {
@@ -808,10 +817,15 @@ describe('BlockTab session rearrange', () => {
 
     openWeek(1);
     fireEvent.click(screen.getByTestId('block-day-1-0'));
-    expect(mockRouterPush).toHaveBeenLastCalledWith({
+    expect(mockRouterPush).toHaveBeenLastCalledWith(expect.objectContaining({
       pathname: '/edit-session',
-      params: { weekIndex: '0', dayIndex: '0' },
-    });
+      params: expect.objectContaining({
+        weekIndex: '0',
+        dayIndex: '0',
+        returnTo: 'block',
+        returnWeekNumber: '1',
+      }),
+    }));
     returnEditResult(rerender, 0, 0, null);
     fireEvent.click(screen.getByText('This session only'));
     fireEvent.click(screen.getByText('Apply change'));
@@ -897,7 +911,30 @@ describe('BlockTab session rearrange', () => {
     returnEditResult(rerender, 0, 0, { type: 'EASY', distance: 8, pace: '5:20' });
 
     expect(screen.queryByText('Where do you want this change applied?')).toBeNull();
+    expect(screen.getByTestId('block-day-1-0')).toBeTruthy();
     expect(mockPropagatePlanChange).not.toHaveBeenCalled();
+  });
+
+  it('reopens the edited week when returning from the session editor without a saved edit', () => {
+    planState.current = makePlan([
+      makeWeek(1, [session('w1-easy', 'EASY'), null, null, null, null, null, null]),
+      makeWeek(2, [session('w2-easy', 'EASY'), null, null, null, null, null, null]),
+    ]);
+    const { rerender } = renderBlockTab();
+
+    focusState.current = false;
+    rerender(<BlockTab />);
+    expect(screen.queryByTestId('block-day-2-0')).toBeNull();
+
+    focusState.current = true;
+    routeParams.current = {
+      openWeekNumber: '2',
+      blockReturnNonce: 'cancel-week-2',
+    };
+    rerender(<BlockTab />);
+
+    expect(screen.getByTestId('block-day-2-0')).toBeTruthy();
+    expect(screen.queryByText('Where do you want this change applied?')).toBeNull();
   });
 
   it('lets the user add a session on an empty rest slot from the expanded week editor', async () => {
@@ -905,10 +942,15 @@ describe('BlockTab session rearrange', () => {
 
     openWeek(1);
     fireEvent.click(screen.getByTestId('block-day-1-1'));
-    expect(mockRouterPush).toHaveBeenLastCalledWith({
+    expect(mockRouterPush).toHaveBeenLastCalledWith(expect.objectContaining({
       pathname: '/edit-session',
-      params: { weekIndex: '0', dayIndex: '1' },
-    });
+      params: expect.objectContaining({
+        weekIndex: '0',
+        dayIndex: '1',
+        returnTo: 'block',
+        returnWeekNumber: '1',
+      }),
+    }));
     returnEditResult(rerender, 0, 1, { type: 'EASY', distance: 8, pace: '5:20' });
     fireEvent.click(screen.getByText('This session only'));
     fireEvent.click(screen.getByText('Apply change'));

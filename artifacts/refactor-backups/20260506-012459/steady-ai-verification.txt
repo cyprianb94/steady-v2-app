@@ -1,0 +1,5 @@
+Steady AI hidden verification:
+- packages/app/tests/parked-feature-gates.test.ts passed in focused and full app suites.
+- packages/app/tests/coach-freeze.test.tsx passed in focused and full app suites.
+- packages/app/tests/tab-layout.test.tsx passed in focused and full app suites.
+- Static check: packages/types/src/ai-freeze.ts keeps STEADY_AI_FREEZE_ACTIVE=true; parked feature gates keep tab/settings/home/conversation/LLM gates false; Block changes only preserve invisible coachAnnotation transport compatibility.

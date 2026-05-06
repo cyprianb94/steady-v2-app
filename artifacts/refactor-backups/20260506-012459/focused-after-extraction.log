@@ -1,0 +1,185 @@
+
+> @steady/app@1.0.0 test
+> vitest run block-tab-model.test.ts block.test.tsx block-rearrange.test.tsx block-injury-history.test.tsx parked-feature-gates.test.ts coach-freeze.test.tsx tab-layout.test.tsx
+
+
+ RUN  v3.2.4 /Users/cyprianbrytan/Projects/steady-v2-app/packages/app
+
+ ✓ tests/parked-feature-gates.test.ts (2 tests) 41ms
+ ✓ tests/tab-layout.test.tsx (2 tests) 51ms
+ ✓ tests/coach-freeze.test.tsx (1 test) 82ms
+ ❯ tests/block-tab-model.test.ts (3 tests | 1 failed) 27ms
+   ✓ BlockTab model helpers > parses valid edit-session returns and rejects malformed route params 3ms
+   ✓ BlockTab model helpers > derives phase strip copy without requiring the screen to know phase math 3ms
+   × BlockTab model helpers > derives live week rows with completed locks, actual overlays, and rest-day dragging 20ms
+     → expected { …(13) } to match object { locked: true, …(3) }
+(23 matching properties omitted from actual)
+ ❯ tests/block-injury-history.test.tsx (2 tests | 2 failed) 40ms
+   × BlockTab injury history > keeps the normal block rendering when injury history is persisted 35ms
+     → getInjuryWeekRange is not defined
+   × BlockTab injury history > describes the underlying training phase instead of injury history when the UI is hidden 4ms
+     → getInjuryWeekRange is not defined
+ ❯ tests/block-rearrange.test.tsx (29 tests | 28 failed) 112ms
+   × BlockTab session rearrange > formats the race date and uses the wireframe-style phase caption copy 39ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > shows the session target as the main expanded-row label with the run type below 2ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > emits a light haptic when expanding a week, but not when collapsing it 2ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > stages a reschedule locally and renders the returned remaining-weeks plan after apply 2ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > applies a 'this' reschedule started from a future expanded week instead of the current week 4ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > applies a 'remaining' reschedule started from a future expanded week instead of the current week 4ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > applies a 'build' reschedule started from a future expanded week instead of the current week 5ms
+     → getInjuryWeekRange is not defined
+   ✓ BlockTab session rearrange > calculates a smooth reveal target when the pending reschedule CTA is hidden below the tab bar 1ms
+   × BlockTab session rearrange > respects this-week scope from the propagation picker 2ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > shows completed rows as locked with the run status symbol and does not stage a drag for them 2ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > shows off-target synced rows with the non-judgemental completed icon 3ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > lets the user drag a rest day to move the gap within the week 3ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > keeps past weeks review-only even when some sessions were never logged 2ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > opens run details from the run status symbol in a past week 1ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > opens run details from a logged session row in the current week 1ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > locks matched completed rows and counts their distance before actualActivityId refreshes 1ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > keeps an explicitly linked completed row clickable when the activity date differs from the session date 1ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > does not count or lock a future linked-only long run in the current week 5ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > resets the staged reschedule back to the saved order 1ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > lets the user turn a planned day into a rest day from the expanded week editor 2ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > applies a returned rest edit even when native tab params are unavailable 2ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > does not open propagation when the returned edit is materially unchanged 2ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > lets the user add a session on an empty rest slot from the expanded week editor 3ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > expands the edited future week while choosing where to apply the change 2ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > waits for the block tab to refocus before opening the apply-change sheet 5ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > applies a build-phase edit across every build week only 1ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > applies a future peak-phase edit across every peak week only 6ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > applies a recovery-phase edit across every recovery week only 3ms
+     → getInjuryWeekRange is not defined
+   × BlockTab session rearrange > applies a taper-phase edit across every taper week only 4ms
+     → getInjuryWeekRange is not defined
+ ❯ tests/block.test.tsx (6 tests | 4 failed) 178ms
+   ✓ BlockTab > shows the shared sign-in prompt when the runner is signed out 115ms
+   ✓ BlockTab > offers the plan builder when the runner is signed in without a plan 12ms
+   × BlockTab > renders one continuous block view with race details, graph, phase timeline, and weeks 21ms
+     → getInjuryWeekRange is not defined
+   × BlockTab > keeps the existing week expansion behavior below the graph 3ms
+     → getInjuryWeekRange is not defined
+   × BlockTab > keeps pace ranges in the Block row title and moves effort cues to the caption 19ms
+     → getInjuryWeekRange is not defined
+   × BlockTab > renders future profile-linked sessions from the current Training pace profile 4ms
+     → getInjuryWeekRange is not defined
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 35 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/block-injury-history.test.tsx > BlockTab injury history > keeps the normal block rendering when injury history is persisted
+ FAIL  tests/block-injury-history.test.tsx > BlockTab injury history > describes the underlying training phase instead of injury history when the UI is hidden
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > formats the race date and uses the wireframe-style phase caption copy
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > shows the session target as the main expanded-row label with the run type below
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > emits a light haptic when expanding a week, but not when collapsing it
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > stages a reschedule locally and renders the returned remaining-weeks plan after apply
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > applies a 'this' reschedule started from a future expanded week instead of the current week
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > applies a 'remaining' reschedule started from a future expanded week instead of the current week
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > applies a 'build' reschedule started from a future expanded week instead of the current week
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > respects this-week scope from the propagation picker
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > shows completed rows as locked with the run status symbol and does not stage a drag for them
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > shows off-target synced rows with the non-judgemental completed icon
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > lets the user drag a rest day to move the gap within the week
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > keeps past weeks review-only even when some sessions were never logged
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > opens run details from the run status symbol in a past week
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > opens run details from a logged session row in the current week
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > locks matched completed rows and counts their distance before actualActivityId refreshes
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > keeps an explicitly linked completed row clickable when the activity date differs from the session date
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > does not count or lock a future linked-only long run in the current week
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > resets the staged reschedule back to the saved order
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > lets the user turn a planned day into a rest day from the expanded week editor
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > applies a returned rest edit even when native tab params are unavailable
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > does not open propagation when the returned edit is materially unchanged
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > lets the user add a session on an empty rest slot from the expanded week editor
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > expands the edited future week while choosing where to apply the change
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > waits for the block tab to refocus before opening the apply-change sheet
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > applies a build-phase edit across every build week only
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > applies a future peak-phase edit across every peak week only
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > applies a recovery-phase edit across every recovery week only
+ FAIL  tests/block-rearrange.test.tsx > BlockTab session rearrange > applies a taper-phase edit across every taper week only
+ FAIL  tests/block.test.tsx > BlockTab > renders one continuous block view with race details, graph, phase timeline, and weeks
+ FAIL  tests/block.test.tsx > BlockTab > keeps the existing week expansion behavior below the graph
+ FAIL  tests/block.test.tsx > BlockTab > keeps pace ranges in the Block row title and moves effort cues to the caption
+ FAIL  tests/block.test.tsx > BlockTab > renders future profile-linked sessions from the current Training pace profile
+ReferenceError: getInjuryWeekRange is not defined
+ ❯ useBlockTabController features/block/use-block-tab-controller.ts:173:23
+    171|   });
+    172|   const historicalInjury = getVisibleHistoricalInjury(plan);
+    173|   const injuryRange = plan ? getInjuryWeekRange(plan.weeks, historical…
+       |                       ^
+    174|   const recoveryScope = useMemo(() => {
+    175|     if (!plan || !injuryRange) {
+ ❯ BlockTab app/(tabs)/block.tsx:45:22
+ ❯ Object.react-stack-bottom-frame ../../node_modules/react-dom/cjs/react-dom-client.development.js:23863:20
+ ❯ renderWithHooks ../../node_modules/react-dom/cjs/react-dom-client.development.js:5529:22
+ ❯ updateFunctionComponent ../../node_modules/react-dom/cjs/react-dom-client.development.js:8897:19
+ ❯ beginWork ../../node_modules/react-dom/cjs/react-dom-client.development.js:10522:18
+ ❯ runWithFiberInDEV ../../node_modules/react-dom/cjs/react-dom-client.development.js:1522:13
+ ❯ performUnitOfWork ../../node_modules/react-dom/cjs/react-dom-client.development.js:15140:22
+ ❯ workLoopSync ../../node_modules/react-dom/cjs/react-dom-client.development.js:14956:41
+ ❯ renderRootSync ../../node_modules/react-dom/cjs/react-dom-client.development.js:14936:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/35]⎯
+
+ FAIL  tests/block-tab-model.test.ts > BlockTab model helpers > derives live week rows with completed locks, actual overlays, and rest-day dragging
+AssertionError: expected { …(13) } to match object { locked: true, …(3) }
+(23 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "canDragDay": false,
++   "canDragDay": true,
+    "canReviewRun": true,
+    "locked": true,
+    "statusIcon": "completed",
+  }
+
+ ❯ tests/block-tab-model.test.ts:170:29
+    168|       },
+    169|     });
+    170|     expect(rows[0].days[0]).toMatchObject({
+       |                             ^
+    171|       locked: true,
+    172|       canReviewRun: true,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/35]⎯
+
+
+ Test Files  4 failed | 3 passed (7)
+      Tests  35 failed | 10 passed (45)
+   Start at  01:37:57
+   Duration  3.92s (transform 1.43s, setup 973ms, collect 6.11s, tests 530ms, environment 13.20s, prepare 1.12s)
+
+npm error Lifecycle script `test` failed with error:
+npm error code 1
+npm error path /Users/cyprianbrytan/Projects/steady-v2-app/packages/app
+npm error workspace @steady/app@1.0.0
+npm error location /Users/cyprianbrytan/Projects/steady-v2-app/packages/app
+npm error command failed
+npm error command sh -c vitest run block-tab-model.test.ts block.test.tsx block-rearrange.test.tsx block-injury-history.test.tsx parked-feature-gates.test.ts coach-freeze.test.tsx tab-layout.test.tsx

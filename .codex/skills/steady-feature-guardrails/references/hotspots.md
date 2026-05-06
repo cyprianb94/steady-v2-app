@@ -4,7 +4,7 @@ Use this file when a feature touches an area that historically attracted debt.
 
 ## Current hotspot files
 
-- `packages/app/app/(tabs)/block.tsx` — `1696` lines. Highest-risk controller screen. Avoid adding more orchestration here; direct-reschedule state belongs in `packages/app/features/plan-builder/use-direct-week-reschedule.ts`, and live Block mutations should submit intent through `packages/app/lib/plan-api.ts` so `packages/server/src/services/plan-workflow-service.ts` owns authoritative application.
+- `packages/app/app/(tabs)/block.tsx` — `1012` lines. Live Block presentation shell. Keep it to loading/empty states, chart/phase/week/day composition, modal rendering, and styles. Controller state/effects/actions belong in `packages/app/features/block/use-block-tab-controller.ts`; pure phase/week/day derivation and route-edit parsing belong in `packages/app/features/block/block-tab-model.ts`; direct-reschedule drag state belongs in `packages/app/features/plan-builder/use-direct-week-reschedule.ts`. Live Block mutations must keep submitting intent through `packages/app/lib/plan-api.ts` so `packages/server/src/services/plan-workflow-service.ts` owns authoritative application.
 - `packages/app/components/block-review/BlockReviewSurface.tsx` — `1714` lines. Large review presentation surface. Keep chart geometry in `packages/app/features/block-review/review-volume-chart-model.ts`; keep this component focused on responder state and rendering.
 - `packages/app/components/block/BlockWeekList.tsx` — `722` lines. Shared review-week list and drag presentation. Keep day-order draft logic in `use-direct-week-reschedule.ts`; do not fork week-row behavior into onboarding and live Block copies.
 - `packages/app/components/plan-builder/RunStructureEditor.tsx` — `1772` lines. Large presentation surface for structured session editing. Structured template/materialization/volume-sync rules now belong in `packages/app/features/plan-builder/structured-session-editor-engine.ts`; keep this component focused on rendering, transient form state, and dispatching engine actions.
@@ -93,6 +93,8 @@ Keep annotation behavior server-owned outside screenshot demo mode. For Home ski
 
 Start by looking in:
 
+- `packages/app/features/block/use-block-tab-controller.ts` for live Block auth/plan/sync orchestration, focus effects, session-edit returns, reschedule modal lifecycle, server intent calls, draft preservation, refresh coordination, and scroll-reveal state
+- `packages/app/features/block/block-tab-model.ts` for live Block route param parsing, phase strip/caption derivation, week/day row models, completed-session locks, activity overlays, edit/drag/review permissions, and display-volume labels
 - `packages/types/src/lib/block-review.ts` for shared review model derivation, plannedKm/source-of-truth semantics, phase grouping, and volume stats
 - `packages/app/features/block-review/live-block-review-model.ts` for adapting a persisted live plan to the shared model
 - `packages/app/features/block-review/review-volume-chart-model.ts` for chart geometry, ticks, paths, markers, scrub selection, and gradient stops
@@ -101,7 +103,7 @@ Start by looking in:
 - `packages/app/features/plan-builder/use-direct-week-reschedule.ts` for drag draft state
 - `packages/app/components/block-review/*` and `packages/app/components/block/*` for rendering
 
-Do not add chart math, plannedKm derivation, or reschedule propagation directly to `block.tsx` or `BlockReviewSurface.tsx`.
+Do not add chart math, plannedKm derivation, phase caption math, route edit-return parsing, week/day row derivation, completed-lock permission rules, activity overlay calculations, reschedule apply orchestration, or server mutation wiring directly to `block.tsx` or `BlockReviewSurface.tsx`.
 
 ### Activity and sync work
 

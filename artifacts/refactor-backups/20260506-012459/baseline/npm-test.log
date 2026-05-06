@@ -1,0 +1,407 @@
+
+> test
+> npm run test:boundaries && npm run build:types && npm run test --workspaces --if-present
+
+
+> test:boundaries
+> node ./scripts/check-package-boundaries.mjs
+
+Package boundary check passed.
+
+> build:types
+> npm run build -w packages/types
+
+
+> @steady/types@0.0.1 build
+> tsc
+
+
+> @steady/types@0.0.1 test
+> vitest run
+
+
+ RUN  v3.2.4 /Users/cyprianbrytan/Projects/steady-v2-app/packages/types
+
+ ✓ tests/weekly-volume.test.ts (11 tests) 8ms
+ ✓ tests/structured-quality-summary.test.ts (11 tests) 7ms
+ ✓ tests/training-pace-profile-propagation.test.ts (5 tests) 9ms
+ ✓ tests/propagate-change.test.ts (5 tests) 9ms
+ ✓ tests/training-pace-profile.test.ts (6 tests) 11ms
+ ✓ tests/structured-sessions.test.ts (13 tests) 11ms
+ ✓ tests/intensity-targets.test.ts (8 tests) 12ms
+ ✓ tests/session-km.test.ts (5 tests) 4ms
+ ✓ tests/shoe.test.ts (3 tests) 2ms
+ ✓ tests/plan-vs-actual.test.ts (18 tests) 6ms
+ ✓ tests/block-review.test.ts (6 tests) 7ms
+ ✓ tests/intensity-plan-flow.test.ts (5 tests) 7ms
+
+ Test Files  12 passed (12)
+      Tests  96 passed (96)
+   Start at  01:25:55
+   Duration  1.16s (transform 486ms, setup 0ms, collect 1.71s, tests 90ms, environment 2ms, prepare 1.23s)
+
+
+> @steady/server@0.0.1 test
+> vitest run
+
+
+ RUN  v3.2.4 /Users/cyprianbrytan/Projects/steady-v2-app/packages/server
+
+ ✓ tests/rls-security-migration.test.ts (1 test) 7913ms
+   ✓ enable_rls_on_public_tables migration > enables RLS across public tables and leaves integration tokens without client policies  7912ms
+ ✓ tests/weekly-volume-metric-migration.test.ts (1 test) 7929ms
+   ✓ weekly volume metric migration > adds a non-null profile preference with default and check constraint  7925ms
+ ✓ tests/activity-subjective-migration.test.ts (1 test) 7934ms
+   ✓ backfill_activity_subjective_input migration > copies planned-session subjective input onto matched activities only  7933ms
+ ✓ tests/shoe-migration.test.ts (1 test) 7963ms
+   ✓ create_shoes migration > creates shoes and adds the activity shoe foreign key with the expected constraints  7962ms
+ ✓ tests/niggle-migration.test.ts (1 test) 7977ms
+   ✓ create_niggles migration > creates niggles with enum validation, indexes, and cascade delete from activities  7975ms
+ ✓ tests/security-advisor-followups-migration.test.ts (1 test) 8120ms
+   ✓ security_advisor_followups migration > pins the RPC search_path and adds an explicit deny policy for integration tokens  8119ms
+ ✓ tests/niggle-other-body-part-migration.test.ts (1 test) 8138ms
+   ✓ add_niggle_other_body_part_text migration > backfills legacy other niggles and persists custom text through the RPC  8136ms
+ ✓ tests/strava-router.test.ts (9 tests) 419ms
+ ✓ tests/activity-router.test.ts (14 tests) 586ms
+ ✓ tests/plan-router.test.ts (9 tests) 584ms
+ ✓ tests/subjective-input-router.test.ts (6 tests) 52ms
+ ✓ tests/strava-sync.test.ts (8 tests) 116ms
+ ✓ tests/strava-oauth-redirect.test.ts (4 tests) 107ms
+ ✓ tests/activity-notes-migration.test.ts (1 test) 3943ms
+   ✓ add_activity_notes migration > adds a nullable notes column to activities  3940ms
+ ✓ tests/activity-fuel-events-migration.test.ts (1 test) 3964ms
+   ✓ add_activity_fuel_events migration > adds a non-null JSONB fuel_events column with an empty-array default  3963ms
+ ✓ tests/niggle-when-migration.test.ts (1 test) 4097ms
+   ✓ make_niggle_when_multi_select migration > backfills scalar timing and persists multiple timing values through the RPC  4095ms
+ ✓ tests/training-pace-profile-migration.test.ts (1 test) 4051ms
+   ✓ add_training_pace_profile migration > adds a nullable JSONB object column to training plans  4050ms
+ ✓ tests/cross-training-repo.test.ts (4 tests) 23ms
+ ✓ tests/plan-workflow-service.test.ts (11 tests) 56ms
+ ✓ tests/cross-training-router.test.ts (4 tests) 53ms
+ ✓ tests/strava-workflow-service.test.ts (1 test) 36ms
+ ✓ tests/activity-workflow-service.test.ts (2 tests) 8ms
+ ✓ tests/context-builder.test.ts (22 tests) 18ms
+ ✓ tests/profile-repo.test.ts (6 tests) 3ms
+ ✓ tests/strava-client.test.ts (7 tests) 17ms
+ ✓ tests/plan-repo.test.ts (18 tests) 21ms
+ ✓ tests/plan-generator.test.ts (25 tests) 27ms
+ ✓ tests/activity-repo.test.ts (10 tests) 5ms
+ ✓ tests/propagate-change.test.ts (17 tests) 15ms
+ ✓ tests/activity-matcher.test.ts (15 tests) 10ms
+ ✓ tests/profile-router.test.ts (5 tests) 32ms
+ ✓ tests/conversation-repo.test.ts (6 tests) 10ms
+ ✓ tests/rtr-progression.test.ts (3 tests) 6ms
+ ✓ tests/propagate-swap.test.ts (8 tests) 8ms
+ ✓ tests/auth-context.test.ts (3 tests) 7ms
+ ✓ tests/session-km.test.ts (15 tests) 5ms
+ ✓ tests/normalize-session-ids.test.ts (5 tests) 4ms
+ ✓ tests/coach-orchestrator.test.ts (9 tests) 8ms
+ ✓ tests/strava-token-service.test.ts (5 tests) 9ms
+ ✓ tests/supabase-admin.test.ts (2 tests) 2ms
+ ✓ tests/integration-token-repo.test.ts (6 tests) 4ms
+ ✓ tests/strava-activity-splits.test.ts (4 tests) 5ms
+ ✓ tests/annotation-engine.test.ts (6 tests) 3ms
+ ✓ tests/niggle-repo.test.ts (3 tests) 6ms
+ ✓ tests/block-week-detail.test.ts (3 tests) 4ms
+ ✓ tests/shoe-router.test.ts (1 test) 9ms
+ ✓ tests/coach-router.test.ts (1 test) 6ms
+stderr | tests/llm-client.test.ts > llm-client > createLLMClient factory > returns echo client when no API key is set
+[LLM] No API key found. Using echo client for dev mode.
+
+ ✓ tests/llm-client.test.ts (4 tests) 6ms
+ ✓ tests/block-week-volume-summary.test.ts (3 tests) 3ms
+ ✓ tests/shoe-repo.test.ts (6 tests) 7ms
+ ✓ tests/plan-current-week.test.ts (5 tests) 4ms
+ ✓ tests/activity-match-assignment.test.ts (1 test) 4ms
+ ✓ tests/encryption.test.ts (2 tests) 6ms
+ ✓ tests/pace-utils.test.ts (13 tests) 6ms
+ ✓ tests/session-rearrange.test.ts (8 tests) 4ms
+ ✓ tests/block-injury-phase.test.ts (3 tests) 5ms
+ ✓ tests/niggle-types.test.ts (2 tests) 4ms
+ ✓ tests/block-volume-bar.test.ts (2 tests) 5ms
+ ✓ tests/smoke.test.ts (2 tests) 2ms
+
+ Test Files  59 passed (59)
+      Tests  339 passed (339)
+   Start at  01:25:56
+   Duration  17.09s (transform 1.93s, setup 0ms, collect 9.46s, tests 74.37s, environment 14ms, prepare 6.87s)
+
+
+> @steady/app@1.0.0 test
+> vitest run
+
+
+ RUN  v3.2.4 /Users/cyprianbrytan/Projects/steady-v2-app/packages/app
+
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > formats the race date and uses the wireframe-style phase caption copy
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > shows the session target as the main expanded-row label with the run type below
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/step-plan.test.tsx > StepPlan session editing > opens the shared full-screen editor and applies an edit to remaining weeks
+Removing a style property during rerender (borderTopColor) when a conflicting property is set (borderColor) can lead to styling bugs. To avoid this, don't mix shorthand and non-shorthand properties for the same value; instead, replace the shorthand with separate values.
+
+ ✓ tests/weekly-volume-card.test.tsx (24 tests) 1277ms
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > emits a light haptic when expanding a week, but not when collapsing it
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ tests/step-plan.test.tsx (8 tests) 3858ms
+   ✓ StepPlan session editing > opens the shared full-screen editor and applies an edit to remaining weeks  816ms
+   ✓ StepPlan session editing > closes the editor without propagation when nothing materially changed  389ms
+   ✓ StepPlan session editing > keeps the Weeks tab collapsible and scopes Block-style drag rescheduling  872ms
+   ✓ StepPlan session editing > opens interval sessions in the notebook-row editor rather than the old inline controls  328ms
+   ✓ StepPlan session editing > applies edited phases, custom overload cadence, and saves a dated plan  656ms
+   ✓ StepPlan session editing > persists the onboarding training pace profile with the saved plan  414ms
+ ✓ tests/home.test.tsx (38 tests) 4810ms
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > shows completed rows as locked with the run status symbol and does not stage a drag for them
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > lets the user drag a rest day to move the gap within the week
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > keeps past weeks review-only even when some sessions were never logged
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ tests/sync-run-detail.test.tsx (25 tests) 6580ms
+   ✓ SyncRunDetailScreen > uses a centre-average split rail and reveals fast/slow detail on tap  300ms
+   ✓ SyncRunDetailScreen > does not offer future planned sessions when matching a completed run  300ms
+   ✓ SyncRunDetailScreen > saves the staged shoe and niggles from the modal pickers  988ms
+   ✓ SyncRunDetailScreen > adds a gel by minute and includes fuelling in the run-detail save  448ms
+   ✓ SyncRunDetailScreen > shows a fuelling migration-specific save error when the database column is missing  488ms
+   ✓ SyncRunDetailScreen > keeps brands chosen during fuelling edits pinned as quick chips  756ms
+   ✓ SyncRunDetailScreen > requires custom text for Other niggles and saves it once provided  575ms
+ ✓ tests/step-template.test.tsx (6 tests) 1764ms
+   ✓ StepTemplate starter choice > loads into the chooser-first state  541ms
+   ✓ StepTemplate starter choice > keeps the clean slate CTA disabled until a session is added  317ms
+   ✓ StepTemplate starter choice > asks for confirmation before replacing an edited week with a different starter mode  339ms
+ ✓ tests/session-editor.test.tsx (42 tests) 7139ms
+   ✓ SessionEditor haptics > emits selection haptics only when chip values change  320ms
+   ✓ SessionEditor keyboard-safe custom duration editing > saves a custom 'Warm-up' value while rendered in the keyboard-safe frame  376ms
+   ✓ SessionEditor keyboard-safe custom duration editing > saves a custom 'Cool-down' value while rendered in the keyboard-safe frame  323ms
+   ✓ SessionEditor target pace editing > saves manual pace ranges from faster and slower boundaries  483ms
+stderr | tests/block.test.tsx > BlockTab > renders one continuous block view with race details, graph, phase timeline, and weeks
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > resets the staged reschedule back to the saved order
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/block.test.tsx > BlockTab > keeps the existing week expansion behavior below the graph
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/block.test.tsx > BlockTab > keeps pace ranges in the Block row title and moves effort cues to the caption
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/block.test.tsx > BlockTab > renders future profile-linked sessions from the current Training pace profile
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ tests/block.test.tsx (6 tests) 1009ms
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > does not open propagation when the returned edit is materially unchanged
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ tests/run-structure-editor.test.tsx (39 tests) 8327ms
+   ✓ RunStructureEditor > previews a Recovery switch as clear-on-save and restores the structured draft when switching back  366ms
+   ✓ RunStructureEditor > keeps a chosen template selected when opening a segment without changing it  508ms
+   ✓ RunStructureEditor > marks template segment training paces as selected when a profile is available  708ms
+   ✓ RunStructureEditor > saves a fartlek ladder as multiple one-level repeat groups with seconds precision  523ms
+   ✓ RunStructureEditor > uses the shared plan-builder drag flow to reorder top-level structure items  347ms
+   ✓ RunStructureEditor > drops a top-level segment onto a repeat group to add it instead of swapping  360ms
+   ✓ RunStructureEditor > drops an adjacent segment onto a loose segment to create a repeat group  319ms
+   ✓ RunStructureEditor > drags a segment out of a repeat group to ungroup it  334ms
+ ✓ tests/use-run-detail-controller.test.tsx (5 tests) 738ms
+stderr | tests/block-rearrange.test.tsx > BlockTab session rearrange > waits for the block tab to refocus before opening the apply-change sheet
+An update to BlockTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ tests/trpc-boundary.test.ts (10 tests) 565ms
+ ✓ tests/block-review-surface.test.tsx (7 tests) 718ms
+ ✓ tests/step-template-rearrange.test.tsx (4 tests) 835ms
+   ✓ StepTemplate direct week reorder > reorders the visible week directly and sends the updated template to Step 3  358ms
+ ✓ tests/block-rearrange.test.tsx (29 tests) 9704ms
+   ✓ BlockTab session rearrange > shows the session target as the main expanded-row label with the run type below  365ms
+   ✓ BlockTab session rearrange > emits a light haptic when expanding a week, but not when collapsing it  333ms
+   ✓ BlockTab session rearrange > stages a reschedule locally and renders the returned remaining-weeks plan after apply  1089ms
+   ✓ BlockTab session rearrange > applies a 'this' reschedule started from a future expanded week instead of the current week  989ms
+   ✓ BlockTab session rearrange > applies a 'remaining' reschedule started from a future expanded week instead of the current week  893ms
+   ✓ BlockTab session rearrange > applies a 'build' reschedule started from a future expanded week instead of the current week  607ms
+   ✓ BlockTab session rearrange > respects this-week scope from the propagation picker  494ms
+   ✓ BlockTab session rearrange > shows off-target synced rows with the non-judgemental completed icon  320ms
+   ✓ BlockTab session rearrange > expands the edited future week while choosing where to apply the change  316ms
+   ✓ BlockTab session rearrange > waits for the block tab to refocus before opening the apply-change sheet  317ms
+   ✓ BlockTab session rearrange > applies a taper-phase edit across every taper week only  346ms
+ ✓ tests/resolve-session-sheet.test.tsx (9 tests) 564ms
+ ✓ tests/settings.test.tsx (12 tests) 876ms
+ ✓ tests/training-paces-screen.test.tsx (4 tests) 574ms
+ ✓ tests/plan-api.test.ts (4 tests) 171ms
+ ✓ tests/step-target.test.tsx (3 tests) 472ms
+ ✓ tests/block-week-list.test.tsx (6 tests) 645ms
+ ✓ tests/hero-card.test.tsx (36 tests) 528ms
+ ✓ tests/block-injury-history.test.tsx (2 tests) 470ms
+   ✓ BlockTab injury history > keeps the normal block rendering when injury history is persisted  331ms
+ ✓ tests/use-plan.test.tsx (4 tests) 368ms
+ ✓ tests/remaining-days.test.tsx (11 tests) 579ms
+ ✓ tests/step-goal.test.tsx (2 tests) 205ms
+ ✓ tests/use-activity-resolution.test.tsx (3 tests) 312ms
+ ✓ tests/step-base-week.test.tsx (2 tests) 272ms
+ ✓ tests/index-route.test.tsx (3 tests) 250ms
+ ✓ tests/compact-day-row.test.tsx (9 tests) 275ms
+ ✓ tests/block-volume-card.test.tsx (3 tests) 358ms
+   ✓ BlockVolumeCard curve model > shows phase-start x-axis labels and scrubs weekly totals  350ms
+ ✓ tests/sync-run-picker.test.tsx (4 tests) 370ms
+ ✓ tests/coach-freeze.test.tsx (1 test) 133ms
+ ✓ tests/match-picker-modal.test.tsx (3 tests) 292ms
+ ✓ tests/step-date.test.tsx (1 test) 270ms
+ ✓ tests/preferences-provider.test.tsx (2 tests) 156ms
+ ✓ tests/plan-live.test.tsx (3 tests) 301ms
+ ✓ tests/week.test.tsx (4 tests) 211ms
+ ✓ tests/home-recovery.test.tsx (2 tests) 128ms
+ ✓ tests/live-block-review-model.test.ts (6 tests) 22ms
+ ✓ tests/home-recovery-screenshot-demo.test.tsx (1 test) 182ms
+ ✓ tests/quality-summary-card.test.tsx (4 tests) 184ms
+ ✓ tests/use-recovery-data.test.tsx (3 tests) 110ms
+ ✓ tests/recovery-flow-modal.test.tsx (2 tests) 207ms
+ ✓ tests/phase-info-strip.test.tsx (4 tests) 159ms
+ ✓ tests/tab-layout.test.tsx (2 tests) 109ms
+ ✓ tests/use-run-detail-navigation.test.tsx (3 tests) 58ms
+ ✓ tests/template-starter.test.ts (5 tests) 50ms
+ ✓ tests/plan-refresh-coordinator.test.tsx (3 tests) 60ms
+ ✓ tests/use-recovery-action-controller.test.tsx (6 tests) 41ms
+ ✓ tests/strava-auth.test.ts (8 tests) 20ms
+ ✓ tests/activity-resolution.test.ts (19 tests) 82ms
+ ✓ tests/target-aware-splits.test.ts (8 tests) 33ms
+ ✓ tests/app-config.test.ts (10 tests) 17ms
+ ✓ tests/structured-session-editor-engine.test.ts (8 tests) 17ms
+ ✓ tests/strava-connection.test.ts (3 tests) 17ms
+ ✓ tests/session-editing.test.ts (16 tests) 17ms
+ ✓ tests/block-reschedule-controller.test.ts (3 tests) 12ms
+ ✓ tests/units.test.ts (11 tests) 24ms
+ ✓ tests/review-volume-chart-model.test.ts (3 tests) 14ms
+ ✓ tests/parked-feature-gates.test.ts (2 tests) 15ms
+ ✓ tests/resolve-session.test.ts (3 tests) 6ms
+ ✓ tests/session-activity-candidates.test.ts (2 tests) 7ms
+ ✓ tests/fuel-events.test.ts (4 tests) 13ms
+ ✓ tests/phase-theme.test.ts (2 tests) 7ms
+ ✓ tests/colour-language.test.ts (2 tests) 7ms
+ ✓ tests/sync-run-detail-splits.test.ts (2 tests) 4ms
+ ✓ tests/sync-run-detail-helpers.test.ts (1 test) 3ms
+
+ Test Files  66 passed (66)
+      Tests  522 passed (522)
+   Start at  01:26:14
+   Duration  30.35s (transform 4.00s, setup 3.80s, collect 19.54s, tests 57.60s, environment 86.00s, prepare 8.51s)

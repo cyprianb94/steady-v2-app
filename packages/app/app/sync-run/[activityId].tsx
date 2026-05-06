@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,6 +30,11 @@ import { ShoePickerModal } from '../../components/sync-run/ShoePickerModal';
 import { FuellingCard } from '../../components/sync-run/FuellingCard';
 import { QualitySummaryCard } from '../../components/run/QualitySummaryCard';
 import { qualitySummaryCardProps } from '../../features/run/quality-summary-display';
+import {
+  buildBlockOpenRoute,
+  isBlockReturnTarget,
+  parseBlockWeekNumber,
+} from '../../features/block/block-return-navigation';
 import {
   buildAveragePaceComparison,
   buildTargetAwareSplitsModel,
@@ -182,9 +187,16 @@ function FeelRow<T extends string>({
 }
 
 export default function SyncRunDetailScreen() {
-  const { activityId: rawActivityId, sessionId: rawSessionId } = useLocalSearchParams<{
+  const {
+    activityId: rawActivityId,
+    sessionId: rawSessionId,
+    returnTo: rawReturnTo,
+    returnWeekNumber: rawReturnWeekNumber,
+  } = useLocalSearchParams<{
     activityId?: string | string[];
     sessionId?: string | string[];
+    returnTo?: string | string[];
+    returnWeekNumber?: string | string[];
   }>();
   const activityId = useMemo(
     () => firstRouteParamValue(rawActivityId),
@@ -194,6 +206,8 @@ export default function SyncRunDetailScreen() {
     () => firstRouteParamValue(rawSessionId),
     [rawSessionId],
   );
+  const shouldReturnToBlock = isBlockReturnTarget(rawReturnTo);
+  const blockReturnWeekNumber = parseBlockWeekNumber(rawReturnWeekNumber);
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
   const { units } = usePreferences();
@@ -202,6 +216,22 @@ export default function SyncRunDetailScreen() {
   const [showShoePicker, setShowShoePicker] = useState(false);
   const [showNigglePicker, setShowNigglePicker] = useState(false);
   const [selectedAverageSplitId, setSelectedAverageSplitId] = useState<string | null>(null);
+  const returnFromRunDetail = useCallback(() => {
+    if (shouldReturnToBlock) {
+      router.replace(buildBlockOpenRoute(blockReturnWeekNumber));
+      return;
+    }
+
+    router.replace('/(tabs)/home');
+  }, [blockReturnWeekNumber, shouldReturnToBlock]);
+  const closeRunDetail = useCallback(() => {
+    if (shouldReturnToBlock) {
+      router.replace(buildBlockOpenRoute(blockReturnWeekNumber));
+      return;
+    }
+
+    router.back();
+  }, [blockReturnWeekNumber, shouldReturnToBlock]);
   const {
     activity,
     shoes,
@@ -247,7 +277,7 @@ export default function SyncRunDetailScreen() {
     requestedSessionId,
     currentWeek,
     refreshPlan,
-    onSaved: () => router.replace('/(tabs)/home'),
+    onSaved: returnFromRunDetail,
     showAlert: (title, body) => Alert.alert(title, body),
   });
   const qualitySummary = activity && selectedSession
@@ -332,7 +362,7 @@ export default function SyncRunDetailScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.navBar, { paddingTop: insets.top + 8 }]}>
-        <Pressable style={styles.navSide} onPress={() => router.back()}>
+        <Pressable style={styles.navSide} onPress={closeRunDetail}>
           <Text style={styles.navAction}>Close</Text>
         </Pressable>
         <Text style={styles.navTitle}>Run detail</Text>

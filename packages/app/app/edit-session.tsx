@@ -7,15 +7,13 @@ import { C } from '../constants/colours';
 import { FONTS } from '../constants/typography';
 import type { SessionEditorResult } from '../features/plan-builder/session-editing';
 import { stashSessionEditReturn } from '../features/plan-builder/session-edit-return';
+import {
+  blockOpenParams,
+  firstRouteParamValue,
+  isBlockReturnTarget,
+  parseBlockWeekNumber,
+} from '../features/block/block-return-navigation';
 import { usePlan } from '../hooks/usePlan';
-
-function firstRouteParamValue(value: string | string[] | undefined): string | null {
-  if (Array.isArray(value)) {
-    return value[0] ?? null;
-  }
-
-  return typeof value === 'string' && value.length > 0 ? value : null;
-}
 
 function parseIndex(value: string | string[] | undefined): number | null {
   const raw = firstRouteParamValue(value);
@@ -33,14 +31,26 @@ export default function EditSessionScreen() {
   const params = useLocalSearchParams<{
     weekIndex?: string | string[];
     dayIndex?: string | string[];
+    returnTo?: string | string[];
+    returnWeekNumber?: string | string[];
   }>();
   const weekIndex = useMemo(() => parseIndex(params.weekIndex), [params.weekIndex]);
   const dayIndex = useMemo(() => parseIndex(params.dayIndex), [params.dayIndex]);
+  const shouldReturnToBlock = isBlockReturnTarget(params.returnTo);
+  const returnWeekNumber = parseBlockWeekNumber(params.returnWeekNumber);
   const week = weekIndex != null ? plan?.weeks[weekIndex] : null;
   const existing = dayIndex != null ? week?.sessions[dayIndex] ?? null : null;
   const canEdit = Boolean(plan && week && dayIndex != null && dayIndex >= 0 && dayIndex <= 6);
 
   function close() {
+    if (shouldReturnToBlock) {
+      router.replace({
+        pathname: '/(tabs)/block',
+        params: blockOpenParams(returnWeekNumber ?? week?.weekNumber ?? null),
+      });
+      return;
+    }
+
     router.back();
   }
 
@@ -65,6 +75,7 @@ export default function EditSessionScreen() {
           updated,
         }),
         editSessionNonce: returnPayload.nonce,
+        ...blockOpenParams(returnWeekNumber ?? week?.weekNumber ?? null, returnPayload.nonce),
       },
     });
   }

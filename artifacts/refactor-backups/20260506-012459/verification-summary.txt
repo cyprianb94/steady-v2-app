@@ -1,0 +1,5 @@
+baseline npm test: 0
+baseline typecheck: 0
+focused after extraction: 0
+typecheck after extraction: 0
+final npm test: 0

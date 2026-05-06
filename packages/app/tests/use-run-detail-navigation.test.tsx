@@ -84,6 +84,23 @@ describe('useRunDetailNavigation', () => {
     expect(mockRouterPush).toHaveBeenCalledWith('/sync-run/activity-1');
   });
 
+  it('carries a Block return marker when opening run detail from Block', async () => {
+    const { useRunDetailNavigation } = await import('../features/run/use-run-detail-navigation');
+    const { result } = renderHook(() => useRunDetailNavigation({
+      activityForSession: () => activity,
+      activityIdForSession: () => activity.id,
+      returnTo: 'block',
+      returnWeekNumber: 3,
+    }));
+
+    await act(async () => {
+      await result.current.openRunDetail(session);
+    });
+
+    expect(mockRouterPush).toHaveBeenCalledWith('/sync-run/activity-1?returnTo=block&returnWeekNumber=3');
+    expect(mockActivityGet).not.toHaveBeenCalled();
+  });
+
   it('alerts instead of routing when the linked activity no longer exists', async () => {
     mockActivityGet.mockResolvedValue(null);
     const { useRunDetailNavigation } = await import('../features/run/use-run-detail-navigation');

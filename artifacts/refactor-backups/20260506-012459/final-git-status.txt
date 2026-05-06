@@ -1,0 +1,11 @@
+## codex/blocktab-deepening
+ M .codex/skills/steady-feature-guardrails/references/hotspots.md
+ M packages/app/app/(tabs)/block.tsx
+ M packages/app/features/block-review/README.md
+ M packages/app/tests/block-rearrange.test.tsx
+?? artifacts/refactor-backups/20260505-200752/
+?? artifacts/refactor-backups/20260505-230911/
+?? artifacts/refactor-backups/20260505-232739/
+?? artifacts/refactor-backups/20260506-012459/
+?? packages/app/features/block/
+?? packages/app/tests/block-tab-model.test.ts
