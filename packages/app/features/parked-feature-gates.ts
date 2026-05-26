@@ -4,7 +4,7 @@ import { isScreenshotDemoMode } from '../demo/screenshot-demo';
 export const PARKED_FEATURE_GATES = {
   recoveryUi: {
     normalApp: false,
-    screenshotDemo: true,
+    screenshotDemo: false,
   },
   steadyAi: {
     tabEntry: false,

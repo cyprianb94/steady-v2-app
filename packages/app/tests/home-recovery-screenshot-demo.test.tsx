@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
@@ -175,7 +175,7 @@ describe('HomeScreen screenshot demo recovery behavior', () => {
     mockPlan.currentWeekIndex = 0;
   });
 
-  it('keeps parked recovery UI available in explicit screenshot demo mode', async () => {
+  it('keeps parked recovery UI hidden in explicit screenshot demo mode', async () => {
     const week = {
       weekNumber: 4,
       phase: 'BUILD' as const,
@@ -221,17 +221,16 @@ describe('HomeScreen screenshot demo recovery behavior', () => {
 
     render(<HomeScreen />);
 
-    expect(screen.getByText('Recovery Mode')).toBeTruthy();
-    expect(screen.getByText('Calf strain')).toBeTruthy();
-    expect(screen.getByText('Cross-Training This Week')).toBeTruthy();
-    expect(screen.getByText('Return To Running')).toBeTruthy();
-    expect(screen.getByText('End recovery')).toBeTruthy();
-    expect(screen.queryByText('WEEKLY VOLUME')).toBeNull();
+    expect(screen.getByText('Week 4 · Build Phase')).toBeTruthy();
+    expect(screen.getByText('WEEKLY VOLUME')).toBeTruthy();
+    expect(screen.queryByText('Recovery Mode')).toBeNull();
+    expect(screen.queryByText('Calf strain')).toBeNull();
+    expect(screen.queryByText('Cross-Training This Week')).toBeNull();
+    expect(screen.queryByText('Return To Running')).toBeNull();
+    expect(screen.queryByText('End recovery')).toBeNull();
     expect(screen.queryByText(/Screenshot-only fixture data/i)).toBeNull();
 
-    await waitFor(() => {
-      expect(mockGetScreenshotDemoCrossTrainingEntries).toHaveBeenCalled();
-    });
+    expect(mockGetScreenshotDemoCrossTrainingEntries).not.toHaveBeenCalled();
     expect(mockCrossTrainingGetForWeek).not.toHaveBeenCalled();
   });
 });

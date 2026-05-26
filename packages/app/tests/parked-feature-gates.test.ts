@@ -34,7 +34,7 @@ describe('parked feature gates', () => {
     expect(shouldShowHumanCoachSettingsEntry()).toBe(false);
   });
 
-  it('keeps recovery hidden in normal mode and available only for screenshot demo mode', async () => {
+  it('keeps recovery hidden in normal mode and screenshot demo mode', async () => {
     vi.doMock('@steady/types', () => ({
       STEADY_AI_FREEZE_ACTIVE: true,
     }));
@@ -44,6 +44,6 @@ describe('parked feature gates', () => {
 
     mockIsScreenshotDemoMode.mockReturnValue(true);
 
-    expect(isRecoveryUiEnabled()).toBe(true);
+    expect(isRecoveryUiEnabled()).toBe(false);
   });
 });

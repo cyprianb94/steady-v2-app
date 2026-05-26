@@ -46,10 +46,12 @@ export function useRecoveryData({
     recoveryInjury && recoveryInjury.status !== 'resolved' ? recoveryInjury : null;
 
   if (isScreenshotDemoMode()) {
+    const shouldShowDemoRecoveryData = Boolean(enabled && isFocused && visibleActiveInjury && scope);
+
     return {
-      activeInjury: visibleActiveInjury,
-      isRecoveryActive: Boolean(visibleActiveInjury),
-      entries: getScreenshotDemoCrossTrainingEntries(),
+      activeInjury: shouldShowDemoRecoveryData ? visibleActiveInjury : null,
+      isRecoveryActive: shouldShowDemoRecoveryData,
+      entries: shouldShowDemoRecoveryData ? getScreenshotDemoCrossTrainingEntries() : [],
       isLoadingEntries: false,
       refreshEntries: async () => {},
     };
