@@ -89,6 +89,19 @@ function isReleaseEasBuildProfile(profile: string | undefined): boolean {
   return profile === 'preview' || profile === 'production';
 }
 
+function requireReleaseEnvValue(name: string, value: string | undefined, buildProfile: string | undefined): string | null {
+  const normalizedValue = value?.trim() || null;
+  if (!isReleaseEasBuildProfile(buildProfile)) {
+    return normalizedValue;
+  }
+
+  if (!normalizedValue) {
+    throw new Error(`${name} is required for EAS ${buildProfile} builds.`);
+  }
+
+  return normalizedValue;
+}
+
 export function validateApiUrlForBuildProfile(
   apiUrl: string | undefined,
   buildProfile: string | undefined,
@@ -126,12 +139,34 @@ export function validateApiUrlForBuildProfile(
   return normalizedApiUrl;
 }
 
+export function validateReleaseEnvForBuildProfile(buildProfile: string | undefined) {
+  return {
+    supabaseUrl: requireReleaseEnvValue(
+      'EXPO_PUBLIC_SUPABASE_URL',
+      process.env.EXPO_PUBLIC_SUPABASE_URL,
+      buildProfile,
+    ),
+    supabaseAnonKey: requireReleaseEnvValue(
+      'EXPO_PUBLIC_SUPABASE_ANON_KEY',
+      process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+      buildProfile,
+    ),
+    stravaCallbackDomain: requireReleaseEnvValue(
+      'EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN',
+      process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN,
+      buildProfile,
+    ),
+  };
+}
+
 export default function appConfig({ config }: ExpoConfigContext): ExpoConfig {
-  const appIdentity = getAppIdentityForBuildProfile(process.env.EAS_BUILD_PROFILE);
+  const buildProfile = process.env.EAS_BUILD_PROFILE;
+  const appIdentity = getAppIdentityForBuildProfile(buildProfile);
   const apiUrl = validateApiUrlForBuildProfile(
     process.env.EXPO_PUBLIC_API_URL,
-    process.env.EAS_BUILD_PROFILE,
+    buildProfile,
   );
+  validateReleaseEnvForBuildProfile(buildProfile);
   const stravaOAuthRelayUrl = process.env.EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL?.trim() || null;
 
   return {

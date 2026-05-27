@@ -247,7 +247,7 @@ describe('SessionEditor plan note and structure entry', () => {
       />,
     );
 
-    fireEvent.change(screen.getByPlaceholderText('Add coach wording or context.'), {
+    fireEvent.change(screen.getByPlaceholderText('Add plan wording or context.'), {
       target: { value: 'Keep this relaxed even if the weather is good.' },
     });
     fireEvent.click(screen.getByText('Update session'));
@@ -304,7 +304,7 @@ describe('SessionEditor plan note and structure entry', () => {
       />,
     );
 
-    fireEvent.change(screen.getByPlaceholderText('Add coach wording or context.'), {
+    fireEvent.change(screen.getByPlaceholderText('Add plan wording or context.'), {
       target: { value: 'Keep floats honest, then cool down.' },
     });
     fireEvent.click(screen.getByText('Update session'));

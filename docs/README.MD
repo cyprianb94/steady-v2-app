@@ -1,16 +1,16 @@
 # Steady
 
-Steady is an iOS beta for runners who already have a plan. The current beta is focused on the core loop: build the plan in app, see the current week and block clearly, sync Strava runs back to the plan, and handle injury/recovery without losing context.
+Steady is an iOS beta for runners who already have a plan. The current beta is focused on the core loop: build the plan in app, see the current week and block clearly, sync Strava runs back to the plan, and compare planned vs actual sessions.
 
 **Current beta features**
 - Build a plan in app with the plan builder
 - Today, Week, and Block views for the current training block
 - Strava sync
 - Planned vs actual tracking per session
-- Recovery mode with return-to-running progression and resume-week choice
 
 **Not in beta yet**
 - CSV or screenshot/photo plan import
+- Injury and recovery mode
 - Apple Health or Garmin sync
 - Coach invite / coach collaboration
 - All Steady AI surfaces are frozen for now: chat, proactive notes, debriefs, weekly previews, nudges, paid packaging, and LLM-backed recommendations
@@ -25,7 +25,7 @@ Steady is an iOS beta for runners who already have a plan. The current beta is f
 
 ## Status
 
-Active development. Current beta focus: in-app plan builder, block and week view, Strava sync, planned vs actual, and recovery mode.
+Active development. Current beta focus: in-app plan builder, block and week view, Strava sync, and planned vs actual.
 
 Landing page and waitlist: [steadybyop.vercel.app](https://steadybyop.vercel.app)
 

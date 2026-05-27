@@ -1431,7 +1431,7 @@ describe('RunStructureEditor', () => {
     });
 
     swipeLeft('run-structure-segment-swipe-0-single');
-    fireEvent.change(screen.getByPlaceholderText('Add coach wording or context.'), {
+    fireEvent.change(screen.getByPlaceholderText('Add plan wording or context.'), {
       target: { value: 'Keep it relaxed after travel.' },
     });
     fireEvent.click(screen.getByText('Update session'));

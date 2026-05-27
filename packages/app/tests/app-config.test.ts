@@ -3,11 +3,15 @@ import { afterEach, describe, expect, it } from 'vitest';
 import appConfig, {
   getAppIdentityForBuildProfile,
   validateApiUrlForBuildProfile,
+  validateReleaseEnvForBuildProfile,
 } from '../app.config';
 
 const originalEnv = {
   EAS_BUILD_PROFILE: process.env.EAS_BUILD_PROFILE,
   EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
+  EXPO_PUBLIC_SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL,
+  EXPO_PUBLIC_SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+  EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN: process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN,
   EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL: process.env.EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL,
 };
 
@@ -35,8 +39,17 @@ function baseConfig(): ExpoConfig {
 afterEach(() => {
   restoreEnvValue('EAS_BUILD_PROFILE');
   restoreEnvValue('EXPO_PUBLIC_API_URL');
+  restoreEnvValue('EXPO_PUBLIC_SUPABASE_URL');
+  restoreEnvValue('EXPO_PUBLIC_SUPABASE_ANON_KEY');
+  restoreEnvValue('EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN');
   restoreEnvValue('EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL');
 });
+
+function setRequiredReleaseEnv() {
+  process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://steady.supabase.test';
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'anon-key';
+  process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN = 'api.steady.test';
+}
 
 describe('app config API URL validation', () => {
   it('allows local API URLs for development builds', () => {
@@ -67,6 +80,26 @@ describe('app config API URL validation', () => {
     expect(validateApiUrlForBuildProfile('https://api.steady.test', 'production')).toBe(
       'https://api.steady.test',
     );
+  });
+
+  it('requires Supabase and Strava env vars for production builds', () => {
+    delete process.env.EXPO_PUBLIC_SUPABASE_URL;
+    delete process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    delete process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN;
+
+    expect(() => validateReleaseEnvForBuildProfile('production')).toThrow(
+      'EXPO_PUBLIC_SUPABASE_URL is required for EAS production builds.',
+    );
+  });
+
+  it('accepts required Supabase and Strava env vars for production builds', () => {
+    setRequiredReleaseEnv();
+
+    expect(validateReleaseEnvForBuildProfile('production')).toEqual({
+      supabaseUrl: 'https://steady.supabase.test',
+      supabaseAnonKey: 'anon-key',
+      stravaCallbackDomain: 'api.steady.test',
+    });
   });
 
   it('keeps the current app identity for local development by default', () => {
@@ -105,6 +138,7 @@ describe('app config API URL validation', () => {
   it('applies the preview app identity only for the preview EAS profile', () => {
     process.env.EAS_BUILD_PROFILE = 'preview';
     process.env.EXPO_PUBLIC_API_URL = 'https://api-preview.steady.test';
+    setRequiredReleaseEnv();
 
     const config = appConfig({ config: baseConfig() });
 

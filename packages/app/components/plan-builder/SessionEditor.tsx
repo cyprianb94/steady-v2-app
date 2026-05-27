@@ -1161,7 +1161,7 @@ export function SessionEditor({
             multiline
             value={planNote}
             onChangeText={setPlanNote}
-            placeholder="Add coach wording or context."
+            placeholder="Add plan wording or context."
             placeholderTextColor={C.muted}
             selectionColor={typeMeta.color}
             style={styles.planNoteInput}
