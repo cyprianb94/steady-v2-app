@@ -115,6 +115,8 @@ export function segmentPaceOptions(
 }
 
 export function selectedSegmentPaceKey(segmentValue: RunStructureSegment): string | null {
+  if (segmentValue.kind === 'REST') return null;
+
   const target = normalizeIntensityTarget(segmentValue.intensityTarget);
   if (target?.source === 'profile' && target.profileKey) {
     return target.profileKey;
@@ -140,6 +142,8 @@ export function segmentIntensityLabel(
   segmentValue: RunStructureSegment,
   units: 'metric' | 'imperial',
 ): string {
+  if (segmentValue.kind === 'REST') return 'No pace target';
+
   const profile = segmentValue.intensityTarget?.profileKey;
   const effort = segmentValue.intensityTarget?.effortCue;
   const targetParts = formatIntensityTargetParts(segmentValue.intensityTarget, units, { withUnit: true });
@@ -157,11 +161,33 @@ export function segmentIntensityLabel(
 }
 
 function isQualitySegment(segmentValue: RunStructureSegment): boolean {
+  if (segmentValue.kind === 'REST') return false;
+
   const key = segmentValue.intensityTarget?.profileKey;
   return segmentValue.kind === 'STRIDE'
     || key === 'marathon'
     || key === 'threshold'
     || key === 'interval';
+}
+
+export function applySegmentKindChange(
+  segmentValue: RunStructureSegment,
+  nextKind: RunStructureSegmentKind,
+): RunStructureSegment {
+  if (segmentValue.kind === nextKind) return segmentValue;
+
+  if (nextKind !== 'REST') {
+    return {
+      ...segmentValue,
+      kind: nextKind,
+    };
+  }
+
+  const { intensityTarget: _intensityTarget, progression: _progression, ...rest } = segmentValue;
+  return {
+    ...rest,
+    kind: nextKind,
+  };
 }
 
 function addSegmentVolume(

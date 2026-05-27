@@ -110,7 +110,7 @@ describe('StepTemplate starter choice', () => {
       preventRemoveCall?.[1]({ data: { action: { type: 'GO_BACK' } } } as any);
     });
 
-    expect(screen.getByText('Design your week')).toBeTruthy();
+    expect(screen.getByText('Design your base week')).toBeTruthy();
     expect(screen.queryByText('Update session')).toBeNull();
   });
 

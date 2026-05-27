@@ -30,6 +30,36 @@ interface FormatChangeContext {
 
 type StructureClearReason = 'simple' | 'recovery' | 'rest';
 
+function stableStringify(value: unknown): string {
+  if (value == null || typeof value !== 'object') {
+    return JSON.stringify(value) ?? 'undefined';
+  }
+
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(',')}]`;
+  }
+
+  return `{${Object.entries(value as Record<string, unknown>)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, nestedValue]) => `${JSON.stringify(key)}:${stableStringify(nestedValue)}`)
+    .join(',')}}`;
+}
+
+function sessionEditorIdentity(dayIndex: number, existing: Partial<PlannedSession> | null): string {
+  if (!existing) {
+    return `empty-${dayIndex}`;
+  }
+
+  const durableIdentity = [
+    dayIndex,
+    existing.id,
+    existing.date,
+    existing.type,
+  ].filter((part) => part != null).join(':');
+
+  return `${durableIdentity}:${stableStringify(existing)}`;
+}
+
 function resolveInitialFormat(existing: Partial<PlannedSession> | null): SessionFormat {
   if (!existing?.type) {
     return 'simple';
@@ -52,6 +82,27 @@ function planNoteFrom(
 }
 
 export function SessionEditorScreen({
+  dayIndex,
+  existing,
+  trainingPaceProfile = null,
+  onSave,
+  onClose,
+}: SessionEditorScreenProps) {
+  const identity = sessionEditorIdentity(dayIndex, existing);
+
+  return (
+    <SessionEditorScreenState
+      key={identity}
+      dayIndex={dayIndex}
+      existing={existing}
+      trainingPaceProfile={trainingPaceProfile}
+      onSave={onSave}
+      onClose={onClose}
+    />
+  );
+}
+
+function SessionEditorScreenState({
   dayIndex,
   existing,
   trainingPaceProfile = null,

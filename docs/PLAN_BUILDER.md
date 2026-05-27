@@ -69,7 +69,7 @@ Forest-coloured card below the phase section. Updates live as user changes field
 
 **Component:** `StepTemplate` in `steady-plan-builder.jsx`
 
-**Purpose:** Design one repeating week. This becomes the structural template that the plan generator uses for all N weeks, with progressive overload applied on top.
+**Purpose:** Design one base week. This becomes the structural template that the plan generator uses for all N weeks, with progressive overload applied on top. The layout is copied forward, and the base-week distances anchor future weeks.
 
 **Steady hint:** "This is your base week. It repeats across all {N} weeks — you'll be able to fine-tune each week individually in the next step. Set the structure here, adjust the details there."
 
@@ -98,7 +98,7 @@ Content inside active day card:
 - Chevron right
 
 ### Volume summary
-Small card at bottom: "TEMPLATE VOLUME" label + `~{totalKm}km / week` in Space Mono clay. Sub-label: "Includes warm-up, cool-down and recovery jogs between reps."
+Small card at bottom: "BASE WEEK VOLUME" label + `~{totalKm}km / week` in Space Mono clay. Sub-label: "Includes warm-up, cool-down and recovery jogs between reps."
 
 **Volume calculation** — uses `sessionKm(session)` function:
 ```javascript

@@ -167,8 +167,8 @@ export default function StepTemplate() {
     starterMode === null
       ? 'Start from a recommended base or build your own week from scratch. Each day will be editable and movable in the next step.'
       : starterMode === 'template'
-        ? `This pattern repeats across all ${weeks} weeks. Tap any day to adjust, or drag the grip to move it.`
-        : 'Build a week from scratch and add only the sessions you know you can support. Dragging unlocks once the week has shape.';
+        ? `Set the layout and starting distances here. We'll copy this base week across all ${weeks} weeks, then build future weeks from these distances.`
+        : 'Build a base week from scratch and add only the sessions you know you can support. Dragging unlocks once the week has shape.';
 
   usePreventRemove(editing !== null, () => {
     setEditing(null);
@@ -287,7 +287,7 @@ export default function StepTemplate() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.step}>STEP 5 OF 6</Text>
-        <Text style={styles.title}>Design your week</Text>
+        <Text style={styles.title}>Design your base week</Text>
         <Text style={styles.subtitle}>{subtitle}</Text>
       </View>
 
@@ -324,10 +324,10 @@ export default function StepTemplate() {
 
             <View style={styles.layoutCard}>
               <View>
-                <Text style={styles.layoutTitle}>Weekly layout</Text>
+                <Text style={styles.layoutTitle}>Base week layout</Text>
                 <Text style={styles.layoutCopy}>
                   {scheduledCount > 1
-                    ? 'Use the grip to move sessions between days.'
+                    ? 'Tap a day to adjust; use the grip to move sessions.'
                     : 'Add a second session to unlock drag-to-reorder.'}
                 </Text>
               </View>
@@ -495,7 +495,7 @@ export default function StepTemplate() {
             })}
 
             <View style={styles.volumeCard}>
-              <Text style={styles.volumeLabel}>Template volume</Text>
+              <Text style={styles.volumeLabel}>Base week volume</Text>
               <Text style={styles.volumeValue}>{volumeLabel}</Text>
             </View>
             <Text style={styles.volumeNote}>

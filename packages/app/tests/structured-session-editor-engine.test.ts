@@ -16,6 +16,8 @@ import {
 import {
   distanceMetric,
   qualityMetric,
+  applySegmentKindChange,
+  segmentIntensityLabel,
   segmentPaceOptions,
   selectedSegmentPaceKey,
   timeMetric,
@@ -164,6 +166,32 @@ describe('structured session editor engine', () => {
       'easy',
       'steady',
     ]);
+  });
+
+  it('clears stale pace targets when a structured segment becomes Rest', () => {
+    const restSegment = applySegmentKindChange({
+      kind: 'RUN',
+      volume: { unit: 'min', value: 3 },
+      intensityTarget: {
+        source: 'manual',
+        mode: 'both',
+        profileKey: 'threshold',
+        paceRange: { min: '4:25', max: '4:15' },
+        effortCue: 'controlled hard',
+      },
+      progression: {
+        from: { source: 'manual', mode: 'effort', profileKey: 'easy', effortCue: 'conversational' },
+        to: { source: 'manual', mode: 'effort', profileKey: 'threshold', effortCue: 'controlled hard' },
+      },
+    }, 'REST');
+
+    expect(restSegment).toEqual({
+      kind: 'REST',
+      volume: { unit: 'min', value: 3 },
+    });
+    expect(segmentIntensityLabel(restSegment, 'metric')).toBe('No pace target');
+    expect(selectedSegmentPaceKey(restSegment)).toBeNull();
+    expect(segmentPaceOptions('TEMPO', restSegment, null, 'metric')).toEqual([]);
   });
 
   it('derives summary metrics from the materialized structured save', () => {

@@ -188,6 +188,66 @@ describe('structured session model', () => {
     });
   });
 
+  it('counts structured Rest segment time without estimating distance from stale pace targets', () => {
+    const tempoWithRest = session({
+      type: 'TEMPO',
+      runStructure: {
+        items: [
+          {
+            kind: 'REPEAT',
+            repeats: 3,
+            segments: [
+              {
+                kind: 'RUN',
+                volume: { unit: 'min', value: 8 },
+                intensityTarget: {
+                  source: 'manual',
+                  mode: 'both',
+                  profileKey: 'threshold',
+                  paceRange: { min: '4:25', max: '4:15' },
+                  effortCue: 'controlled hard',
+                },
+              },
+              {
+                kind: 'REST',
+                volume: { unit: 'min', value: 3 },
+                intensityTarget: {
+                  source: 'manual',
+                  mode: 'both',
+                  profileKey: 'threshold',
+                  paceRange: { min: '4:25', max: '4:15' },
+                  effortCue: 'controlled hard',
+                },
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(normalizeRunStructure(tempoWithRest.runStructure)?.items).toEqual([
+      {
+        kind: 'REPEAT',
+        repeats: 3,
+        segments: [
+          expect.objectContaining({
+            kind: 'RUN',
+            intensityTarget: expect.objectContaining({ profileKey: 'threshold' }),
+          }),
+          {
+            kind: 'REST',
+            volume: { unit: 'min', value: 3 },
+          },
+        ],
+      },
+    ]);
+    expect(structuredSessionVolume(tempoWithRest)).toMatchObject({
+      structuredSeconds: 1980,
+      structuredEstimatedKm: 5.5,
+      estimatedKm: 5.5,
+    });
+  });
+
   it('keeps easy runs with strides easy for demand while preserving seconds', () => {
     const strides = session({
       type: 'EASY',

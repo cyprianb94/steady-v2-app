@@ -4,6 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { describe, expect, it, vi } from 'vitest';
 
 import { SessionEditor } from '../components/plan-builder/SessionEditor';
+import { SessionEditorScreen } from '../components/plan-builder/SessionEditorScreen';
 import { C } from '../constants/colours';
 import {
   deriveTrainingPaceProfile,
@@ -1048,6 +1049,49 @@ describe('SessionEditor distance editing', () => {
     expect(onSave).toHaveBeenCalledWith(6, expect.objectContaining({
       type: 'LONG',
       distance: 21,
+      pace: '5:10',
+    }));
+  });
+
+  it('does not carry a custom long-run distance into another reused editor session', () => {
+    const onSave = vi.fn();
+    const { rerender } = render(
+      <SessionEditorScreen
+        dayIndex={6}
+        existing={{ type: 'LONG', distance: 13, pace: '5:10' }}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Distance'));
+    expect(screen.getByText('13 km')).toBeTruthy();
+
+    rerender(
+      <SessionEditorScreen
+        dayIndex={6}
+        existing={{ type: 'LONG', distance: 20, pace: '5:10' }}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText('13 km')).toBeNull();
+
+    fireEvent.click(screen.getByText('Distance'));
+    expect(screen.getByText('Custom...')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Custom...'));
+    const customInput = screen.getByTestId('editable-chip-custom-input');
+    fireEvent.change(customInput, {
+      target: { value: '14' },
+    });
+    fireEvent.blur(customInput);
+    fireEvent.click(screen.getByText('Update session'));
+
+    expect(onSave).toHaveBeenCalledWith(6, expect.objectContaining({
+      type: 'LONG',
+      distance: 14,
       pace: '5:10',
     }));
   });

@@ -147,11 +147,17 @@ export function runStructureSegment(
   intensityTarget?: IntensityTarget,
   extras: Partial<RunStructureSegment> = {},
 ): RunStructureSegment {
+  const safeExtras = (() => {
+    if (kind !== 'REST') return extras;
+    const { intensityTarget: _intensityTarget, progression: _progression, ...rest } = extras;
+    return rest;
+  })();
+
   return {
     kind,
     volume,
-    ...(intensityTarget ? { intensityTarget } : null),
-    ...extras,
+    ...(kind !== 'REST' && intensityTarget ? { intensityTarget } : null),
+    ...safeExtras,
   };
 }
 

@@ -54,6 +54,7 @@ import {
   pacePresetsAround,
 } from '../../features/plan-builder/session-editor-targets';
 import {
+  applySegmentKindChange,
   distanceMetric,
   formatVolume,
   intensityTargetsMatch,
@@ -611,7 +612,7 @@ export function RunStructureEditor({
             onSelect={(kind) => {
               const nextKind = kind as RunStructureSegmentKind;
               const changed = updateSegment(itemIndex, segmentIndex, (current) => (
-                current.kind === nextKind ? current : { ...current, kind: nextKind }
+                current.kind === nextKind ? current : applySegmentKindChange(current, nextKind)
               ));
               if (changed) {
                 markCustomStructure();

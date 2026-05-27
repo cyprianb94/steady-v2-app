@@ -976,9 +976,9 @@ function StepTemplate({ goal, onNext }) {
         <div style={{fontFamily:'DM Sans,sans-serif',fontSize:10,color:C.muted,
           letterSpacing:1.5,textTransform:'uppercase',fontWeight:600,marginBottom:4}}>STEP 2 OF 3</div>
         <h1 style={{fontFamily:'Playfair Display,serif',fontSize:24,color:C.ink,
-          margin:'0 0 4px',fontWeight:600,lineHeight:1.2}}>Design your week</h1>
+          margin:'0 0 4px',fontWeight:600,lineHeight:1.2}}>Design your base week</h1>
         <p style={{fontFamily:'DM Sans,sans-serif',fontSize:13,color:C.muted,margin:0,lineHeight:1.5}}>
-          This pattern repeats across all {goal.weeks} weeks. Tap any day to adjust.
+          Set the layout and starting distances here. We'll copy this base week across all {goal.weeks} weeks, then build future weeks from these distances.
         </p>
       </div>
       <div style={{flex:1,overflowY:'auto',padding:'6px 18px 0'}}>
@@ -1030,7 +1030,7 @@ function StepTemplate({ goal, onNext }) {
           padding:'11px 14px',margin:'12px 0 20px',
           display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <span style={{fontFamily:'DM Sans,sans-serif',fontSize:11,color:C.muted,fontWeight:600,
-            letterSpacing:0.5,textTransform:'uppercase'}}>Template volume</span>
+            letterSpacing:0.5,textTransform:'uppercase'}}>Base week volume</span>
           <span style={{fontFamily:'Space Mono,monospace',fontSize:13,color:C.clay,fontWeight:700}}>~{Math.round(totalKm)}km / week</span>
         </div>
         <div style={{fontFamily:'DM Sans,sans-serif',fontSize:10.5,color:C.muted,marginTop:4}}>

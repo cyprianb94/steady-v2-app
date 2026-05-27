@@ -1423,6 +1423,36 @@ describe('RunStructureEditor', () => {
     }));
   });
 
+  it('does not show a target pace after a structured segment changes to Rest', () => {
+    renderEditor({
+      type: 'TEMPO',
+      runStructure: {
+        items: [
+          {
+            kind: 'RUN',
+            volume: { unit: 'min', value: 3 },
+            intensityTarget: {
+              source: 'manual',
+              mode: 'both',
+              profileKey: 'threshold',
+              paceRange: { min: '4:25', max: '4:15' },
+              effortCue: 'controlled hard',
+            },
+          },
+        ],
+      },
+    });
+
+    expect(screen.getByText('4:15-4:25/km · controlled hard')).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId('run-structure-segment-0-single'));
+    const restOptions = screen.getAllByText('Rest');
+    fireEvent.click(restOptions[restOptions.length - 1]);
+
+    expect(screen.queryByText('4:15-4:25/km · controlled hard')).toBeNull();
+    expect(screen.getByText('No pace target')).toBeTruthy();
+  });
+
   it('requires a valid structure before saving structured mode', () => {
     const onSave = renderEditor({
       type: 'EASY',

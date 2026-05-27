@@ -174,11 +174,13 @@ function normalizeSegment(value: unknown): RunStructureSegment | undefined {
 
   if (typeof value.id === 'string' && value.id.length > 0) segment.id = value.id;
 
-  const intensityTarget = normalizeIntensity(value.intensityTarget);
-  if (intensityTarget) segment.intensityTarget = intensityTarget;
+  if (segment.kind !== 'REST') {
+    const intensityTarget = normalizeIntensity(value.intensityTarget);
+    if (intensityTarget) segment.intensityTarget = intensityTarget;
 
-  const progression = normalizeProgression(value.progression);
-  if (progression) segment.progression = progression;
+    const progression = normalizeProgression(value.progression);
+    if (progression) segment.progression = progression;
+  }
 
   const note = normalizeNote(value.note);
   if (note) segment.note = note;
@@ -325,6 +327,8 @@ function segmentPaceSeconds(
   segment: RunStructureSegment,
   session: PlannedSession,
 ): number | null {
+  if (segment.kind === 'REST') return null;
+
   return representativePaceSeconds(segment.intensityTarget)
     ?? representativePaceSeconds(segment.progression?.from)
     ?? representativePaceSeconds(segment.progression?.to)
@@ -337,6 +341,11 @@ function addSegmentVolume(
   session: PlannedSession,
   multiplier = 1,
 ) {
+  if (segment.kind === 'REST') {
+    totals.structuredSeconds += volumeSeconds(segment.volume) * multiplier;
+    return;
+  }
+
   if (segment.volume.unit === 'km') {
     totals.structuredExactKm += segment.volume.value * multiplier;
     return;
@@ -443,6 +452,8 @@ function intensityName(target: IntensityTarget | undefined): string | null {
 }
 
 function segmentIntensityName(segment: RunStructureSegment): string | null {
+  if (segment.kind === 'REST') return null;
+
   return intensityName(segment.intensityTarget)
     ?? intensityName(segment.progression?.to)
     ?? intensityName(segment.progression?.from);
