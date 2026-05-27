@@ -76,11 +76,12 @@ function getRuntimeConfiguredApiUrl(): string | null {
     return envValue;
   }
 
+  const expoConstants = Constants as ExpoConstantsShape;
   const candidates = [
-    Constants.expoConfig?.extra?.apiUrl,
-    Constants.manifest2?.extra?.apiUrl,
-    Constants.manifest2?.extra?.expoClient?.extra?.apiUrl,
-    Constants.manifest?.extra?.apiUrl,
+    expoConstants.expoConfig?.extra?.apiUrl,
+    expoConstants.manifest2?.extra?.apiUrl,
+    expoConstants.manifest2?.extra?.expoClient?.extra?.apiUrl,
+    expoConstants.manifest?.extra?.apiUrl,
   ];
 
   for (const candidate of candidates) {
