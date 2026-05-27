@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+.git
+.DS_Store
+.env
+.env.*
+!.env.example
+artifacts
+packages/app/.expo
+packages/app/ios/build
+packages/app/android/build
+packages/*/dist
+packages/*/tsconfig.tsbuildinfo
+npm-debug.log*

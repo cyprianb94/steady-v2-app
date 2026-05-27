@@ -28,6 +28,34 @@ This means preview and production can be installed as separate apps once the App
 
 These steps can prompt for Apple/EAS credentials, 2FA, agreements, or real secrets:
 
+0. Put the Fastify API on public HTTPS. Fly.io is the expected path:
+
+```bash
+cd /Users/cyprianbrytan/Projects/steady-v2-app
+fly auth login
+fly launch --name steady-api --region lhr --dockerfile packages/server/Dockerfile --no-deploy
+fly secrets import
+```
+
+When `fly secrets import` opens, paste the backend environment variable lines in your terminal, not in chat:
+
+```bash
+SUPABASE_URL=...
+SUPABASE_SERVICE_KEY=...
+STRAVA_CLIENT_ID=...
+STRAVA_CLIENT_SECRET=...
+ENCRYPTION_KEY=...
+```
+
+Then deploy with Fly's remote builder and check the health endpoint:
+
+```bash
+fly deploy --remote-only
+curl https://steady-api.fly.dev/health
+```
+
+If Fly says `steady-api` is already taken, choose another short app name and use that host everywhere below.
+
 1. Create or confirm the EAS project:
 
 ```bash
