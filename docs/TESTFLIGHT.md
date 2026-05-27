@@ -71,64 +71,92 @@ fly scale count 1 -a steady-v2-api --yes
 
 If Fly says `steady-v2-api` is already taken while recreating the app, choose another short app name and use that host everywhere below.
 
-1. Create or confirm the EAS project:
+1. Sign in to Expo/EAS:
+
+```bash
+cd packages/app
+npx --yes eas-cli login
+```
+
+This opens an Expo login page in your browser. Sign in, then come back to the terminal. Success looks like `Logged in`.
+
+2. Create or confirm the EAS project:
 
 ```bash
 cd packages/app
 npx --yes eas-cli init
 ```
 
-2. Configure EAS Update. This should install/configure `expo-updates`, add the EAS project ID, and write the update URL:
+3. Configure EAS Update. This should install/configure `expo-updates`, add the EAS project ID, and write the update URL:
 
 ```bash
 cd packages/app
 npx --yes eas-cli update:configure
 ```
 
-3. Create EAS environment variables for both `preview` and `production`:
+4. Create the required production EAS environment variables.
+
+The confirmed production API values are:
+
+```text
+EXPO_PUBLIC_API_URL=https://steady-v2-api.fly.dev
+EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN=steady-v2-api.fly.dev
+```
+
+Create those two values directly:
 
 ```bash
 cd packages/app
-npx --yes eas-cli env:create --environment preview --name EXPO_PUBLIC_API_URL --value https://your-preview-api.example.com
-npx --yes eas-cli env:create --environment preview --name EXPO_PUBLIC_SUPABASE_URL --value https://your-project.supabase.co
-npx --yes eas-cli env:create --environment preview --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value your-anon-key
-npx --yes eas-cli env:create --environment preview --name EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN --value your-preview-app-domain.example.com
-
-npx --yes eas-cli env:create --environment production --name EXPO_PUBLIC_API_URL --value https://your-production-api.example.com
-npx --yes eas-cli env:create --environment production --name EXPO_PUBLIC_SUPABASE_URL --value https://your-project.supabase.co
-npx --yes eas-cli env:create --environment production --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value your-anon-key
-npx --yes eas-cli env:create --environment production --name EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN --value your-production-app-domain.example.com
+npx --yes eas-cli env:create production --scope project --name EXPO_PUBLIC_API_URL --visibility plaintext --value https://steady-v2-api.fly.dev --force
+npx --yes eas-cli env:create production --scope project --name EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN --visibility plaintext --value steady-v2-api.fly.dev --force
 ```
 
-4. Register your iPhone for preview internal distribution:
+Create the Supabase values interactively so they are not written into chat or shell history:
+
+```bash
+cd packages/app
+npx --yes eas-cli env:create production --scope project --name EXPO_PUBLIC_SUPABASE_URL --visibility sensitive --force
+npx --yes eas-cli env:create production --scope project --name EXPO_PUBLIC_SUPABASE_ANON_KEY --visibility sensitive --force
+```
+
+When the terminal asks for each value, paste it from Supabase Dashboard -> Project Settings -> API:
+
+- `EXPO_PUBLIC_SUPABASE_URL`: Project URL.
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY`: Project API keys -> `anon` `public`.
+
+5. Register your iPhone for preview internal distribution:
 
 ```bash
 cd packages/app
 npx --yes eas-cli device:create
 ```
 
-5. Create/confirm the App Store Connect app for production TestFlight.
+6. Create/confirm the App Store Connect app for production TestFlight.
 
 ## Redirects To Whitelist
 
-Supabase/Google redirect URLs:
+Supabase redirect allow-list:
 
 - `steady://auth/callback`
 - `steady-preview://auth/callback`
 
+Google Cloud OAuth authorized redirect URI for the Supabase Google provider:
+
+- `https://ckbhjjtneutbqwnwcupm.supabase.co/auth/v1/callback`
+
 Set the Strava app's **Authorization Callback Domain** to:
 
-- the domain in `EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN`, without `https://`
+- `steady-v2-api.fly.dev`
 
-Use the app/API domain here, not the landing-page domain. If preview and production use the same Strava client ID, they must use the same callback domain; otherwise create separate Strava apps/client IDs per environment.
+Use the app/API domain here, not the landing-page domain. Enter only the domain: no `https://`, no path, no trailing slash. If preview and production use the same Strava client ID, they must use the same callback domain; otherwise create separate Strava apps/client IDs per environment.
 
 Production/TestFlight redirect URI sent by the app:
 
-- `steady://<EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN>/strava-callback`
+- `steady://steady-v2-api.fly.dev/strava-callback`
 
-Preview redirect URI sent by the app:
+Preview redirect URI sent by the app if preview uses the same callback domain:
 
-- `steady-preview://<EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN>/strava-callback`
+- `steady-preview://steady-v2-api.fly.dev/strava-callback`
 
 Expo Go Strava testing uses the public API callback relay: set the Strava app's Authorization Callback Domain to the public API host from `EXPO_PUBLIC_API_URL`. The API receives `/oauth/strava/callback` and redirects back into the current Expo Go deep link with Strava's code.
 
