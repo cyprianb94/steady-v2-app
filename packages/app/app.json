@@ -30,6 +30,13 @@
       "expo-router",
       "expo-font",
       "expo-web-browser"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c313c43e-cf2d-4b8e-afaf-081fce0038fb"
+      }
+    },
+    "owner": "cyprianbrytan"
   }
 }
