@@ -191,6 +191,70 @@ describe('activity router', () => {
     });
   });
 
+  it('clears stale matched-session ids when listing activities against a replaced plan', async () => {
+    const staleActivity = await activityRepo.save(makeActivity('user-1', {
+      startTime: '2026-05-25T06:15:30Z',
+      distance: 8.14,
+      matchedSessionId: 'w4d0',
+    }));
+    await planRepo.save({
+      ...makePlan(),
+      weeks: [
+        {
+          weekNumber: 1,
+          phase: 'BUILD',
+          plannedKm: 8,
+          sessions: [makeSession('monday-easy', { date: '2026-05-25', distance: 8 }), null, null, null, null, null, null],
+        },
+        {
+          weekNumber: 2,
+          phase: 'BUILD',
+          plannedKm: 0,
+          sessions: [null, null, null, null, null, null, null],
+        },
+        {
+          weekNumber: 3,
+          phase: 'BUILD',
+          plannedKm: 0,
+          sessions: [null, null, null, null, null, null, null],
+        },
+        {
+          weekNumber: 4,
+          phase: 'BUILD',
+          plannedKm: 8,
+          sessions: [
+            makeSession('future-monday', {
+              date: '2026-06-15',
+              distance: 8,
+              actualActivityId: staleActivity.id,
+            }),
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+          ],
+        },
+      ],
+    });
+
+    const [listedActivity] = await caller.activity.list();
+
+    expect(listedActivity).toMatchObject({
+      id: staleActivity.id,
+      matchedSessionId: undefined,
+    });
+    await expect(activityRepo.getById(staleActivity.id)).resolves.toMatchObject({
+      matchedSessionId: undefined,
+    });
+    const plan = await planRepo.getActive('user-1');
+    expect(plan?.weeks[3].sessions[0]).toMatchObject({
+      id: 'w4d0',
+      actualActivityId: undefined,
+    });
+  });
+
   it('loads a single activity with its niggles for the authenticated user', async () => {
     const activity = await activityRepo.save(makeActivity('user-1'));
     await niggleRepo.setForActivity(activity.id, [

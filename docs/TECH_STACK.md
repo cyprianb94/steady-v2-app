@@ -229,18 +229,27 @@ Frozen. Do not implement this phase in live product flows until the AI freeze is
 8. Server fetches recent activities to populate history
 ```
 
-Expo Go Strava OAuth uses the public API as a redirect relay because Strava rejects private LAN `exp://10.x.x.x/...` callback domains. The app sends Strava to:
+Expo Go Strava OAuth uses a public HTTPS redirect relay because Strava rejects private LAN `exp://10.x.x.x/...` callback domains. The app sends Strava to:
 
-- `https://<EXPO_PUBLIC_API_URL host>/oauth/strava/callback?return_to=<Expo Go deep link>`
+- `https://<EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL host>/oauth/strava/callback?return_to=<Expo Go deep link>`
+
+If `EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL` is not set, the app falls back to a public HTTPS `EXPO_PUBLIC_API_URL`.
 
 The API then redirects back to the Expo Go deep link with Strava's `code`.
 
-For Expo Go testing, set the Strava app's Authorization Callback Domain to the public API host from `EXPO_PUBLIC_API_URL`.
+For Expo Go testing, set the Strava app's Authorization Callback Domain to the public relay host.
 
 Local native development builds use Strava's localhost callback-domain whitelist:
 
 - Redirect URI: `steady://localhost/strava-callback`
 - Strava Authorization Callback Domain: `localhost`
+
+When a public `EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL` is configured for Expo Go, local native development uses that HTTPS relay host as the callback domain instead of `localhost`:
+
+- Redirect URI: `steady://<EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL host>/strava-callback`
+- Strava Authorization Callback Domain: `<EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL host>`
+
+Set `EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN=localhost` explicitly if the Strava app is configured to `localhost` for native-only local testing.
 
 Release builds must set `EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN` and use an app/API domain, not the landing-page domain. Release redirect URIs are:
 

@@ -10,22 +10,26 @@ type ExpoConstantsShape = {
   expoConfig?: {
     extra?: {
       apiUrl?: string | null;
+      stravaCallbackDomain?: string | null;
       stravaOAuthRelayUrl?: string | null;
     };
   };
   manifest?: {
     extra?: {
       apiUrl?: string | null;
+      stravaCallbackDomain?: string | null;
       stravaOAuthRelayUrl?: string | null;
     };
   };
   manifest2?: {
     extra?: {
       apiUrl?: string | null;
+      stravaCallbackDomain?: string | null;
       stravaOAuthRelayUrl?: string | null;
       expoClient?: {
         extra?: {
           apiUrl?: string | null;
+          stravaCallbackDomain?: string | null;
           stravaOAuthRelayUrl?: string | null;
         };
       };
@@ -47,7 +51,8 @@ function normalizeCallbackDomain(value: string | undefined): string | null {
   const domain = trimmed
     .replace(/^https?:\/\//, '')
     .replace(/^\/+/, '')
-    .replace(/\/+$/, '');
+    .split('/')[0]
+    ?.replace(/\/+$/, '');
 
   return domain || null;
 }
@@ -106,6 +111,30 @@ function getRuntimeConfiguredApiUrl(): string | null {
   return null;
 }
 
+function getRuntimeConfiguredStravaCallbackDomain(): string | null {
+  const envValue = normalizeCallbackDomain(process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN);
+  if (envValue) {
+    return envValue;
+  }
+
+  const expoConstants = Constants as ExpoConstantsShape;
+  const candidates = [
+    expoConstants.expoConfig?.extra?.stravaCallbackDomain,
+    expoConstants.manifest2?.extra?.stravaCallbackDomain,
+    expoConstants.manifest2?.extra?.expoClient?.extra?.stravaCallbackDomain,
+    expoConstants.manifest?.extra?.stravaCallbackDomain,
+  ];
+
+  for (const candidate of candidates) {
+    const domain = normalizeCallbackDomain(candidate ?? undefined);
+    if (domain) {
+      return domain;
+    }
+  }
+
+  return null;
+}
+
 function getRuntimeConfiguredStravaOAuthRelayUrl(): string | null {
   const envValue = process.env.EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL?.trim();
   if (envValue) {
@@ -137,6 +166,24 @@ function getRuntimeConfiguredStravaOAuthRelayUrl(): string | null {
   } catch {
     return null;
   }
+}
+
+function getHttpsUrlHost(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'https:' ? parsed.host : null;
+  } catch {
+    return null;
+  }
+}
+
+function getLocalDevStravaCallbackDomain(): string {
+  return getHttpsUrlHost(getRuntimeConfiguredStravaOAuthRelayUrl())
+    ?? LOCAL_STRAVA_CALLBACK_DOMAIN;
 }
 
 function getPublicStravaOAuthRelayBaseUrl(): string {
@@ -171,14 +218,6 @@ function buildExpoGoRelayRedirectUri(returnTo: string): string {
 
 export function getStravaOAuthRedirects(): StravaOAuthRedirects {
   const scheme = getCurrentAppScheme();
-  const callbackDomain = normalizeCallbackDomain(process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN)
-    ?? (isLocalDevRuntime() ? LOCAL_STRAVA_CALLBACK_DOMAIN : null);
-
-  if (!callbackDomain) {
-    throw new Error(
-      'EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN is not configured for Strava OAuth.',
-    );
-  }
 
   if (!scheme) {
     throw new Error('Strava OAuth cannot build a release redirect URI without a native app scheme.');
@@ -190,6 +229,15 @@ export function getStravaOAuthRedirects(): StravaOAuthRedirects {
       authorizationRedirectUri: buildExpoGoRelayRedirectUri(authSessionCallbackUri),
       authSessionCallbackUri,
     };
+  }
+
+  const callbackDomain = getRuntimeConfiguredStravaCallbackDomain()
+    ?? (isLocalDevRuntime() ? getLocalDevStravaCallbackDomain() : null);
+
+  if (!callbackDomain) {
+    throw new Error(
+      'EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN is not configured for Strava OAuth.',
+    );
   }
 
   const redirectUri = buildRedirectUri(scheme, callbackDomain);

@@ -1,13 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockCreateURL = vi.hoisted(() => vi.fn());
+const mockExpoConstants = vi.hoisted(() => ({
+  expoConfig: { extra: {} as Record<string, string | null | undefined> },
+  manifest: { extra: {} as Record<string, string | null | undefined> },
+  manifest2: {
+    extra: {} as Record<string, string | null | undefined> & {
+      expoClient?: {
+        extra?: Record<string, string | null | undefined>;
+      };
+    },
+  },
+}));
 
 vi.mock('expo-constants', () => ({
-  default: {
-    expoConfig: { extra: {} },
-    manifest: { extra: {} },
-    manifest2: { extra: {} },
-  },
+  default: mockExpoConstants,
 }));
 
 vi.mock('expo-linking', () => ({
@@ -24,6 +31,9 @@ const originalNodeEnv = process.env.NODE_ENV;
 describe('getStravaRedirectUri', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockExpoConstants.expoConfig.extra = {};
+    mockExpoConstants.manifest.extra = {};
+    mockExpoConstants.manifest2.extra = {};
 
     if (originalCallbackDomain === undefined) {
       delete process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN;
@@ -67,14 +77,32 @@ describe('getStravaRedirectUri', () => {
   });
 
   it('allows the callback domain to be configured for another Strava app', () => {
-    process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN = 'https://connect.steady.test/';
+    process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN = 'https://connect.steady.test/oauth/strava/callback';
     mockCreateURL.mockImplementation((path: string) => (path ? `steady://${path}` : 'steady://'));
 
     expect(getStravaRedirectUri()).toBe('steady://connect.steady.test/strava-callback');
   });
 
+  it('uses the callback domain embedded in Expo config when the env value is unavailable at runtime', () => {
+    delete process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN;
+    mockExpoConstants.expoConfig.extra.stravaCallbackDomain = 'api-from-extra.steady.test';
+    mockCreateURL.mockImplementation((path: string) => (path ? `steady://${path}` : 'steady://'));
+
+    expect(getStravaRedirectUri()).toBe('steady://api-from-extra.steady.test/strava-callback');
+  });
+
+  it('uses the public OAuth relay host for local native development when no explicit callback domain is configured', () => {
+    delete process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN;
+    process.env.EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL = 'https://oauth-relay.steady.test';
+    process.env.NODE_ENV = 'development';
+    mockCreateURL.mockImplementation((path: string) => (path ? `steady://${path}` : 'steady://'));
+
+    expect(getStravaRedirectUri()).toBe('steady://oauth-relay.steady.test/strava-callback');
+  });
+
   it('uses Strava localhost callback domain for local native development', () => {
     delete process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN;
+    delete process.env.EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL;
     process.env.NODE_ENV = 'development';
     mockCreateURL.mockImplementation((path: string) => (path ? `steady://${path}` : 'steady://'));
 

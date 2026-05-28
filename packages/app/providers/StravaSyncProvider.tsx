@@ -95,7 +95,9 @@ export function StravaSyncProvider({ children }: React.PropsWithChildren) {
   async function runSync(force: boolean): Promise<StravaSyncResult | null> {
     if (!session) return null;
 
-    const currentStatus = status ?? await refreshStatus();
+    const currentStatus = force
+      ? (await refreshStatus()) ?? status
+      : status ?? await refreshStatus();
     if (!currentStatus?.connected) return null;
 
     if (!force && Date.now() - lastSyncAt < AUTO_SYNC_COOLDOWN_MS) {

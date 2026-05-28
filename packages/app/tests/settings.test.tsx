@@ -105,6 +105,7 @@ import {
 
 const originalStravaCallbackDomain = process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN;
 const originalApiUrl = process.env.EXPO_PUBLIC_API_URL;
+const originalStravaOAuthRelayUrl = process.env.EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL;
 
 describe('SettingsTab', () => {
   beforeEach(() => {
@@ -118,6 +119,11 @@ describe('SettingsTab', () => {
       delete process.env.EXPO_PUBLIC_API_URL;
     } else {
       process.env.EXPO_PUBLIC_API_URL = originalApiUrl;
+    }
+    if (originalStravaOAuthRelayUrl === undefined) {
+      delete process.env.EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL;
+    } else {
+      process.env.EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL = originalStravaOAuthRelayUrl;
     }
     vi.mocked(Linking.createURL).mockImplementation(() => 'steady://strava-callback');
     disableOnboardingReplay();
@@ -331,6 +337,41 @@ describe('SettingsTab', () => {
     expect(parsedAuthorizeUrl.pathname).toBe('/oauth/mobile/authorize');
     expect(parsedAuthorizeUrl.searchParams.get('redirect_uri')).toBe(callbackUrl);
     expect(parsedAuthorizeUrl.searchParams.get('scope')).toBe('read,activity:read_all');
+    expect(mockTrpc.strava.connect.mutate).toHaveBeenCalledWith({ code: 'oauth-code' });
+  });
+
+  it('starts native development Strava OAuth with the public relay callback domain when no explicit callback domain is set', async () => {
+    delete process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN;
+    process.env.EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL = 'https://oauth-relay.steady.test';
+    mockAuth.session = { user: { email: 'runner@example.com' } };
+    mockTrpc.strava.config.query.mockResolvedValue({ clientId: 'strava-client-id' });
+    vi.mocked(WebBrowser.openAuthSessionAsync).mockResolvedValue({
+      type: 'success',
+      url: 'steady://oauth-relay.steady.test/strava-callback?code=oauth-code',
+    } as Awaited<ReturnType<typeof WebBrowser.openAuthSessionAsync>>);
+    vi.mocked(QueryParams.getQueryParams).mockReturnValue({
+      params: { code: 'oauth-code' },
+      errorCode: null,
+    });
+    mockTrpc.strava.connect.mutate.mockResolvedValue(null);
+    mockStrava.refreshStatus.mockResolvedValue({ connected: true, athleteId: '12345', lastSyncedAt: null });
+    mockStrava.forceSync.mockResolvedValue(null);
+    mockPlan.refresh.mockResolvedValue(undefined);
+
+    render(<SettingsTab />);
+
+    fireEvent.click(screen.getByText('Connect Strava'));
+
+    await waitFor(() => {
+      expect(WebBrowser.openAuthSessionAsync).toHaveBeenCalledTimes(1);
+    });
+
+    const [authorizeUrl, callbackUrl] = vi.mocked(WebBrowser.openAuthSessionAsync).mock.calls[0];
+    const parsedAuthorizeUrl = new URL(authorizeUrl);
+
+    expect(callbackUrl).toBe('steady://oauth-relay.steady.test/strava-callback');
+    expect(parsedAuthorizeUrl.pathname).toBe('/oauth/mobile/authorize');
+    expect(parsedAuthorizeUrl.searchParams.get('redirect_uri')).toBe(callbackUrl);
     expect(mockTrpc.strava.connect.mutate).toHaveBeenCalledWith({ code: 'oauth-code' });
   });
 

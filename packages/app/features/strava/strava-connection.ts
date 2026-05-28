@@ -45,6 +45,14 @@ export async function connectStravaAndRefresh({
   authorizeUrl.searchParams.set('approval_prompt', 'auto');
   authorizeUrl.searchParams.set('scope', 'read,activity:read_all');
 
+  if (__DEV__) {
+    console.log('[strava.oauth.start]', {
+      authorizeUrl: authorizeUrl.toString(),
+      authorizationRedirectUri,
+      authSessionCallbackUri,
+    });
+  }
+
   const result = await WebBrowser.openAuthSessionAsync(authorizeUrl.toString(), authSessionCallbackUri, {
     preferEphemeralSession: true,
   });

@@ -150,6 +150,7 @@ describe('app config API URL validation', () => {
     expect(config.extra).toMatchObject({
       appVariant: 'preview',
       apiUrl: 'https://api-preview.steady.test',
+      stravaCallbackDomain: 'api.steady.test',
     });
   });
 
@@ -167,6 +168,7 @@ describe('app config API URL validation', () => {
     expect(config.extra).toMatchObject({
       appVariant: 'development',
       apiUrl: 'http://192.168.1.103:3000',
+      stravaCallbackDomain: null,
       stravaOAuthRelayUrl: 'https://oauth-relay.steady.test',
     });
   });

@@ -192,6 +192,7 @@ export function createActivityWorkflowService(deps: ActivityWorkflowServiceDeps)
     },
 
     async listActivities(userId: string): Promise<Activity[]> {
+      await repairOrphanedActivityLinks(userId, deps);
       const activities = await deps.activityRepo.getByUserId(userId);
       const activitiesWithNiggles = await Promise.all(
         activities.map(async (activity) => ({
