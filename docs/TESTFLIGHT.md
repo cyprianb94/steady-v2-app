@@ -189,14 +189,14 @@ npm run release:production:submit
 
 Use these only after `npx --yes eas-cli update:configure` has completed successfully.
 
-Only you get the JS/UI update:
+Only you get the JS/UI update. The script uses the `preview` EAS environment so local `.env` values are not bundled into the update:
 
 ```bash
 cd packages/app
 npm run release:update:preview -- --message "Describe the change"
 ```
 
-Friends on TestFlight get the JS/UI update:
+Friends on TestFlight get the JS/UI update. The script uses the `production` EAS environment so TestFlight keeps the public API URL:
 
 ```bash
 cd packages/app
