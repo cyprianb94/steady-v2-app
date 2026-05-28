@@ -52,6 +52,9 @@ describe('StepPlan session editing', () => {
     expect(screen.getByTestId('block-review-volume-chart')).toBeTruthy();
     expect(screen.getByTestId('block-review-phase-strip')).toBeTruthy();
     expect(screen.getByTestId('block-review-tabs')).toBeTruthy();
+    expect(screen.getAllByTestId('block-review-tabs')).toHaveLength(1);
+    expect(screen.getByTestId('plan-builder-review-sticky-tabs').contains(screen.getByTestId('block-review-tabs'))).toBe(true);
+    expect(screen.getByTestId('plan-builder-review-scroll').contains(screen.getByTestId('block-review-tabs'))).toBe(false);
     expect(screen.getByText('Structure')).toBeTruthy();
     expect(screen.getByText('Weeks')).toBeTruthy();
     expect(screen.getByText('00:45:00')).toBeTruthy();

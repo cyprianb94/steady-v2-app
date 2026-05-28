@@ -112,6 +112,7 @@ export interface BlockReviewSurfaceProps {
   rescheduleResetKey?: number;
   onEditStructure?: () => void;
   formatDistance?: FormatDistance;
+  showTabs?: boolean;
   style?: StyleProp<ViewStyle>;
   testID?: string;
 }
@@ -274,12 +275,13 @@ export function BlockReviewSurface({
   rescheduleResetKey,
   onEditStructure,
   formatDistance = defaultFormatDistance,
+  showTabs = true,
   style,
   testID = 'block-review-surface',
 }: BlockReviewSurfaceProps) {
   return (
     <View style={[styles.surface, style]} testID={testID}>
-      <BlockReviewTabControl activeTab={activeTab} onTabChange={onTabChange} />
+      {showTabs ? <BlockReviewTabControl activeTab={activeTab} onTabChange={onTabChange} /> : null}
 
       {activeTab === 'structure' ? (
         <BlockReviewStructure

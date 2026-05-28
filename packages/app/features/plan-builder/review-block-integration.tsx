@@ -209,6 +209,10 @@ function PlanBuilderReviewBlock({
         </Text>
       </View>
 
+      <View style={styles.stickyTabs} testID="plan-builder-review-sticky-tabs">
+        <BlockReviewTabControl activeTab={resolvedActiveTab} onTabChange={setReviewTab} />
+      </View>
+
       <ScrollView
         ref={scrollRef}
         testID="plan-builder-review-scroll"
@@ -223,22 +227,20 @@ function PlanBuilderReviewBlock({
         keyboardShouldPersistTaps="handled"
       >
         {isEditingPhases && resolvedActiveTab === 'structure' ? (
-          <View>
-            <BlockReviewTabControl activeTab={resolvedActiveTab} onTabChange={setReviewTab} />
-            <View style={styles.phaseEditorWrap}>
-              <PhaseEditor
-                phases={phases}
-                totalWeeks={model.totalWeeks}
-                onChange={onChangePhases}
-                onDone={() => setIsEditingPhases(false)}
-              />
-            </View>
+          <View style={styles.phaseEditorWrap}>
+            <PhaseEditor
+              phases={phases}
+              totalWeeks={model.totalWeeks}
+              onChange={onChangePhases}
+              onDone={() => setIsEditingPhases(false)}
+            />
           </View>
         ) : (
           <BlockReviewSurface
             model={model}
             activeTab={resolvedActiveTab}
             onTabChange={setReviewTab}
+            showTabs={false}
             expandedWeekIndex={resolvedSelectedWeekIndex}
             onWeekPress={handleWeekPress}
             onDayPress={handleDayPress}
@@ -313,6 +315,11 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
+  },
+  stickyTabs: {
+    paddingHorizontal: 18,
+    backgroundColor: C.cream,
+    zIndex: 1,
   },
   bodyContent: {
     paddingHorizontal: 18,
