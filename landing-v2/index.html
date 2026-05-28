@@ -150,83 +150,107 @@
   }
 
   /* ============================================================
-     HERO: centered
+     HERO
      ============================================================ */
   .hero {
-    padding: 60px 28px 80px;
-    min-height: calc(100vh + 700px);
+    padding: 36px 28px 40px;
   }
   .hero-headline {
-    text-align: center;
-    max-width: 900px;
-    min-height: calc(100vh + 620px);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: clamp(44px, 8vw, 96px);
+    text-align: left;
+    max-width: 1040px;
     margin: 0 auto;
   }
   .hero-headline .display em { color: var(--forest); }
+  .hero-copy { min-width: 0; }
 
   .hero-body {
-    margin: 30px auto 0;
-    max-width: 680px;
+    margin: 30px 0 0;
+    max-width: 540px;
     font-family: var(--font-body);
     font-size: 19px;
     line-height: 1.55;
     color: var(--ink2);
     font-weight: 400;
     letter-spacing: -0.1px;
-    text-align: center;
+    text-align: left;
     text-wrap: pretty;
   }
   .hero-shot-stage {
-    margin: 52px auto 0;
-    position: sticky;
-    top: 124px;
-    height: 500px;
-    max-width: 680px;
+    margin: 0;
+    position: relative;
+    display: flex;
+    justify-content: center;
     isolation: isolate;
   }
   .hero-shot-stage::before {
     content: "";
     position: absolute;
     left: 50%;
-    top: 38px;
-    transform: translateX(-50%);
-    width: 320px;
-    height: 320px;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(440px, 80vw);
+    height: min(440px, 80vw);
     border-radius: 50%;
     background: radial-gradient(closest-side, var(--forest-bg) 0%, transparent 78%);
     z-index: 0;
     pointer-events: none;
   }
-  .hero-shot-stack {
+  .hero-screens {
+    --hero-ratio: 1206 / 2622;
+    --hero-fade: 700ms;
+    --hero-radius: 10%;
+
     position: relative;
-    height: 100%;
-    perspective: 1200px;
-    transform-style: preserve-3d;
-  }
-  .hero-shot-stage .shot {
-    --shot-w: 276px;
-    --shot-h: 500px;
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform-origin: center bottom;
-    will-change: transform, filter;
-    backface-visibility: hidden;
-  }
-  .hero-shot-stage .shot::after {
-    display: none;
-  }
-  .hero-shot-home {
     z-index: 1;
-    transform: translateX(calc(-50% - 132px)) translateY(34px) rotate(-4deg) scale(0.965);
+    width: clamp(220px, 20vw, 250px);
+    aspect-ratio: var(--hero-ratio);
   }
-  .hero-shot-block {
-    z-index: 3;
-    transform: translateX(-50%) translateY(0) rotate(0deg) scale(1);
+  .hero-screens > img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    border-radius: var(--hero-radius);
+    border: 1px solid rgba(28, 21, 16, 0.08);
+    box-shadow:
+      0 30px 60px rgba(28, 21, 16, 0.20),
+      0 6px 16px rgba(28, 21, 16, 0.10);
+    background: var(--cream);
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+    transition: opacity var(--hero-fade) ease, transform var(--hero-fade) ease;
+    pointer-events: none;
   }
-  .hero-shot-design {
-    z-index: 2;
-    transform: translateX(calc(-50% + 132px)) translateY(34px) rotate(4deg) scale(0.965);
+  .hero-screens:not(.is-ready) > img:first-child,
+  .hero-screens > img.is-active {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  .hero-screens__dots {
+    position: absolute;
+    bottom: -28px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .hero-screens__dots > span {
+    width: 6px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border);
+    transition: width 0.4s ease, background 0.4s ease;
+  }
+  .hero-screens__dots > span.is-active {
+    width: 18px;
+    background: var(--clay);
   }
 
   /* ============================================================
@@ -317,6 +341,7 @@
   .plan-feature {
     display: flex;
     align-items: center;
+    gap: 12px;
     background: var(--surface);
     border: 1.5px solid var(--border);
     border-radius: 12px;
@@ -336,6 +361,7 @@
     line-height: 1.4;
   }
   .plan-feature .text { flex: 1; min-width: 0; }
+  .plan-feature .later-tag { flex-shrink: 0; }
 
   .plan-phone-stage {
     display: flex;
@@ -411,6 +437,12 @@
     color: var(--purple);
     margin-bottom: 12px;
   }
+  .injury-subhead.with-tag {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
   .injury-row.niggles .injury-subhead { color: var(--amber); }
   .injury-copy-title {
     font-family: var(--font-display);
@@ -460,6 +492,7 @@
   }
   .physio-copy { padding: 8px 0; }
   .physio-copy .display { margin-bottom: 22px; }
+  .physio-copy .display + .later-tag { margin: -8px 0 22px; }
   .physio-copy .lede { max-width: 480px; }
 
   .physio-stage {
@@ -550,6 +583,31 @@
   .rm-card.mvp .rm-title-dot { background: var(--forest); }
   .rm-card.future .rm-title { color: var(--on-dark); }
   .rm-card.future .rm-title-dot { background: var(--amber); }
+
+  .later-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    width: fit-content;
+    padding: 6px 9px 6px 8px;
+    border: 1px solid var(--hairline);
+    border-radius: 999px;
+    background: var(--ink-bg);
+    color: var(--on-dark);
+    font-family: var(--font-body);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .later-tag .rm-title-dot {
+    width: 6px;
+    height: 6px;
+    flex: 0 0 auto;
+    background: var(--amber);
+  }
 
   .rm-item {
     display: flex;
@@ -815,17 +873,23 @@
     .section { padding: 56px 18px; }
     .hero {
       padding: 24px 18px 56px;
-      min-height: calc(100vh + 560px);
     }
-    .hero-headline { min-height: calc(100vh + 520px); }
-    .hero-body { margin-top: 24px; font-size: 17px; }
-    .hero-shot-stage { margin-top: 36px; height: 440px; top: 104px; }
-    .hero-shot-stage::before { top: 32px; width: 280px; height: 280px; }
-    .hero-shot-stage .shot { --shot-w: 240px; --shot-h: 460px; }
-    .hero-shot-stage .shot iframe { transform: scale(0.6667); }
-    .hero-shot-home { transform: translateX(calc(-50% - 106px)) translateY(28px) rotate(-4deg) scale(0.965); }
-    .hero-shot-block { transform: translateX(-50%) translateY(0) rotate(0deg) scale(1); }
-    .hero-shot-design { transform: translateX(calc(-50% + 106px)) translateY(28px) rotate(4deg) scale(0.965); }
+    .hero-headline {
+      display: block;
+      text-align: center;
+      max-width: 900px;
+    }
+    .hero-body {
+      margin-top: 24px;
+      margin-left: auto;
+      margin-right: auto;
+      max-width: 680px;
+      font-size: 17px;
+      text-align: center;
+    }
+    .hero-shot-stage { margin-top: 34px; }
+    .hero-shot-stage::before { width: min(320px, 82vw); height: min(320px, 82vw); }
+    .hero-screens { width: clamp(190px, 48vw, 240px); }
 
     .plan-grid { grid-template-columns: 1fr; gap: 48px; }
     .plan-feature-list { max-width: none; }
@@ -851,20 +915,15 @@
 
   @media (max-width: 560px) {
     .brand-name { font-size: 24px; }
+    .hero { padding-top: 22px; padding-bottom: 48px; }
+    .hero .display.xl { font-size: clamp(52px, 15vw, 60px); }
+    .hero-body { font-size: 16px; line-height: 1.48; }
+    .hero-shot-stage { margin-top: 28px; }
+    .hero-screens { width: clamp(160px, 46vw, 190px); }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .hero {
-      min-height: auto;
-      padding-bottom: 40px;
-    }
-    .hero-shot-stage {
-      position: relative;
-      top: auto;
-    }
-    .hero-shot-stage .shot {
-      will-change: auto;
-    }
+    .hero-screens > img { transition: none; }
   }
 </style>
 </head>
@@ -891,21 +950,17 @@
   <section class="hero" data-screen-label="01 Hero">
     <div class="container">
       <div class="hero-headline reveal">
-        <h1 class="display xl">Bring your<br/><em>own plan.</em></h1>
-        <p class="hero-body">
-          Steady keeps the plan you wrote connected to the training you actually ran. Bring in your own plan, sync what happened, and keep the block honest when sessions move, niggles appear, or the goal needs reassessing.
-        </p>
-        <div class="hero-shot-stage" data-hero-stack aria-label="Steady app screenshots">
-          <div class="hero-shot-stack">
-            <div class="shot hero-shot-home" data-shot="home">
-              <img src="assets/hero-home.png" alt="Steady home view" loading="lazy" />
-            </div>
-            <div class="shot hero-shot-block" data-shot="block">
-              <img src="assets/hero-block.png" alt="Steady block view" loading="lazy" />
-            </div>
-            <div class="shot hero-shot-design" data-shot="design">
-              <img src="assets/hero-design-week.png" alt="Steady design your week view" loading="lazy" />
-            </div>
+        <div class="hero-copy">
+          <h1 class="display xl">Bring your<br/><em>own plan.</em></h1>
+          <p class="hero-body">
+            Steady keeps the plan you wrote <strong>connected to the training you actually ran</strong>. Bring in your own plan, sync what happened, and keep the block honest when sessions move, niggles appear, or the goal needs reassessing.
+          </p>
+        </div>
+        <div class="hero-shot-stage" aria-label="Steady app screenshots">
+          <div class="hero-screens" data-interval="2900" data-fade="700">
+            <img src="assets/hero-home.png" alt="Steady home view" loading="eager" decoding="async" fetchpriority="high" />
+            <img src="assets/hero-block.png" alt="Steady block view" loading="eager" decoding="async" />
+            <img src="assets/hero-design-week.png" alt="Steady design your week view" loading="eager" decoding="async" />
           </div>
         </div>
       </div>
@@ -928,12 +983,14 @@
                 <div class="name">Spreadsheet</div>
                 <div class="desc">Drop in your existing plan as a sheet</div>
               </div>
+              <span class="later-tag"><span class="rm-title-dot"></span>Coming later</span>
             </div>
             <div class="plan-feature">
               <div class="text">
                 <div class="name">PDF or image</div>
                 <div class="desc">Import PDFs or screenshots of your plan to make setup easier</div>
               </div>
+              <span class="later-tag"><span class="rm-title-dot"></span>Coming later</span>
             </div>
             <div class="plan-feature">
               <div class="text">
@@ -990,7 +1047,10 @@
             </div>
           </div>
           <div class="injury-copy-col">
-            <div class="injury-subhead">Recovery</div>
+            <div class="injury-subhead with-tag">
+              <span>Recovery</span>
+              <span class="later-tag"><span class="rm-title-dot"></span>Coming later</span>
+            </div>
             <div class="injury-copy-title">Stay on track<br/>when you're off your feet.</div>
             <p class="lede">
               If injured, Steady will help you keep your <strong>recovery routine on track</strong> and recognise that your race goal may change, and that's fine, too!
@@ -1007,6 +1067,7 @@
       <div class="physio-grid reveal">
         <div class="physio-copy">
           <h2 class="display lg"><em>Physio</em><br/>cheatsheet.</h2>
+          <span class="later-tag"><span class="rm-title-dot"></span>Coming later</span>
           <p class="lede">
             Because you're tracking the relevant metrics throughout your block, Steady generates a <strong>physio report</strong>. A more efficient overview of your mileage and niggle timeline than anything you'd type up the night before. It guides the conversation with your physio so you can spend the visit on actual physical diagnosis and treatment.
           </p>
@@ -1114,8 +1175,8 @@
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M7 4.5V7L8.5 8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
             </div>
             <div>
-              <div class="rm-item-name">Steady AI &amp; human coaching</div>
-              <div class="rm-item-body">AI-driven insights and access to real-life human coaches</div>
+              <div class="rm-item-name">Steady AI, a second opinion</div>
+              <div class="rm-item-body">Ask Steady for a view on your block, and if you both agree, it can action the change for you. It will never write or sell you a plan.</div>
             </div>
           </div>
         </div>
@@ -1195,156 +1256,52 @@
     document.querySelectorAll('.reveal').forEach(el => io.observe(el));
 
     (() => {
-      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-      const stage = document.querySelector('[data-hero-stack]');
-      const hero = document.querySelector('.hero');
-      if (!stage || !hero || reduceMotion.matches) return;
+      function initHeroScreens(root) {
+        if (root.dataset.heroInit === 'true') return;
+        root.dataset.heroInit = 'true';
 
-      const shots = {
-        home: stage.querySelector('[data-shot="home"]'),
-        block: stage.querySelector('[data-shot="block"]'),
-        design: stage.querySelector('[data-shot="design"]'),
-      };
-      const names = Object.keys(shots);
-      if (names.some(name => !shots[name])) return;
+        const imgs = Array.from(root.children).filter(el => el.tagName === 'IMG');
+        if (imgs.length === 0) return;
 
-      const stateRoles = [
-        { home: 'left',   block: 'center', design: 'right'  },
-        { home: 'right',  block: 'left',   design: 'center' },
-        { home: 'center', block: 'right',  design: 'left'   },
-      ];
-      const activeNames = ['block', 'design', 'home'];
+        const interval = parseInt(root.dataset.interval, 10) || 2900;
+        const fade = parseInt(root.dataset.fade, 10) || 700;
+        const showDots = root.dataset.dots !== 'false';
+        const reduceMotion = window.matchMedia &&
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-      let roleValues = {};
-      let motionValues = {};
-      let targetProgress = 0;
-      let currentProgress = 0;
-      let ticking = false;
+        root.style.setProperty('--hero-fade', `${fade}ms`);
 
-      const clamp = value => Math.min(1, Math.max(0, value));
-      const smoother = value => value * value * value * (value * (value * 6 - 15) + 10);
-      const lerp = (from, to, amount) => from + (to - from) * amount;
-
-      function measureRoles() {
-        const width = shots.block.offsetWidth || 276;
-        const isNarrow = window.matchMedia('(max-width: 900px)').matches;
-        const spread = width * (isNarrow ? 0.44 : 0.48);
-        const sideY = isNarrow ? 28 : 34;
-        const rearDip = isNarrow ? 12 : 16;
-        const frontArc = isNarrow ? 4 : 6;
-        roleValues = {
-          left:   { x: -spread, y: sideY, rotation: -4, scale: 0.965, depth: 0.36 },
-          center: { x: 0,       y: 0,     rotation: 0,  scale: 1,     depth: 1    },
-          right:  { x: spread,  y: sideY, rotation: 4,  scale: 0.965, depth: 0.36 },
-        };
-        motionValues = {
-          rearDip,
-          frontArc,
-          rearDepth: 0.18,
-          rearScaleDip: isNarrow ? 0.018 : 0.022,
-          zRange: isNarrow ? 80 : 110,
-        };
-      }
-
-      function readProgress() {
-        const scrollY = window.scrollY || window.pageYOffset;
-        const releasePoint = hero.offsetTop + hero.offsetHeight - window.innerHeight;
-        const start = hero.offsetTop + Math.min(96, window.innerHeight * 0.1);
-        const naturalEnd = start + window.innerHeight * 0.95;
-        const end = Math.max(start + window.innerHeight * 0.55, Math.min(naturalEnd, releasePoint - window.innerHeight * 0.06));
-        return clamp((scrollY - start) / Math.max(1, end - start));
-      }
-
-      function getInterpolatedRole(name, progress) {
-        const segmentCount = stateRoles.length - 1;
-        const scaled = progress * segmentCount;
-        const index = Math.min(segmentCount - 1, Math.floor(scaled));
-        const rawLocal = scaled - index;
-        const local = smoother(rawLocal);
-        const arc = Math.sin(Math.PI * rawLocal);
-        const fromRole = stateRoles[index][name];
-        const toRole = stateRoles[index + 1][name];
-        const from = roleValues[fromRole];
-        const to = roleValues[toRole];
-
-        let y = lerp(from.y, to.y, local);
-        let scale = lerp(from.scale, to.scale, local);
-        let depth = lerp(from.depth, to.depth, local);
-        let layerBias = 0;
-
-        if (fromRole !== 'center' && toRole !== 'center') {
-          y += motionValues.rearDip * arc;
-          scale -= motionValues.rearScaleDip * arc;
-          depth = motionValues.rearDepth;
-          layerBias = -80;
-        } else if (toRole === 'center') {
-          y -= motionValues.frontArc * arc;
-          depth = clamp(depth + 0.04 * local);
-          layerBias = 32 * local;
-        } else if (fromRole === 'center') {
-          y += motionValues.frontArc * arc;
-          depth = clamp(depth - 0.03 * local);
-          layerBias = 18 * (1 - local);
+        const dots = [];
+        if (showDots && imgs.length > 1) {
+          const dotWrap = document.createElement('div');
+          dotWrap.className = 'hero-screens__dots';
+          dotWrap.setAttribute('aria-hidden', 'true');
+          imgs.forEach(() => {
+            const dot = document.createElement('span');
+            dotWrap.appendChild(dot);
+            dots.push(dot);
+          });
+          root.appendChild(dotWrap);
         }
 
-        return {
-          x: lerp(from.x, to.x, local),
-          y,
-          rotation: lerp(from.rotation, to.rotation, local),
-          scale,
-          depth,
-          layerBias,
-        };
-      }
-
-      function render(progress) {
-        const activeIndex = Math.min(activeNames.length - 1, Math.round(progress * (activeNames.length - 1)));
-        stage.dataset.active = activeNames[activeIndex];
-
-        names.forEach(name => {
-          const shot = shots[name];
-          const role = getInterpolatedRole(name, progress);
-          const frontWeight = clamp(role.depth);
-          const z = (frontWeight - 0.5) * motionValues.zRange;
-          const shadowY = Math.round(16 + frontWeight * 18);
-          const shadowBlur = Math.round(22 + frontWeight * 22);
-          const shadowAlpha = (0.07 + frontWeight * 0.07).toFixed(3);
-
-          shot.style.transform = `translateX(calc(-50% + ${role.x.toFixed(2)}px)) translateY(${role.y.toFixed(2)}px) translateZ(${z.toFixed(2)}px) rotate(${role.rotation.toFixed(2)}deg) scale(${role.scale.toFixed(4)})`;
-          shot.style.zIndex = String(Math.round(1000 + frontWeight * 1000 + role.layerBias));
-          shot.style.filter = `drop-shadow(0 ${shadowY}px ${shadowBlur}px rgba(28, 21, 16, ${shadowAlpha}))`;
-        });
-      }
-
-      function animate() {
-        currentProgress = lerp(currentProgress, targetProgress, 0.16);
-        if (Math.abs(currentProgress - targetProgress) < 0.001) currentProgress = targetProgress;
-        render(currentProgress);
-
-        if (currentProgress !== targetProgress) {
-          requestAnimationFrame(animate);
-        } else {
-          ticking = false;
+        let activeIndex = 0;
+        function show(index) {
+          imgs.forEach((img, i) => img.classList.toggle('is-active', i === index));
+          dots.forEach((dot, i) => dot.classList.toggle('is-active', i === index));
         }
+
+        show(0);
+        root.classList.add('is-ready');
+
+        if (reduceMotion || imgs.length < 2) return;
+
+        window.setInterval(() => {
+          activeIndex = (activeIndex + 1) % imgs.length;
+          show(activeIndex);
+        }, interval);
       }
 
-      function requestUpdate() {
-        targetProgress = readProgress();
-        if (!ticking) {
-          ticking = true;
-          requestAnimationFrame(animate);
-        }
-      }
-
-      measureRoles();
-      targetProgress = currentProgress = readProgress();
-      render(currentProgress);
-
-      window.addEventListener('scroll', requestUpdate, { passive: true });
-      window.addEventListener('resize', () => {
-        measureRoles();
-        requestUpdate();
-      });
+      document.querySelectorAll('.hero-screens').forEach(initHeroScreens);
     })();
   </script>
 </body>
