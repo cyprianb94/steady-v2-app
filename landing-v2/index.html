@@ -472,6 +472,57 @@
   .injury-phone-stage .shot { position: relative; z-index: 1; }
   .injury-row:not(.niggles) .shot { filter: none; }
 
+  .niggle-shot-stack {
+    position: relative;
+    width: min(420px, 100%);
+    height: 660px;
+    margin: 0 auto;
+    isolation: isolate;
+  }
+  .niggle-shot-stack::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 18px;
+    width: 300px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(28, 21, 16, 0.08);
+    transform: translateX(-50%);
+    filter: blur(22px);
+    z-index: 0;
+  }
+  .niggle-screen {
+    position: absolute;
+    left: 50%;
+    width: min(270px, 64vw);
+    aspect-ratio: 1206 / 2622;
+    border: 1px solid rgba(229, 221, 208, 0.86);
+    border-radius: 28px;
+    background: var(--surface);
+    overflow: hidden;
+    transform-origin: center bottom;
+  }
+  .niggle-screen img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .niggle-screen--back {
+    top: 10px;
+    opacity: 0.86;
+    transform: translateX(-72%) rotate(-7deg);
+    filter: saturate(0.96) drop-shadow(0 24px 34px rgba(28, 21, 16, 0.13));
+    z-index: 1;
+  }
+  .niggle-screen--front {
+    top: 58px;
+    transform: translateX(-28%) rotate(5deg);
+    filter: drop-shadow(0 32px 44px rgba(28, 21, 16, 0.16));
+    z-index: 2;
+  }
+
   /* ============================================================
      PHYSIO CHEATSHEET: copy left, paper sheet right
      ============================================================ */
@@ -893,6 +944,10 @@
     .injury-row.reverse { grid-template-columns: 1fr; gap: 36px; }
     .injury-row.reverse .injury-phone-stage { order: -1; }
     .injury-phone-stage::before { width: 320px; height: 320px; }
+    .niggle-shot-stack { width: min(420px, 92vw); height: 600px; }
+    .niggle-screen { width: min(245px, 58vw); border-radius: 24px; }
+    .niggle-screen--back { transform: translateX(-76%) rotate(-6deg); }
+    .niggle-screen--front { top: 62px; transform: translateX(-26%) rotate(4deg); }
 
     .physio-grid { grid-template-columns: 1fr; gap: 40px; }
     .paper-sheet { max-width: 360px; height: 480px; margin: 0 auto; }
@@ -914,6 +969,11 @@
     .hero-body { font-size: 16px; line-height: 1.48; }
     .hero-shot-stage { margin-top: 28px; }
     .hero-screens { width: clamp(160px, 46vw, 190px); }
+    .niggle-shot-stack { width: min(330px, 92vw); height: 520px; }
+    .niggle-shot-stack::before { bottom: 6px; width: 230px; }
+    .niggle-screen { width: min(214px, 59vw); border-radius: 22px; }
+    .niggle-screen--back { top: 0; transform: translateX(-70%) rotate(-6deg); }
+    .niggle-screen--front { top: 48px; }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -1027,8 +1087,13 @@
             </p>
           </div>
           <div class="injury-phone-stage">
-            <div class="shot">
-              <iframe src="frames/niggle-timeline/index.html" title="Niggle timeline" scrolling="no" loading="lazy"></iframe>
+            <div class="niggle-shot-stack">
+              <div class="niggle-screen niggle-screen--back">
+                <img src="assets/niggle-picker-where.png" alt="Steady app niggle picker selecting foot as the affected area" loading="lazy" decoding="async">
+              </div>
+              <div class="niggle-screen niggle-screen--front">
+                <img src="assets/niggle-picker-detail.png" alt="Steady app niggle picker choosing side, severity, and timing" loading="lazy" decoding="async">
+              </div>
             </div>
           </div>
         </div>
