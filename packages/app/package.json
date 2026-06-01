@@ -11,8 +11,8 @@
     "release:preview:ios": "npx --yes eas-cli build --platform ios --profile preview",
     "release:production:ios": "npx --yes eas-cli build --platform ios --profile production",
     "release:production:submit": "npx --yes eas-cli submit --platform ios --profile production",
-    "release:update:preview": "npx --yes eas-cli update --channel preview --environment preview",
-    "release:update:production": "npx --yes eas-cli update --channel production --environment production",
+    "release:update:preview": "EAS_BUILD_PROFILE=preview npx --yes eas-cli update --channel preview --environment preview",
+    "release:update:production": "EAS_BUILD_PROFILE=production npx --yes eas-cli update --channel production --environment production",
     "test": "vitest run",
     "validate:gels": "node ./scripts/validate-gels.mjs"
   },
