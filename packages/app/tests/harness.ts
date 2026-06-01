@@ -268,6 +268,8 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
   default: appTestHarness.asyncStorage,
 }));
 
+vi.mock('react-native-url-polyfill/auto', () => ({}));
+
 vi.mock('expo-constants', () => ({
   default: appTestHarness.constants,
 }));
@@ -341,3 +343,5 @@ beforeEach(() => {
   }
   Reflect.set(globalThis, '__DEV__', true);
 });
+
+export { appTestHarness };

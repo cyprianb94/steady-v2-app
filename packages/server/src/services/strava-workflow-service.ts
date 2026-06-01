@@ -464,6 +464,7 @@ export function createStravaWorkflowService(deps: StravaWorkflowServiceDeps): St
       await deps.profileRepo.upsert({
         ...profile,
         stravaAthleteId: tokenResponse.athleteId,
+        primaryRunSource: profile.primaryRunSource ?? 'strava',
       });
 
       return {

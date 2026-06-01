@@ -1,4 +1,4 @@
-import type { User } from '@steady/types';
+import type { PrimaryRunSource, User } from '@steady/types';
 import type { ProfileRepo } from './profile-repo';
 
 export class InMemoryProfileRepo implements ProfileRepo {
@@ -11,6 +11,24 @@ export class InMemoryProfileRepo implements ProfileRepo {
   async upsert(profile: User): Promise<User> {
     this.store.set(profile.id, { ...profile });
     return { ...profile };
+  }
+
+  async updateRunSourceSettings(
+    id: string,
+    settings: { appleHealthConnected?: boolean; primaryRunSource?: PrimaryRunSource | null },
+  ): Promise<User | null> {
+    const user = this.store.get(id);
+    if (!user) return null;
+
+    if (settings.appleHealthConnected !== undefined) {
+      user.appleHealthConnected = settings.appleHealthConnected;
+    }
+
+    if (settings.primaryRunSource !== undefined) {
+      user.primaryRunSource = settings.primaryRunSource ?? undefined;
+    }
+
+    return { ...user };
   }
 
   async updateSubscription(id: string, tier: 'free' | 'pro', expiresAt?: string): Promise<User | null> {

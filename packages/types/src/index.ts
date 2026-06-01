@@ -78,8 +78,14 @@ export type {
 } from './niggle';
 
 export type {
+  ActivityImportResult,
+  ActivityRunSubtype,
+  ActivitySource,
   Activity,
   ActivitySplit,
+  ActivitySyncMatchSummary,
+  NormalizedProviderActivity,
+  ProviderActivitySource,
   RunFuelEvent,
   RunFuelGel,
 } from './activity';
@@ -97,7 +103,7 @@ export type {
   PlanEditStatus,
 } from './coach';
 
-export type { User, WeeklyVolumeMetric } from './user';
+export type { PrimaryRunSource, User, WeeklyVolumeMetric } from './user';
 export {
   STEADY_AI_FREEZE_ACTIVE,
   STEADY_AI_FREEZE_MESSAGE,

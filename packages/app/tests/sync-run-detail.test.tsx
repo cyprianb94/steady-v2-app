@@ -190,6 +190,30 @@ describe('SyncRunDetailScreen', () => {
     expect(screen.queryByText('This run is no longer available')).toBeNull();
   });
 
+  it('shows source and cadence metadata for Apple Health runs', async () => {
+    mockActivityGet.mockResolvedValue({
+      id: 'activity-1',
+      source: 'apple_health',
+      sourceName: 'Apple Watch',
+      sourceDevice: 'Apple Watch Series 9',
+      runSubtype: 'outdoor',
+      startTime: '2026-04-15T07:15:00.000Z',
+      distance: 8.2,
+      duration: 2650,
+      avgPace: 323,
+      avgHR: 148,
+      maxHR: 171,
+      avgCadence: 166,
+      splits: [],
+      matchedSessionId: null,
+    });
+
+    render(<SyncRunDetailScreen />);
+
+    expect(await screen.findByText('Apple Watch · Outdoor · Apple Watch Series 9')).toBeTruthy();
+    expect(screen.getByText('166 spm')).toBeTruthy();
+  });
+
   it('fails out of the loading state when the run fetch hangs', async () => {
     vi.useFakeTimers();
     mockActivityGet.mockImplementation(() => new Promise(() => {}));

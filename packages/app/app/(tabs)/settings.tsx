@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Alert, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Alert, ScrollView, Pressable, Platform } from 'react-native';
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,6 +12,7 @@ import {
   type WeeklyVolumeMetric,
 } from '@steady/types';
 import { usePlan } from '../../hooks/usePlan';
+import { useAppleHealthSync } from '../../hooks/useAppleHealthSync';
 import { useStravaSync } from '../../hooks/useStravaSync';
 import { C } from '../../constants/colours';
 import { FONTS } from '../../constants/typography';
@@ -280,6 +281,14 @@ export default function SettingsTab() {
   const { plan, loading: planLoading, currentWeekIndex, refresh } = usePlan();
   const { status: stravaStatus, refreshStatus, forceSync, syncing: stravaSyncing } = useStravaSync();
   const {
+    status: appleHealthStatus,
+    refreshStatus: refreshAppleHealthStatus,
+    forceSync: forceAppleHealthSync,
+    connectAndSync: connectAppleHealthAndSync,
+    disconnect: disconnectAppleHealth,
+    syncing: appleHealthSyncing,
+  } = useAppleHealthSync();
+  const {
     units,
     setUnits,
     weeklyVolumeMetric,
@@ -290,9 +299,11 @@ export default function SettingsTab() {
   } = usePreferences();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const busy = isLoading || isSubmitting || stravaSyncing;
+  const busy = isLoading || isSubmitting || stravaSyncing || appleHealthSyncing;
   const preferenceBusy = busy || preferencesLoading || updatingUnits || updatingWeeklyVolumeMetric;
   const stravaConnected = Boolean(session && stravaStatus?.connected);
+  const appleHealthConnected = Boolean(session && appleHealthStatus?.connected);
+  const showAppleHealth = Platform.OS === 'ios';
   const showOnboardingReplay = isOnboardingReplayEntryVisible();
 
   async function handleGoogleSignIn() {
@@ -384,6 +395,61 @@ export default function SettingsTab() {
     ]);
   }
 
+  async function handleAppleHealthConnect() {
+    try {
+      setIsSubmitting(true);
+      await connectAppleHealthAndSync();
+      await refreshAppleHealthStatus();
+      await refresh();
+    } catch (error) {
+      Alert.alert('Apple Health connection failed', error instanceof Error ? error.message : 'Unknown error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleAppleHealthSyncNow() {
+    try {
+      setIsSubmitting(true);
+      await forceAppleHealthSync();
+      await refreshAppleHealthStatus();
+      await refresh();
+    } catch (error) {
+      Alert.alert('Apple Health sync failed', error instanceof Error ? error.message : 'Unknown error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function performAppleHealthDisconnect() {
+    try {
+      setIsSubmitting(true);
+      await disconnectAppleHealth();
+      await refresh();
+    } catch (error) {
+      Alert.alert('Apple Health disconnect failed', error instanceof Error ? error.message : 'Unknown error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  function confirmAppleHealthDisconnect() {
+    Alert.alert(
+      'Disconnect Apple Health?',
+      'New Apple Watch runs will stop syncing. Runs already in Steady stay in your plan.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Disconnect',
+          style: 'destructive',
+          onPress: () => {
+            void performAppleHealthDisconnect();
+          },
+        },
+      ],
+    );
+  }
+
   async function handleUnitsChange(nextUnits: Units) {
     if (nextUnits === units || preferenceBusy) return;
 
@@ -462,31 +528,70 @@ export default function SettingsTab() {
       <View style={styles.section}>
         <SectionLabel title="Activity sync" />
         <View style={styles.card}>
-          <View style={styles.syncHead}>
-            <View style={styles.syncTitleLine}>
-              <Text style={styles.syncName}>Strava</Text>
-              <StatusText
-                label={stravaConnected ? 'Connected' : 'Not connected'}
-                connected={stravaConnected}
-              />
+          <View style={styles.syncProvider}>
+            <View style={styles.syncHead}>
+              <View style={styles.syncTitleLine}>
+                <Text style={styles.syncName}>Strava</Text>
+                <StatusText
+                  label={stravaConnected ? 'Connected' : 'Not connected'}
+                  connected={stravaConnected}
+                />
+              </View>
+              <LastSyncText lastSyncedAt={stravaConnected ? stravaStatus?.lastSyncedAt : null} />
             </View>
-            <LastSyncText lastSyncedAt={stravaConnected ? stravaStatus?.lastSyncedAt : null} />
+
+            <SettingsRow
+              title={!session ? 'Sign in to connect' : stravaConnected ? 'Sync Strava' : 'Connect Strava'}
+              onPress={!session ? handleGoogleSignIn : stravaConnected ? handleStravaSyncNow : handleStravaConnect}
+              disabled={busy || planLoading}
+            />
+
+            {stravaConnected ? (
+              <SettingsRow
+                title="Disconnect Strava"
+                onPress={confirmStravaDisconnect}
+                disabled={busy}
+                tone="danger"
+                showBorder={false}
+              />
+            ) : null}
           </View>
 
-          <SettingsRow
-            title={!session ? 'Sign in to connect' : stravaConnected ? 'Sync now' : 'Connect Strava'}
-            onPress={!session ? handleGoogleSignIn : stravaConnected ? handleStravaSyncNow : handleStravaConnect}
-            disabled={busy || planLoading}
-          />
+          {showAppleHealth ? (
+            <>
+              <View style={styles.syncProviderDivider} />
+              <View style={styles.syncProvider}>
+                <View style={styles.syncHead}>
+                  <View style={styles.syncTitleLine}>
+                    <Text style={styles.syncName}>Apple Health</Text>
+                    <StatusText
+                      label={appleHealthConnected ? 'Connected' : 'Not connected'}
+                      connected={appleHealthConnected}
+                    />
+                  </View>
+                  <LastSyncText lastSyncedAt={appleHealthConnected ? appleHealthStatus?.lastSyncedAt : null} />
+                  <Text style={styles.syncPrivacyCopy}>
+                    Completed runs only. No route traces, sleep, HRV, readiness, or all-day Health data.
+                  </Text>
+                </View>
 
-          {stravaConnected ? (
-            <SettingsRow
-              title="Disconnect Strava"
-              onPress={confirmStravaDisconnect}
-              disabled={busy}
-              tone="danger"
-              showBorder={false}
-            />
+                <SettingsRow
+                  title={!session ? 'Sign in to connect' : appleHealthConnected ? 'Sync Apple Health' : 'Connect Apple Health'}
+                  onPress={!session ? handleGoogleSignIn : appleHealthConnected ? handleAppleHealthSyncNow : handleAppleHealthConnect}
+                  disabled={busy || planLoading || appleHealthStatus?.supported === false}
+                />
+
+                {appleHealthConnected ? (
+                  <SettingsRow
+                    title="Disconnect Apple Health"
+                    onPress={confirmAppleHealthDisconnect}
+                    disabled={busy}
+                    tone="danger"
+                    showBorder={false}
+                  />
+                ) : null}
+              </View>
+            </>
           ) : null}
         </View>
       </View>
@@ -775,6 +880,13 @@ const styles = StyleSheet.create({
   syncHead: {
     padding: 12,
   },
+  syncProvider: {
+    backgroundColor: C.surface,
+  },
+  syncProviderDivider: {
+    height: 1,
+    backgroundColor: C.border,
+  },
   syncTitleLine: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -792,6 +904,13 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.sans,
     fontSize: 12,
     lineHeight: 17,
+    color: C.muted,
+  },
+  syncPrivacyCopy: {
+    marginTop: 7,
+    fontFamily: FONTS.sans,
+    fontSize: 11,
+    lineHeight: 16,
     color: C.muted,
   },
   preferencesCard: {

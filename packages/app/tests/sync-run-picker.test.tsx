@@ -69,7 +69,7 @@ describe('SyncRunPickerScreen', () => {
     vi.mocked(router.back).mockReset();
   });
 
-  it('shows a Back CTA when no Strava runs are available to review', async () => {
+  it('shows a Back CTA when no synced runs are available to review', async () => {
     mockActivityList.mockResolvedValue([]);
 
     render(<SyncRunPickerScreen />);
@@ -115,6 +115,34 @@ describe('SyncRunPickerScreen', () => {
     expect(screen.getByText((text) => text.includes(expectedDate))).toBeTruthy();
     expect(screen.getByText('149 bpm avg')).toBeTruthy();
     expect(screen.queryByText('148.2 bpm avg')).toBeNull();
+  });
+
+  it('includes recent Apple Health runs in the picker', async () => {
+    const today = isoDateLocal(new Date());
+
+    mockActivityList.mockResolvedValue([
+      {
+        id: 'apple-health-run',
+        userId: 'runner-1',
+        source: 'apple_health',
+        externalId: 'apple-workout-1',
+        sourceName: 'Apple Watch',
+        name: 'Morning Run',
+        startTime: `${today}T07:15:00.000Z`,
+        distance: 6.2,
+        duration: 1800,
+        avgPace: 290,
+        avgHR: 148,
+        splits: [],
+        matchedSessionId: null,
+      },
+    ]);
+
+    render(<SyncRunPickerScreen />);
+
+    expect(await screen.findByText('Morning Run')).toBeTruthy();
+    expect(screen.getByText('148 bpm avg')).toBeTruthy();
+    expect(screen.getByText('None of these')).toBeTruthy();
   });
 
   it('keeps an auto-matched same-day run visible when older unmatched runs exist', async () => {

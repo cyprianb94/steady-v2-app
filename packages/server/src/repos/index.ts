@@ -10,6 +10,14 @@ export type { ActivityRepo } from './activity-repo';
 export { InMemoryActivityRepo } from './activity-repo.memory';
 export { SupabaseActivityRepo } from './activity-repo.supabase';
 
+export type { ActivityProvenanceRepo, ProviderActivityRecord } from './activity-provenance-repo';
+export { InMemoryActivityProvenanceRepo } from './activity-provenance-repo.memory';
+export { SupabaseActivityProvenanceRepo } from './activity-provenance-repo.supabase';
+
+export type { ActivitySyncLog, ActivitySyncLogRepo } from './activity-sync-log-repo';
+export { InMemoryActivitySyncLogRepo } from './activity-sync-log-repo.memory';
+export { SupabaseActivitySyncLogRepo } from './activity-sync-log-repo.supabase';
+
 export type { ShoeRepo } from './shoe-repo';
 export { InMemoryShoeRepo } from './shoe-repo.memory';
 export { SupabaseShoeRepo } from './shoe-repo.supabase';

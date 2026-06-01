@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import * as QueryParams from 'expo-auth-session/build/QueryParams';
+import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { requireSupabaseClient, getSupabaseClient } from './supabase';
@@ -21,12 +22,28 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function getConfiguredScheme(): string | null {
+  const scheme = Constants.expoConfig?.scheme;
+  if (typeof scheme === 'string' && scheme.trim()) {
+    return scheme.trim();
+  }
+
+  if (Array.isArray(scheme)) {
+    return scheme.find((candidate) => candidate.trim())?.trim() ?? null;
+  }
+
+  return null;
+}
+
 function getRedirectTo() {
   // Linking.createURL picks the correct scheme automatically:
   // - Expo Go: exp://{hostUri}/--/auth/callback
   // - Dev build / production: steady://auth/callback
   // - Preview build: steady-preview://auth/callback
-  return Linking.createURL('auth/callback');
+  const scheme = getConfiguredScheme();
+  return scheme
+    ? Linking.createURL('auth/callback', { scheme })
+    : Linking.createURL('auth/callback');
 }
 
 async function createSessionFromUrl(url: string): Promise<Session | null> {

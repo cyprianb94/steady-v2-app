@@ -49,6 +49,7 @@ export async function revokeStravaTokenAccess(
   await profileRepo.upsert({
     ...profile,
     stravaAthleteId: undefined,
+    primaryRunSource: profile.primaryRunSource === 'strava' ? undefined : profile.primaryRunSource,
   });
 }
 

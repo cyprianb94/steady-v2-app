@@ -4,7 +4,7 @@ import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { deriveTrainingPaceProfile } from '@steady/types';
 
@@ -39,6 +39,19 @@ const mockStrava = {
 
 vi.mock('../hooks/useStravaSync', () => ({
   useStravaSync: () => mockStrava,
+}));
+
+const mockAppleHealth = {
+  status: null as any,
+  refreshStatus: vi.fn(),
+  forceSync: vi.fn(),
+  connectAndSync: vi.fn(),
+  disconnect: vi.fn(),
+  syncing: false,
+};
+
+vi.mock('../hooks/useAppleHealthSync', () => ({
+  useAppleHealthSync: () => mockAppleHealth,
 }));
 
 const mockPreferences = {
@@ -143,6 +156,13 @@ describe('SettingsTab', () => {
     mockStrava.forceSync = vi.fn();
     mockStrava.syncing = false;
 
+    mockAppleHealth.status = null;
+    mockAppleHealth.refreshStatus = vi.fn();
+    mockAppleHealth.forceSync = vi.fn();
+    mockAppleHealth.connectAndSync = vi.fn();
+    mockAppleHealth.disconnect = vi.fn();
+    mockAppleHealth.syncing = false;
+
     mockPreferences.units = 'metric';
     mockPreferences.weeklyVolumeMetric = 'distance';
     mockPreferences.loading = false;
@@ -228,6 +248,9 @@ describe('SettingsTab', () => {
     );
     expect(screen.getByTestId('settings-phase-strip')).toBeTruthy();
     expect(screen.getAllByText('Strava')).toHaveLength(1);
+    if (Platform.OS === 'ios') {
+      expect(screen.getAllByText('Apple Health')).toHaveLength(1);
+    }
 
     expect(screen.queryByTestId('settings-summary')).toBeNull();
     expect(screen.queryByText('Overview')).toBeNull();
@@ -236,7 +259,6 @@ describe('SettingsTab', () => {
     expect(screen.queryByText('Steady AI')).toBeNull();
     expect(screen.queryByText('Coach')).toBeNull();
     expect(screen.queryByText('Garmin')).toBeNull();
-    expect(screen.queryByText('Apple Health')).toBeNull();
     expect(screen.queryByText('Subscription')).toBeNull();
     expect(screen.queryByText('Training')).toBeNull();
     expect(screen.queryByText('Connections')).toBeNull();
@@ -457,12 +479,88 @@ describe('SettingsTab', () => {
 
     render(<SettingsTab />);
 
-    fireEvent.click(screen.getByText('Sync now'));
+    fireEvent.click(screen.getByText('Sync Strava'));
 
     await waitFor(() => {
       expect(mockStrava.forceSync).toHaveBeenCalledTimes(1);
     });
     expect(mockStrava.refreshStatus).toHaveBeenCalledTimes(1);
+    expect(mockPlan.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('connects Apple Health from the activity sync section', async () => {
+    if (Platform.OS !== 'ios') return;
+
+    mockAuth.session = { user: { email: 'runner@example.com' } };
+    mockAppleHealth.status = {
+      connected: false,
+      primaryRunSource: null,
+      lastSyncedAt: null,
+      supported: true,
+    };
+    mockAppleHealth.connectAndSync.mockResolvedValue({
+      fetched: 1,
+      imported: 1,
+      skipped: 0,
+      upgraded: 0,
+      matched: 1,
+      errors: 0,
+      matchedSessions: [],
+      lastSuccessfulSyncAt: '2026-05-30T07:30:00.000Z',
+    });
+    mockAppleHealth.refreshStatus.mockResolvedValue({
+      connected: true,
+      primaryRunSource: 'apple_watch',
+      lastSyncedAt: '2026-05-30T07:30:00.000Z',
+      supported: true,
+    });
+    mockPlan.refresh.mockResolvedValue(undefined);
+
+    render(<SettingsTab />);
+
+    fireEvent.click(screen.getByText('Connect Apple Health'));
+
+    await waitFor(() => {
+      expect(mockAppleHealth.connectAndSync).toHaveBeenCalledTimes(1);
+    });
+    expect(mockAppleHealth.refreshStatus).toHaveBeenCalledTimes(1);
+    expect(mockPlan.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('requires confirmation before disconnecting Apple Health', async () => {
+    if (Platform.OS !== 'ios') return;
+
+    const alertSpy = vi.spyOn(Alert, 'alert');
+    mockAuth.session = { user: { email: 'runner@example.com' } };
+    mockAppleHealth.status = {
+      connected: true,
+      primaryRunSource: 'apple_watch',
+      lastSyncedAt: '2026-05-30T07:30:00.000Z',
+      supported: true,
+    };
+    mockAppleHealth.disconnect.mockResolvedValue(undefined);
+    mockPlan.refresh.mockResolvedValue(undefined);
+
+    render(<SettingsTab />);
+
+    fireEvent.click(screen.getByText('Disconnect Apple Health'));
+
+    expect(mockAppleHealth.disconnect).not.toHaveBeenCalled();
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Disconnect Apple Health?',
+      expect.any(String),
+      expect.any(Array),
+    );
+
+    const buttons = alertSpy.mock.calls[0][2] as Array<{ onPress?: () => void }>;
+    await act(async () => {
+      buttons[1].onPress?.();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mockAppleHealth.disconnect).toHaveBeenCalledTimes(1);
+    });
     expect(mockPlan.refresh).toHaveBeenCalledTimes(1);
   });
 

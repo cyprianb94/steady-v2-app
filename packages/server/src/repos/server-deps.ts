@@ -2,6 +2,8 @@ import type { RouterDeps } from '../trpc/router';
 import { createStravaClient, type StravaClient } from '../lib/strava-client';
 import { getSupabaseAdminClient, getSupabaseServiceKey } from '../lib/supabase-admin';
 import { InMemoryActivityRepo } from './activity-repo.memory';
+import { InMemoryActivityProvenanceRepo } from './activity-provenance-repo.memory';
+import { InMemoryActivitySyncLogRepo } from './activity-sync-log-repo.memory';
 import { InMemoryConversationRepo } from './conversation-repo.memory';
 import { InMemoryCrossTrainingRepo } from './cross-training-repo.memory';
 import type { IntegrationTokenRepo } from './integration-token-repo';
@@ -11,6 +13,8 @@ import { InMemoryPlanRepo } from './plan-repo.memory';
 import { InMemoryProfileRepo } from './profile-repo.memory';
 import { InMemoryShoeRepo } from './shoe-repo.memory';
 import { SupabaseActivityRepo } from './activity-repo.supabase';
+import { SupabaseActivityProvenanceRepo } from './activity-provenance-repo.supabase';
+import { SupabaseActivitySyncLogRepo } from './activity-sync-log-repo.supabase';
 import { SupabaseConversationRepo } from './conversation-repo.supabase';
 import { SupabaseCrossTrainingRepo } from './cross-training-repo.supabase';
 import { SupabaseIntegrationTokenRepo } from './integration-token-repo.supabase';
@@ -36,6 +40,8 @@ export function createServerDeps(): ServerDeps {
       profileRepo: new InMemoryProfileRepo(),
       planRepo: new InMemoryPlanRepo(),
       activityRepo,
+      activityProvenanceRepo: new InMemoryActivityProvenanceRepo(),
+      activitySyncLogRepo: new InMemoryActivitySyncLogRepo(),
       shoeRepo: new InMemoryShoeRepo(activityRepo),
       niggleRepo: new InMemoryNiggleRepo(activityRepo),
       integrationTokenRepo: new InMemoryIntegrationTokenRepo(),
@@ -51,6 +57,8 @@ export function createServerDeps(): ServerDeps {
     profileRepo: new SupabaseProfileRepo(supabase),
     planRepo: new SupabasePlanRepo(supabase),
     activityRepo: new SupabaseActivityRepo(supabase),
+    activityProvenanceRepo: new SupabaseActivityProvenanceRepo(supabase),
+    activitySyncLogRepo: new SupabaseActivitySyncLogRepo(supabase),
     shoeRepo: new SupabaseShoeRepo(supabase),
     niggleRepo: new SupabaseNiggleRepo(supabase),
     integrationTokenRepo: new SupabaseIntegrationTokenRepo(supabase),

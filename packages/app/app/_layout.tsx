@@ -8,6 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '../lib/auth';
 import { ToastProvider } from '../providers/ToastProvider';
 import { PreferencesProvider } from '../providers/PreferencesProvider';
+import { AppleHealthSyncProvider } from '../providers/AppleHealthSyncProvider';
 import { StravaSyncProvider } from '../providers/StravaSyncProvider';
 
 export default function RootLayout() {
@@ -29,14 +30,16 @@ export default function RootLayout() {
           <PreferencesProvider>
             <ToastProvider>
               <StravaSyncProvider>
-                <BottomSheetModalProvider>
-                  <Stack screenOptions={{ headerShown: false }}>
-                    <Stack.Screen name="(tabs)" />
-                    <Stack.Screen name="onboarding" />
-                    <Stack.Screen name="edit-session" />
-                    <Stack.Screen name="settings/training-paces" />
-                  </Stack>
-                </BottomSheetModalProvider>
+                <AppleHealthSyncProvider>
+                  <BottomSheetModalProvider>
+                    <Stack screenOptions={{ headerShown: false }}>
+                      <Stack.Screen name="(tabs)" />
+                      <Stack.Screen name="onboarding" />
+                      <Stack.Screen name="edit-session" />
+                      <Stack.Screen name="settings/training-paces" />
+                    </Stack>
+                  </BottomSheetModalProvider>
+                </AppleHealthSyncProvider>
               </StravaSyncProvider>
             </ToastProvider>
           </PreferencesProvider>

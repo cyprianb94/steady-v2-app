@@ -1,4 +1,5 @@
 export type WeeklyVolumeMetric = 'time' | 'distance';
+export type PrimaryRunSource = 'apple_watch' | 'garmin' | 'strava';
 
 export interface User {
   id: string;
@@ -9,6 +10,7 @@ export interface User {
   stravaAthleteId?: string;
   appleHealthConnected: boolean;
   garminAthleteId?: string;
+  primaryRunSource?: PrimaryRunSource;
 
   // Subscription
   subscriptionTier: 'free' | 'pro';

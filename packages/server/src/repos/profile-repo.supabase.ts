@@ -1,9 +1,15 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { User, WeeklyVolumeMetric } from '@steady/types';
+import type { PrimaryRunSource, User, WeeklyVolumeMetric } from '@steady/types';
 import type { ProfileRepo } from './profile-repo';
 
 function toWeeklyVolumeMetric(value: unknown): WeeklyVolumeMetric {
   return value === 'time' || value === 'distance' ? value : 'distance';
+}
+
+function toPrimaryRunSource(value: unknown): PrimaryRunSource | undefined {
+  return value === 'apple_watch' || value === 'garmin' || value === 'strava'
+    ? value
+    : undefined;
 }
 
 /** Maps a Supabase row to the User type. */
@@ -15,6 +21,7 @@ function rowToUser(row: Record<string, unknown>): User {
     stravaAthleteId: (row.strava_athlete_id as string) ?? undefined,
     appleHealthConnected: row.apple_health_connected as boolean,
     garminAthleteId: (row.garmin_athlete_id as string) ?? undefined,
+    primaryRunSource: toPrimaryRunSource(row.primary_run_source),
     subscriptionTier: row.subscription_tier as 'free' | 'pro',
     subscriptionExpiresAt: (row.subscription_expires_at as string) ?? undefined,
     timezone: row.timezone as string,
@@ -32,6 +39,7 @@ function userToRow(user: User): Record<string, unknown> {
     strava_athlete_id: user.stravaAthleteId ?? null,
     apple_health_connected: user.appleHealthConnected,
     garmin_athlete_id: user.garminAthleteId ?? null,
+    primary_run_source: user.primaryRunSource ?? null,
     subscription_tier: user.subscriptionTier,
     subscription_expires_at: user.subscriptionExpiresAt ?? null,
     timezone: user.timezone,
@@ -62,6 +70,29 @@ export class SupabaseProfileRepo implements ProfileRepo {
       .single();
 
     if (error) throw new Error(`Failed to upsert profile: ${error.message}`);
+    return rowToUser(data);
+  }
+
+  async updateRunSourceSettings(
+    id: string,
+    settings: { appleHealthConnected?: boolean; primaryRunSource?: PrimaryRunSource | null },
+  ): Promise<User | null> {
+    const row: Record<string, unknown> = {};
+    if (settings.appleHealthConnected !== undefined) {
+      row.apple_health_connected = settings.appleHealthConnected;
+    }
+    if (settings.primaryRunSource !== undefined) {
+      row.primary_run_source = settings.primaryRunSource;
+    }
+
+    const { data, error } = await this.supabase
+      .from('profiles')
+      .update(row)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error || !data) return null;
     return rowToUser(data);
   }
 

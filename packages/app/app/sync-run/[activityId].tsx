@@ -8,6 +8,7 @@ import {
   formatNiggleSummary,
   type PlannedSession,
   type Shoe,
+  type Activity,
   type SubjectiveBreathing,
   type SubjectiveLegs,
   type SubjectiveOverall,
@@ -65,6 +66,46 @@ function splitTargetDisplay(value: string): { pace: string | null; effort: strin
     pace: first,
     effort: rest.length ? rest.join(' · ') : null,
   };
+}
+
+function sourceLabel(activity: Activity): string {
+  if (activity.sourceName) return activity.sourceName;
+
+  switch (activity.source) {
+    case 'apple_health':
+      return 'Apple Health';
+    case 'garmin':
+      return 'Garmin';
+    case 'strava':
+      return 'Strava';
+    default:
+      return 'Manual';
+  }
+}
+
+function runSubtypeLabel(runSubtype: Activity['runSubtype']): string | null {
+  switch (runSubtype) {
+    case 'trail':
+      return 'Trail';
+    case 'track':
+      return 'Track';
+    case 'treadmill':
+      return 'Treadmill';
+    case 'outdoor':
+      return 'Outdoor';
+    default:
+      return null;
+  }
+}
+
+function sourceMetaLabel(activity: Activity): string {
+  return [
+    sourceLabel(activity),
+    runSubtypeLabel(activity.runSubtype),
+    activity.sourceDevice,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 }
 
 function formatPlannedActualPaceUnit(value: string): string {
@@ -377,6 +418,7 @@ export default function SyncRunDetailScreen() {
             {selectedSession ? formatSessionTitle(selectedSession, units) : activity.name ?? 'Bonus run'}
           </Text>
           <Text style={styles.runMeta}>{formatRunDetailMetaLabel(activity.startTime)}</Text>
+          <Text style={styles.runSourceMeta}>{sourceMetaLabel(activity)}</Text>
         </View>
 
         <View style={styles.metricGrid}>
@@ -399,6 +441,9 @@ export default function SyncRunDetailScreen() {
         </View>
         <View style={styles.subMetrics}>
           <Text style={styles.subMetricsText}>Max HR <Text style={[styles.subMetricsBold, styles.metricHeartRateValue]}>{activity.maxHR ? `${activity.maxHR} bpm` : '—'}</Text></Text>
+          {activity.avgCadence ? (
+            <Text style={styles.subMetricsText}>Cadence <Text style={[styles.subMetricsBold, styles.metricCadenceValue]}>{activity.avgCadence} spm</Text></Text>
+          ) : null}
           <Text style={styles.subMetricsText}>Elevation <Text style={[styles.subMetricsBold, styles.metricElevationValue]}>{activity.elevationGain ?? 0} m</Text></Text>
         </View>
 
@@ -821,6 +866,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: C.muted,
   },
+  runSourceMeta: {
+    marginTop: 8,
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 11,
+    lineHeight: 14,
+    color: C.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 1.15,
+  },
   metricGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -866,6 +920,9 @@ const styles = StyleSheet.create({
   },
   metricHeartRateValue: {
     color: C.metricHeartRate,
+  },
+  metricCadenceValue: {
+    color: C.metricCadence,
   },
   metricElevationValue: {
     color: C.metricElevation,

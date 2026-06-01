@@ -83,6 +83,7 @@ describe('strava router', () => {
 
     const profile = await profileRepo.getById('user-1');
     expect(profile?.stravaAthleteId).toBe('athlete-99');
+    expect(profile?.primaryRunSource).toBe('strava');
   });
 
   it('reports status from the stored profile and token state', async () => {

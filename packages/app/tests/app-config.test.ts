@@ -127,7 +127,7 @@ describe('app config API URL validation', () => {
   it('uses a separate app identity for preview builds', () => {
     expect(getAppIdentityForBuildProfile('preview')).toEqual({
       name: 'Steady Preview',
-      slug: 'steady-preview',
+      slug: 'steady',
       scheme: 'steady-preview',
       iosBundleIdentifier: 'com.cyprianbrytan.steady.preview',
       androidPackage: 'com.cyprianbrytan.steady.preview',
@@ -143,15 +143,42 @@ describe('app config API URL validation', () => {
     const config = appConfig({ config: baseConfig() });
 
     expect(config.name).toBe('Steady Preview');
-    expect(config.slug).toBe('steady-preview');
+    expect(config.slug).toBe('steady');
     expect(config.scheme).toBe('steady-preview');
     expect(config.ios?.bundleIdentifier).toBe('com.cyprianbrytan.steady.preview');
+    expect(config.ios?.entitlements).toMatchObject({
+      'com.apple.developer.healthkit': true,
+    });
+    expect(config.ios?.infoPlist).toMatchObject({
+      NSHealthShareUsageDescription: expect.stringContaining('completed runs'),
+      NSHealthUpdateUsageDescription: expect.stringContaining('does not write workouts'),
+    });
     expect(config.android?.package).toBe('com.cyprianbrytan.steady.preview');
     expect(config.extra).toMatchObject({
       appVariant: 'preview',
       apiUrl: 'https://api-preview.steady.test',
       stravaCallbackDomain: 'api.steady.test',
     });
+  });
+
+  it('adds the HealthKit config plugin without enabling background delivery', () => {
+    const config = appConfig({
+      config: {
+        ...baseConfig(),
+        plugins: ['expo-router'],
+      },
+    });
+
+    expect(config.plugins).toEqual([
+      'expo-router',
+      [
+        '@kingstinct/react-native-healthkit',
+        expect.objectContaining({
+          background: false,
+          NSHealthShareUsageDescription: expect.stringContaining('sleep, HRV, readiness'),
+        }),
+      ],
+    ]);
   });
 
   it('keeps the current dev identity and allows LAN API URLs outside release builds', () => {

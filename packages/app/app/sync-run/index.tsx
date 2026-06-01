@@ -47,7 +47,7 @@ function pickCandidates(activities: Activity[], today: string, weekStart: string
   const windowStart = addDaysIso(weekStart, -1);
   const weekActivities = activities.filter((a) => {
     const date = activityLocalDate(a.startTime);
-    return a.source === 'strava' && date >= windowStart && date <= today;
+    return a.source !== 'manual' && date >= windowStart && date <= today;
   });
 
   const mostRecentFirst = (left: Activity, right: Activity) => right.startTime.localeCompare(left.startTime);
@@ -156,7 +156,7 @@ export default function SyncRunPickerScreen() {
           <Text style={styles.loadingTitle}>{syncing ? 'Finding your run…' : 'Loading recent runs…'}</Text>
           <Text style={styles.loadingText}>
             {syncing
-              ? 'Pulling your latest activity from Strava. This usually takes about 5 seconds.'
+              ? 'Pulling your latest synced activity. This usually takes about 5 seconds.'
               : 'Checking your recent runs so we can open the right one.'}
           </Text>
           {syncing ? (
@@ -205,8 +205,8 @@ export default function SyncRunPickerScreen() {
           {isRunnableSession(requestedSession)
             ? `Pick a synced run for ${formatSessionTitle(requestedSession, units)}.`
             : candidates.length > 0
-              ? 'We found recent runs in Strava. Tap the one you want to review and save.'
-              : 'No fresh runs found yet. Pull to refresh after your next Strava sync.'}
+              ? 'We found recent synced runs. Tap the one you want to review and save.'
+              : 'No fresh runs found yet. Pull to refresh after your next run sync.'}
         </Text>
 
         {candidates.map((activity) => {

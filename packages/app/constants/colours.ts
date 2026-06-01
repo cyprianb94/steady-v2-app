@@ -22,6 +22,7 @@ export const C = {
   metricPaceBg: '#E4F1EF',
   metricTime: '#9D711F',
   metricHeartRate: '#BD433B',
+  metricCadence: '#7A4C83',
   metricElevation: '#607B38',
   metricEffort: '#765098',
   metricEffortBg: '#F3EEF7',

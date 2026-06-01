@@ -22,6 +22,12 @@ type AppIdentity = {
   appVariant: 'development' | 'preview' | 'production';
 };
 
+const HEALTHKIT_SHARE_USAGE =
+  'Steady reads completed runs, heart rate, splits, and cadence from Apple Health to match runs to your training plan. Steady does not read sleep, HRV, readiness, or all-day health data.';
+
+const HEALTHKIT_UPDATE_USAGE =
+  'Steady does not write workouts to Apple Health in this version.';
+
 const DEVELOPMENT_IDENTITY: AppIdentity = {
   name: 'Steady',
   slug: 'steady',
@@ -42,7 +48,7 @@ const PRODUCTION_IDENTITY: AppIdentity = {
 
 const PREVIEW_IDENTITY: AppIdentity = {
   name: 'Steady Preview',
-  slug: 'steady-preview',
+  slug: 'steady',
   scheme: 'steady-preview',
   iosBundleIdentifier: 'com.cyprianbrytan.steady.preview',
   androidPackage: 'com.cyprianbrytan.steady.preview',
@@ -177,6 +183,15 @@ export default function appConfig({ config }: ExpoConfigContext): ExpoConfig {
     ios: {
       ...config.ios,
       bundleIdentifier: appIdentity.iosBundleIdentifier,
+      infoPlist: {
+        ...config.ios?.infoPlist,
+        NSHealthShareUsageDescription: HEALTHKIT_SHARE_USAGE,
+        NSHealthUpdateUsageDescription: HEALTHKIT_UPDATE_USAGE,
+      },
+      entitlements: {
+        ...config.ios?.entitlements,
+        'com.apple.developer.healthkit': true,
+      },
     },
     android: {
       ...config.android,
@@ -189,5 +204,16 @@ export default function appConfig({ config }: ExpoConfigContext): ExpoConfig {
       stravaCallbackDomain: releaseEnv.stravaCallbackDomain,
       stravaOAuthRelayUrl,
     },
+    plugins: [
+      ...(config.plugins ?? []),
+      [
+        '@kingstinct/react-native-healthkit',
+        {
+          NSHealthShareUsageDescription: HEALTHKIT_SHARE_USAGE,
+          NSHealthUpdateUsageDescription: HEALTHKIT_UPDATE_USAGE,
+          background: false,
+        },
+      ],
+    ],
   };
 }

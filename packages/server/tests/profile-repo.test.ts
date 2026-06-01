@@ -75,6 +75,30 @@ function runProfileRepoTests(name: string, createRepo: () => ProfileRepo) {
       expect(await repo.updateSubscription('ghost', 'pro')).toBeNull();
     });
 
+    it('updates run source connection and primary source settings', async () => {
+      await repo.upsert(makeUser('user-1'));
+
+      const connected = await repo.updateRunSourceSettings('user-1', {
+        appleHealthConnected: true,
+        primaryRunSource: 'apple_watch',
+      });
+      expect(connected).toMatchObject({
+        appleHealthConnected: true,
+        primaryRunSource: 'apple_watch',
+      });
+
+      const disconnected = await repo.updateRunSourceSettings('user-1', {
+        appleHealthConnected: false,
+        primaryRunSource: null,
+      });
+      expect(disconnected?.appleHealthConnected).toBe(false);
+      expect(disconnected?.primaryRunSource).toBeUndefined();
+    });
+
+    it('returns null when updating run source settings for nonexistent user', async () => {
+      expect(await repo.updateRunSourceSettings('ghost', { appleHealthConnected: true })).toBeNull();
+    });
+
     it('isolates profiles between users', async () => {
       await repo.upsert(makeUser('user-1', { email: 'a@test.com' }));
       await repo.upsert(makeUser('user-2', { email: 'b@test.com' }));
