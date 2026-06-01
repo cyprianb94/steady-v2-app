@@ -11,6 +11,7 @@ export const C = {
 
   // Structure
   border: '#E5DDD0',
+  borderStrong: '#D2C4AC',
 
   // Status
   statusConnected: '#2A5C45',
