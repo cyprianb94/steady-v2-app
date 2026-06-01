@@ -210,7 +210,6 @@
   .hero-screens {
     --hero-ratio: 1206 / 2622;
     --hero-fade: 700ms;
-    --hero-radius: 10%;
 
     position: relative;
     z-index: 1;
@@ -224,11 +223,6 @@
     height: 100%;
     object-fit: cover;
     display: block;
-    border-radius: var(--hero-radius);
-    border: 1px solid rgba(28, 21, 16, 0.08);
-    box-shadow:
-      0 30px 60px rgba(28, 21, 16, 0.20),
-      0 6px 16px rgba(28, 21, 16, 0.10);
     background: var(--cream);
     opacity: 0;
     transform: translateY(14px) scale(0.985);
@@ -307,11 +301,6 @@
     width: 100%;
     height: auto;
   }
-  .shot.iphone-375 iframe {
-    width: 375px;
-    height: 725px;
-    transform: scale(0.8);      /* 300 / 375 */
-  }
   /* Soft gradient mask blends content edges into the page */
   .shot::after {
     content: "";
@@ -324,18 +313,22 @@
   }
 
   /* ============================================================
-     PLAN SECTION: copy left, single screenshot right
+     PLAN SECTION: screenshot left, copy right
      ============================================================ */
   .plan-section .display em { color: var(--forest); }
 
   .plan-grid {
     display: grid;
-    grid-template-columns: 1.05fr 1fr;
+    grid-template-columns: 1fr 1.05fr;
     gap: 72px;
     align-items: center;
   }
 
-  .plan-copy { padding: 8px 0; }
+  .plan-copy {
+    grid-column: 2;
+    grid-row: 1;
+    padding: 8px 0;
+  }
   .plan-copy .display { margin-bottom: 22px; }
   .plan-copy .lede { margin-bottom: 32px; max-width: 520px; }
   .plan-copy .lede em { color: var(--forest); }
@@ -372,6 +365,8 @@
   .plan-feature .later-tag { flex-shrink: 0; }
 
   .plan-phone-stage {
+    grid-column: 1;
+    grid-row: 1;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -429,6 +424,7 @@
   }
   .injury-row.reverse {
     grid-template-columns: 1fr 1.1fr;
+    margin-top: -24px;
   }
   .injury-copy-col {
     display: flex;
@@ -479,12 +475,61 @@
     z-index: 0;
     pointer-events: none;
   }
-  .injury-row:not(.niggles) .injury-phone-stage::before { display: none; }
   .injury-row.niggles .injury-phone-stage::before {
     background: radial-gradient(closest-side, var(--amber-bg) 0%, transparent 76%);
   }
   .injury-phone-stage .shot { position: relative; z-index: 1; }
-  .injury-row:not(.niggles) .shot { filter: none; }
+
+  .niggle-shot-stack {
+    position: relative;
+    width: min(420px, 100%);
+    height: 660px;
+    margin: 0 auto;
+    isolation: isolate;
+  }
+  .niggle-shot-stack::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 18px;
+    width: 300px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(28, 21, 16, 0.08);
+    transform: translateX(-50%);
+    filter: blur(22px);
+    z-index: 0;
+  }
+  .niggle-screen {
+    position: absolute;
+    left: 50%;
+    width: min(270px, 64vw);
+    aspect-ratio: 1206 / 2622;
+    border: 1px solid rgba(229, 221, 208, 0.86);
+    border-radius: 28px;
+    background: var(--surface);
+    overflow: hidden;
+    transform-origin: center bottom;
+  }
+  .niggle-screen img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .niggle-screen--back {
+    top: 10px;
+    opacity: 0.86;
+    transform: translateX(-72%) rotate(-7deg);
+    filter: saturate(0.96) drop-shadow(0 24px 34px rgba(28, 21, 16, 0.13));
+    z-index: 1;
+  }
+  .niggle-screen--front {
+    top: 58px;
+    transform: translateX(-28%) rotate(5deg);
+    filter: drop-shadow(0 32px 44px rgba(28, 21, 16, 0.16));
+    z-index: 2;
+  }
 
   /* ============================================================
      PHYSIO CHEATSHEET: copy left, paper sheet right
@@ -499,8 +544,8 @@
     align-items: center;
   }
   .physio-copy { padding: 8px 0; }
+  .physio-copy > .later-tag { margin-bottom: 18px; }
   .physio-copy .display { margin-bottom: 22px; }
-  .physio-copy .display + .later-tag { margin: -8px 0 22px; }
   .physio-copy .lede { max-width: 480px; }
 
   .physio-stage {
@@ -855,7 +900,6 @@
     background: var(--ink-bg);
     color: var(--on-dark);
     padding: 56px 28px 64px;
-    margin-top: 64px;
   }
   .footer-inner {
     max-width: 1100px;
@@ -938,13 +982,19 @@
     .hero-screens { width: clamp(190px, 48vw, 240px); }
 
     .plan-grid { grid-template-columns: 1fr; gap: 48px; }
+    .plan-copy,
+    .plan-phone-stage { grid-column: auto; grid-row: auto; }
     .plan-feature-list { max-width: none; }
     .plan-phone-stage::before { width: 320px; height: 320px; }
 
     .injury-row,
-    .injury-row.reverse { grid-template-columns: 1fr; gap: 36px; }
+    .injury-row.reverse { grid-template-columns: 1fr; gap: 36px; margin-top: 0; }
     .injury-row.reverse .injury-phone-stage { order: -1; }
     .injury-phone-stage::before { width: 320px; height: 320px; }
+    .niggle-shot-stack { width: min(420px, 92vw); height: 600px; }
+    .niggle-screen { width: min(245px, 58vw); border-radius: 24px; }
+    .niggle-screen--back { transform: translateX(-76%) rotate(-6deg); }
+    .niggle-screen--front { top: 62px; transform: translateX(-26%) rotate(4deg); }
 
     .physio-grid { grid-template-columns: 1fr; gap: 40px; }
     .paper-sheet { max-width: 360px; height: 480px; margin: 0 auto; }
@@ -966,6 +1016,11 @@
     .hero-body { font-size: 16px; line-height: 1.48; }
     .hero-shot-stage { margin-top: 28px; }
     .hero-screens { width: clamp(160px, 46vw, 190px); }
+    .niggle-shot-stack { width: min(330px, 92vw); height: 520px; }
+    .niggle-shot-stack::before { bottom: 6px; width: 230px; }
+    .niggle-screen { width: min(214px, 59vw); border-radius: 22px; }
+    .niggle-screen--back { top: 0; transform: translateX(-70%) rotate(-6deg); }
+    .niggle-screen--front { top: 48px; }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -1018,7 +1073,7 @@
     <div class="container">
       <div class="plan-grid reveal">
         <div class="plan-copy">
-          <h2 class="display lg">Bring your plan<br/><em>in whatever shape or form.</em></h2>
+          <h2 class="display lg">Start with<br/><em>what you've got.</em></h2>
           <p class="lede">
             Use the builder for a <strong>simple, painless setup</strong>. Whether you think in mileage or time on feet, Steady accommodates that. Pick a recommended template, or start from a blank week and shape it day by day.
           </p>
@@ -1073,28 +1128,31 @@
       <div class="injury-blocks">
         <div class="injury-row niggles reveal">
           <div class="injury-copy-col">
-            <div class="injury-subhead">Niggles</div>
             <div class="injury-copy-title">Report signs your body sends you early.</div>
             <p class="lede">
               Injuries are part of any sport. Steady helps you track all those <strong>annoying niggles</strong> which may turn into injuries (fingers crossed they don't).
             </p>
           </div>
           <div class="injury-phone-stage">
-            <div class="shot">
-              <iframe src="frames/niggle-timeline/index.html" title="Niggle timeline" scrolling="no" loading="lazy"></iframe>
+            <div class="niggle-shot-stack">
+              <div class="niggle-screen niggle-screen--back">
+                <img src="assets/niggle-picker-where.png" alt="Steady app niggle picker selecting foot as the affected area" loading="lazy" decoding="async">
+              </div>
+              <div class="niggle-screen niggle-screen--front">
+                <img src="assets/niggle-picker-detail.png" alt="Steady app niggle picker choosing side, severity, and timing" loading="lazy" decoding="async">
+              </div>
             </div>
           </div>
         </div>
 
         <div class="injury-row reverse reveal">
           <div class="injury-phone-stage">
-            <div class="shot iphone-375">
+            <div class="shot">
               <iframe src="frames/recovery-phase/index.html" title="Recovery phase" scrolling="no" loading="lazy"></iframe>
             </div>
           </div>
           <div class="injury-copy-col">
             <div class="injury-subhead with-tag">
-              <span>Recovery</span>
               <span class="later-tag"><span class="rm-title-dot"></span>Coming later</span>
             </div>
             <div class="injury-copy-title">Stay on track<br/>when you're off your feet.</div>
@@ -1112,8 +1170,8 @@
     <div class="container">
       <div class="physio-grid reveal">
         <div class="physio-copy">
-          <h2 class="display lg"><em>Physio</em><br/>cheatsheet.</h2>
           <span class="later-tag"><span class="rm-title-dot"></span>Coming later</span>
+          <h2 class="display lg"><em>Physio</em><br/>cheatsheet.</h2>
           <p class="lede">
             Because you're tracking the relevant metrics throughout your block, Steady generates a <strong>physio report</strong>. A more efficient overview of your mileage and niggle timeline than anything you'd type up the night before. It guides the conversation with your physio so you can spend the visit on actual physical diagnosis and treatment.
           </p>
@@ -1259,7 +1317,6 @@
   <section class="founder-section" id="why-building" data-screen-label="09 Why I'm building Steady">
     <div class="founder-wrap reveal">
       <div>
-        <div class="founder-kicker">Builder note</div>
         <h2 class="display lg founder-title">Why I'm building Steady</h2>
       </div>
       <div class="founder-copy">
@@ -1273,7 +1330,7 @@
 
         <p>I’m starting small, with plenty of ideas for where Steady could go. But more importantly, I want it shaped by runners who know what it feels like to be overwhelmed by running admin.</p>
 
-        <p class="founder-signoff">Cyprian,<span>Building Steady</span></p>
+        <p class="founder-signoff">Cyprian</p>
       </div>
     </div>
   </section>

@@ -217,16 +217,20 @@
 
     /* Embedded mode: strip iPhone chrome, blend into page */
     body.embedded {
-      background: var(--cream) !important; overflow: hidden !important;
+      display: block !important;
+      background: transparent !important; overflow: hidden !important;
       margin: 0 !important; padding: 0 !important;
     }
-    body.embedded .phone-wrapper { padding: 0 !important; }
+    body.embedded .phone-wrapper {
+      width: 100% !important;
+      padding: 0 !important;
+    }
     body.embedded .phone-frame {
       position: relative !important;
-      width: 100% !important; height: auto !important; min-height: 100% !important;
+      width: 100% !important; height: auto !important; min-height: auto !important;
       border: 0 !important; border-radius: 0 !important;
       box-shadow: none !important;
-      background: var(--cream) !important;
+      background: transparent !important;
       overflow: hidden !important;
     }
     body.embedded .status-bar { display: none !important; }
