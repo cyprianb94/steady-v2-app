@@ -183,6 +183,7 @@ describe('app config API URL validation', () => {
 
   it('keeps the current dev identity and allows LAN API URLs outside release builds', () => {
     delete process.env.EAS_BUILD_PROFILE;
+    delete process.env.EXPO_PUBLIC_STRAVA_CALLBACK_DOMAIN;
     process.env.EXPO_PUBLIC_API_URL = 'http://192.168.1.103:3000';
     process.env.EXPO_PUBLIC_STRAVA_OAUTH_RELAY_URL = 'https://oauth-relay.steady.test';
 

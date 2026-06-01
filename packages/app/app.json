@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.cyprianbrytan.steady.preview",
+      "bundleIdentifier": "com.cyprianbrytan.steady",
       "infoPlist": {
         "NSHealthShareUsageDescription": "Steady reads completed runs, heart rate, splits, and cadence from Apple Health to match runs to your training plan. Steady does not read sleep, HRV, readiness, or all-day health data.",
         "NSHealthUpdateUsageDescription": "Steady does not write workouts to Apple Health in this version.",
