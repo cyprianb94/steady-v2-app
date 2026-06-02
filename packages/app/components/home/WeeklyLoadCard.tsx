@@ -29,7 +29,7 @@ import {
 import { usePreferences } from '../../providers/preferences-context';
 import { AnimatedProgressFill } from '../ui/AnimatedProgressFill';
 
-const WEEKLY_VOLUME_BORDER = C.border;
+const WEEKLY_VOLUME_BORDER = C.borderStrong;
 const WEEKLY_VOLUME_SURFACE = C.surface;
 const CARD_HORIZONTAL_PADDING = 18;
 const COLLAPSED_HEIGHT = 92;
