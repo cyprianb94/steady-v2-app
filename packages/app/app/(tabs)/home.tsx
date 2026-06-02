@@ -23,6 +23,7 @@ import { useAuth } from '../../lib/auth';
 import { trpc } from '../../lib/trpc';
 import { clearPlannedSessionSkipped, markPlannedSessionSkipped } from '../../lib/plan-api';
 import { usePlan } from '../../hooks/usePlan';
+import { useAppleHealthSync } from '../../hooks/useAppleHealthSync';
 import { useStravaSync } from '../../hooks/useStravaSync';
 import { useTodayIso } from '../../hooks/useTodayIso';
 import { Btn } from '../../components/ui/Btn';
@@ -32,7 +33,7 @@ import { RemainingDaysList } from '../../components/home/RemainingDaysList';
 import { NiggleBanner } from '../../components/home/NiggleBanner';
 import { WeeklyVolumeCard } from '../../components/home/WeeklyLoadCard';
 import { ResolveSessionSheet } from '../../components/home/ResolveSessionSheet';
-import { StravaConnectionOverlay } from '../../components/home/StravaConnectionOverlay';
+import { RunSourceConnectionOverlay } from '../../components/home/RunSourceConnectionOverlay';
 import { InjuryBanner } from '../../components/recovery/InjuryBanner';
 import { CrossTrainingLog } from '../../components/recovery/CrossTrainingLog';
 import { ReturnToRunning } from '../../components/recovery/ReturnToRunning';
@@ -74,15 +75,26 @@ export default function HomeScreen() {
     status: stravaStatus,
     forceSync,
     refreshStatus: refreshStravaStatus,
-    syncRevision,
-    syncing,
+    syncRevision: stravaSyncRevision,
+    syncing: stravaSyncing,
   } = useStravaSync();
+  const {
+    status: appleHealthStatus,
+    forceSync: forceAppleHealthSync,
+    refreshStatus: refreshAppleHealthStatus,
+    connectAndSync: connectAppleHealthAndSync,
+    syncRevision: appleHealthSyncRevision,
+    syncing: appleHealthSyncing,
+  } = useAppleHealthSync();
   const [recoveryModalMode, setRecoveryModalMode] = useState<'mark' | 'resume' | null>(null);
   const [resumeFlowKind, setResumeFlowKind] = useState<'manual' | 'complete-step'>('manual');
   const [resolvingSession, setResolvingSession] = useState<ResolvingSessionState | null>(null);
   const [resolveSessionBusy, setResolveSessionBusy] = useState(false);
   const [connectingStrava, setConnectingStrava] = useState(false);
+  const [connectingAppleHealth, setConnectingAppleHealth] = useState(false);
   const [weeklyVolumeScrubActive, setWeeklyVolumeScrubActive] = useState(false);
+  const syncing = stravaSyncing || appleHealthSyncing;
+  const syncRevision = stravaSyncRevision + appleHealthSyncRevision;
   const today = useTodayIso();
   const weekStartDate = currentWeek ? resolveDisplayWeekStartDate(currentWeek, today) : null;
   const activeInjury = getVisibleActiveInjury(plan);
@@ -116,7 +128,9 @@ export default function HomeScreen() {
   const { refreshManually } = usePlanRefreshCoordinator({
     enabled: Boolean(session),
     isFocused,
-    forceSync,
+    forceSync: async () => {
+      await Promise.all([forceSync(), forceAppleHealthSync()]);
+    },
     refreshPlan: refresh,
     refreshPlanWithIndicator: refreshWithIndicator,
     syncRevision,
@@ -370,7 +384,20 @@ export default function HomeScreen() {
     }
   }
 
-  const showStravaOverlay = stravaStatus?.connected === false;
+  async function handleConnectAppleHealth() {
+    try {
+      setConnectingAppleHealth(true);
+      await connectAppleHealthAndSync();
+      await refreshAppleHealthStatus();
+      await refresh();
+    } catch (error) {
+      Alert.alert('Apple Health connection failed', error instanceof Error ? error.message : 'Unknown error');
+    } finally {
+      setConnectingAppleHealth(false);
+    }
+  }
+
+  const showRunSourceOverlay = stravaStatus?.connected === false && appleHealthStatus?.connected === false;
 
   return (
     <PhaseThemeProvider phase={week.phase}>
@@ -505,11 +532,16 @@ export default function HomeScreen() {
             onEndRecovery={handleEndRecovery}
           />
         ) : null}
-        {showStravaOverlay ? (
-          <StravaConnectionOverlay
-            busy={connectingStrava || syncing}
-            onConnect={() => {
+        {showRunSourceOverlay ? (
+          <RunSourceConnectionOverlay
+            stravaBusy={connectingStrava || stravaSyncing}
+            appleHealthBusy={connectingAppleHealth || appleHealthSyncing}
+            showAppleHealth={appleHealthStatus?.supported !== false}
+            onConnectStrava={() => {
               void handleConnectStrava();
+            }}
+            onConnectAppleHealth={() => {
+              void handleConnectAppleHealth();
             }}
           />
         ) : null}

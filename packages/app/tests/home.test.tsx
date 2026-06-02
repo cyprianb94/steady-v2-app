@@ -49,6 +49,25 @@ vi.mock('../hooks/useStravaSync', () => ({
   useStravaSync: () => mockStrava,
 }));
 
+const mockAppleHealth = vi.hoisted(() => ({
+  status: null as any,
+  syncing: false,
+  syncRevision: 0,
+  refreshStatus: vi.fn(),
+  forceSync: vi.fn(),
+  connectAndSync: vi.fn(),
+}));
+
+vi.mock('../hooks/useAppleHealthSync', () => ({
+  useAppleHealthSync: () => mockAppleHealth,
+}));
+
+const mockConnectStravaAndRefresh = vi.hoisted(() => vi.fn());
+
+vi.mock('../features/strava/strava-connection', () => ({
+  connectStravaAndRefresh: mockConnectStravaAndRefresh,
+}));
+
 const mockActivityList = vi.hoisted(() => vi.fn());
 const mockActivityGet = vi.hoisted(() => vi.fn());
 const mockActivityMatchSession = vi.hoisted(() => vi.fn());
@@ -125,6 +144,17 @@ describe('HomeScreen', () => {
     mockStrava.refreshStatus.mockResolvedValue(null);
     mockStrava.forceSync.mockReset();
     mockStrava.forceSync.mockResolvedValue(null);
+    mockAppleHealth.status = null;
+    mockAppleHealth.syncing = false;
+    mockAppleHealth.syncRevision = 0;
+    mockAppleHealth.refreshStatus.mockReset();
+    mockAppleHealth.refreshStatus.mockResolvedValue(null);
+    mockAppleHealth.forceSync.mockReset();
+    mockAppleHealth.forceSync.mockResolvedValue(null);
+    mockAppleHealth.connectAndSync.mockReset();
+    mockAppleHealth.connectAndSync.mockResolvedValue(null);
+    mockConnectStravaAndRefresh.mockReset();
+    mockConnectStravaAndRefresh.mockResolvedValue(true);
     mockActivityList.mockReset();
     mockActivityGet.mockReset();
     mockActivityMatchSession.mockReset();
@@ -240,7 +270,7 @@ describe('HomeScreen', () => {
     expect(screen.getByTestId('home-scroll')).toBeTruthy();
   });
 
-  it('shows the Strava overlay only after status resolves disconnected', () => {
+  it('shows the run source overlay only after Strava and Apple Health both resolve disconnected', () => {
     const week = {
       weekNumber: 1,
       phase: 'BASE' as const,
@@ -254,19 +284,128 @@ describe('HomeScreen', () => {
     mockPlan.currentWeek = week;
 
     const { rerender } = render(<HomeScreen />);
-    expect(screen.queryByTestId('home-strava-overlay')).toBeNull();
+    expect(screen.queryByTestId('home-run-source-overlay')).toBeNull();
 
     mockStrava.status = { connected: false, athleteId: null, lastSyncedAt: null };
     rerender(<HomeScreen />);
 
-    expect(screen.getByTestId('home-strava-overlay')).toBeTruthy();
-    expect(screen.getByText('Connect Strava')).toBeTruthy();
-    expect(screen.getByText('Steady needs your runs to show planned vs actual.')).toBeTruthy();
+    expect(screen.queryByTestId('home-run-source-overlay')).toBeNull();
 
-    mockStrava.status = { connected: true, athleteId: '12345', lastSyncedAt: null };
+    mockAppleHealth.status = {
+      connected: false,
+      primaryRunSource: null,
+      lastSyncedAt: null,
+      supported: true,
+    };
     rerender(<HomeScreen />);
 
-    expect(screen.queryByTestId('home-strava-overlay')).toBeNull();
+    expect(screen.getByTestId('home-run-source-overlay')).toBeTruthy();
+    expect(screen.getByText('Connect a run source')).toBeTruthy();
+    expect(screen.getByText('Use Strava or Apple Health so Steady can compare planned vs actual.')).toBeTruthy();
+    expect(screen.getByTestId('home-connect-strava')).toBeTruthy();
+    expect(screen.getByTestId('home-connect-apple-health')).toBeTruthy();
+
+    mockAppleHealth.status = {
+      connected: true,
+      primaryRunSource: 'apple_watch',
+      lastSyncedAt: null,
+      supported: true,
+    };
+    rerender(<HomeScreen />);
+
+    expect(screen.queryByTestId('home-run-source-overlay')).toBeNull();
+  });
+
+  it('hides the run source overlay when Apple Health is connected and Strava is disconnected', () => {
+    const week = {
+      weekNumber: 1,
+      phase: 'BASE' as const,
+      sessions: [null, null, null, null, null, null, null],
+      plannedKm: 40,
+    };
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = { id: 'p1', weeks: [week], phases: {}, raceDate: '2026-07-15', coachAnnotation: null };
+    mockPlan.currentWeek = week;
+    mockStrava.status = { connected: false, athleteId: null, lastSyncedAt: null };
+    mockAppleHealth.status = {
+      connected: true,
+      primaryRunSource: 'apple_watch',
+      lastSyncedAt: '2026-06-02T08:00:00.000Z',
+      supported: true,
+    };
+
+    render(<HomeScreen />);
+
+    expect(screen.queryByTestId('home-run-source-overlay')).toBeNull();
+    expect(screen.queryByText('Connect a run source')).toBeNull();
+  });
+
+  it('connects Apple Health from the home run source overlay', async () => {
+    const week = {
+      weekNumber: 1,
+      phase: 'BASE' as const,
+      sessions: [null, null, null, null, null, null, null],
+      plannedKm: 40,
+    };
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = { id: 'p1', weeks: [week], phases: {}, raceDate: '2026-07-15', coachAnnotation: null };
+    mockPlan.currentWeek = week;
+    mockPlan.refresh = vi.fn().mockResolvedValue(undefined);
+    mockStrava.status = { connected: false, athleteId: null, lastSyncedAt: null };
+    mockAppleHealth.status = {
+      connected: false,
+      primaryRunSource: null,
+      lastSyncedAt: null,
+      supported: true,
+    };
+
+    render(<HomeScreen />);
+
+    fireEvent.click(screen.getByTestId('home-connect-apple-health'));
+
+    await waitFor(() => {
+      expect(mockAppleHealth.connectAndSync).toHaveBeenCalledTimes(1);
+    });
+    expect(mockAppleHealth.refreshStatus).toHaveBeenCalledTimes(1);
+    expect(mockPlan.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('connects Strava from the home run source overlay', async () => {
+    const week = {
+      weekNumber: 1,
+      phase: 'BASE' as const,
+      sessions: [null, null, null, null, null, null, null],
+      plannedKm: 40,
+    };
+    mockAuth.isLoading = false;
+    mockAuth.session = { user: { id: '1' } };
+    mockPlan.loading = false;
+    mockPlan.plan = { id: 'p1', weeks: [week], phases: {}, raceDate: '2026-07-15', coachAnnotation: null };
+    mockPlan.currentWeek = week;
+    mockPlan.refresh = vi.fn().mockResolvedValue(undefined);
+    mockStrava.status = { connected: false, athleteId: null, lastSyncedAt: null };
+    mockAppleHealth.status = {
+      connected: false,
+      primaryRunSource: null,
+      lastSyncedAt: null,
+      supported: true,
+    };
+
+    render(<HomeScreen />);
+
+    fireEvent.click(screen.getByTestId('home-connect-strava'));
+
+    await waitFor(() => {
+      expect(mockConnectStravaAndRefresh).toHaveBeenCalledWith({
+        refreshStatus: mockStrava.refreshStatus,
+        forceSync: mockStrava.forceSync,
+        refreshPlan: mockPlan.refresh,
+      });
+    });
   });
 
   it('locks home scroll while the weekly volume plot is scrubbed', () => {
